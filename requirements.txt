@@ -1,2 +1,3 @@
 scanpy[leiden]
 requests
+gseapy
