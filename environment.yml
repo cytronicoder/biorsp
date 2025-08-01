@@ -1,0 +1,23 @@
+name: biorsp
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  - python>=3.8
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - tqdm
+  - pyyaml
+  - requests
+  - urllib3
+  - anndata
+  - scanpy[leiden]
+  - gseapy
+  - pip
+  - pytest
+  - pip:
+      - -e .

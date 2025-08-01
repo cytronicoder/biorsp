@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biorsp"
+version = "0.2.0"
+description = "Angular scanning for directional gene expression enrichment in single-cell embeddings"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache-2.0" }
+
+authors = [
+    { name = "Zeyu Yao", email = "cytronicoder@gmail.com" },
+    { name = "Jake Y. Chen", email = "jakechen@uab.edu" },
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "tqdm",
+    "pyyaml",
+    "requests",
+    "urllib3",
+    "anndata",
+    "scanpy[leiden]",
+    "gseapy",
+]
+
+[project.optional-dependencies]
+dev = ["ipykernel", "pytest", "black", "flake8", "isort"]
+
+[project.urls]
+Homepage = "https://github.com/cytronicoder/biorsp"
+Source = "https://github.com/cytronicoder/biorsp"
+"Issue Tracker" = "https://github.com/cytronicoder/biorsp/issues"
+
+[tool.setuptools.packages.find]
+include = ["biorsp"]
