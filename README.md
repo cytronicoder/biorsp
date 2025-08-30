@@ -17,9 +17,9 @@ To make results interpretable and biologically actionable, BioRSP introduces **t
 
 By computing A1 and A2 for every gene after density correction, BioRSP provides a **principled 2D map** of gene types:
 
-| A2 / A1 | Low A1                                         | High A1                                             |
-| ------- | ---------------------------------------------- | --------------------------------------------------- |
-| Low A2  | Weak or noisy signal; _likely no significance_ | Broad, isotropic; _housekeeping_                    |
-| High A2 | Focal, polarized; _biomarker candidate_        | Widespread but directional; _axis/gradient markers_ |
+| **A2 / A1** | **Low A1**                                     | **High A1**                                         |
+| ----------- | ---------------------------------------------- | --------------------------------------------------- |
+| **Low A2**  | Weak or noisy signal; _likely no significance_ | Broad, isotropic; _housekeeping_                    |
+| **High A2** | Focal, polarized; _biomarker candidate_        | Widespread but directional; _axis/gradient markers_ |
 
 Researchers can use BioRSP to classify genes into housekeeping vs. biomarker vs. no-signal categories with reproducible, density-corrected scores. We provide biologists with clear, interpretable criteria to prioritize markers that can highlight biological features that broad, density-biased marker scans often miss.
