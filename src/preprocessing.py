@@ -417,6 +417,76 @@ def standardize_feature(
     return f_std
 
 
+def binarize_feature(
+    f: np.ndarray,
+    mode: Literal["none", "positive", "percentile", "value"] = "positive",
+    *,
+    threshold_value: Optional[float] = None,
+) -> np.ndarray:
+    """
+    Convert continuous feature values to binary foreground/background labels.
+
+    This function is essential for gene expression analysis where you want to
+    compare the spatial distribution of cells expressing a gene (foreground)
+    vs cells not expressing it (background).
+
+    Args:
+        f (np.ndarray): Continuous feature values (e.g., gene expression).
+        mode (Literal["none", "positive", "percentile", "value"], optional):
+            - "none": Return f unchanged (no binarization).
+            - "positive": Foreground = f > 0; useful for sparse gene expression.
+            - "percentile": Foreground = f > percentile(f, threshold_value).
+            - "value": Foreground = f > threshold_value.
+            Defaults to "positive".
+        threshold_value (Optional[float], optional): 
+            - For "percentile": percentile value (0-100).
+            - For "value": explicit threshold value.
+            - Ignored for "none" and "positive".
+
+    Returns:
+        np.ndarray: Binary feature (1.0 = foreground, 0.0 = background).
+
+    Raises:
+        ValueError: If mode is invalid or threshold_value is missing when required.
+
+    Examples:
+        >>> expr = np.array([0, 0, 0.5, 1.2, 2.3, 0, 0.1])
+        >>> binarize_feature(expr, mode="positive")
+        array([0., 0., 1., 1., 1., 0., 1.])
+        >>> binarize_feature(expr, mode="percentile", threshold_value=50)
+        array([0., 0., 0., 1., 1., 0., 0.])
+        >>> binarize_feature(expr, mode="value", threshold_value=1.0)
+        array([0., 0., 0., 1., 1., 0., 0.])
+
+    Notes:
+        - Binarization enables proper foreground vs background comparison.
+        - For sparse RNA-seq data, "positive" mode is often most appropriate.
+        - For continuous features, "percentile" or "value" modes may be better.
+    """
+    f = np.asarray(f)
+    
+    if mode == "none":
+        return f
+    elif mode == "positive":
+        return (f > 0).astype(float)
+    elif mode == "percentile":
+        if threshold_value is None:
+            raise ValueError("threshold_value must be provided for mode='percentile'")
+        if not 0 <= threshold_value <= 100:
+            raise ValueError(f"Percentile must be in [0, 100], got {threshold_value}")
+        threshold = np.percentile(f, threshold_value)
+        return (f > threshold).astype(float)
+    elif mode == "value":
+        if threshold_value is None:
+            raise ValueError("threshold_value must be provided for mode='value'")
+        return (f > threshold_value).astype(float)
+    else:
+        raise ValueError(
+            f"Unknown binarization mode: '{mode}'. "
+            "Must be 'none', 'positive', 'percentile', or 'value'."
+        )
+
+
 def residualize_feature(
     f: np.ndarray,
     covariates: Optional[np.ndarray] = None,

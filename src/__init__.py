@@ -22,6 +22,7 @@ from .preprocessing import (
     geometric_median,
     choose_center,
     standardize_feature,
+    binarize_feature,
     residualize_feature,
     assign_radial_bands,
     density_weights,
@@ -41,6 +42,7 @@ from .stats import (
     circular_fourier,
     sector_sums_convolved,
     compute_Z_grid,
+    compute_fg_bg_difference,
 )
 
 # Null model functions
@@ -49,12 +51,17 @@ from .null_models import (
     max_stat_under_rotations,
     max_stat_within_batch_rotations,
     label_permutation_within_bands,
+    foreground_background_permutation,
     empirical_pvalue,
     bh_qvalues,
     max_from_Zheat,
     rotation_null_pvalue,
     within_batch_rotation_pvalue,
     permutation_null_pvalue,
+    foreground_background_pvalue,
+    rotation_null_pvalue_fg_bg,
+    within_batch_rotation_pvalue_fg_bg,
+    permutation_pvalue_fg_bg,
 )
 
 # Utility functions
@@ -96,6 +103,7 @@ __all__ = [
     "geometric_median",
     "choose_center",
     "standardize_feature",
+    "binarize_feature",
     "residualize_feature",
     "assign_radial_bands",
     "density_weights",
@@ -112,17 +120,23 @@ __all__ = [
     "circular_fourier",
     "sector_sums_convolved",
     "compute_Z_grid",
+    "compute_fg_bg_difference",
     # Null models
     "rotation_shifts",
     "max_stat_under_rotations",
     "max_stat_within_batch_rotations",
     "label_permutation_within_bands",
+    "foreground_background_permutation",
     "empirical_pvalue",
     "bh_qvalues",
     "max_from_Zheat",
     "rotation_null_pvalue",
     "within_batch_rotation_pvalue",
     "permutation_null_pvalue",
+    "foreground_background_pvalue",
+    "rotation_null_pvalue_fg_bg",
+    "within_batch_rotation_pvalue_fg_bg",
+    "permutation_pvalue_fg_bg",
     # Utilities
     "config_hash",
     "ensure_float64",

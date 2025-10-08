@@ -56,9 +56,14 @@ make clean
 
 ## Quick Start
 
+### Gene Expression Analysis with Foreground/Background Comparison
+
+For gene expression analysis, use **threshold-based binarization** to compare expressing vs non-expressing cells:
+
 ```python
 import anndata
 from src.radar_scan import ScanParams, RadarScanner
+from src.plotting import plot_rsp_heatmap
 
 # Load your data
 adata = anndata.read_h5ad("your_data.h5ad")
@@ -66,24 +71,47 @@ adata = anndata.read_h5ad("your_data.h5ad")
 # Get 2D coordinates (e.g., UMAP)
 coords = adata.obsm["X_umap"]
 
-# Configure scan parameters
+# Configure scan parameters with threshold mode for gene analysis
 params = ScanParams(
     B=180,                              # Number of angles
     widths_deg=(15, 30, 60, 90, 120),  # Sector widths in degrees
     radial_mode="quantile",             # Radial binning mode
     n_bands=2,                          # Number of radial bands
-    null_model="permutation",           # Null model
+    null_model="within_batch_rotation", # Null model
     R=500,                              # Number of permutations
-    random_state=0
+    random_state=0,
+    # NEW: Threshold parameters for foreground/background comparison
+    threshold_mode="positive",          # Compare expressing vs non-expressing cells
+    threshold_value=None,               # Not needed for 'positive' mode
 )
 
 # Initialize and fit scanner
-scanner = RadarScanner(params).fit(coords)
+scanner = RadarScanner(params).fit(
+    coords,
+    batches=adata.obs["donor_id"].to_numpy(),  # For batch-aware null model
+)
 
-# Scan a feature (e.g., gene expression)
-feature = adata[:, "gene_name"].X.toarray().flatten()
-result = scanner.scan_feature(feature, name="gene_name")
+# Scan a gene with foreground/background comparison
+gene_expr = adata[:, "gene_name"].X.toarray().flatten()
+result = scanner.scan_feature(gene_expr, name="gene_name")
+
+# Visualize result
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={'projection': 'polar'})
+plot_rsp_heatmap(result, ax=ax)
+plt.show()
 ```
+
+### Threshold Modes
+
+BioRSP supports four threshold modes for feature binarization:
+
+- **`threshold_mode="none"`**: No binarization (continuous values)
+- **`threshold_mode="positive"`**: Foreground = cells with value > 0 (recommended for scRNA-seq)
+- **`threshold_mode="percentile"`**: Foreground = cells above percentile (requires `threshold_value`)
+- **`threshold_mode="value"`**: Foreground = cells above absolute threshold (requires `threshold_value`)
+
+See [GENE_ANALYSIS_GUIDE.md](GENE_ANALYSIS_GUIDE.md) for detailed documentation and examples.
 
 ## Testing
 

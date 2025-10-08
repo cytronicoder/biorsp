@@ -187,10 +187,10 @@ def plot_rsp_summary(
     result: FeatureResult,
     coords: np.ndarray,
     feature_values: np.ndarray,
-    figsize: Tuple[float, float] = (15, 5),
+    figsize: Tuple[float, float] = (12, 5),
 ) -> Figure:
     """
-    Create a comprehensive summary plot with embedding, feature distribution, and RSP heatmap.
+    Create a summary plot with embedding and RSP heatmap.
 
     Args:
         result: FeatureResult object
@@ -204,7 +204,7 @@ def plot_rsp_summary(
     fig = plt.figure(figsize=figsize)
 
     # 1. Embedding colored by feature
-    ax1 = fig.add_subplot(131)
+    ax1 = fig.add_subplot(121)
     scatter = ax1.scatter(
         coords[:, 0],
         coords[:, 1],
@@ -220,23 +220,9 @@ def plot_rsp_summary(
     plt.colorbar(scatter, ax=ax1, label="Feature value")
     ax1.set_aspect("equal")
 
-    # 2. Feature distribution
-    ax2 = fig.add_subplot(132)
-    ax2.hist(feature_values, bins=50, alpha=0.7, edgecolor="black")
-    ax2.axvline(
-        np.mean(feature_values),
-        color="red",
-        linestyle="--",
-        label=f"Mean: {np.mean(feature_values):.3f}",
-    )
-    ax2.set_xlabel("Feature value")
-    ax2.set_ylabel("Count")
-    ax2.set_title("Feature Distribution")
-    ax2.legend()
-
-    # 3. RSP heatmap
-    ax3 = fig.add_subplot(133, projection="polar")
-    plot_rsp_heatmap(result, ax=ax3, show_colorbar=True)
+    # 2. RSP heatmap
+    ax2 = fig.add_subplot(122, projection="polar")
+    plot_rsp_heatmap(result, ax=ax2, show_colorbar=True)
 
     plt.tight_layout()
 

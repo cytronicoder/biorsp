@@ -1,9 +1,9 @@
 """
-Enhanced KPMP example with gene expression scanning and RSP visualization.
+KPMP Gene Expression Analysis with Foreground/Background Comparison.
 
 This script demonstrates:
 1. Loading KPMP single-nucleus RNA-seq data
-2. Scanning donor, class, and gene expression features
+2. Scanning a single gene with foreground vs background comparison
 3. Creating publication-quality RSP plots
 """
 
@@ -12,7 +12,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from biorsp.radar_scan import ScanParams, RadarScanner
-from biorsp.plotting import plot_rsp_grid, plot_rsp_summary, save_top_results
+from biorsp.plotting import plot_rsp_summary
 
 # Set up paths
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,21 +20,23 @@ data_path = os.path.join(script_dir, "data", "kpmp_sn.h5ad")
 output_dir = os.path.join(script_dir, "output")
 os.makedirs(output_dir, exist_ok=True)
 
-print("=" * 60)
-print("KPMP Single-Nucleus RNA-seq Analysis with BioRSP")
-print("=" * 60)
+print("=" * 80)
+print("KPMP Gene Expression Analysis - Foreground vs Background Comparison")
+print("=" * 80)
 
 # Load data
 print("\n1. Loading data...")
 kpmp_adata = anndata.read_h5ad(data_path)
 print(f"   Loaded: {kpmp_adata.n_obs} cells × {kpmp_adata.n_vars} genes")
-print(f"   Metadata columns: {list(kpmp_adata.obs.columns[:10])}...")
-print(f"   Gene metadata: {list(kpmp_adata.var.columns)}")
 
 coords = kpmp_adata.obsm["X_umap"]
 
-# Configure scanner
+# Configure scanner with threshold-based binarization
 print("\n2. Configuring RadarScanner...")
+print(
+    "   Using threshold_mode='positive' to compare expressing vs non-expressing cells"
+)
+
 params = ScanParams(
     B=180,
     widths_deg=(15, 30, 60, 90, 120, 180),
@@ -48,6 +50,7 @@ params = ScanParams(
     null_model="within_batch_rotation",
     R=500,
     random_state=0,
+    threshold_mode="positive",  # Cells with expression > 0 = foreground
 )
 
 scanner = RadarScanner(params).fit(
@@ -57,186 +60,69 @@ scanner = RadarScanner(params).fit(
 )
 print(f"   Scanner fitted with {scanner.N} cells")
 
-# Scan metadata features
-print("\n3. Scanning metadata features...")
+# Manually specify gene to analyze
+gene_name = "UMOD"  # Change this to analyze different genes
 
-# Donors
-print("\n   a) Scanning donor features...")
-donor_results = []
-for donor in kpmp_adata.obs["donor_id"].unique():
-    feat = (kpmp_adata.obs["donor_id"].to_numpy() == donor).astype(float)
-    res = scanner.scan_feature(feat, name=f"donor={donor}")
-    donor_results.append(res)
-    print(f"      {res.name}: Z_max={res.Z_max:.2f}, p={res.p_value:.4f}")
-
-# Percent cortex
-print("\n   b) Scanning percent.cortex...")
-feat = kpmp_adata.obs["percent.cortex"].to_numpy()
-res_cortex = scanner.scan_feature(feat, name="percent.cortex")
-print(
-    f"      {res_cortex.name}: Z_max={res_cortex.Z_max:.2f}, p={res_cortex.p_value:.4f}"
-)
-
-# Cell classes
-print("\n   c) Scanning cell class features...")
-class_results = []
-for ct in kpmp_adata.obs["class"].unique():
-    feat = (kpmp_adata.obs["class"].to_numpy() == ct).astype(float)
-    res = scanner.scan_feature(feat, name=f"class={ct}")
-    class_results.append(res)
-    print(f"      {res.name}: Z_max={res.Z_max:.2f}, p={res.p_value:.4f}")
-
-# Scan gene expression features
-print("\n4. Scanning gene expression features...")
+print(f"\n3. Analyzing gene: {gene_name}")
 
 if "feature_name" in kpmp_adata.var.columns:
+    # Find gene index
     gene_names = kpmp_adata.var["feature_name"].tolist()
-    print(f"   Total genes available: {len(gene_names)}")
 
-    # Select top variable genes
-    print("   Computing gene variance...")
-    if hasattr(kpmp_adata.X, "toarray"):
-        X_dense = kpmp_adata.X.toarray()
-    else:
-        X_dense = kpmp_adata.X
-
-    gene_vars = np.var(X_dense, axis=0)
-    top_gene_indices = np.argsort(gene_vars)[::-1][:50]  # Top 50 most variable
-
-    print(f"   Scanning top 50 most variable genes...")
-    gene_results = []
-
-    for i, idx in enumerate(top_gene_indices):
-        gene_name = gene_names[idx]
+    if gene_name in gene_names:
+        gene_idx = gene_names.index(gene_name)
 
         # Get gene expression
         if hasattr(kpmp_adata.X, "toarray"):
-            gene_expr = kpmp_adata.X[:, idx].toarray().ravel()
+            gene_expr = kpmp_adata.X[:, gene_idx].toarray().ravel()
         else:
-            gene_expr = kpmp_adata.X[:, idx].ravel()
+            gene_expr = kpmp_adata.X[:, gene_idx].ravel()
 
-        res = scanner.scan_feature(gene_expr, name=f"{gene_name}")
-        gene_results.append(res)
+        # Print gene statistics
+        n_expressing = np.sum(gene_expr > 0)
+        pct_expressing = 100 * n_expressing / len(gene_expr)
+        mean_expr = np.mean(gene_expr[gene_expr > 0]) if n_expressing > 0 else 0
 
-        if (i + 1) % 10 == 0:
-            print(f"      Progress: {i+1}/50 genes scanned")
+        print(f"   Cells expressing (>0): {n_expressing} ({pct_expressing:.1f}%)")
+        print(f"   Mean expression in expressing cells: {mean_expr:.3f}")
 
-    print("   Completed gene scanning!")
+        # Scan the gene
+        print("\n4. Scanning gene...")
+        result = scanner.scan_feature(gene_expr, name=gene_name)
 
-    # Print top results
-    print("\n   Top 10 genes by p-value:")
-    gene_results_sorted = sorted(gene_results, key=lambda x: x.p_value)
-    for i, res in enumerate(gene_results_sorted[:10]):
-        print(f"      {i+1}. {res.name}: Z_max={res.Z_max:.2f}, p={res.p_value:.6f}")
+        print(f"   Z_max: {result.Z_max:.3f}")
+        print(f"   p_value: {result.p_value:.6f}")
+        print(f"   Peak angle: {np.degrees(result.phi_star):.1f}°")
+        print(f"   Enrichment ratio: {result.ER:.3f}")
 
-    # Generate visualizations
-    print("\n5. Generating visualizations...")
+        # Generate visualization
+        print("\n5. Creating summary plot...")
+        fig = plot_rsp_summary(result, coords, gene_expr, figsize=(14, 6))
+        output_path = os.path.join(output_dir, f"summary_{gene_name}.png")
+        fig.savefig(output_path, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        print(f"   Saved to: {output_path}")
 
-    # Plot grid of top genes
-    print("   a) Creating grid plot for top 12 genes...")
-    fig = plot_rsp_grid(
-        gene_results,
-        ncols=4,
-        max_plots=12,
-        sort_by="p_value",
-        suptitle="Top 12 Most Significant Genes - RSP Heatmaps",
-        show_peaks=True,
-    )
-    output_path = os.path.join(output_dir, "top_genes_grid.png")
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"      Saved to: {output_path}")
-
-    # Plot grid of cell classes
-    print("   b) Creating grid plot for cell classes...")
-    fig = plot_rsp_grid(
-        class_results,
-        ncols=3,
-        sort_by="p_value",
-        suptitle="Cell Class Features - RSP Heatmaps",
-        show_peaks=True,
-    )
-    output_path = os.path.join(output_dir, "cell_classes_grid.png")
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"      Saved to: {output_path}")
-
-    # Create summary plot for top gene
-    print("   c) Creating detailed summary for top gene...")
-    best_gene_result = gene_results_sorted[0]
-    best_gene_idx = gene_names.index(best_gene_result.name)
-
-    if hasattr(kpmp_adata.X, "toarray"):
-        best_gene_expr = kpmp_adata.X[:, best_gene_idx].toarray().ravel()
-    else:
-        best_gene_expr = kpmp_adata.X[:, best_gene_idx].ravel()
-
-    fig = plot_rsp_summary(best_gene_result, coords, best_gene_expr, figsize=(16, 5))
-    output_path = os.path.join(output_dir, f"summary_{best_gene_result.name}.png")
-    fig.savefig(output_path, dpi=200, bbox_inches="tight")
-    plt.close(fig)
-    print(f"      Saved to: {output_path}")
-
-    # Save individual plots for top 5 genes
-    print("   d) Saving individual plots for top 5 genes...")
-    saved_paths = save_top_results(
-        gene_results,
-        output_dir=output_dir,
-        top_n=5,
-        sort_by="p_value",
-        prefix="gene_rsp",
-        dpi=200,
-    )
-    print(f"      Saved {len(saved_paths)} individual plots")
-
-    # Create summary statistics CSV
-    print("\n6. Saving summary statistics...")
-    import pandas as pd
-
-    # Combine all results
-    all_results = gene_results + class_results + [res_cortex]
-
-    summary_data = []
-    for res in all_results:
-        summary_data.append(
-            {
-                "feature": res.name,
-                "Z_max": res.Z_max,
-                "p_value": res.p_value,
-                "peak_angle_deg": np.degrees(res.phi_star),
-                "width_idx": res.width_idx,
-                "center_idx": res.center_idx,
-                "enrichment_ratio": res.ER,
-                "concentration": res.R_conc,
-            }
+        # Print summary
+        print("\n" + "=" * 80)
+        print("Analysis Complete!")
+        print("=" * 80)
+        print(f"Gene: {gene_name}")
+        print(f"  - Foreground: {n_expressing} cells expressing (value > 0)")
+        print(
+            f"  - Background: {len(gene_expr) - n_expressing} cells not expressing (value = 0)"
         )
+        print(f"  - Z_max: {result.Z_max:.3f}")
+        print(f"  - p_value: {result.p_value:.6f}")
+        print(f"\nOutput saved to: {output_path}")
+        print("=" * 80)
 
-    summary_df = pd.DataFrame(summary_data)
-    summary_df = summary_df.sort_values("p_value")
-
-    csv_path = os.path.join(output_dir, "rsp_summary_statistics.csv")
-    summary_df.to_csv(csv_path, index=False)
-    print(f"   Saved summary statistics to: {csv_path}")
-
-    # Print summary
-    print("\n" + "=" * 60)
-    print("Analysis Complete!")
-    print("=" * 60)
-    print(f"Total features scanned: {len(all_results)}")
-    print(
-        f"Significant features (p < 0.05): {sum(r.p_value < 0.05 for r in all_results)}"
-    )
-    print(f"\nOutputs saved to: {output_dir}")
-    print("  - top_genes_grid.png: Grid of top 12 genes")
-    print("  - cell_classes_grid.png: Grid of cell classes")
-    print(f"  - summary_{best_gene_result.name}.png: Detailed view of top gene")
-    print("  - gene_rsp_*.png: Individual plots for top 5 genes")
-    print("  - rsp_summary_statistics.csv: All results statistics")
-    print("=" * 60)
+    else:
+        print(f"\n   ERROR: Gene '{gene_name}' not found in dataset")
+        print(f"   Available genes (first 20): {gene_names[:20]}")
 
 else:
-    print("\n   WARNING: 'feature_name' column not found in .var")
-    print("   Available columns:", list(kpmp_adata.var.columns))
-    print("   Skipping gene expression analysis.")
+    print("\n   ERROR: 'feature_name' column not found in .var")
+    print(f"   Available columns: {list(kpmp_adata.var.columns)}")
 
 print("\nDone!")

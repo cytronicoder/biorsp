@@ -794,3 +794,82 @@ def compute_Z_grid(
         Z = Z.squeeze(axis=0)
 
     return Obs, Exp, Var, Z
+
+
+def compute_fg_bg_difference(
+    wedge_idx,
+    feature,
+    weights=None,
+    B=256,
+):
+    """
+    Compute difference in proportions between foreground and background distributions.
+    
+    For binary features (foreground=1, background=0), this computes:
+        diff[wedge] = (n_fg_wedge / n_fg_total) - (n_bg_wedge / n_bg_total)
+    
+    This tests whether the foreground distribution differs from the background distribution.
+    
+    Parameters
+    ----------
+    wedge_idx : array-like, shape (N,) or (M, N)
+        Wedge bin assignment for each cell (integer in [0, B-1]).
+    feature : array-like, shape (N,) or (M, N)
+        Binary feature values (1 = foreground, 0 = background).
+    weights : array-like, shape (N,) or (M, N), optional
+        Weights for each cell. If None, uniform weights are used.
+    B : int, default=256
+        Number of angular bins.
+        
+    Returns
+    -------
+    diff : ndarray, shape (B,) or (M, B)
+        Difference in proportions for each wedge position.
+        Positive values indicate foreground is enriched, negative indicates depletion.
+    fg_prop : ndarray, shape (B,) or (M, B)
+        Foreground proportion in each wedge.
+    bg_prop : ndarray, shape (B,) or (M, B)
+        Background proportion in each wedge.
+    """
+    # Handle input shapes
+    wedge_idx = np.atleast_1d(wedge_idx)
+    feature = np.atleast_1d(feature)
+    
+    if weights is None:
+        weights = np.ones_like(feature, dtype=float)
+    else:
+        weights = np.atleast_1d(weights)
+    
+    # Separate foreground and background
+    fg_mask = feature > 0  # Foreground cells
+    bg_mask = feature == 0  # Background cells
+    
+    # Foreground and background weights
+    fg_weights = weights * fg_mask
+    bg_weights = weights * bg_mask
+    
+    # Total foreground and background weights
+    total_fg = np.sum(fg_weights)
+    total_bg = np.sum(bg_weights)
+    
+    # Compute counts in each wedge for foreground
+    fg_sums = np.bincount(wedge_idx, weights=fg_weights, minlength=B)
+    
+    # Compute counts in each wedge for background
+    bg_sums = np.bincount(wedge_idx, weights=bg_weights, minlength=B)
+    
+    # Compute proportions
+    # Avoid division by zero
+    fg_prop = np.zeros(B, dtype=float)
+    bg_prop = np.zeros(B, dtype=float)
+    
+    if total_fg > 0:
+        fg_prop = fg_sums / total_fg
+    
+    if total_bg > 0:
+        bg_prop = bg_sums / total_bg
+    
+    # Compute difference
+    diff = fg_prop - bg_prop
+    
+    return diff, fg_prop, bg_prop

@@ -39,6 +39,10 @@ class ScanParams:
     standardize: Literal["z", "rank", "mad", "none"] = "z"
     residualize: Literal["none", "ols", "ridge"] = "none"
     ridge_alpha: float = 1.0
+    
+    # Binarization / thresholding for foreground vs background
+    threshold_mode: Literal["none", "positive", "percentile", "value"] = "none"
+    threshold_value: Optional[float] = None
 
     # Density correction
     density_correction: Literal["none", "2d", "ratio"] = "none"
@@ -614,7 +618,7 @@ class RadarScanner:
         self, feature: np.ndarray, covariates: Optional[np.ndarray]
     ) -> np.ndarray:
         """
-        Preprocess feature: standardize, residualize, apply density weights.
+        Preprocess feature: binarize (if enabled), standardize, residualize, apply density weights.
 
         Args:
             feature (np.ndarray): Raw feature values, shape (N,).
@@ -624,11 +628,28 @@ class RadarScanner:
             np.ndarray: Preprocessed weights, shape (N,).
 
         Notes:
-            - Applies standardization according to params.standardize.
+            - Applies binarization first if threshold_mode != 'none', converting continuous
+              features (e.g., gene expression) to binary foreground/background labels.
+            - For binarized features, standardization is skipped (weights = binarized values)
+              since binary features are already in {0, 1} and represent presence/absence.
+            - For non-binarized features, applies standardization according to params.standardize.
             - Optionally residualizes against covariates if params.residualize != 'none'.
             - Multiplies by density_w if available.
+            - Binarization is crucial for gene expression: it ensures we compare the
+              distribution of cells expressing the gene (foreground) vs not (background).
         """
-        weights = prep.standardize_feature(feature, method=self._params_obj.standardize)
+        # Apply binarization first for foreground/background separation
+        if self._params_obj.threshold_mode != "none":
+            weights = prep.binarize_feature(
+                feature,
+                mode=self._params_obj.threshold_mode,
+                threshold_value=self._params_obj.threshold_value,
+            )
+            # For binary features, skip standardization - already in {0, 1}
+            # Standardizing binary data can produce negative values which cause issues
+        else:
+            # For continuous features, apply standardization
+            weights = prep.standardize_feature(feature, method=self._params_obj.standardize)
 
         if self._params_obj.residualize != "none" and covariates is not None:
             weights = prep.residualize_feature(
@@ -754,9 +775,16 @@ class RadarScanner:
         """
         Calibrate p-value using null model.
 
+        For binary/binarized features (when threshold_mode != 'none'), uses the
+        foreground/background null models which test if foreground cells have a
+        different angular distribution than background cells.
+
+        For continuous features (when threshold_mode == 'none'), uses the standard
+        null model (rotation or permutation) which tests against uniform distribution.
+
         Args:
             weights (np.ndarray): Preprocessed per-cell weights, shape (N,).
-            Z_obs (float): Observed maximum Z-score.
+            Z_obs (float): Observed maximum Z-score (or max difference for binary features).
 
         Returns:
             float: Empirical p-value from the null distribution.
@@ -765,82 +793,132 @@ class RadarScanner:
             ValueError: If batches are required but not provided.
 
         Notes:
-            - Bins weights to wedge sums, ensuring proper (A, B) shape.
-            - Delegates to appropriate null_models function based on params.null_model.
-            - Supports 'rotation', 'within_batch_rotation', and 'permutation' null models.
+            - For binary features, uses new foreground vs background tests:
+              * rotation_null_pvalue_fg_bg
+              * within_batch_rotation_pvalue_fg_bg
+              * permutation_pvalue_fg_bg
+            - For continuous features, uses standard null models.
         """
-        S = self._bin_to_wedges(weights)
-        if S.ndim == 1:
-            wedge_sums = S[None, :]
-            totals_per_band = np.array([np.sum(S)])
-        else:
-            wedge_sums = S
-            totals_per_band = S.sum(axis=1)
-
         null_mode = self._params_obj.null_model
         rng = utils.check_random_state(self._params_obj.random_state)
 
-        if null_mode == "rotation":
-            p_value, _ = null_models.rotation_null_pvalue(
-                wedge_sums=wedge_sums,
-                totals_per_band=totals_per_band,
-                kernels=self.kernels,
-                B=self.B,
-                R=self._params_obj.R,
-                var_mode=self._params_obj.var_mode,
-                overdispersion=self._params_obj.overdispersion,
-                engine=self._params_obj.engine,
-                zmax_obs=Z_obs,
-                random_state=rng,
-            )
-        elif null_mode == "within_batch_rotation":
-            if self.batches is None:
-                raise ValueError("batches required for within_batch_rotation")
+        # Detect if this is a binary feature (from binarization)
+        is_binary = self._params_obj.threshold_mode != "none"
 
-            unique_batches = np.unique(self.batches)
-            G = len(unique_batches)
-            A = wedge_sums.shape[0]
-            wedge_sums_per_batch = np.zeros((G, A, self.B))
-            totals_per_band_per_batch = np.zeros((G, A))
-
-            for g, batch in enumerate(unique_batches):
-                mask = self.batches == batch
-                S_batch = self._bin_to_wedges(weights, mask=mask)
-                if S_batch.ndim == 1:
-                    S_batch = S_batch[None, :]
-                wedge_sums_per_batch[g] = S_batch
-                totals_per_band_per_batch[g] = S_batch.sum(axis=1)
-
-            p_value, _ = null_models.within_batch_rotation_pvalue(
-                wedge_sums_per_batch=wedge_sums_per_batch,
-                totals_per_band_per_batch=totals_per_band_per_batch,
-                kernels=self.kernels,
-                B=self.B,
-                R=self._params_obj.R,
-                var_mode=self._params_obj.var_mode,
-                overdispersion=self._params_obj.overdispersion,
-                engine=self._params_obj.engine,
-                zmax_obs=Z_obs,
-                random_state=rng,
-            )
-        elif null_mode == "permutation":
-            p_value, _ = null_models.permutation_null_pvalue(
-                weights=weights,
-                wedge_idx=self.wedge_idx,
-                band_idx=self.band_idx,
-                kernels=self.kernels,
-                B=self.B,
-                A=len(np.unique(self.band_idx)),
-                R=self._params_obj.R,
-                var_mode=self._params_obj.var_mode,
-                overdispersion=self._params_obj.overdispersion,
-                engine=self._params_obj.engine,
-                batches=self.batches,
-                zmax_obs=Z_obs,
-                random_state=rng,
-            )
+        if is_binary:
+            # For binary features, use foreground vs background tests
+            # Get the kernel for the best width (first kernel since we use max over all)
+            kernel = self.kernels[0] if len(self.kernels) > 0 else None
+            
+            if null_mode == "rotation":
+                p_value, _, _ = null_models.rotation_null_pvalue_fg_bg(
+                    wedge_idx=self.wedge_idx,
+                    feature=weights,
+                    weights=None,  # weights already incorporated in feature values
+                    kernel=kernel,
+                    B=self.B,
+                    R=self._params_obj.R,
+                    random_state=rng,
+                )
+            elif null_mode == "within_batch_rotation":
+                if self.batches is None:
+                    raise ValueError("batches required for within_batch_rotation")
+                
+                p_value, _, _ = null_models.within_batch_rotation_pvalue_fg_bg(
+                    wedge_idx=self.wedge_idx,
+                    feature=weights,
+                    batches=self.batches,
+                    weights=None,
+                    kernel=kernel,
+                    B=self.B,
+                    R=self._params_obj.R,
+                    random_state=rng,
+                )
+            elif null_mode == "permutation":
+                p_value, _, _ = null_models.permutation_pvalue_fg_bg(
+                    wedge_idx=self.wedge_idx,
+                    feature=weights,
+                    band_idx=self.band_idx,
+                    batches=self.batches,
+                    weights=None,
+                    kernel=kernel,
+                    B=self.B,
+                    R=self._params_obj.R,
+                    random_state=rng,
+                )
+            else:
+                raise ValueError(f"Unknown null model: {null_mode}")
         else:
-            raise ValueError(f"Unknown null_model: {null_mode}")
+            # For continuous features, use standard null models
+            S = self._bin_to_wedges(weights)
+            if S.ndim == 1:
+                wedge_sums = S[None, :]
+                totals_per_band = np.array([np.sum(S)])
+            else:
+                wedge_sums = S
+                totals_per_band = S.sum(axis=1)
+
+            if null_mode == "rotation":
+                p_value, _ = null_models.rotation_null_pvalue(
+                    wedge_sums=wedge_sums,
+                    totals_per_band=totals_per_band,
+                    kernels=self.kernels,
+                    B=self.B,
+                    R=self._params_obj.R,
+                    var_mode=self._params_obj.var_mode,
+                    overdispersion=self._params_obj.overdispersion,
+                    engine=self._params_obj.engine,
+                    zmax_obs=Z_obs,
+                    random_state=rng,
+                )
+            elif null_mode == "within_batch_rotation":
+                if self.batches is None:
+                    raise ValueError("batches required for within_batch_rotation")
+
+                unique_batches = np.unique(self.batches)
+                G = len(unique_batches)
+                A = wedge_sums.shape[0]
+                wedge_sums_per_batch = np.zeros((G, A, self.B))
+                totals_per_band_per_batch = np.zeros((G, A))
+
+                for g, batch in enumerate(unique_batches):
+                    mask = self.batches == batch
+                    S_batch = self._bin_to_wedges(weights, mask=mask)
+                    if S_batch.ndim == 1:
+                        S_batch = S_batch[None, :]
+                    wedge_sums_per_batch[g] = S_batch
+                    totals_per_band_per_batch[g] = S_batch.sum(axis=1)
+
+                p_value, _ = null_models.within_batch_rotation_pvalue(
+                    wedge_sums_per_batch=wedge_sums_per_batch,
+                    totals_per_band_per_batch=totals_per_band_per_batch,
+                    kernels=self.kernels,
+                    B=self.B,
+                    R=self._params_obj.R,
+                    var_mode=self._params_obj.var_mode,
+                    overdispersion=self._params_obj.overdispersion,
+                    engine=self._params_obj.engine,
+                    zmax_obs=Z_obs,
+                    random_state=rng,
+                )
+            elif null_mode == "permutation":
+                p_value, _ = null_models.permutation_null_pvalue(
+                    weights=weights,
+                    wedge_idx=self.wedge_idx,
+                    band_idx=self.band_idx,
+                    kernels=self.kernels,
+                    B=self.B,
+                    A=len(np.unique(self.band_idx)),
+                    R=self._params_obj.R,
+                    var_mode=self._params_obj.var_mode,
+                    overdispersion=self._params_obj.overdispersion,
+                    engine=self._params_obj.engine,
+                    batches=self.batches,
+                    zmax_obs=Z_obs,
+                    random_state=rng,
+                )
+            else:
+                raise ValueError(f"Unknown null_model: {null_mode}")
 
         return p_value
 

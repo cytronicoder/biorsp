@@ -2,29 +2,43 @@
 
 ## Overview
 
-This document provides a complete guide for scanning gene expression features and creating RSP (Radar Scanning Plot) visualizations using the BioRSP package.
+This document provides a complete guide for scanning gene expression features using the BioRSP package, with a focus on **foreground vs background comparison** using threshold-based binarization.
 
-## What Was Added
+## Key Concept: Foreground vs Background Comparison
 
-### 1. Plotting Module (`src/plotting.py`)
+When analyzing gene expression, BioRSP now supports **explicit foreground/background comparison** to detect spatial polarization:
 
-A comprehensive visualization module with four main functions:
+- **Foreground**: Cells expressing the gene (above threshold)
+- **Background**: Cells not expressing the gene (below threshold)
 
-- **`plot_rsp_heatmap()`**: Plot a single RSP heatmap in polar coordinates
-- **`plot_rsp_grid()`**: Create a grid of multiple RSP heatmaps
-- **`plot_rsp_summary()`**: Generate a 3-panel summary (embedding, distribution, RSP)
-- **`save_top_results()`**: Batch save individual plots for top results
+This approach is essential for proper gene expression analysis because it compares the spatial distribution of expressing cells against non-expressing cells, rather than just looking at expression levels.
 
-### 2. Enhanced Example Scripts
+## Threshold Modes
 
-- **`examples/kpmp.py`**: Complete analysis with gene scanning and inline plotting
-- **`examples/kpmp_with_plots.py`**: Full pipeline with all plotting utilities
-- **`examples/README.md`**: Comprehensive usage documentation
+BioRSP provides four threshold modes for binarizing features:
 
-### 3. Bug Fixes
+### 1. `threshold_mode="none"` (Default - No Binarization)
+- Uses continuous feature values
+- Good for non-binary features (e.g., cell metadata)
+- **Not recommended for gene expression**
 
-- **Fixed IndexError in `_bin_to_wedges`**: Added optional mask parameter for batch-wise operations
-- **Fixed dimension mismatch in `_compute_Z_grid`**: Properly handle single-band case to avoid 3D arrays
+### 2. `threshold_mode="positive"` (Recommended for RNA-seq)
+- Foreground: cells with expression > 0
+- Background: cells with expression = 0
+- **Best for sparse scRNA-seq data**
+- Example: Detect spatial polarization of gene-expressing cells
+
+### 3. `threshold_mode="percentile"`
+- Foreground: cells above specified percentile
+- Background: cells below percentile
+- Requires `threshold_value` (0-100)
+- Example: Top 25% expressing cells vs bottom 75%
+
+### 4. `threshold_mode="value"`
+- Foreground: cells with expression > threshold_value
+- Background: cells with expression ≤ threshold_value
+- Requires `threshold_value` (absolute value)
+- Example: Cells with expression > 2.0 vs ≤ 2.0
 
 ## Quick Start
 
@@ -36,7 +50,7 @@ cd /path/to/biorsp_v3
 pip install -e .
 ```
 
-### Basic Gene Scanning
+### Basic Gene Scanning with Foreground/Background Comparison
 
 ```python
 import anndata
@@ -47,6 +61,153 @@ from src.plotting import plot_rsp_heatmap, plot_rsp_grid
 # Load data
 adata = anndata.read_h5ad("your_data.h5ad")
 coords = adata.obsm["X_umap"]
+
+# Configure scanner with threshold-based binarization
+params = ScanParams(
+    B=180,
+    widths_deg=(15, 30, 60, 90, 120, 180),
+    radial_mode="quantile",
+    n_bands=2,
+    standardize="rank",
+    residualize="ols",
+    density_correction="2d",
+    null_model="within_batch_rotation",
+    R=500,
+    # NEW: Threshold parameters for foreground/background comparison
+    threshold_mode="positive",  # Compare expressing vs non-expressing cells
+    threshold_value=None,  # Not needed for 'positive' mode
+)
+
+# Fit scanner
+scanner = RadarScanner(params).fit(
+    coords,
+    covariates=adata.obs[["nCount_RNA", "percent.mt"]].to_numpy(),
+    batches=adata.obs["donor_id"].to_numpy(),
+)
+
+# Scan a gene with foreground/background comparison
+gene_expr = adata[:, "GENE_NAME"].X.toarray().ravel()
+result = scanner.scan_feature(gene_expr, name="GENE_NAME")
+
+# Plot result
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots(figsize=(8, 8), subplot_kw={'projection': 'polar'})
+plot_rsp_heatmap(result, ax=ax)
+plt.show()
+```
+
+### Example: Different Threshold Modes
+
+```python
+# Mode 1: Positive threshold (recommended for scRNA-seq)
+params_positive = ScanParams(
+    threshold_mode="positive",
+    # ... other params ...
+)
+
+# Mode 2: Percentile threshold (top 50% vs bottom 50%)
+params_percentile = ScanParams(
+    threshold_mode="percentile",
+    threshold_value=50,  # 50th percentile
+    # ... other params ...
+)
+
+# Mode 3: Absolute value threshold
+params_value = ScanParams(
+    threshold_mode="value",
+    threshold_value=1.5,  # Expression > 1.5
+    # ... other params ...
+)
+
+# Mode 4: No threshold (continuous values - not recommended for genes)
+params_none = ScanParams(
+    threshold_mode="none",
+    # ... other params ...
+)
+```
+
+## What Was Added
+
+### 1. Binarization Function (`src/preprocessing.py`)
+
+A new `binarize_feature()` function that converts continuous features to binary:
+
+```python
+from src.preprocessing import binarize_feature
+
+# Convert gene expression to binary
+gene_expr = np.array([0, 0, 0.5, 1.2, 2.3, 0, 0.1])
+
+# Positive mode
+binary = binarize_feature(gene_expr, mode="positive")
+# Output: [0., 0., 1., 1., 1., 0., 1.]
+
+# Percentile mode
+binary = binarize_feature(gene_expr, mode="percentile", threshold_value=50)
+# Output: [0., 0., 0., 1., 1., 0., 0.]
+```
+
+### 2. Enhanced ScanParams
+
+New parameters added to `ScanParams`:
+- `threshold_mode`: Controls binarization strategy
+- `threshold_value`: Threshold value for percentile/value modes
+
+### 3. Updated Example Script
+
+`examples/kpmp_with_plots.py` now demonstrates:
+- Gene-centric analysis (not donor-centric)
+- Foreground vs background comparison
+- Proper interpretation of results
+
+### 4. Plotting Module (`src/plotting.py`)
+
+A comprehensive visualization module with four main functions:
+
+- **`plot_rsp_heatmap()`**: Plot a single RSP heatmap in polar coordinates
+- **`plot_rsp_grid()`**: Create a grid of multiple RSP heatmaps
+- **`plot_rsp_summary()`**: Generate a 3-panel summary (embedding, distribution, RSP)
+- **`save_top_results()`**: Batch save individual plots for top results
+
+## Understanding Results
+
+When using threshold-based analysis:
+
+1. **Z_max**: Strength of spatial polarization (foreground vs background)
+2. **p_value**: Significance of the polarization
+3. **peak_angle (phi_star)**: Direction of enrichment for foreground cells
+4. **ER (enrichment ratio)**: Fold-enrichment of foreground in peak sector
+5. **R_conc (concentration)**: How concentrated the foreground is
+
+### Interpretation Example
+
+```python
+result = scanner.scan_feature(gene_expr, name="GENE_X")
+
+if result.p_value < 0.05:
+    print(f"Gene {result.name} shows significant spatial polarization")
+    print(f"Cells expressing this gene are enriched at {np.degrees(result.phi_star):.1f}°")
+    print(f"Enrichment ratio: {result.ER:.2f}x")
+    
+    # This means: expressing cells (foreground) are spatially polarized
+    # compared to non-expressing cells (background)
+```
+
+## Complete Example: Gene Expression Analysis
+
+See `examples/kpmp_with_plots.py` for a complete workflow:
+
+1. Load scRNA-seq data
+2. Configure scanner with threshold mode
+3. Scan top variable genes
+4. Generate visualizations
+5. Save results with expression statistics
+
+```bash
+# Run the example
+cd examples
+python kpmp_with_plots.py
+```
 
 # Configure scanner
 params = ScanParams(
