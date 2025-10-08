@@ -260,7 +260,7 @@ class RadarScanner:
             name=name,
             Z_max=Z_max,
             p_value=p_value,
-            q_value=None,  # computed later in batch
+            q_value=None,
             phi_star=phi_star,
             width_idx=width_idx,
             center_idx=center_idx,
@@ -638,17 +638,13 @@ class RadarScanner:
             - Binarization is crucial for gene expression: it ensures we compare the
               distribution of cells expressing the gene (foreground) vs not (background).
         """
-        # Apply binarization first for foreground/background separation
         if self._params_obj.threshold_mode != "none":
             weights = prep.binarize_feature(
                 feature,
                 mode=self._params_obj.threshold_mode,
                 threshold_value=self._params_obj.threshold_value,
             )
-            # For binary features, skip standardization - already in {0, 1}
-            # Standardizing binary data can produce negative values which cause issues
         else:
-            # For continuous features, apply standardization
             weights = prep.standardize_feature(feature, method=self._params_obj.standardize)
 
         if self._params_obj.residualize != "none" and covariates is not None:
@@ -681,7 +677,6 @@ class RadarScanner:
             - Uses fast bincount for efficiency.
             - Automatically detects number of bands from self.band_idx.
         """
-        # Apply mask if provided
         if mask is not None:
             weights = weights[mask]
             wedge_idx = self.wedge_idx[mask]
@@ -716,7 +711,6 @@ class RadarScanner:
             - Aggregates across bands using fixed-effects model if A > 1.
             - Delegates to stats.compute_Z_grid for proper variance computation.
         """
-        # Track if input was 1D to squeeze output
         squeeze_output = False
         if S.ndim == 1:
             S = S[None, :]
@@ -736,7 +730,6 @@ class RadarScanner:
         if S.shape[0] > 1:
             Z = stats.aggregate_bands(Z, method="fixed")
         elif squeeze_output:
-            # If input was 1D, return 1D output
             Z = Z.squeeze()
 
         return Z
@@ -802,12 +795,9 @@ class RadarScanner:
         null_mode = self._params_obj.null_model
         rng = utils.check_random_state(self._params_obj.random_state)
 
-        # Detect if this is a binary feature (from binarization)
         is_binary = self._params_obj.threshold_mode != "none"
 
         if is_binary:
-            # For binary features, use foreground vs background tests
-            # Get the kernel for the best width (first kernel since we use max over all)
             kernel = self.kernels[0] if len(self.kernels) > 0 else None
             
             if null_mode == "rotation":

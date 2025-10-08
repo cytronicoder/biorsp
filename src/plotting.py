@@ -39,29 +39,22 @@ def plot_rsp_heatmap(
     if result.Z_heat is None:
         raise ValueError("FeatureResult has no Z_heat data to plot")
 
-    # Create axes if not provided
     if ax is None:
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111, projection="polar")
 
-    # Get heatmap dimensions
     J, B = result.Z_heat.shape  # J = number of bands/widths, B = angular bins
 
-    # Create angular and radial coordinates for pcolormesh edges
-    # We need B+1 theta values and J+1 radial values for edges
     theta = np.linspace(0, 2 * np.pi, B + 1)  # B+1 for edges
     r = np.arange(J + 1)  # J+1 for pcolormesh edges
 
-    # Create meshgrid
     theta_grid, r_grid = np.meshgrid(theta, r)
 
-    # Set color limits
     if vmin is None or vmax is None:
         max_abs = np.abs(result.Z_heat).max()
         vmin = -max_abs if vmin is None else vmin
         vmax = max_abs if vmax is None else vmax
 
-    # Plot heatmap
     im = ax.pcolormesh(
         theta_grid,
         r_grid,
@@ -72,7 +65,6 @@ def plot_rsp_heatmap(
         vmax=vmax,
     )
 
-    # Mark peak direction
     if show_peak and result.phi_star is not None:
         peak_angle = result.phi_star
         ax.plot(
@@ -85,7 +77,6 @@ def plot_rsp_heatmap(
         )
         ax.legend(loc="upper left", bbox_to_anchor=(1.1, 1.0), fontsize=8)
 
-    # Set title
     if title is None:
         title = f"{result.name or 'Feature'}\n"
         title += f"Z={result.Z_max:.2f}, p={result.p_value:.4f}\n"
@@ -93,11 +84,9 @@ def plot_rsp_heatmap(
 
     ax.set_title(title, fontsize=10, pad=15)
 
-    # Add colorbar
     if show_colorbar:
         plt.colorbar(im, ax=ax, label="Z-score", pad=0.1, fraction=0.046)
 
-    # Set radial labels to show band numbers
     ax.set_yticks(np.arange(J) + 0.5)
     ax.set_yticklabels([f"Band {i}" for i in range(J)], fontsize=8)
 
@@ -130,51 +119,40 @@ def plot_rsp_grid(
     Returns:
         Matplotlib Figure object
     """
-    # Filter results with heatmap data
     results = [r for r in results if r.Z_heat is not None]
 
     if len(results) == 0:
         raise ValueError("No results with Z_heat data to plot")
 
-    # Sort if requested
     if sort_by == "p_value":
         results = sorted(results, key=lambda x: x.p_value)
     elif sort_by == "Z_max":
         results = sorted(results, key=lambda x: -x.Z_max)
 
-    # Limit number of plots
     if max_plots is not None:
         results = results[:max_plots]
 
-    # Calculate grid dimensions
     nplots = len(results)
     nrows = int(np.ceil(nplots / ncols))
-
-    # Set figure size
     if figsize is None:
         figsize = (5 * ncols, 5 * nrows)
 
-    # Create figure
     fig, axes = plt.subplots(
         nrows, ncols, figsize=figsize, subplot_kw=dict(projection="polar")
     )
 
-    # Flatten axes array
     if nplots == 1:
         axes = np.array([axes])
     axes = axes.ravel() if hasattr(axes, "ravel") else [axes]
 
-    # Plot each result
     for i, result in enumerate(results):
         plot_rsp_heatmap(
             result, ax=axes[i], cmap=cmap, show_peak=show_peaks, show_colorbar=True
         )
 
-    # Hide unused axes
     for i in range(nplots, len(axes)):
         axes[i].axis("off")
 
-    # Add overall title
     if suptitle:
         fig.suptitle(suptitle, fontsize=14, y=0.995)
 
@@ -252,17 +230,13 @@ def save_top_results(
         List of saved file paths
     """
     import os
-
-    # Create output directory
     os.makedirs(output_dir, exist_ok=True)
 
-    # Sort results
     if sort_by == "p_value":
         results = sorted(results, key=lambda x: x.p_value)
     elif sort_by == "Z_max":
         results = sorted(results, key=lambda x: -x.Z_max)
 
-    # Take top N
     results = results[:top_n]
 
     saved_paths = []
@@ -271,12 +245,10 @@ def save_top_results(
         if result.Z_heat is None:
             continue
 
-        # Create individual plot
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111, projection="polar")
         plot_rsp_heatmap(result, ax=ax, show_colorbar=True, show_peak=True)
 
-        # Create safe filename
         safe_name = (
             str(result.name or f"feature_{i}").replace("/", "_").replace("=", "_")
         )

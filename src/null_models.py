@@ -964,7 +964,6 @@ def foreground_background_pvalue(
             )
 
     if zmax_obs is None:
-        # Compute observed max Z from unpermuted labels
         wedge_sums = np.zeros((A, B))
         for i in range(N):
             a = band_idx[i]
@@ -999,7 +998,6 @@ def foreground_background_pvalue(
 
             zmax_obs = max(zmax_obs, np.nanmax(Z))
 
-    # Generate null distribution by permuting binary labels
     Zmax_null = foreground_background_permutation(
         binary_labels=binary_labels,
         wedge_idx=wedge_idx,
@@ -1020,11 +1018,6 @@ def foreground_background_pvalue(
     return p, Zmax_null
 
 
-# ============================================================================
-# Foreground vs Background Null Models
-# ============================================================================
-
-
 def rotation_null_pvalue_fg_bg(
     wedge_idx,
     feature,
@@ -1037,11 +1030,11 @@ def rotation_null_pvalue_fg_bg(
 ):
     """
     Rotation null for foreground vs background difference test.
-    
+
     Permutes foreground/background labels, then rotates angles to test if
     the observed foreground enrichment pattern is stronger than expected
     by chance.
-    
+
     Parameters
     ----------
     wedge_idx : ndarray, shape (N,)
@@ -1058,7 +1051,7 @@ def rotation_null_pvalue_fg_bg(
         Number of rotation replicates.
     random_state : int or np.random.Generator, optional
         Random state for reproducibility.
-        
+
     Returns
     -------
     p : float
@@ -1069,49 +1062,36 @@ def rotation_null_pvalue_fg_bg(
         Null distribution of maximum absolute differences.
     """
     rng = check_random_state(random_state)
-    
-    # Compute observed difference
+
     diff_obs, _, _ = stats.compute_fg_bg_difference(
-        wedge_idx=wedge_idx,
-        feature=feature,
-        weights=weights,
-        B=B
+        wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
     )
-    
-    # Apply kernel smoothing if provided
+
     if kernel is not None:
         diff_obs = stats.sector_sums_convolved(diff_obs[None, :], kernel)[0]
-    
+
     diff_max_obs = np.max(np.abs(diff_obs))
-    
-    # Generate null distribution by permuting labels and rotating
+
     diff_max_null = np.zeros(R)
     shifts = rotation_shifts(B, R, random_state=rng)
-    
+
     for r in range(R):
-        # Permute foreground/background labels
         perm_idx = rng.permutation(len(feature))
         feature_perm = feature[perm_idx]
-        
-        # Rotate wedge assignments
+
         wedge_idx_rotated = (wedge_idx + shifts[r]) % B
-        
-        # Compute difference for permuted and rotated data
+
         diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx_rotated,
-            feature=feature_perm,
-            weights=weights,
-            B=B
+            wedge_idx=wedge_idx_rotated, feature=feature_perm, weights=weights, B=B
         )
-        
-        # Apply kernel smoothing if provided
+
         if kernel is not None:
             diff_null = stats.sector_sums_convolved(diff_null[None, :], kernel)[0]
-        
+
         diff_max_null[r] = np.max(np.abs(diff_null))
-    
+
     p = empirical_pvalue(diff_max_obs, diff_max_null, kind="right")
-    
+
     return p, diff_max_obs, diff_max_null
 
 
@@ -1128,10 +1108,10 @@ def within_batch_rotation_pvalue_fg_bg(
 ):
     """
     Batch-wise rotation null for foreground vs background difference test.
-    
+
     Permutes foreground/background labels, then rotates each batch independently
     to test if the observed foreground enrichment pattern is stronger than expected.
-    
+
     Parameters
     ----------
     wedge_idx : ndarray, shape (N,)
@@ -1150,7 +1130,7 @@ def within_batch_rotation_pvalue_fg_bg(
         Number of rotation replicates.
     random_state : int or np.random.Generator, optional
         Random state for reproducibility.
-        
+
     Returns
     -------
     p : float
@@ -1161,55 +1141,42 @@ def within_batch_rotation_pvalue_fg_bg(
         Null distribution of maximum absolute differences.
     """
     rng = check_random_state(random_state)
-    
-    # Compute observed difference
+
     diff_obs, _, _ = stats.compute_fg_bg_difference(
-        wedge_idx=wedge_idx,
-        feature=feature,
-        weights=weights,
-        B=B
+        wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
     )
-    
-    # Apply kernel smoothing if provided
+
     if kernel is not None:
         diff_obs = stats.sector_sums_convolved(diff_obs[None, :], kernel)[0]
-    
+
     diff_max_obs = np.max(np.abs(diff_obs))
-    
-    # Generate null distribution
+
     diff_max_null = np.zeros(R)
     unique_batches = np.unique(batches)
     G = len(unique_batches)
-    
+
     for r in range(R):
-        # Permute foreground/background labels
         perm_idx = rng.permutation(len(feature))
         feature_perm = feature[perm_idx]
-        
-        # Rotate each batch independently
+
         wedge_idx_rotated = wedge_idx.copy()
         batch_shifts = rng.integers(0, B, size=G)
-        
+
         for g, batch_label in enumerate(unique_batches):
             mask = batches == batch_label
             wedge_idx_rotated[mask] = (wedge_idx[mask] + batch_shifts[g]) % B
-        
-        # Compute difference for permuted and rotated data
+
         diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx_rotated,
-            feature=feature_perm,
-            weights=weights,
-            B=B
+            wedge_idx=wedge_idx_rotated, feature=feature_perm, weights=weights, B=B
         )
-        
-        # Apply kernel smoothing if provided
+
         if kernel is not None:
             diff_null = stats.sector_sums_convolved(diff_null[None, :], kernel)[0]
-        
+
         diff_max_null[r] = np.max(np.abs(diff_null))
-    
+
     p = empirical_pvalue(diff_max_obs, diff_max_null, kind="right")
-    
+
     return p, diff_max_obs, diff_max_null
 
 
@@ -1227,10 +1194,10 @@ def permutation_pvalue_fg_bg(
 ):
     """
     Permutation null for foreground vs background difference test.
-    
+
     Permutes foreground/background labels within strata (radial bands × batches)
     to test if foreground enrichment differs from background.
-    
+
     Parameters
     ----------
     wedge_idx : ndarray, shape (N,)
@@ -1251,7 +1218,7 @@ def permutation_pvalue_fg_bg(
         Number of permutation replicates.
     random_state : int or np.random.Generator, optional
         Random state for reproducibility.
-        
+
     Returns
     -------
     p : float
@@ -1262,64 +1229,47 @@ def permutation_pvalue_fg_bg(
         Null distribution of maximum absolute differences.
     """
     rng = check_random_state(random_state)
-    
+
     N = len(wedge_idx)
-    
+
     if band_idx is None:
         band_idx = np.zeros(N, dtype=int)
-    
+
     if batches is None:
         batches = np.zeros(N, dtype=int)
-    
-    # Compute observed difference
+
     diff_obs, _, _ = stats.compute_fg_bg_difference(
-        wedge_idx=wedge_idx,
-        feature=feature,
-        weights=weights,
-        B=B
+        wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
     )
-    
-    # Apply kernel smoothing if provided
+
     if kernel is not None:
         diff_obs = stats.sector_sums_convolved(diff_obs[None, :], kernel)[0]
-    
+
     diff_max_obs = np.max(np.abs(diff_obs))
-    
-    # Generate null distribution by permuting within strata
+
     diff_max_null = np.zeros(R)
-    
-    # Create strata: combination of band and batch
-    strata = np.char.add(
-        band_idx.astype(str),
-        np.char.add("_", batches.astype(str))
-    )
+
+    strata = np.char.add(band_idx.astype(str), np.char.add("_", batches.astype(str)))
     unique_strata = np.unique(strata)
-    
+
     for r in range(R):
         feature_perm = feature.copy()
-        
-        # Permute within each stratum
+
         for stratum in unique_strata:
             mask = strata == stratum
             indices = np.where(mask)[0]
             perm_indices = rng.permutation(indices)
             feature_perm[indices] = feature[perm_indices]
-        
-        # Compute difference for permuted data
+
         diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx,
-            feature=feature_perm,
-            weights=weights,
-            B=B
+            wedge_idx=wedge_idx, feature=feature_perm, weights=weights, B=B
         )
-        
-        # Apply kernel smoothing if provided
+
         if kernel is not None:
             diff_null = stats.sector_sums_convolved(diff_null[None, :], kernel)[0]
-        
-        diff_max_null[r] = np.max(np.abs(diff_null))
-    
-    p = empirical_pvalue(diff_max_obs, diff_max_null, kind="right")
-    
-    return p, diff_max_obs, diff_max_null
 
+        diff_max_null[r] = np.max(np.abs(diff_null))
+
+    p = empirical_pvalue(diff_max_obs, diff_max_null, kind="right")
+
+    return p, diff_max_obs, diff_max_null
