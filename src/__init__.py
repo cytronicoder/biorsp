@@ -57,9 +57,6 @@ from .null_models import (
     rotation_null_pvalue,
     within_batch_rotation_pvalue,
     permutation_null_pvalue,
-    foreground_background_pvalue,
-    rotation_null_pvalue_fg_bg,
-    within_batch_rotation_pvalue_fg_bg,
     permutation_pvalue_fg_bg,
 )
 
@@ -131,9 +128,6 @@ __all__ = [
     "rotation_null_pvalue",
     "within_batch_rotation_pvalue",
     "permutation_null_pvalue",
-    "foreground_background_pvalue",
-    "rotation_null_pvalue_fg_bg",
-    "within_batch_rotation_pvalue_fg_bg",
     "permutation_pvalue_fg_bg",
     # Utilities
     "config_hash",

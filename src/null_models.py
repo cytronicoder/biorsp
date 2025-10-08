@@ -59,6 +59,7 @@ def max_stat_under_rotations(
     overdispersion: float = 0.0,
     engine: Literal["fft", "prefix"] = "fft",
     random_state: Optional[Union[int, np.random.Generator]] = None,
+    use_absolute: bool = False,
 ) -> np.ndarray:
     """
     Rotation (spin) null: empirical distribution of the max Z over all centers × widths.
@@ -82,9 +83,11 @@ def max_stat_under_rotations(
             - "prefix": Prefix sum-based convolution (boxcar kernels only).
         random_state (Optional[Union[int, np.random.Generator]], optional):
             Reproducible RNG seed or Generator. Defaults to None.
+        use_absolute (bool, optional): If True, the statistic is max|Z| instead of max(Z).
+            Defaults to False.
 
     Returns:
-        np.ndarray: Max Z across centers × widths for each rotation replicate,
+        np.ndarray: Max statistic across centers × widths for each rotation replicate,
             shape (R,).
 
     Notes:
@@ -120,7 +123,7 @@ def max_stat_under_rotations(
 
     for r in range(R):
         wedge_sums_rotated = circ_shift(wedge_sums, shifts[r], axis=-1)
-        max_z = -np.inf
+        max_stat = -np.inf
 
         for j in range(J):
             kernel = kernels[j]
@@ -137,10 +140,11 @@ def max_stat_under_rotations(
             Z = stats.aggregate_bands(
                 Z_band, weights=_safe_weights(totals_per_band), method="fixed"
             )
+            
+            current_stat = np.nanmax(np.abs(Z)) if use_absolute else np.nanmax(Z)
+            max_stat = max(max_stat, current_stat)
 
-            max_z = max(max_z, np.nanmax(Z))
-
-        Zmax_null[r] = max_z
+        Zmax_null[r] = max_stat
 
     return Zmax_null
 
@@ -156,6 +160,7 @@ def max_stat_within_batch_rotations(
     overdispersion: float = 0.0,
     engine: Literal["fft", "prefix"] = "fft",
     random_state: Optional[Union[int, np.random.Generator]] = None,
+    use_absolute: bool = False,
 ) -> np.ndarray:
     """
     Blocked (batch-wise) rotation null: each batch is spun independently.
@@ -174,9 +179,11 @@ def max_stat_within_batch_rotations(
         engine (Literal["fft", "prefix"], optional): Convolution engine. Defaults to "fft".
         random_state (Optional[Union[int, np.random.Generator]], optional):
             Reproducible RNG seed or Generator. Defaults to None.
+        use_absolute (bool, optional): If True, the statistic is max|Z| instead of max(Z).
+            Defaults to False.
 
     Returns:
-        np.ndarray: Max Z across centers × widths for each rotation replicate,
+        np.ndarray: Max statistic across centers × widths for each rotation replicate,
             shape (R,).
 
     Notes:
@@ -229,7 +236,7 @@ def max_stat_within_batch_rotations(
         wedge_sums_rotated = np.sum(wedge_sums_rotated_batches, axis=0)
         totals_per_band = np.sum(totals_per_band_per_batch, axis=0)
 
-        max_z = -np.inf
+        max_stat = -np.inf
 
         for j in range(J):
             kernel = kernels[j]
@@ -246,10 +253,11 @@ def max_stat_within_batch_rotations(
             Z = stats.aggregate_bands(
                 Z_band, weights=_safe_weights(totals_per_band), method="fixed"
             )
+            
+            current_stat = np.nanmax(np.abs(Z)) if use_absolute else np.nanmax(Z)
+            max_stat = max(max_stat, current_stat)
 
-            max_z = max(max_z, np.nanmax(Z))
-
-        Zmax_null[r] = max_z
+        Zmax_null[r] = max_stat
 
     return Zmax_null
 
@@ -268,6 +276,7 @@ def label_permutation_within_bands(
     engine: Literal["fft", "prefix"] = "fft",
     batches: Optional[np.ndarray] = None,
     random_state: Optional[Union[int, np.random.Generator]] = None,
+    use_absolute: bool = False,
 ) -> np.ndarray:
     """
     Permutation null: shuffle feature weights within radial bands (and optionally batches).
@@ -291,9 +300,11 @@ def label_permutation_within_bands(
             If provided, permutations occur within (band, batch) strata. Defaults to None.
         random_state (Optional[Union[int, np.random.Generator]], optional):
             Reproducible RNG seed or Generator. Defaults to None.
+        use_absolute (bool, optional): If True, the statistic is max|Z| instead of max(Z).
+            Defaults to False.
 
     Returns:
-        np.ndarray: Max Z across centers × widths for each permutation replicate,
+        np.ndarray: Max statistic across centers × widths for each permutation replicate,
             shape (R,).
 
     Notes:
@@ -362,7 +373,7 @@ def label_permutation_within_bands(
             wedge_sums[a, b] += weights_permuted[i]
 
         totals_per_band = np.sum(wedge_sums, axis=1)
-        max_z = -np.inf
+        max_stat = -np.inf
 
         for j in range(J):
             kernel = kernels[j]
@@ -379,10 +390,11 @@ def label_permutation_within_bands(
             Z = stats.aggregate_bands(
                 Z_band, weights=_safe_weights(totals_per_band), method="fixed"
             )
+            
+            current_stat = np.nanmax(np.abs(Z)) if use_absolute else np.nanmax(Z)
+            max_stat = max(max_stat, current_stat)
 
-            max_z = max(max_z, np.nanmax(Z))
-
-        Zmax_null[r] = max_z
+        Zmax_null[r] = max_stat
 
     return Zmax_null
 
@@ -558,6 +570,7 @@ def rotation_null_pvalue(
     engine: Literal["fft", "prefix"] = "fft",
     zmax_obs: Optional[float] = None,
     random_state: Optional[Union[int, np.random.Generator]] = None,
+    use_absolute: bool = False,
 ) -> Tuple[float, np.ndarray]:
     """
     End-to-end helper: compute rotation-null p-value for the observed max Z.
@@ -573,22 +586,24 @@ def rotation_null_pvalue(
         overdispersion (float, optional): Extra-Poisson factor for "binomial" variance.
             Defaults to 0.0.
         engine (Literal["fft", "prefix"], optional): Convolution engine. Defaults to "fft".
-        zmax_obs (Optional[float], optional): Observed max Z. If None, will compute
-            Z_heat from the unrotated input to obtain zmax_obs. Defaults to None.
+        zmax_obs (Optional[float], optional): Observed max statistic. If None, will compute
+            it from the unrotated input. Defaults to None.
         random_state (Optional[Union[int, np.random.Generator]], optional):
             Reproducible RNG seed or Generator. Defaults to None.
+        use_absolute (bool, optional): If True, the statistic is max|Z| instead of max(Z).
+            Defaults to False.
 
     Returns:
         Tuple[float, np.ndarray]: A tuple containing:
             - p (float): Empirical (right-tail) p-value for zmax_obs.
-            - Zmax_null (np.ndarray): Null distribution of max Z, shape (R,),
+            - Zmax_null (np.ndarray): Null distribution of max statistic, shape (R,),
               returned for diagnostics.
 
     Notes:
         - This is the workhorse function you'll call from `radar_scan.py` for one feature.
         - If zmax_obs is not provided, computes the Z-score heatmap once on the
           unrotated data to find the observed maximum.
-        - Then generates R rotation replicates and computes max Z for each.
+        - Then generates R rotation replicates and computes max statistic for each.
         - Returns both the p-value and the null distribution for diagnostic purposes.
     """
     wedge_sums = np.asarray(wedge_sums)
@@ -630,8 +645,9 @@ def rotation_null_pvalue(
             Z = stats.aggregate_bands(
                 Z_band, weights=_safe_weights(totals_per_band), method="fixed"
             )
-
-            zmax_obs = max(zmax_obs, np.nanmax(Z))
+            
+            current_stat = np.nanmax(np.abs(Z)) if use_absolute else np.nanmax(Z)
+            zmax_obs = max(zmax_obs, current_stat)
 
     Zmax_null = max_stat_under_rotations(
         wedge_sums=wedge_sums,
@@ -643,6 +659,7 @@ def rotation_null_pvalue(
         overdispersion=overdispersion,
         engine=engine,
         random_state=random_state,
+        use_absolute=use_absolute,
     )
 
     p = empirical_pvalue(zmax_obs, Zmax_null, kind="right")
@@ -662,6 +679,7 @@ def within_batch_rotation_pvalue(
     engine: Literal["fft", "prefix"] = "fft",
     zmax_obs: Optional[float] = None,
     random_state: Optional[Union[int, np.random.Generator]] = None,
+    use_absolute: bool = False,
 ) -> Tuple[float, np.ndarray]:
     """
     End-to-end helper: blocked rotation p-value for the observed max Z.
@@ -678,15 +696,17 @@ def within_batch_rotation_pvalue(
         overdispersion (float, optional): Extra-Poisson factor for "binomial" variance.
             Defaults to 0.0.
         engine (Literal["fft", "prefix"], optional): Convolution engine. Defaults to "fft".
-        zmax_obs (Optional[float], optional): Observed max Z. If None, will compute
-            Z_heat from the unrotated input to obtain zmax_obs. Defaults to None.
+        zmax_obs (Optional[float], optional): Observed max statistic. If None, will compute
+            it from the unrotated input. Defaults to None.
         random_state (Optional[Union[int, np.random.Generator]], optional):
             Reproducible RNG seed or Generator. Defaults to None.
+        use_absolute (bool, optional): If True, the statistic is max|Z| instead of max(Z).
+            Defaults to False.
 
     Returns:
         Tuple[float, np.ndarray]: A tuple containing:
             - p (float): Empirical (right-tail) p-value for zmax_obs.
-            - Zmax_null (np.ndarray): Null distribution of max Z, shape (R,),
+            - Zmax_null (np.ndarray): Null distribution of max statistic, shape (R,),
               returned for diagnostics.
 
     Notes:
@@ -738,8 +758,9 @@ def within_batch_rotation_pvalue(
             Z = stats.aggregate_bands(
                 Z_band, weights=_safe_weights(totals_per_band), method="fixed"
             )
-
-            zmax_obs = max(zmax_obs, np.nanmax(Z))
+            
+            current_stat = np.nanmax(np.abs(Z)) if use_absolute else np.nanmax(Z)
+            zmax_obs = max(zmax_obs, current_stat)
 
     Zmax_null = max_stat_within_batch_rotations(
         wedge_sums_per_batch=wedge_sums_per_batch,
@@ -751,6 +772,7 @@ def within_batch_rotation_pvalue(
         overdispersion=overdispersion,
         engine=engine,
         random_state=random_state,
+        use_absolute=use_absolute,
     )
 
     p = empirical_pvalue(zmax_obs, Zmax_null, kind="right")
@@ -773,6 +795,7 @@ def permutation_null_pvalue(
     batches: Optional[np.ndarray] = None,
     zmax_obs: Optional[float] = None,
     random_state: Optional[Union[int, np.random.Generator]] = None,
+    use_absolute: bool = False,
 ) -> Tuple[float, np.ndarray]:
     """
     End-to-end helper: permutation-based p-value within bands (and optionally batches).
@@ -792,15 +815,17 @@ def permutation_null_pvalue(
         engine (Literal["fft", "prefix"], optional): Convolution engine. Defaults to "fft".
         batches (Optional[np.ndarray], optional): Batch assignment for each cell, shape (N,).
             If provided, permute within (band, batch) strata. Defaults to None.
-        zmax_obs (Optional[float], optional): Observed max Z. If None, will compute
-            Z_heat from the unpermuted input to obtain zmax_obs. Defaults to None.
+        zmax_obs (Optional[float], optional): Observed max statistic. If None, will compute
+            it from the unpermuted input. Defaults to None.
         random_state (Optional[Union[int, np.random.Generator]], optional):
             Reproducible RNG seed or Generator. Defaults to None.
+        use_absolute (bool, optional): If True, the statistic is max|Z| instead of max(Z).
+            Defaults to False.
 
     Returns:
         Tuple[float, np.ndarray]: A tuple containing:
             - p (float): Empirical (right-tail) p-value for zmax_obs.
-            - Zmax_null (np.ndarray): Null distribution of max Z, shape (R,),
+            - Zmax_null (np.ndarray): Null distribution of max statistic, shape (R,),
               returned for diagnostics.
 
     Notes:
@@ -861,8 +886,9 @@ def permutation_null_pvalue(
             Z = stats.aggregate_bands(
                 Z_band, weights=_safe_weights(totals_per_band), method="fixed"
             )
-
-            zmax_obs = max(zmax_obs, np.nanmax(Z))
+            
+            current_stat = np.nanmax(np.abs(Z)) if use_absolute else np.nanmax(Z)
+            zmax_obs = max(zmax_obs, current_stat)
 
     Zmax_null = label_permutation_within_bands(
         weights=weights,
@@ -877,6 +903,7 @@ def permutation_null_pvalue(
         engine=engine,
         batches=batches,
         random_state=random_state,
+        use_absolute=use_absolute,
     )
 
     p = empirical_pvalue(zmax_obs, Zmax_null, kind="right")
@@ -884,7 +911,7 @@ def permutation_null_pvalue(
     return p, Zmax_null
 
 
-def foreground_background_pvalue(
+def permutation_pvalue_fg_bg(
     binary_labels: np.ndarray,
     wedge_idx: np.ndarray,
     band_idx: np.ndarray,
@@ -899,6 +926,7 @@ def foreground_background_pvalue(
     batches: Optional[np.ndarray] = None,
     zmax_obs: Optional[float] = None,
     random_state: Optional[Union[int, np.random.Generator]] = None,
+    use_absolute: bool = False,
 ) -> Tuple[float, np.ndarray]:
     """
     End-to-end helper: foreground vs background p-value for binary features.
@@ -923,15 +951,17 @@ def foreground_background_pvalue(
         engine (Literal["fft", "prefix"], optional): Convolution engine. Defaults to "fft".
         batches (Optional[np.ndarray], optional): Batch assignment for each cell, shape (N,).
             If provided, permute within (band, batch) strata. Defaults to None.
-        zmax_obs (Optional[float], optional): Observed max Z. If None, will compute
-            Z_heat from the unpermuted input to obtain zmax_obs. Defaults to None.
+        zmax_obs (Optional[float], optional): Observed max statistic. If None, will compute
+            it from the unpermuted input. Defaults to None.
         random_state (Optional[Union[int, np.random.Generator]], optional):
             Reproducible RNG seed or Generator. Defaults to None.
+        use_absolute (bool, optional): If True, the statistic is max|Z| instead of max(Z).
+            Defaults to False.
 
     Returns:
         Tuple[float, np.ndarray]: A tuple containing:
             - p (float): Empirical (right-tail) p-value for zmax_obs.
-            - Zmax_null (np.ndarray): Null distribution of max Z, shape (R,),
+            - Zmax_null (np.ndarray): Null distribution of max statistic, shape (R,),
               returned for diagnostics.
 
     Notes:
@@ -963,43 +993,10 @@ def foreground_background_pvalue(
                 f"batches must have same length as binary_labels. Got {len(batches)} vs {N}."
             )
 
-    if zmax_obs is None:
-        wedge_sums = np.zeros((A, B))
-        for i in range(N):
-            a = band_idx[i]
-            w = wedge_idx[i]
-            wedge_sums[a, w] += binary_labels[i]
-
-        totals_per_band = np.sum(wedge_sums, axis=1)
-
-        J, B_kern = kernels.shape
-        if B_kern != B:
-            raise ValueError(
-                f"kernels have {B_kern} bins (axis 1), but B={B} was specified."
-            )
-
-        zmax_obs = -np.inf
-
-        for j in range(J):
-            kernel = kernels[j]
-            _, _, _, Z_band = stats.compute_Z_grid(
-                wedge_sums,
-                totals_per_band,
-                kernel,
-                B=B,
-                var_mode=var_mode,
-                overdispersion=overdispersion,
-                engine=engine,
-            )
-
-            Z = stats.aggregate_bands(
-                Z_band, weights=_safe_weights(totals_per_band), method="fixed"
-            )
-
-            zmax_obs = max(zmax_obs, np.nanmax(Z))
-
-    Zmax_null = foreground_background_permutation(
-        binary_labels=binary_labels,
+    # The permutation test for binary labels is equivalent to the permutation
+    # test on weights where weights are the binary labels.
+    return permutation_null_pvalue(
+        weights=binary_labels,
         wedge_idx=wedge_idx,
         band_idx=band_idx,
         kernels=kernels,
@@ -1010,371 +1007,15 @@ def foreground_background_pvalue(
         overdispersion=overdispersion,
         engine=engine,
         batches=batches,
+        zmax_obs=zmax_obs,
         random_state=random_state,
+        use_absolute=use_absolute,
     )
 
-    p = empirical_pvalue(zmax_obs, Zmax_null, kind="right")
-
-    return p, Zmax_null
 
 
-def rotation_null_pvalue_fg_bg(
-    wedge_idx,
-    feature,
-    weights=None,
-    kernel=None,
-    *,
-    B=256,
-    R=500,
-    random_state=None,
-):
-    """
-    Permutation null for foreground vs background difference test (no batch structure).
-
-    **Null Hypothesis**: Gene expression is spatially random - any cell is equally 
-    likely to express the gene, regardless of its angular position.
-
-    **Null Model**: Randomly permute expression labels across all cells, preserving:
-    - Total number of expressing cells (global expression rate)
-    - Spatial positions of all cells
-    
-    This breaks spatial correlation between expression and angular position.
-
-    **Use Case**: Testing if expressing cells are angularly enriched/depleted relative 
-    to the overall cell distribution when there are no batch effects to account for.
-
-    Parameters
-    ----------
-    wedge_idx : ndarray, shape (N,)
-        Wedge bin assignment for each cell (angular position).
-    feature : ndarray, shape (N,)
-        Binary feature values (1 = expressing, 0 = non-expressing).
-    weights : ndarray, shape (N,), optional
-        Weights for each cell (typically None for binary features).
-    kernel : ndarray, shape (B,), optional
-        Circular kernel for smoothing the difference profile.
-    B : int, default=256
-        Number of angular bins.
-    R : int, default=500
-        Number of permutation replicates.
-    random_state : int or np.random.Generator, optional
-        Random state for reproducibility.
-
-    Returns
-    -------
-    p : float
-        Empirical p-value (proportion of null replicates >= observed).
-    diff_max_obs : float
-        Observed maximum absolute difference.
-    diff_max_null : ndarray, shape (R,)
-        Null distribution of maximum absolute differences.
-
-    Notes
-    -----
-    - This is the scientifically correct null for binary gene expression features
-      when there are no batch effects.
-    - For data with batch structure, use within_batch_rotation_pvalue_fg_bg instead
-      to preserve batch-specific expression rates.
-    - Each permutation creates a new spatial arrangement where expression is completely
-      random with respect to angular position.
-    
-    Examples
-    --------
-    >>> # Test if gene expression is angularly enriched
-    >>> p, obs, null = rotation_null_pvalue_fg_bg(
-    ...     wedge_idx=angles,
-    ...     feature=gene_binary,  # 0/1 for non-expressing/expressing
-    ...     B=180,
-    ...     R=500
-    ... )
-    """
-    rng = check_random_state(random_state)
-
-    # Compute observed difference
-    diff_obs, _, _ = stats.compute_fg_bg_difference(
-        wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
-    )
-
-    if kernel is not None:
-        diff_obs = stats.sector_sums_convolved(diff_obs[None, :], kernel)[0]
-
-    diff_max_obs = np.max(np.abs(diff_obs))
-
-    # Generate null distribution by permuting expression labels
-    diff_max_null = np.zeros(R)
-
-    for r in range(R):
-        # Randomly permute expression labels across all cells
-        perm_indices = rng.permutation(len(feature))
-        feature_perm = feature[perm_indices]
-
-        # Compute difference with permuted labels
-        diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx,  # Same positions
-            feature=feature_perm,  # Permuted expression
-            weights=weights,
-            B=B
-        )
-
-        if kernel is not None:
-            diff_null = stats.sector_sums_convolved(diff_null[None, :], kernel)[0]
-
-        diff_max_null[r] = np.max(np.abs(diff_null))
-
-    p = empirical_pvalue(diff_max_obs, diff_max_null, kind="right")
-
-    return p, diff_max_obs, diff_max_null
 
 
-def within_batch_rotation_pvalue_fg_bg(
-    wedge_idx,
-    feature,
-    batches,
-    weights=None,
-    kernel=None,
-    *,
-    B=256,
-    R=500,
-    random_state=None,
-):
-    """
-    Permutation null for foreground vs background difference test with batch stratification.
-
-    **Null Hypothesis**: Gene expression is spatially random within each batch - any cell 
-    within a batch is equally likely to express the gene, regardless of its angular position.
-
-    **Null Model**: Randomly permute expression labels within each batch independently, 
-    preserving:
-    - Number of expressing cells per batch (batch-specific expression rate)
-    - Spatial positions of all cells
-    - Batch structure
-    
-    This breaks spatial correlation between expression and angular position while respecting
-    batch-specific biological variation in expression rates.
-
-    **Use Case**: Testing if expressing cells are angularly enriched/depleted relative to 
-    the overall cell distribution, accounting for batch effects.
-
-    Parameters
-    ----------
-    wedge_idx : ndarray, shape (N,)
-        Wedge bin assignment for each cell (angular position).
-    feature : ndarray, shape (N,)
-        Binary feature values (1 = expressing, 0 = non-expressing).
-    batches : ndarray, shape (N,)
-        Batch labels for each cell.
-    weights : ndarray, shape (N,), optional
-        Weights for each cell (typically None for binary features).
-    kernel : ndarray, shape (B,), optional
-        Circular kernel for smoothing the difference profile.
-    B : int, default=256
-        Number of angular bins.
-    R : int, default=500
-        Number of permutation replicates.
-    random_state : int or np.random.Generator, optional
-        Random state for reproducibility.
-
-    Returns
-    -------
-    p : float
-        Empirical p-value (proportion of null replicates >= observed).
-    diff_max_obs : float
-        Observed maximum absolute difference.
-    diff_max_null : ndarray, shape (R,)
-        Null distribution of maximum absolute differences.
-
-    Notes
-    -----
-    - This is the scientifically correct null for binary gene expression features.
-    - Each permutation creates a new spatial arrangement where expression is random
-      conditional on batch membership.
-    - Accounts for batch-specific expression rates (e.g., batch A might have 80% 
-      expressing while batch B has 60%).
-    - Previous rotation-based null was fundamentally flawed: rotation preserves 
-      max|diff|, giving zero variance in null distribution.
-    
-    Examples
-    --------
-    >>> # Test if SLC12A1 expression is angularly enriched in TAL cells
-    >>> p, obs, null = within_batch_rotation_pvalue_fg_bg(
-    ...     wedge_idx=angles,
-    ...     feature=slc12a1_binary,  # 0/1 for non-expressing/expressing
-    ...     batches=donor_ids,
-    ...     B=180,
-    ...     R=500
-    ... )
-    """
-    rng = check_random_state(random_state)
-
-    # Compute observed difference
-    diff_obs, _, _ = stats.compute_fg_bg_difference(
-        wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
-    )
-
-    if kernel is not None:
-        diff_obs = stats.sector_sums_convolved(diff_obs[None, :], kernel)[0]
-
-    diff_max_obs = np.max(np.abs(diff_obs))
-
-    # Generate null distribution
-    diff_max_null = np.zeros(R)
-    unique_batches = np.unique(batches)
-
-    for r in range(R):
-        # Permute feature labels within each batch independently
-        feature_perm = feature.copy()
-        
-        for batch_label in unique_batches:
-            batch_mask = batches == batch_label
-            batch_indices = np.where(batch_mask)[0]
-            
-            # Randomly permute expression labels within this batch
-            perm_indices = rng.permutation(batch_indices)
-            feature_perm[batch_indices] = feature[perm_indices]
-
-        # Compute difference with permuted labels
-        diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx,  # Same positions
-            feature=feature_perm,  # Permuted expression
-            weights=weights,
-            B=B
-        )
-
-        if kernel is not None:
-            diff_null = stats.sector_sums_convolved(diff_null[None, :], kernel)[0]
-
-        diff_max_null[r] = np.max(np.abs(diff_null))
-
-    p = empirical_pvalue(diff_max_obs, diff_max_null, kind="right")
-
-    return p, diff_max_obs, diff_max_null
 
 
-def permutation_pvalue_fg_bg(
-    wedge_idx,
-    feature,
-    band_idx=None,
-    batches=None,
-    weights=None,
-    kernel=None,
-    *,
-    B=256,
-    R=500,
-    random_state=None,
-):
-    """
-    Permutation null for foreground vs background with radial band and batch stratification.
 
-    **Null Hypothesis**: Gene expression is spatially random within each stratum 
-    (radial band × batch combination).
-
-    **Null Model**: Randomly permute expression labels within each stratum independently,
-    preserving:
-    - Number of expressing cells per stratum
-    - Spatial positions of all cells
-    - Radial band structure
-    - Batch structure
-    
-    This is the most conservative null, accounting for both radial and batch heterogeneity
-    in expression rates.
-
-    **Use Case**: When expression rates vary across both radial bands and batches, and
-    you want to test for angular enrichment while controlling for these sources of variation.
-
-    Parameters
-    ----------
-    wedge_idx : ndarray, shape (N,)
-        Wedge bin assignment for each cell (angular position).
-    feature : ndarray, shape (N,)
-        Binary feature values (1 = expressing, 0 = non-expressing).
-    band_idx : ndarray, shape (N,), optional
-        Radial band assignment. If None, assumes single band (no radial stratification).
-    batches : ndarray, shape (N,), optional
-        Batch labels. If None, assumes single batch (no batch stratification).
-    weights : ndarray, shape (N,), optional
-        Weights for each cell (typically None for binary features).
-    kernel : ndarray, shape (B,), optional
-        Circular kernel for smoothing the difference profile.
-    B : int, default=256
-        Number of angular bins.
-    R : int, default=500
-        Number of permutation replicates.
-    random_state : int or np.random.Generator, optional
-        Random state for reproducibility.
-
-    Returns
-    -------
-    p : float
-        Empirical p-value (proportion of null replicates >= observed).
-    diff_max_obs : float
-        Observed maximum absolute difference.
-    diff_max_null : ndarray, shape (R,)
-        Null distribution of maximum absolute differences.
-
-    Notes
-    -----
-    - Most conservative option: preserves expression rate in each (band, batch) stratum.
-    - Use when you suspect expression varies with both distance from vantage point
-      and batch membership.
-    - If only batch effects matter, use within_batch_rotation_pvalue_fg_bg instead
-      (more powerful).
-    - If no structure, use rotation_null_pvalue_fg_bg (most powerful).
-    
-    Examples
-    --------
-    >>> # Test with both radial and batch structure
-    >>> p, obs, null = permutation_pvalue_fg_bg(
-    ...     wedge_idx=angles,
-    ...     feature=gene_binary,
-    ...     band_idx=radial_bands,
-    ...     batches=donor_ids,
-    ...     B=180,
-    ...     R=500
-    ... )
-    """
-    rng = check_random_state(random_state)
-
-    N = len(wedge_idx)
-
-    if band_idx is None:
-        band_idx = np.zeros(N, dtype=int)
-
-    if batches is None:
-        batches = np.zeros(N, dtype=int)
-
-    # Compute observed difference
-    diff_obs, _, _ = stats.compute_fg_bg_difference(
-        wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
-    )
-
-    if kernel is not None:
-        diff_obs = stats.sector_sums_convolved(diff_obs[None, :], kernel)[0]
-
-    diff_max_obs = np.max(np.abs(diff_obs))
-
-    diff_max_null = np.zeros(R)
-
-    strata = np.char.add(band_idx.astype(str), np.char.add("_", batches.astype(str)))
-    unique_strata = np.unique(strata)
-
-    for r in range(R):
-        feature_perm = feature.copy()
-
-        for stratum in unique_strata:
-            mask = strata == stratum
-            indices = np.where(mask)[0]
-            perm_indices = rng.permutation(indices)
-            feature_perm[indices] = feature[perm_indices]
-
-        diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx, feature=feature_perm, weights=weights, B=B
-        )
-
-        if kernel is not None:
-            diff_null = stats.sector_sums_convolved(diff_null[None, :], kernel)[0]
-
-        diff_max_null[r] = np.max(np.abs(diff_null))
-
-    p = empirical_pvalue(diff_max_obs, diff_max_null, kind="right")
-
-    return p, diff_max_obs, diff_max_null

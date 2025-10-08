@@ -50,6 +50,7 @@ class ScanParams:
     k_2d: int = 30
 
     # Variance & testing
+    statistic: Literal["enrichment", "deviation"] = "enrichment"
     var_mode: Literal["binomial", "plugin"] = "binomial"
     overdispersion: float = 0.0
     ESS_min: float = 25.0  # minimum effective sample size in sector
@@ -103,6 +104,7 @@ class RadarScanner:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(params.log_level)
         self.N: Optional[int] = None
+        self.A = params.n_bands if params.radial_mode != "all" else 1
         self.B: int = params.B
         self.center: Optional[np.ndarray] = None
         self.theta: Optional[np.ndarray] = None
@@ -243,12 +245,20 @@ class RadarScanner:
             Z_grids.append(Z_grid)
 
         Z_heat = np.array(Z_grids)
-        max_idx = np.unravel_index(np.argmax(Z_heat), Z_heat.shape)
-        width_idx, center_idx = max_idx  # pylint: disable=unbalanced-tuple-unpacking
-        Z_max = Z_heat[width_idx, center_idx]
+
+        if self._params_obj.statistic == "deviation":
+            search_grid = np.abs(Z_heat)
+            obs_stat = np.max(search_grid)
+            max_idx = np.unravel_index(np.argmax(search_grid), search_grid.shape)
+        else:
+            obs_stat = np.max(Z_heat)
+            max_idx = np.unravel_index(np.argmax(Z_heat), Z_heat.shape)
+
+        width_idx, center_idx = max_idx
+        Z_max = Z_heat[width_idx, center_idx]  # Z-score at peak, preserving sign
         ER, R_conc = self._compute_enrichment_stats(S, width_idx, center_idx)
 
-        p_value = self._calibrate_pvalue(weights, Z_max)
+        p_value = self._calibrate_pvalue(weights, obs_stat)
         flags = self._compute_qc_flags(width_idx, center_idx, Z_heat)
         phi_star = (center_idx * 2 * np.pi / self.B + self._params_obj.offset_rad) % (
             2 * np.pi
@@ -764,7 +774,7 @@ class RadarScanner:
         R_conc = float(stats.mean_resultant_length(S_use, B=self.B))
         return ER, R_conc
 
-    def _calibrate_pvalue(self, weights: np.ndarray, Z_obs: float) -> float:
+    def _calibrate_pvalue(self, weights: np.ndarray, obs_stat: float) -> float:
         """
         Calibrate p-value using null model.
 
@@ -777,7 +787,7 @@ class RadarScanner:
 
         Args:
             weights (np.ndarray): Preprocessed per-cell weights, shape (N,).
-            Z_obs (float): Observed maximum Z-score (or max difference for binary features).
+            obs_stat (float): Observed maximum statistic (Z-score or |Z-score|).
 
         Returns:
             float: Empirical p-value from the null distribution.
@@ -791,15 +801,18 @@ class RadarScanner:
               * within_batch_rotation_pvalue_fg_bg
               * permutation_pvalue_fg_bg
             - For continuous features, uses standard null models.
+            - The statistic used for the null distribution (max Z vs max |Z|)
+              is determined by `self._params_obj.statistic`.
         """
         null_mode = self._params_obj.null_model
         rng = utils.check_random_state(self._params_obj.random_state)
+        use_absolute = self._params_obj.statistic == "deviation"
 
         is_binary = self._params_obj.threshold_mode != "none"
 
         if is_binary:
             kernel = self.kernels[0] if len(self.kernels) > 0 else None
-            
+
             if null_mode == "rotation":
                 p_value, _, _ = null_models.rotation_null_pvalue_fg_bg(
                     wedge_idx=self.wedge_idx,
@@ -809,11 +822,12 @@ class RadarScanner:
                     B=self.B,
                     R=self._params_obj.R,
                     random_state=rng,
+                    use_absolute=use_absolute,
                 )
             elif null_mode == "within_batch_rotation":
                 if self.batches is None:
                     raise ValueError("batches required for within_batch_rotation")
-                
+
                 p_value, _, _ = null_models.within_batch_rotation_pvalue_fg_bg(
                     wedge_idx=self.wedge_idx,
                     feature=weights,
@@ -823,18 +837,24 @@ class RadarScanner:
                     B=self.B,
                     R=self._params_obj.R,
                     random_state=rng,
+                    use_absolute=use_absolute,
                 )
             elif null_mode == "permutation":
-                p_value, _, _ = null_models.permutation_pvalue_fg_bg(
+                p_value, _ = null_models.permutation_pvalue_fg_bg(
+                    binary_labels=weights,
                     wedge_idx=self.wedge_idx,
-                    feature=weights,
                     band_idx=self.band_idx,
-                    batches=self.batches,
-                    weights=None,
-                    kernel=kernel,
+                    kernels=self.kernels,
                     B=self.B,
+                    A=self.A,
                     R=self._params_obj.R,
+                    var_mode=self._params_obj.var_mode,
+                    overdispersion=self._params_obj.overdispersion,
+                    engine=self._params_obj.engine,
+                    batches=self.batches,
+                    zmax_obs=obs_stat,
                     random_state=rng,
+                    use_absolute=use_absolute,
                 )
             else:
                 raise ValueError(f"Unknown null model: {null_mode}")
@@ -858,8 +878,9 @@ class RadarScanner:
                     var_mode=self._params_obj.var_mode,
                     overdispersion=self._params_obj.overdispersion,
                     engine=self._params_obj.engine,
-                    zmax_obs=Z_obs,
+                    zmax_obs=obs_stat,
                     random_state=rng,
+                    use_absolute=use_absolute,
                 )
             elif null_mode == "within_batch_rotation":
                 if self.batches is None:
@@ -888,8 +909,9 @@ class RadarScanner:
                     var_mode=self._params_obj.var_mode,
                     overdispersion=self._params_obj.overdispersion,
                     engine=self._params_obj.engine,
-                    zmax_obs=Z_obs,
+                    zmax_obs=obs_stat,
                     random_state=rng,
+                    use_absolute=use_absolute,
                 )
             elif null_mode == "permutation":
                 p_value, _ = null_models.permutation_null_pvalue(
@@ -904,8 +926,9 @@ class RadarScanner:
                     overdispersion=self._params_obj.overdispersion,
                     engine=self._params_obj.engine,
                     batches=self.batches,
-                    zmax_obs=Z_obs,
+                    zmax_obs=obs_stat,
                     random_state=rng,
+                    use_absolute=use_absolute,
                 )
             else:
                 raise ValueError(f"Unknown null_model: {null_mode}")

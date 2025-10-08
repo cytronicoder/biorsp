@@ -61,7 +61,8 @@ params = ScanParams(
     standardize="rank",
     residualize="none",
     density_correction="none",
-    null_model="within_batch_rotation",
+    null_model="permutation",
+    statistic="deviation",
     R=500,
     threshold_mode="positive",
 )
@@ -76,12 +77,13 @@ print(f"   Scanner fitted with {scanner.N} TAL cells")
 # Define curated gene lists for TAL repair and injury
 print("\n4. Defining TAL marker genes...")
 tal_marker_genes = {
-    "TAL Function & Regulation": ["SLC12A1", "ESRRB", "EGF"],
-    "Early Repair": ["PROM1", "DCDC1", "HAVCR1", "SPP1"],
-    "Adaptive States (aPT/aTAL)": ["VCAM1", "DCDC2", "HAVCR1", "ITGB6"],
-    "aTAL Specific (human)": ["PROM1", "DCDC2"],
-    "Degenerative/Injury": ["SPP1", "CST3", "CLU", "IGFBP7", "DEFB1"],
-    "Stromal/Microenvironment": ["CDH11"],
+    # "TAL Function & Regulation": ["SLC12A1", "ESRRB", "EGF"],
+    # "Early Repair": ["PROM1", "DCDC1", "HAVCR1", "SPP1"],
+    # "Adaptive States (aPT/aTAL)": ["VCAM1", "DCDC2", "HAVCR1", "ITGB6"],
+    # "aTAL Specific (human)": ["PROM1", "DCDC2"],
+    # "Degenerative/Injury": ["SPP1", "CST3", "CLU", "IGFBP7", "DEFB1"],
+    # "Stromal/Microenvironment": ["CDH11"],
+    "Case Study": ["ITGB6", "SLC12A1", "NRG1", "ERBB4", "DCDC2", "PROM1"],
 }
 
 # Create flat list of unique genes
