@@ -19,6 +19,7 @@ def plot_rsp_heatmap(
     title: Optional[str] = None,
     vmin: Optional[float] = None,
     vmax: Optional[float] = None,
+    width_labels: Optional[List[str]] = None,
 ) -> Axes:
     """
     Plot a single RSP heatmap in polar coordinates.
@@ -32,6 +33,7 @@ def plot_rsp_heatmap(
         title: Custom title. If None, uses result name and statistics
         vmin: Minimum value for colormap. If None, uses symmetric range
         vmax: Maximum value for colormap. If None, uses symmetric range
+        width_labels: Labels for each width row. If None, uses generic labels
 
     Returns:
         Matplotlib axes object
@@ -43,7 +45,7 @@ def plot_rsp_heatmap(
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111, projection="polar")
 
-    J, B = result.Z_heat.shape  # J = number of bands/widths, B = angular bins
+    J, B = result.Z_heat.shape  # J = number of widths, B = angular bins
 
     theta = np.linspace(0, 2 * np.pi, B + 1)  # B+1 for edges
     r = np.arange(J + 1)  # J+1 for pcolormesh edges
@@ -87,8 +89,11 @@ def plot_rsp_heatmap(
     if show_colorbar:
         plt.colorbar(im, ax=ax, label="Z-score", pad=0.1, fraction=0.046)
 
+    if width_labels is None:
+        width_labels = [f"Width {i}" for i in range(J)]
+
     ax.set_yticks(np.arange(J) + 0.5)
-    ax.set_yticklabels([f"Band {i}" for i in range(J)], fontsize=8)
+    ax.set_yticklabels(width_labels, fontsize=8)
 
     return ax
 
@@ -166,6 +171,7 @@ def plot_rsp_summary(
     coords: np.ndarray,
     feature_values: np.ndarray,
     figsize: Tuple[float, float] = (12, 5),
+    scanner: Optional["RadarScanner"] = None,
 ) -> Figure:
     """
     Create a summary plot with embedding and RSP heatmap.
@@ -175,6 +181,7 @@ def plot_rsp_summary(
         coords: Cell coordinates (N, 2)
         feature_values: Feature values for each cell (N,)
         figsize: Figure size
+        scanner: Optional RadarScanner object to plot vantage point
 
     Returns:
         Matplotlib Figure object
@@ -192,6 +199,26 @@ def plot_rsp_summary(
         alpha=0.5,
         rasterized=True,
     )
+
+    if (
+        scanner is not None
+        and hasattr(scanner, "center")
+        and scanner.center is not None
+    ):
+        ax1.scatter(
+            scanner.center[0],
+            scanner.center[1],
+            c="red",
+            s=200,
+            marker="*",
+            edgecolors="white",
+            linewidths=1.5,
+            alpha=0.9,
+            label="Vantage Point",
+            zorder=10,
+        )
+        ax1.legend(loc="best", fontsize=8)
+
     ax1.set_xlabel("UMAP 1")
     ax1.set_ylabel("UMAP 2")
     ax1.set_title(f'{result.name or "Feature"}\nEmbedding')
@@ -200,7 +227,12 @@ def plot_rsp_summary(
 
     # 2. RSP heatmap
     ax2 = fig.add_subplot(122, projection="polar")
-    plot_rsp_heatmap(result, ax=ax2, show_colorbar=True)
+    width_labels = None
+    if scanner is not None and hasattr(scanner, "_params_obj"):
+        if hasattr(scanner._params_obj, "widths_deg"):
+            width_labels = [f"{w}°" for w in scanner._params_obj.widths_deg]
+
+    plot_rsp_heatmap(result, ax=ax2, show_colorbar=True, width_labels=width_labels)
 
     plt.tight_layout()
 
@@ -230,6 +262,7 @@ def save_top_results(
         List of saved file paths
     """
     import os
+
     os.makedirs(output_dir, exist_ok=True)
 
     if sort_by == "p_value":

@@ -265,7 +265,7 @@ See `examples/kpmp_with_plots.py` for a full pipeline that:
 When running `kpmp_with_plots.py`:
 
 ```
-examples/output/
+examples/outputs/
 ├── top_genes_grid.png           # 12-panel grid of top genes
 ├── cell_classes_grid.png        # Grid of cell class features
 ├── summary_<gene>.png            # 3-panel detailed view

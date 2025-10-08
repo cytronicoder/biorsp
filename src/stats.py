@@ -803,17 +803,20 @@ def compute_fg_bg_difference(
     """
     Compute difference in proportions between foreground and background distributions.
 
-    For binary features (foreground=1, background=0), this computes:
-        diff[wedge] = (n_fg_wedge / n_fg_total) - (n_bg_wedge / n_bg_total)
+    For binary features (foreground=1, background=all cells), this computes:
+        diff[wedge] = (n_fg_wedge / n_fg_total) - (n_all_wedge / n_all_total)
 
-    This tests whether the foreground distribution differs from the background distribution.
+    This tests whether the foreground (expressing cells) distribution differs from 
+    the background (all cells) distribution. The background includes the foreground
+    as a subset, making this a proper one-sample test against the reference distribution.
 
     Parameters
     ----------
     wedge_idx : array-like, shape (N,) or (M, N)
         Wedge bin assignment for each cell (integer in [0, B-1]).
     feature : array-like, shape (N,) or (M, N)
-        Binary feature values (1 = foreground, 0 = background).
+        Binary feature values (1 = foreground/expressing, 0 = non-expressing).
+        Note: Background = ALL cells (both expressing and non-expressing).
     weights : array-like, shape (N,) or (M, N), optional
         Weights for each cell. If None, uniform weights are used.
     B : int, default=256
@@ -827,7 +830,7 @@ def compute_fg_bg_difference(
     fg_prop : ndarray, shape (B,) or (M, B)
         Foreground proportion in each wedge.
     bg_prop : ndarray, shape (B,) or (M, B)
-        Background proportion in each wedge.
+        Background (all cells) proportion in each wedge.
     """
     wedge_idx = np.atleast_1d(wedge_idx)
     feature = np.atleast_1d(feature)
@@ -837,11 +840,14 @@ def compute_fg_bg_difference(
     else:
         weights = np.atleast_1d(weights)
 
+    # Foreground: expressing cells only (feature > 0)
     fg_mask = feature > 0
-    bg_mask = feature == 0
     fg_weights = weights * fg_mask
-    bg_weights = weights * bg_mask
     total_fg = np.sum(fg_weights)
+
+    # Background: ALL cells (not just non-expressing!)
+    # This is the key fix - background includes foreground as a subset
+    bg_weights = weights  # All cells, not weights * (feature == 0)
     total_bg = np.sum(bg_weights)
 
     fg_sums = np.bincount(wedge_idx, weights=fg_weights, minlength=B)

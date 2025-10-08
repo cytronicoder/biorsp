@@ -1029,40 +1029,68 @@ def rotation_null_pvalue_fg_bg(
     random_state=None,
 ):
     """
-    Rotation null for foreground vs background difference test.
+    Permutation null for foreground vs background difference test (no batch structure).
 
-    Permutes foreground/background labels, then rotates angles to test if
-    the observed foreground enrichment pattern is stronger than expected
-    by chance.
+    **Null Hypothesis**: Gene expression is spatially random - any cell is equally 
+    likely to express the gene, regardless of its angular position.
+
+    **Null Model**: Randomly permute expression labels across all cells, preserving:
+    - Total number of expressing cells (global expression rate)
+    - Spatial positions of all cells
+    
+    This breaks spatial correlation between expression and angular position.
+
+    **Use Case**: Testing if expressing cells are angularly enriched/depleted relative 
+    to the overall cell distribution when there are no batch effects to account for.
 
     Parameters
     ----------
     wedge_idx : ndarray, shape (N,)
-        Wedge bin assignment for each cell (integer in [0, B-1]).
+        Wedge bin assignment for each cell (angular position).
     feature : ndarray, shape (N,)
-        Binary feature values (1 = foreground, 0 = background).
+        Binary feature values (1 = expressing, 0 = non-expressing).
     weights : ndarray, shape (N,), optional
-        Weights for each cell. If None, uniform weights.
+        Weights for each cell (typically None for binary features).
     kernel : ndarray, shape (B,), optional
-        Circular kernel for smoothing. If None, no smoothing (use raw bins).
+        Circular kernel for smoothing the difference profile.
     B : int, default=256
         Number of angular bins.
     R : int, default=500
-        Number of rotation replicates.
+        Number of permutation replicates.
     random_state : int or np.random.Generator, optional
         Random state for reproducibility.
 
     Returns
     -------
     p : float
-        Empirical p-value.
+        Empirical p-value (proportion of null replicates >= observed).
     diff_max_obs : float
         Observed maximum absolute difference.
     diff_max_null : ndarray, shape (R,)
         Null distribution of maximum absolute differences.
+
+    Notes
+    -----
+    - This is the scientifically correct null for binary gene expression features
+      when there are no batch effects.
+    - For data with batch structure, use within_batch_rotation_pvalue_fg_bg instead
+      to preserve batch-specific expression rates.
+    - Each permutation creates a new spatial arrangement where expression is completely
+      random with respect to angular position.
+    
+    Examples
+    --------
+    >>> # Test if gene expression is angularly enriched
+    >>> p, obs, null = rotation_null_pvalue_fg_bg(
+    ...     wedge_idx=angles,
+    ...     feature=gene_binary,  # 0/1 for non-expressing/expressing
+    ...     B=180,
+    ...     R=500
+    ... )
     """
     rng = check_random_state(random_state)
 
+    # Compute observed difference
     diff_obs, _, _ = stats.compute_fg_bg_difference(
         wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
     )
@@ -1072,17 +1100,20 @@ def rotation_null_pvalue_fg_bg(
 
     diff_max_obs = np.max(np.abs(diff_obs))
 
+    # Generate null distribution by permuting expression labels
     diff_max_null = np.zeros(R)
-    shifts = rotation_shifts(B, R, random_state=rng)
 
     for r in range(R):
-        perm_idx = rng.permutation(len(feature))
-        feature_perm = feature[perm_idx]
+        # Randomly permute expression labels across all cells
+        perm_indices = rng.permutation(len(feature))
+        feature_perm = feature[perm_indices]
 
-        wedge_idx_rotated = (wedge_idx + shifts[r]) % B
-
+        # Compute difference with permuted labels
         diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx_rotated, feature=feature_perm, weights=weights, B=B
+            wedge_idx=wedge_idx,  # Same positions
+            feature=feature_perm,  # Permuted expression
+            weights=weights,
+            B=B
         )
 
         if kernel is not None:
@@ -1107,41 +1138,75 @@ def within_batch_rotation_pvalue_fg_bg(
     random_state=None,
 ):
     """
-    Batch-wise rotation null for foreground vs background difference test.
+    Permutation null for foreground vs background difference test with batch stratification.
 
-    Permutes foreground/background labels, then rotates each batch independently
-    to test if the observed foreground enrichment pattern is stronger than expected.
+    **Null Hypothesis**: Gene expression is spatially random within each batch - any cell 
+    within a batch is equally likely to express the gene, regardless of its angular position.
+
+    **Null Model**: Randomly permute expression labels within each batch independently, 
+    preserving:
+    - Number of expressing cells per batch (batch-specific expression rate)
+    - Spatial positions of all cells
+    - Batch structure
+    
+    This breaks spatial correlation between expression and angular position while respecting
+    batch-specific biological variation in expression rates.
+
+    **Use Case**: Testing if expressing cells are angularly enriched/depleted relative to 
+    the overall cell distribution, accounting for batch effects.
 
     Parameters
     ----------
     wedge_idx : ndarray, shape (N,)
-        Wedge bin assignment for each cell.
+        Wedge bin assignment for each cell (angular position).
     feature : ndarray, shape (N,)
-        Binary feature values (1 = foreground, 0 = background).
+        Binary feature values (1 = expressing, 0 = non-expressing).
     batches : ndarray, shape (N,)
         Batch labels for each cell.
     weights : ndarray, shape (N,), optional
-        Weights for each cell.
+        Weights for each cell (typically None for binary features).
     kernel : ndarray, shape (B,), optional
-        Circular kernel for smoothing.
+        Circular kernel for smoothing the difference profile.
     B : int, default=256
         Number of angular bins.
     R : int, default=500
-        Number of rotation replicates.
+        Number of permutation replicates.
     random_state : int or np.random.Generator, optional
         Random state for reproducibility.
 
     Returns
     -------
     p : float
-        Empirical p-value.
+        Empirical p-value (proportion of null replicates >= observed).
     diff_max_obs : float
         Observed maximum absolute difference.
     diff_max_null : ndarray, shape (R,)
         Null distribution of maximum absolute differences.
+
+    Notes
+    -----
+    - This is the scientifically correct null for binary gene expression features.
+    - Each permutation creates a new spatial arrangement where expression is random
+      conditional on batch membership.
+    - Accounts for batch-specific expression rates (e.g., batch A might have 80% 
+      expressing while batch B has 60%).
+    - Previous rotation-based null was fundamentally flawed: rotation preserves 
+      max|diff|, giving zero variance in null distribution.
+    
+    Examples
+    --------
+    >>> # Test if SLC12A1 expression is angularly enriched in TAL cells
+    >>> p, obs, null = within_batch_rotation_pvalue_fg_bg(
+    ...     wedge_idx=angles,
+    ...     feature=slc12a1_binary,  # 0/1 for non-expressing/expressing
+    ...     batches=donor_ids,
+    ...     B=180,
+    ...     R=500
+    ... )
     """
     rng = check_random_state(random_state)
 
+    # Compute observed difference
     diff_obs, _, _ = stats.compute_fg_bg_difference(
         wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
     )
@@ -1151,23 +1216,28 @@ def within_batch_rotation_pvalue_fg_bg(
 
     diff_max_obs = np.max(np.abs(diff_obs))
 
+    # Generate null distribution
     diff_max_null = np.zeros(R)
     unique_batches = np.unique(batches)
-    G = len(unique_batches)
 
     for r in range(R):
-        perm_idx = rng.permutation(len(feature))
-        feature_perm = feature[perm_idx]
+        # Permute feature labels within each batch independently
+        feature_perm = feature.copy()
+        
+        for batch_label in unique_batches:
+            batch_mask = batches == batch_label
+            batch_indices = np.where(batch_mask)[0]
+            
+            # Randomly permute expression labels within this batch
+            perm_indices = rng.permutation(batch_indices)
+            feature_perm[batch_indices] = feature[perm_indices]
 
-        wedge_idx_rotated = wedge_idx.copy()
-        batch_shifts = rng.integers(0, B, size=G)
-
-        for g, batch_label in enumerate(unique_batches):
-            mask = batches == batch_label
-            wedge_idx_rotated[mask] = (wedge_idx[mask] + batch_shifts[g]) % B
-
+        # Compute difference with permuted labels
         diff_null, _, _ = stats.compute_fg_bg_difference(
-            wedge_idx=wedge_idx_rotated, feature=feature_perm, weights=weights, B=B
+            wedge_idx=wedge_idx,  # Same positions
+            feature=feature_perm,  # Permuted expression
+            weights=weights,
+            B=B
         )
 
         if kernel is not None:
@@ -1193,25 +1263,38 @@ def permutation_pvalue_fg_bg(
     random_state=None,
 ):
     """
-    Permutation null for foreground vs background difference test.
+    Permutation null for foreground vs background with radial band and batch stratification.
 
-    Permutes foreground/background labels within strata (radial bands × batches)
-    to test if foreground enrichment differs from background.
+    **Null Hypothesis**: Gene expression is spatially random within each stratum 
+    (radial band × batch combination).
+
+    **Null Model**: Randomly permute expression labels within each stratum independently,
+    preserving:
+    - Number of expressing cells per stratum
+    - Spatial positions of all cells
+    - Radial band structure
+    - Batch structure
+    
+    This is the most conservative null, accounting for both radial and batch heterogeneity
+    in expression rates.
+
+    **Use Case**: When expression rates vary across both radial bands and batches, and
+    you want to test for angular enrichment while controlling for these sources of variation.
 
     Parameters
     ----------
     wedge_idx : ndarray, shape (N,)
-        Wedge bin assignment for each cell.
+        Wedge bin assignment for each cell (angular position).
     feature : ndarray, shape (N,)
-        Binary feature values (1 = foreground, 0 = background).
+        Binary feature values (1 = expressing, 0 = non-expressing).
     band_idx : ndarray, shape (N,), optional
-        Radial band assignment. If None, single band.
+        Radial band assignment. If None, assumes single band (no radial stratification).
     batches : ndarray, shape (N,), optional
-        Batch labels. If None, single batch.
+        Batch labels. If None, assumes single batch (no batch stratification).
     weights : ndarray, shape (N,), optional
-        Weights for each cell.
+        Weights for each cell (typically None for binary features).
     kernel : ndarray, shape (B,), optional
-        Circular kernel for smoothing.
+        Circular kernel for smoothing the difference profile.
     B : int, default=256
         Number of angular bins.
     R : int, default=500
@@ -1222,11 +1305,32 @@ def permutation_pvalue_fg_bg(
     Returns
     -------
     p : float
-        Empirical p-value.
+        Empirical p-value (proportion of null replicates >= observed).
     diff_max_obs : float
         Observed maximum absolute difference.
     diff_max_null : ndarray, shape (R,)
         Null distribution of maximum absolute differences.
+
+    Notes
+    -----
+    - Most conservative option: preserves expression rate in each (band, batch) stratum.
+    - Use when you suspect expression varies with both distance from vantage point
+      and batch membership.
+    - If only batch effects matter, use within_batch_rotation_pvalue_fg_bg instead
+      (more powerful).
+    - If no structure, use rotation_null_pvalue_fg_bg (most powerful).
+    
+    Examples
+    --------
+    >>> # Test with both radial and batch structure
+    >>> p, obs, null = permutation_pvalue_fg_bg(
+    ...     wedge_idx=angles,
+    ...     feature=gene_binary,
+    ...     band_idx=radial_bands,
+    ...     batches=donor_ids,
+    ...     B=180,
+    ...     R=500
+    ... )
     """
     rng = check_random_state(random_state)
 
@@ -1238,6 +1342,7 @@ def permutation_pvalue_fg_bg(
     if batches is None:
         batches = np.zeros(N, dtype=int)
 
+    # Compute observed difference
     diff_obs, _, _ = stats.compute_fg_bg_difference(
         wedge_idx=wedge_idx, feature=feature, weights=weights, B=B
     )
