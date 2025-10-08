@@ -643,7 +643,9 @@ class RadarScanner:
 
         return weights
 
-    def _bin_to_wedges(self, weights: np.ndarray, mask: np.ndarray = None) -> np.ndarray:
+    def _bin_to_wedges(
+        self, weights: np.ndarray, mask: np.ndarray = None
+    ) -> np.ndarray:
         """
         Bin weights to wedge sums, supporting multiple radial bands.
 
@@ -666,7 +668,7 @@ class RadarScanner:
         else:
             wedge_idx = self.wedge_idx
             band_idx = self.band_idx
-        
+
         A = int(np.max(band_idx)) + 1 if band_idx is not None else 1
         if A == 1:
             return np.bincount(wedge_idx, weights=weights, minlength=self.B)
@@ -674,9 +676,7 @@ class RadarScanner:
         for a in range(A):
             m = band_idx == a
             if m.any():
-                S[a] = np.bincount(
-                    wedge_idx[m], weights=weights[m], minlength=self.B
-                )
+                S[a] = np.bincount(wedge_idx[m], weights=weights[m], minlength=self.B)
         return S
 
     def _compute_Z_grid(self, S: np.ndarray, kernel: np.ndarray) -> np.ndarray:

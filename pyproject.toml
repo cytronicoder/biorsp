@@ -8,10 +8,8 @@ version = "0.1.0"
 description = "Biological Radar Scanning Plot"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
-authors = [
-    {name = "Your Name", email = "your.email@example.com"}
-]
+license = { text = "MIT" }
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
 dependencies = [
     "numpy>=1.20.0",
     "scipy>=1.7.0",
@@ -21,20 +19,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=3.0.0",
-    "black>=22.0.0",
-    "flake8>=4.0.0",
-]
+dev = ["pytest>=7.0.0", "pytest-cov>=3.0.0", "black>=22.0.0", "flake8>=4.0.0"]
 
 [tool.setuptools]
-package-dir = {"" = "."}
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["src", "src.*"]
-namespaces = false
+packages = ["biorsp"]
+package-dir = {"biorsp" = "src"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

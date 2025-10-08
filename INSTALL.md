@@ -45,7 +45,7 @@ The Makefile provides convenient shortcuts:
 # Install package
 make install
 
-# Install with dev dependencies  
+# Install with dev dependencies
 make install-dev
 
 # Run tests
@@ -126,18 +126,23 @@ python examples/kpmp.py
 ## Troubleshooting
 
 ### Import errors
+
 If you get import errors, make sure you installed in editable mode:
+
 ```bash
 pip install -e .
 ```
 
 ### Missing dependencies
+
 Install all dependencies:
+
 ```bash
 pip install -e ".[dev]"
 ```
 
 ### Test failures
+
 Some tests may fail if the actual function names differ. Update tests to match your implementation.
 
 ## Next Steps

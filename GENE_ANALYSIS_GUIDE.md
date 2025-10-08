@@ -73,7 +73,7 @@ for i, gene_name in enumerate(gene_names[:50]):  # Top 50 genes
     gene_expr = adata.X[:, i].toarray().ravel()
     res = scanner.scan_feature(gene_expr, name=gene_name)
     results.append(res)
-    
+
 # Create visualizations
 fig = plot_rsp_grid(
     results,
@@ -120,7 +120,8 @@ examples/output/
 
 ### Visual Elements
 
-- **Colors**: 
+- **Colors**:
+
   - Red = Enrichment (positive Z-scores)
   - Blue = Depletion (negative Z-scores)
   - Intensity = Magnitude of Z-score
@@ -134,11 +135,13 @@ examples/output/
 ### Interpreting Results
 
 **Significant Gene** (p < 0.05, high Z_max):
+
 - Shows clear directional pattern
 - Gene expression enriched in specific embedding direction
 - Biological interpretation: Gene marks cells in that spatial region
 
 **Non-significant Gene** (p > 0.05):
+
 - Uniform or noisy pattern
 - No strong directional enrichment
 - May still have biological relevance in other contexts
@@ -169,7 +172,7 @@ from src.plotting import plot_rsp_heatmap
 import matplotlib.pyplot as plt
 
 # Custom single plot
-fig, ax = plt.subplots(1, 1, figsize=(10, 10), 
+fig, ax = plt.subplots(1, 1, figsize=(10, 10),
                        subplot_kw=dict(projection='polar'))
 plot_rsp_heatmap(
     result,
@@ -209,7 +212,7 @@ batch_size = 100
 for i in range(0, len(gene_names), batch_size):
     batch_genes = gene_names[i:i+batch_size]
     # Process batch
-    
+
 # 3. Use simpler null model
 params = ScanParams(..., null_model='rotation')  # Faster than 'within_batch_rotation'
 ```
@@ -229,6 +232,7 @@ else:
 ### "ModuleNotFoundError: No module named 'src'"
 
 **Solution**: Install the package
+
 ```bash
 pip install -e .
 ```
@@ -244,6 +248,7 @@ pip install -e .
 ### "ValueError: wedge_weights must be nonnegative"
 
 **Solution**: Use `standardize='none'` for binary features
+
 ```python
 params = ScanParams(..., standardize='none')
 ```
@@ -291,7 +296,7 @@ q_values = bh_qvalues(p_values)
 # Add to results
 for res, qval in zip(results, q_values):
     res.q_value = qval
-    
+
 # Filter by FDR
 significant = [r for r in results if r.q_value < 0.05]
 ```
@@ -344,7 +349,7 @@ batch_results = {}
 for batch in adata.obs['batch'].unique():
     batch_mask = adata.obs['batch'] == batch
     batch_coords = coords[batch_mask]
-    
+
     scanner_batch = RadarScanner(params).fit(batch_coords)
     batch_results[batch] = scanner_batch.scan_feature(
         gene_expr[batch_mask],
@@ -371,7 +376,7 @@ If you use BioRSP in your research, please cite:
 ### Latest Update (October 2025)
 
 - ✅ Added comprehensive plotting module (`src/plotting.py`)
-- ✅ Fixed IndexError in `_bin_to_wedges` for batch-wise operations  
+- ✅ Fixed IndexError in `_bin_to_wedges` for batch-wise operations
 - ✅ Fixed dimension mismatch in `_compute_Z_grid` for single-band case
 - ✅ Added complete gene expression scanning examples
 - ✅ Created detailed documentation and guides

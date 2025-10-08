@@ -17,6 +17,7 @@ python kpmp.py
 ```
 
 This will:
+
 1. Load the KPMP dataset
 2. Scan donor, class, and gene expression features
 3. Generate RSP plots for the most significant features
@@ -28,6 +29,7 @@ python kpmp_with_plots.py
 ```
 
 This creates:
+
 - Grid plots of top significant genes
 - Cell class RSP heatmaps
 - Detailed summary plots
@@ -141,7 +143,7 @@ Each scan returns a `FeatureResult` object with:
 
 1. **Reduce R for faster testing**: Use `R=100` instead of `R=500`
 2. **Limit genes scanned**: Start with top 20-50 most variable genes
-3. **Use appropriate null model**: 
+3. **Use appropriate null model**:
    - `within_batch_rotation`: Best for batch-corrected data
    - `rotation`: Faster, assumes no batch effects
    - `permutation`: Most stringent, slowest
@@ -149,6 +151,7 @@ Each scan returns a `FeatureResult` object with:
 ## Data Requirements
 
 The example expects an AnnData object with:
+
 - `.obsm['X_umap']`: 2D embedding coordinates
 - `.obs['donor_id']`: Batch/donor identifiers
 - `.obs['class']`: Cell type annotations
@@ -160,6 +163,7 @@ The example expects an AnnData object with:
 ### "No module named 'src'"
 
 Make sure you've installed the package:
+
 ```bash
 pip install -e .
 ```
@@ -171,6 +175,7 @@ This was fixed in the latest version. Make sure you have the updated code with t
 ### Memory issues with large datasets
 
 Process genes in batches:
+
 ```python
 batch_size = 100
 for i in range(0, n_genes, batch_size):

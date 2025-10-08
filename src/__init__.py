@@ -1,7 +1,7 @@
 """
 Biological Radar Scanning Plot (BioRSP)
 
-A Python package for multiscale directional analysis of 2D embeddings 
+A Python package for multiscale directional analysis of 2D embeddings
 using radar scanning methodology.
 """
 
@@ -85,12 +85,10 @@ from .plotting import (
 __all__ = [
     # Version
     "__version__",
-    
     # Core classes
     "ScanParams",
     "FeatureResult",
     "RadarScanner",
-    
     # Preprocessing
     "validate_inputs",
     "to_polar",
@@ -102,7 +100,6 @@ __all__ = [
     "assign_radial_bands",
     "density_weights",
     "density_ratio",
-    
     # Statistics
     "make_kernel",
     "expected_from_uniform",
@@ -115,7 +112,6 @@ __all__ = [
     "circular_fourier",
     "sector_sums_convolved",
     "compute_Z_grid",
-    
     # Null models
     "rotation_shifts",
     "max_stat_under_rotations",
@@ -127,7 +123,6 @@ __all__ = [
     "rotation_null_pvalue",
     "within_batch_rotation_pvalue",
     "permutation_null_pvalue",
-    
     # Utilities
     "config_hash",
     "ensure_float64",
@@ -142,7 +137,6 @@ __all__ = [
     "circ_prefix_convolve",
     "circ_shift",
     "circ_shift_batch",
-    
     # Plotting
     "plot_rsp_heatmap",
     "plot_rsp_grid",
