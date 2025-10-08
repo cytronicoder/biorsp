@@ -1,0 +1,8 @@
+include README.md
+include LICENSE
+recursive-include src *.py
+recursive-include tests *.py
+exclude examples/*
+exclude figures/*
+exclude .git*
+exclude .venv/*
