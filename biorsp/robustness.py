@@ -1,0 +1,121 @@
+"""
+Robustness diagnostics module for BioRSP.
+
+Implements stability checks via subsampling:
+- Subsample cells (e.g. 80%)
+- Recompute RSP profile
+- Correlate with full profile
+- Compute CV of scalar summaries
+"""
+
+from dataclasses import dataclass
+
+import numpy as np
+from scipy.stats import pearsonr
+
+from .foreground import binary_foreground
+from .radar import compute_rsp_radar
+from .summaries import compute_scalar_summaries
+
+
+@dataclass
+class RobustnessResult:
+    """
+    Results of robustness analysis.
+
+    Attributes:
+        mean_correlation: Mean Pearson correlation of subsampled RSP profiles with full profile.
+        cv_anisotropy: Coefficient of variation of anisotropy (mean_abs_rsp) across subsamples.
+        n_subsamples: Number of subsamples performed.
+    """
+
+    mean_correlation: float
+    cv_anisotropy: float
+    n_subsamples: int
+
+
+def compute_robustness_score(
+    x: np.ndarray,
+    theta: np.ndarray,
+    B: int = 360,
+    delta_deg: float = 20.0,
+    n_subsample: int = 20,
+    subsample_frac: float = 0.8,
+    seed: int = 42,
+) -> RobustnessResult:
+    """
+    Compute robustness metrics via subsampling.
+
+    Args:
+        x: (N,) expression values.
+        theta: (N,) angles.
+        B: Number of sectors.
+        delta_deg: Sector width.
+        n_subsample: Number of iterations.
+        subsample_frac: Fraction of cells to keep per iteration.
+        seed: Random seed.
+
+    Returns:
+        RobustnessResult object.
+    """
+    rng = np.random.default_rng(seed)
+    n_cells = len(x)
+    n_keep = int(n_cells * subsample_frac)
+
+    # 1. Compute full profile
+    y_full, _, _ = binary_foreground(x)
+    theta_fg_full = theta[y_full]
+
+    # If full data is inadequate, we can't assess robustness well, but let's try
+    radar_full = compute_rsp_radar(theta_fg_full, B, delta_deg)
+    rsp_full = radar_full.rsp
+
+    correlations = []
+    anisotropies = []
+
+    for _ in range(n_subsample):
+        # Subsample indices
+        indices = rng.choice(n_cells, size=n_keep, replace=False)
+
+        x_sub = x[indices]
+        theta_sub = theta[indices]
+
+        # Recompute foreground on subsample
+        y_sub, _, _ = binary_foreground(x_sub)
+        theta_fg_sub = theta_sub[y_sub]
+
+        # Compute RSP
+        radar_sub = compute_rsp_radar(theta_fg_sub, B, delta_deg)
+        rsp_sub = radar_sub.rsp
+
+        # Correlate with full
+        # Handle constant arrays (std=0) to avoid warnings
+        if np.std(rsp_sub) == 0 or np.std(rsp_full) == 0:
+            corr = 0.0
+        else:
+            corr, _ = pearsonr(rsp_sub, rsp_full)
+
+        correlations.append(corr)
+
+        # Compute anisotropy
+        summ = compute_scalar_summaries(radar_sub)
+        anisotropies.append(summ.mean_abs_rsp)
+
+    mean_corr = np.mean(correlations)
+
+    mean_ani = np.mean(anisotropies)
+    std_ani = np.std(anisotropies)
+
+    if mean_ani > 0:
+        cv_ani = std_ani / mean_ani
+    else:
+        cv_ani = 0.0
+
+    return RobustnessResult(
+        mean_correlation=float(mean_corr),
+        cv_anisotropy=float(cv_ani),
+        n_subsamples=n_subsample,
+    )
+
+
+__all__ = ["RobustnessResult", "compute_robustness_score"]
