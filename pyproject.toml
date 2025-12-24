@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biorsp"
+version = "0.0.0"
+description = "Bayesian inference and robustness tools for RSP-style analyses (placeholder)."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Your Name", email = "you@example.com" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.23",
+    "scipy>=1.8",
+    "pandas>=1.5",
+    "matplotlib>=3.5",
+    "scikit-learn>=1.1",
+    "tqdm>=4.64",
+]
+
+[project.optional-dependencies]
+# Development extras including testing, linting, and optional scientific packages
+dev = [
+    "pytest>=7.0",
+    "black>=23.1.0",
+    "ruff>=0.12.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+    "pre-commit>=2.20.0",
+    "isort>=5.10.1",
+    "umap-learn>=0.5.3",
+    "phate>=1.0.8",
+    "anndata>=0.9"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+
+[tool.ruff]
+line-length = 100
+exclude = ["**/*.ipynb"]
+
+[tool.ruff.lint]
+extend-ignore = ["E203"]
+
