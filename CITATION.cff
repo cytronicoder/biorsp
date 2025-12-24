@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the following metadata."
+title: "biorsp"
+version: "0.0.0"
+doi: ""
+authors:
+  - family-names: "Yao"
+    given-names: "Zeyu"
+    affiliation: "Stamford American International School, Singapore 357684"
+  - family-names: "Chen"
+    given-names: "Jake Y."
+    affiliation: "Department of Biomedical Informatics and Data Science, Systems Pharmacology AI Research Center, the University of Alabama at Birmingham, Birmingham, Alabama, US"
+    email: "jakechen@uab.edu"
+    role: "Corresponding author"
+version: "0.1.0"
+# date-released: TODO
+# Note: DOI/URL omitted (not provided)
+url: "https://github.com/your-org/biorsp"
