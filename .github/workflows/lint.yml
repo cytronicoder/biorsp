@@ -25,5 +25,8 @@ jobs:
         run: black --check .
       - name: Import sort check (isort)
         run: isort --check-only .
+      - name: Install package
+        run: |
+          python -m pip install -e .
       - name: Run tests
         run: pytest -q
