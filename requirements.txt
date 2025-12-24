@@ -1,0 +1,7 @@
+# Runtime dependencies for biorsp
+numpy>=1.23
+scipy>=1.8
+pandas>=1.5
+matplotlib>=3.5
+scikit-learn>=1.1
+tqdm>=4.64
