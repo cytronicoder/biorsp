@@ -10,16 +10,10 @@ from typing import Literal
 
 import numpy as np
 
-from .constants import (
-    B_DEFAULT,
-    DELTA_DEG_DEFAULT,
-    K_EXPLORATORY_DEFAULT,
-    N_BG_MIN_DEFAULT,
-    N_FG_MIN_DEFAULT,
-    N_FG_TOT_MIN_DEFAULT,
-    SMOOTH_DEG_DEFAULT,
-    UMI_BINS_DEFAULT,
-)
+from .constants import (B_DEFAULT, DELTA_DEG_DEFAULT, K_EXPLORATORY_DEFAULT,
+                        N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT,
+                        N_FG_TOT_MIN_DEFAULT, SMOOTH_DEG_DEFAULT,
+                        UMI_BINS_DEFAULT)
 
 
 @dataclass(frozen=True)

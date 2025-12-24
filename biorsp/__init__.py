@@ -7,14 +7,9 @@ from . import constants
 from ._version import __version__
 from .config import BioRSPConfig
 from .foreground import binary_foreground, soft_foreground_weights
-
 # Public API
-from .geometry import (
-    angle_grid,
-    geometric_median,
-    polar_coordinates,
-    wrapped_circular_distance,
-)
+from .geometry import (angle_grid, geometric_median, polar_coordinates,
+                       wrapped_circular_distance)
 from .inference import compute_p_value
 from .manifest import BioRSPManifest, create_manifest, save_manifest
 from .radar import RadarResult, compute_rsp_radar
