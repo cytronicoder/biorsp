@@ -15,4 +15,4 @@ pre-commit>=3.4.0
 # Optional / scientific extras
 umap-learn>=0.5.5
 phate>=2.0.0
-anndata>=0.12
+anndata>=0.11
