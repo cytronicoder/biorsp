@@ -44,9 +44,7 @@ def compute_embedding(
         if z_custom is None:
             raise ValueError("z_custom must be provided when method='custom'")
         if z_custom.shape[0] != x.shape[0]:
-            raise ValueError(
-                f"z_custom shape {z_custom.shape} does not match x {x.shape}"
-            )
+            raise ValueError(f"z_custom shape {z_custom.shape} does not match x {x.shape}")
         return z_custom
 
     elif method == "pca":
@@ -66,9 +64,7 @@ def compute_embedding(
                 "umap-learn is required for 'umap' embed. Install with: pip install umap-learn"
             ) from exc
 
-        model = umap.UMAP(
-            n_components=n_components, random_state=random_state, **kwargs
-        )
+        model = umap.UMAP(n_components=n_components, random_state=random_state, **kwargs)
         return model.fit_transform(x)
 
     elif method == "tsne":
@@ -87,9 +83,7 @@ def compute_embedding(
                 "phate is required for 'phate' embed. Install with: pip install phate"
             ) from exc
 
-        model = phate.PHATE(
-            n_components=n_components, random_state=random_state, **kwargs
-        )
+        model = phate.PHATE(n_components=n_components, random_state=random_state, **kwargs)
         return model.fit_transform(x)
 
     else:

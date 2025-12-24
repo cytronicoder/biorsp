@@ -31,9 +31,7 @@ class RadarResult:
     centers: np.ndarray
 
 
-def compute_rsp_radar(
-    theta_fg: np.ndarray, B: int = 360, delta_deg: float = 20.0
-) -> RadarResult:
+def compute_rsp_radar(theta_fg: np.ndarray, B: int = 360, delta_deg: float = 20.0) -> RadarResult:
     """
     Compute the signed RSP radar function.
 

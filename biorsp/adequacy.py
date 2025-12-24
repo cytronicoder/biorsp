@@ -11,8 +11,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .constants import (REASON_GENE_UNDERPOWERED, REASON_OK,
-                        REASON_SECTOR_FG_TOO_SMALL)
+from .constants import REASON_GENE_UNDERPOWERED, REASON_OK, REASON_SECTOR_FG_TOO_SMALL
 
 
 @dataclass

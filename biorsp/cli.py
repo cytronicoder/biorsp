@@ -144,9 +144,7 @@ def main(argv=None):
 
     # Run command
     run_parser = subparsers.add_parser("run", help="Run RSP analysis")
-    run_parser.add_argument(
-        "--expression", required=True, help="Expression matrix file"
-    )
+    run_parser.add_argument("--expression", required=True, help="Expression matrix file")
     run_parser.add_argument("--coords", required=True, help="Spatial coordinates file")
     run_parser.add_argument("--output", required=True, help="Output JSON file")
     run_parser.add_argument(
@@ -157,21 +155,13 @@ def main(argv=None):
 
     # Parameters
     run_parser.add_argument("--B", type=int, default=360, help="Number of sectors")
-    run_parser.add_argument(
-        "--delta", type=float, default=20.0, help="Sector width (degrees)"
-    )
-    run_parser.add_argument(
-        "--quantile", type=float, default=0.90, help="Foreground quantile"
-    )
+    run_parser.add_argument("--delta", type=float, default=20.0, help="Sector width (degrees)")
+    run_parser.add_argument("--quantile", type=float, default=0.90, help="Foreground quantile")
     run_parser.add_argument(
         "--min-count", type=int, default=10, help="Min foreground cells per sector"
     )
-    run_parser.add_argument(
-        "--inference", action="store_true", help="Run permutation test"
-    )
-    run_parser.add_argument(
-        "--n-perm", type=int, default=1000, help="Number of permutations"
-    )
+    run_parser.add_argument("--inference", action="store_true", help="Run permutation test")
+    run_parser.add_argument("--n-perm", type=int, default=1000, help="Number of permutations")
     run_parser.add_argument("--seed", type=int, default=42, help="Random seed")
 
     args = parser.parse_args(argv)

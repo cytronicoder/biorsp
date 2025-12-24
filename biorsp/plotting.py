@@ -67,9 +67,7 @@ def plot_radar(
 
     # Plot negative lobe (dispersed)
     if np.any(r_neg > 0):
-        ax.plot(
-            theta_plot, r_neg, color="r", linestyle="--", label="Dispersed", **kwargs
-        )
+        ax.plot(theta_plot, r_neg, color="r", linestyle="--", label="Dispersed", **kwargs)
         ax.fill(theta_plot, r_neg, color="r", alpha=alpha)
 
     if title:

@@ -91,9 +91,7 @@ def save_results(results: Dict[str, Any], path: str) -> None:
             return float(o)
         elif isinstance(o, np.ndarray):
             return o.tolist()
-        raise TypeError(
-            f"Object of type {o.__class__.__name__} is not JSON serializable"
-        )
+        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(results, f, default=default_converter, indent=2)

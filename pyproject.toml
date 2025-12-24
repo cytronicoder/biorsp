@@ -53,3 +53,15 @@ exclude = ["**/*.ipynb"]
 [tool.ruff.lint]
 extend-ignore = ["E203"]
 
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["biorsp"]
+combine_as_imports = true
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+
