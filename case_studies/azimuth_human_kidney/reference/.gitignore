@@ -1,0 +1,10 @@
+# Don't accidentally add the large reference data files to git
+*.mtx
+*.tsv
+*.csv
+*.h5ad
+*.h5seurat
+*.Rds
+
+# Generated data
+data/
