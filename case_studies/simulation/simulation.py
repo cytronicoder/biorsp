@@ -28,7 +28,7 @@ class SimulationConfig:
 
     # BioRSP defaults
     B: int = 360
-    delta_deg: float = 20.0
+    delta_deg: float = 180.0
     n_fg_min: int = 10
     n_bg_min: int = 50
     n_fg_tot_min: int = 100
