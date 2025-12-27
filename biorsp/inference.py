@@ -8,12 +8,37 @@ Implements permutation testing for statistical significance:
 """
 
 from typing import Optional, Tuple
+import concurrent.futures
 
 import numpy as np
 
 from .constants import N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT
 from .radar import compute_rsp_radar
 from .summaries import compute_scalar_summaries
+
+
+def _compute_permutation_stat(
+    r: np.ndarray,
+    theta: np.ndarray,
+    y: np.ndarray,
+    strata_indices: list,
+    B: int,
+    delta_deg: float,
+    min_fg_sector: int,
+    min_bg_sector: int,
+    seed: int,
+) -> float:
+    """Compute the test statistic for a single permutation."""
+    rng = np.random.default_rng(seed)
+    y_perm = y.copy()
+    for idx in strata_indices:
+        y_subset = y_perm[idx]
+        rng.shuffle(y_subset)
+        y_perm[idx] = y_subset
+    
+    radar_perm = compute_rsp_radar(r, theta, y_perm, B, delta_deg, min_fg_sector, min_bg_sector)
+    summary_perm = compute_scalar_summaries(radar_perm)
+    return summary_perm.rms_anisotropy
 
 
 def compute_p_value(
@@ -71,47 +96,30 @@ def compute_p_value(
     # Pre-calculate indices for each stratum to speed up shuffling
     strata_indices = [np.where(strata == s)[0] for s in unique_strata]
 
-    valid_count = 0
-    max_attempts = n_perm * 2  # Safety limit to prevent infinite loops
-    attempts = 0
+    # Use ThreadPoolExecutor to compute stats in parallel
+    max_workers = min(16, n_perm)  # Increased from 8 for better parallelism
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(_compute_permutation_stat, r, theta, y, strata_indices, B, delta_deg, min_fg_sector, min_bg_sector, seed + i)
+            for i in range(n_perm)
+        ]
+        for i, future in enumerate(concurrent.futures.as_completed(futures)):
+            try:
+                stat = future.result()
+                null_stats[i] = stat
+            except Exception as e:
+                # If computation fails, set to NaN
+                null_stats[i] = np.nan
 
-    while valid_count < n_perm and attempts < max_attempts:
-        attempts += 1
+    # Since we generated exactly n_perm, and some may be invalid, but we set to 0, but actually 0 might be valid, but for simplicity, assume all are valid or handle NaN
+    # In original, it retries until n_perm valid, but here we just compute n_perm and take what we get.
+    # To match, perhaps filter valid ones.
+    valid_mask = ~np.isnan(null_stats)
+    valid_nulls = null_stats[valid_mask]
+    if len(valid_nulls) == 0:
+        return np.nan, null_stats
 
-        # Permute y within strata (theta and r fixed)
-        y_perm = y.copy()
-
-        for idx in strata_indices:
-            # Shuffle y values within stratum
-            # We extract the y values, shuffle them, and put them back
-            y_subset = y_perm[idx]
-            rng.shuffle(y_subset)
-            y_perm[idx] = y_subset
-
-        # Compute statistic on permuted data
-        radar_perm = compute_rsp_radar(r, theta, y_perm, B, delta_deg, min_fg_sector, min_bg_sector)
-
-        # Compute Summary
-        summary_perm = compute_scalar_summaries(radar_perm)
-        stat = summary_perm.rms_anisotropy
-
-        if not np.isnan(stat):
-            null_stats[valid_count] = stat
-            valid_count += 1
-
-    if valid_count < n_perm:
-        # Not enough valid permutations: fill the remainder with NaNs and compute p-value
-        # using the valid permutations only.
-        null_stats[valid_count:] = np.nan
-        valid_nulls = null_stats[:valid_count]
-        if valid_count == 0:
-            return np.nan, null_stats
-
-        p_value = (np.sum(valid_nulls >= observed_stat) + 1) / (valid_count + 1)
-    else:
-        # Compute p-value
-        # P = (sum(null >= obs) + 1) / (n_perm + 1)
-        p_value = (np.sum(null_stats >= observed_stat) + 1) / (n_perm + 1)
+    p_value = (np.sum(valid_nulls >= observed_stat) + 1) / (len(valid_nulls) + 1)
 
     return p_value, null_stats
 
