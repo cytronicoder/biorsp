@@ -9,9 +9,11 @@ def test_radar_simple():
     y = np.zeros(100, dtype=bool)
     y[:50] = True  # First half foreground
 
-    theta_fg = theta[y]
+    # simple radial distances (unit radius)
+    r = np.ones_like(theta)
 
-    # Should run without error
-    result = compute_rsp_radar(theta_fg, B=360, delta_deg=20.0)
+    # Should run without error using full API (r, theta, y)
+    result = compute_rsp_radar(r, theta, y, B=360, delta_deg=20.0)
     assert len(result.rsp) == 360
-    assert len(result.counts) == 360
+    assert len(result.counts_fg) == 360
+    assert len(result.counts_bg) == 360
