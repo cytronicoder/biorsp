@@ -66,7 +66,7 @@ def compute_robustness_score(
     y_full, _, _ = binary_foreground(x)
     theta_fg_full = theta[y_full]
 
-    # If full data is inadequate, we can't assess robustness well, but let's try
+    # If full data is inadequate, robustness estimates may be unreliable
     radar_full = compute_rsp_radar(theta_fg_full, B, delta_deg)
     rsp_full = radar_full.rsp
 
