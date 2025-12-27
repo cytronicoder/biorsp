@@ -3,12 +3,14 @@
 This guide mirrors the Methods workflow. Where the Methods intentionally omits operational details (e.g., exact CLI arguments), a short TODO placeholder is provided.
 
 ## Inputs you need
+
 - Coordinates `z` (2D embedding coordinates for each cell)
 - Feature values `x` (gene expression or other scalar feature per cell)
 - Cell set `S` (user-specified subset of cells to analyze)
 - Optional: library sizes `u` and donor/sample labels `d(i)` for stratified inference and diagnostics
 
 ## Default workflow
+
 1. Choose the cell set `S` to analyze (e.g., annotated cell type or metadata filter).
 2. Compute vantage `v` (default: geometric median of `{z_i : i in S}`).
 3. Define foreground `y_i^{(g)}` using the 90th-percentile threshold within `S` (binary default).
@@ -22,9 +24,11 @@ This guide mirrors the Methods workflow. Where the Methods intentionally omits o
 9. Run diagnostics (split-half reproducibility, subsampling stability, cross-embedding sensitivity, VSI).
 
 ## Command-line examples
+
 - TODO: add CLI usage examples (useful if a stable `biorsp` command-line interface is available).
 - If you use the package programmatically, follow the usage pattern in the example notebooks in `examples/`.
 
 ## Notes and cautions
+
 - BioRSP is not clustering or trajectory inference; use published labels or user-defined subsets to define `S`.
 - The default constants (listed in theory) are chosen for robustness; they should be treated as sensible defaults rather than universally optimal settings.
