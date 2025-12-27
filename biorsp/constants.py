@@ -16,6 +16,7 @@ SMOOTH_DEG_DEFAULT = 5.0  # Visualization only
 N_FG_MIN_DEFAULT = 10
 N_BG_MIN_DEFAULT = 50
 N_FG_TOT_MIN_DEFAULT = 100
+ADEQUACY_FRACTION_DEFAULT = 0.9
 
 # Inference defaults
 UMI_BINS_DEFAULT = 10  # Q=10
@@ -28,6 +29,7 @@ EPS = 1e-8
 # Reason codes for adequacy
 REASON_SECTOR_FG_TOO_SMALL = "sector_fg_too_small"
 REASON_SECTOR_BG_TOO_SMALL = "sector_bg_too_small"
+REASON_SECTOR_MIXED_TOO_SMALL = "sector_mixed_too_small"
 REASON_GENE_UNDERPOWERED = "gene_underpowered"
 REASON_OK = "ok"
 
@@ -39,12 +41,14 @@ __all__ = [
     "N_FG_MIN_DEFAULT",
     "N_BG_MIN_DEFAULT",
     "N_FG_TOT_MIN_DEFAULT",
+    "ADEQUACY_FRACTION_DEFAULT",
     "UMI_BINS_DEFAULT",
     "K_EXPLORATORY_DEFAULT",
     "K_FINAL_DEFAULT",
     "EPS",
     "REASON_SECTOR_FG_TOO_SMALL",
     "REASON_SECTOR_BG_TOO_SMALL",
+    "REASON_SECTOR_MIXED_TOO_SMALL",
     "REASON_GENE_UNDERPOWERED",
     "REASON_OK",
 ]

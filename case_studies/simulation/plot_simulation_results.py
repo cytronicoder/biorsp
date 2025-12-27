@@ -423,6 +423,7 @@ def plot_embedding_with_rsp(indir: str, outdir: str, top_frac: float = 0.1):
                 seed=seed,
             )
 
+        r = np.linalg.norm(z, axis=1)
         theta = np.arctan2(z[:, 1], z[:, 0])
         thr = np.quantile(x, 1.0 - top_frac)
         y_fg = x >= thr
@@ -430,7 +431,7 @@ def plot_embedding_with_rsp(indir: str, outdir: str, top_frac: float = 0.1):
             print(f"Skipping {geom}: no foreground cells at top_frac={top_frac}")
             continue
 
-        radar = simmod.compute_rsp_radar(theta[y_fg], B=360, delta_deg=20)
+        radar = simmod.compute_rsp_radar(r, theta, y_fg, B=360, delta_deg=20)
         centers = radar.centers
         rsp = radar.rsp
 
@@ -632,6 +633,7 @@ def split_half_reproducibility(
         As = []
         for s in range(n_splits):
             idx = np.random.choice(len(z), size=len(z) // 2, replace=False)
+            r = np.linalg.norm(z, axis=1)
             theta = np.arctan2(z[:, 1], z[:, 0])
             y1 = np.zeros(len(z), dtype=bool)
             y2 = np.zeros(len(z), dtype=bool)
@@ -641,10 +643,10 @@ def split_half_reproducibility(
             idx2 = np.setdiff1d(np.arange(len(z)), idx)
             y2[idx2] = x[idx2] >= np.quantile(x[idx2], 0.9)
             # compute A for each
-            radar1 = simmod.compute_rsp_radar(theta[y1], B=360, delta_deg=20)
-            s1 = simmod.compute_scalar_summaries(radar1).mean_abs_rsp
-            radar2 = simmod.compute_rsp_radar(theta[y2], B=360, delta_deg=20)
-            s2 = simmod.compute_scalar_summaries(radar2).mean_abs_rsp
+            radar1 = simmod.compute_rsp_radar(r, theta, y1, B=360, delta_deg=20)
+            s1 = simmod.compute_scalar_summaries(radar1).rms_anisotropy
+            radar2 = simmod.compute_rsp_radar(r, theta, y2, B=360, delta_deg=20)
+            s2 = simmod.compute_scalar_summaries(radar2).rms_anisotropy
             As.append((s1, s2))
         As = np.array(As)
         rho = np.corrcoef(As[:, 0], As[:, 1])[0, 1]
@@ -715,10 +717,11 @@ def representative_rsp_curves(df: pd.DataFrame, indir: str, outpath: str, n_exam
             )
 
         # compute radar for foreground
+        r = np.linalg.norm(z, axis=1)
         theta = np.arctan2(z[:, 1], z[:, 0])
         threshold = np.quantile(x, 0.9)
         y = x >= threshold
-        radar = simmod.compute_rsp_radar(theta[y], B=360, delta_deg=20)
+        radar = simmod.compute_rsp_radar(r, theta, y, B=360, delta_deg=20)
         centers = radar.centers
         rsp = radar.rsp
 

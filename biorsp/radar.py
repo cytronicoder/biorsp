@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.stats import iqr, wasserstein_distance
 
-from .constants import N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT
+from .constants import EPS, N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT
 from .geometry import angle_grid
 
 
@@ -26,12 +26,16 @@ class RadarResult:
         counts_fg: (B,) array of foreground counts per sector.
         counts_bg: (B,) array of background counts per sector.
         centers: (B,) array of sector center angles.
+        iqr_floor: Lower bound used for IQR normalization.
+        iqr_floor_hits: (B,) boolean array indicating when floor was applied.
     """
 
     rsp: np.ndarray
     counts_fg: np.ndarray
     counts_bg: np.ndarray
     centers: np.ndarray
+    iqr_floor: float
+    iqr_floor_hits: np.ndarray
 
 
 def compute_rsp_radar(
@@ -50,7 +54,7 @@ def compute_rsp_radar(
     1. Select foreground and background cells in window [phi_b - delta/2, phi_b + delta/2].
     2. Check adequacy (min counts). If not adequate, R_b = NaN.
     3. Compute Wasserstein-1 distance (W1) between foreground radii and background radii.
-    4. Normalize by IQR of background radii in the sector.
+    4. Normalize by IQR of background radii in the sector with a global floor.
     5. Determine sign: negative if foreground is radially distal (larger radii), positive if proximal.
        Sign = sign(median(r_bg) - median(r_fg)).
        (Note: This convention makes 'rim' patterns negative, consistent with P_g = min R_g).
@@ -67,6 +71,13 @@ def compute_rsp_radar(
     Returns:
         RadarResult object.
     """
+    if len(r) != len(theta) or len(theta) != len(y):
+        raise ValueError("r, theta, and y must have the same length.")
+    if B <= 0:
+        raise ValueError("B must be positive.")
+    if delta_deg <= 0:
+        raise ValueError("delta_deg must be > 0.")
+
     # 1. Define grid
     centers = angle_grid(B)
     delta_rad = np.deg2rad(delta_deg)
@@ -76,34 +87,23 @@ def compute_rsp_radar(
     counts_fg = np.zeros(B, dtype=int)
     counts_bg = np.zeros(B, dtype=int)
 
-    # Pre-compute relative angles for all sectors and cells
-    n_cells = len(theta)
-    rel_theta_matrix = np.zeros((B, n_cells))
+    # Separate foreground and background
+    y_fg = y == 1
+    y_bg = y == 0
+    r_bg_all = r[y_bg]
+
+    # Global fallback for IQR if sector is degenerate
+    global_iqr = iqr(r_bg_all) if len(r_bg_all) > 0 else np.nan
+    if not np.isfinite(global_iqr) or global_iqr <= 0:
+        global_iqr = 1.0  # Fallback if even global is degenerate
+    iqr_floor = max(0.1 * global_iqr, EPS)
+    iqr_floor_hits = np.zeros(B, dtype=bool)
+
     for b in range(B):
         phi = centers[b]
         rel_theta = theta - phi
         rel_theta = (rel_theta + np.pi) % (2 * np.pi) - np.pi
-        rel_theta_matrix[b] = rel_theta
-
-    # Separate foreground and background
-    y_fg = y == 1
-    y_bg = y == 0
-    r_fg_all = r[y_fg]
-    theta_fg_all = theta[y_fg]
-    r_bg_all = r[y_bg]
-    theta_bg_all = theta[y_bg]
-
-    # Global fallback for IQR if sector is degenerate
-    # Use a small epsilon relative to global scale
-    global_iqr = iqr(r_bg_all)
-    if global_iqr == 0:
-        global_iqr = 1.0  # Fallback if even global is degenerate
-    epsilon = 1e-8 * global_iqr
-
-    for b in range(B):
-        # Use pre-computed relative angles
-        rel_theta_b = rel_theta_matrix[b]
-        mask_all = np.abs(rel_theta_b) <= half_width
+        mask_all = np.abs(rel_theta) <= half_width
 
         # Foreground in window
         mask_fg = mask_all & y_fg
@@ -126,10 +126,12 @@ def compute_rsp_radar(
 
         # 4. Normalize by IQR of background
         iqr_bg = iqr(r_bg_sector)
-        # Stabilize IQR
-        iqr_bg = max(iqr_bg, epsilon)
+        # Stabilize IQR with a global floor
+        denom = max(iqr_bg, iqr_floor)
+        if denom > iqr_bg:
+            iqr_floor_hits[b] = True
 
-        normalized_w1 = w1 / iqr_bg
+        normalized_w1 = w1 / denom
 
         # 5. Determine sign
         # Sign = sign(median(r_bg) - median(r_fg))
@@ -139,7 +141,14 @@ def compute_rsp_radar(
 
         rsp_values[b] = sign * normalized_w1
 
-    return RadarResult(rsp=rsp_values, counts_fg=counts_fg, counts_bg=counts_bg, centers=centers)
+    return RadarResult(
+        rsp=rsp_values,
+        counts_fg=counts_fg,
+        counts_bg=counts_bg,
+        centers=centers,
+        iqr_floor=iqr_floor,
+        iqr_floor_hits=iqr_floor_hits,
+    )
 
 
 __all__ = ["RadarResult", "compute_rsp_radar"]

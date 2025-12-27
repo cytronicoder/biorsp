@@ -7,7 +7,7 @@ Supports CSV, TSV, and optionally AnnData (h5ad).
 
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -97,4 +97,53 @@ def save_results(results: Dict[str, Any], path: str) -> None:
         json.dump(results, f, default=default_converter, indent=2)
 
 
-__all__ = ["load_expression_matrix", "load_spatial_coords", "save_results"]
+def load_umi_counts(
+    path: str, n_cells: Optional[int] = None, column: Optional[str] = None
+) -> np.ndarray:
+    """
+    Load UMI counts from file.
+
+    Args:
+        path: Path to file (csv, tsv, txt). Expected a single column or named column.
+        n_cells: Expected number of cells for validation.
+        column: Optional column name to select for UMI counts.
+
+    Returns:
+        (N,) numpy array of UMI counts.
+    """
+    ext = os.path.splitext(path)[1].lower()
+
+    if ext in [".csv", ".txt"]:
+        df = pd.read_csv(path)
+    elif ext == ".tsv":
+        df = pd.read_csv(path, sep="\t")
+    else:
+        raise ValueError(f"Unsupported file extension: {ext}")
+
+    if column:
+        if column not in df.columns:
+            raise ValueError(f"UMI column '{column}' not found in {path}.")
+        counts = df[column].values
+    elif "umi" in df.columns:
+        counts = df["umi"].values
+    elif "umis" in df.columns:
+        counts = df["umis"].values
+    else:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        if len(numeric_cols) == 1:
+            counts = df[numeric_cols[0]].values
+        else:
+            raise ValueError(
+                "UMI column not found. Provide a column named 'umi'/'umis' or "
+                "specify --umi-column."
+            )
+
+    if n_cells is not None and len(counts) != n_cells:
+        raise ValueError(
+            f"UMI counts length ({len(counts)}) does not match number of cells ({n_cells})."
+        )
+
+    return counts
+
+
+__all__ = ["load_expression_matrix", "load_spatial_coords", "load_umi_counts", "save_results"]

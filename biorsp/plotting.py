@@ -135,10 +135,11 @@ def plot_summary(summary: ScalarSummaries, ax: Optional[plt.Axes] = None) -> plt
     text = (
         f"Max RSP: {summary.max_rsp:.3f}\n"
         f"Min RSP: {summary.min_rsp:.3f}\n"
-        f"Mean Abs RSP: {summary.mean_abs_rsp:.3f}\n"
+        f"RMS Anisotropy: {summary.rms_anisotropy:.3f}\n"
         f"Integrated RSP: {summary.integrated_rsp:.3f}\n"
-        f"Peak Angle: {np.degrees(summary.peak_angle):.1f}°\n"
-        f"Trough Angle: {np.degrees(summary.trough_angle):.1f}°"
+        f"Peak Distal Angle: {np.degrees(summary.peak_distal_angle):.1f}°\n"
+        f"Peak Proximal Angle: {np.degrees(summary.peak_proximal_angle):.1f}°\n"
+        f"Peak Extremal Angle: {np.degrees(summary.peak_extremal_angle):.1f}°"
     )
 
     ax.text(0.1, 0.5, text, fontsize=12, transform=ax.transAxes, va="center")

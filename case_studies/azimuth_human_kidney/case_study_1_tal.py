@@ -40,7 +40,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="legacy_api_wra
 # BioRSP imports
 try:
     from biorsp.config import BioRSPConfig
-    from biorsp.geometry import geometric_median
+    from biorsp.geometry import geometric_median, polar_coordinates
     from biorsp.inference import compute_p_value
     from biorsp.radar import compute_rsp_radar
     from biorsp.summaries import compute_scalar_summaries
@@ -48,7 +48,7 @@ except ImportError:
     # Fallback for running from examples folder without install
     sys.path.append(str(Path(__file__).parent.parent))
     from biorsp.config import BioRSPConfig
-    from biorsp.geometry import geometric_median
+    from biorsp.geometry import geometric_median, polar_coordinates
     from biorsp.inference import compute_p_value
     from biorsp.radar import compute_rsp_radar
     from biorsp.summaries import compute_scalar_summaries
@@ -317,43 +317,54 @@ def analyze_single_gene(
 
         # 2. Compute Radar
         center = geometric_median(embedding)
+        r, theta = polar_coordinates(embedding, center)
 
         radar_res = compute_rsp_radar(
-            embedding=embedding, fg_mask=fg_mask, center=center, config=config
+            r,
+            theta,
+            fg_mask,
+            B=config.n_angles,
+            delta_deg=config.sector_width_deg,
+            min_fg_sector=config.min_fg_sector,
+            min_bg_sector=config.min_bg_sector,
         )
 
         # 3. Compute Summaries
         summaries = compute_scalar_summaries(radar_res)
+        adequacy_fraction = float(np.mean(~np.isnan(radar_res.rsp)))
+        is_adequate = adequacy_fraction >= config.min_adequacy_fraction
 
         # 4. Compute P-value (Depth-aware)
         p_val = np.nan
-        if summaries.get("is_adequate", False):
+        if is_adequate:
             try:
-                p_res = compute_p_value(
-                    embedding=embedding,
-                    fg_mask=fg_mask,
-                    center=center,
-                    observed_anisotropy=summaries["A_g"],
+                p_val, _ = compute_p_value(
+                    summaries.rms_anisotropy,
+                    r,
+                    theta,
+                    fg_mask,
+                    B=config.n_angles,
+                    delta_deg=config.sector_width_deg,
+                    n_perm=n_perm,
                     umi_counts=umis,
-                    n_perms=n_perm,
-                    config=config,
+                    umi_bins=config.umi_bins,
                     seed=seed,
-                    method="stratified_bins",
+                    min_fg_sector=config.min_fg_sector,
+                    min_bg_sector=config.min_bg_sector,
                 )
-                p_val = p_res.get("p_value", np.nan)
             except Exception as e:
                 logger.debug(f"Permutation p-value failed for gene {gene_name}: {e}")
                 p_val = np.nan
 
         return {
             "gene": gene_name,
-            "A_g": summaries["A_g"],
-            "P_g": summaries["P_g"],
-            "theta_g": summaries["theta_g"],
+            "A_g": summaries.rms_anisotropy,
+            "P_g": summaries.peak_distal,
+            "theta_g": summaries.peak_distal_angle,
             "p_strat": p_val,
             "n_fg": int(n_fg),
-            "adequacy_fraction": summaries["adequacy_fraction"],
-            "is_adequate": summaries["is_adequate"],
+            "adequacy_fraction": adequacy_fraction,
+            "is_adequate": is_adequate,
             "error": None,
         }
 
@@ -410,38 +421,24 @@ def plot_results(
 
     # 2. Radar Plot
     # Recompute radar for plotting
-    radar_res = compute_rsp_radar(embedding, fg_mask, center, config)
+    r, theta = polar_coordinates(embedding, center)
+    radar_res = compute_rsp_radar(
+        r,
+        theta,
+        fg_mask,
+        B=config.n_angles,
+        delta_deg=config.sector_width_deg,
+        min_fg_sector=config.min_fg_sector,
+        min_bg_sector=config.min_bg_sector,
+    )
 
     ax2 = fig.add_subplot(122, projection="polar")
 
-    # Angles (robust fallback)
-    if "bin_centers" in radar_res:
-        angles = np.asarray(radar_res["bin_centers"]).reshape(-1)
-    else:
-        # Fallback: derive angles from number of sectors if enrichment present
-        values_tmp = np.asarray(radar_res.get("enrichment", []))
-        m = values_tmp.size
-        if m > 0:
-            angles = np.linspace(0, 2 * np.pi, m, endpoint=False)
-        else:
-            # Final fallback: single point
-            angles = np.array([0.0])
+    angles = radar_res.centers
+    values = np.nan_to_num(radar_res.rsp, nan=0.0)
 
     # Close the loop for plotting
     angles_plot = np.concatenate((angles, [angles[0] + 2 * np.pi]))
-
-    # Metric to plot: prefer 'enrichment', else 'scores', else zeros
-    values = np.asarray(radar_res.get("enrichment", radar_res.get("scores", np.zeros_like(angles))))
-    if values.size != angles.size:
-        # Broadcast or trim as needed
-        if values.size > angles.size:
-            values = values[: angles.size]
-        else:
-            values = np.pad(values, (0, angles.size - values.size), constant_values=0.0)
-
-    # Handle NaNs (inadequate sectors)
-    values = np.nan_to_num(values, nan=0.0)
-
     values_plot = np.concatenate((values, [values[0]]))
 
     ax2.plot(angles_plot, values_plot, color="blue", linewidth=2)
