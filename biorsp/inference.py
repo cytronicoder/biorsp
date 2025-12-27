@@ -7,8 +7,8 @@ Implements permutation testing for statistical significance:
 - Stratified permutation of labels (optional) to control for UMI count confounders.
 """
 
-from typing import Optional, Tuple
 import concurrent.futures
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -135,7 +135,7 @@ def compute_p_value(
             try:
                 stat = future.result()
                 null_stats[i] = stat
-            except Exception as e:
+            except Exception:
                 # If computation fails, set to NaN
                 null_stats[i] = np.nan
 
