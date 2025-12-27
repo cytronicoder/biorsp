@@ -510,6 +510,7 @@ def analyze_gene(
             delta_deg=config.sector_width_deg,
             n_perm=config.n_permutations,
             umi_counts=umis,  # Stratified
+            umi_bins=config.umi_bins,
             seed=config.seed + gene_id,
             min_fg_sector=config.min_fg_sector,
             min_bg_sector=config.min_bg_sector,
@@ -518,8 +519,8 @@ def analyze_gene(
     return GeneResult(
         gene_id=gene_id,
         A_g=summaries.rms_anisotropy,
-        theta_g=summaries.peak_angle,
-        P_g=summaries.peak_strength,
+        theta_g=summaries.peak_distal_angle,
+        P_g=summaries.peak_distal,
         p_naive=p_naive,
         p_strat=p_strat,
         adequacy_fraction=adequacy_fraction,

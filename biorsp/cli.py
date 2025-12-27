@@ -14,7 +14,7 @@ from .config import BioRSPConfig
 from .foreground import binary_foreground
 from .geometry import geometric_median, polar_coordinates
 from .inference import compute_p_value
-from .io import load_expression_matrix, load_spatial_coords, save_results
+from .io import load_expression_matrix, load_spatial_coords, load_umi_counts, save_results
 from .manifest import create_manifest, save_manifest
 from .radar import compute_rsp_radar
 from .summaries import compute_scalar_summaries
@@ -46,7 +46,7 @@ def run_analysis(args):
     # 1. Geometry
     print("Computing geometric median and polar coordinates...")
     center, _, _ = geometric_median(coords)
-    _, theta = polar_coordinates(coords, center)
+    r, theta = polar_coordinates(coords, center)
 
     results = {}
     genes = df_expr.columns
@@ -57,8 +57,26 @@ def run_analysis(args):
         sector_width_deg=args.delta,
         n_permutations=args.n_perm,
         min_fg_sector=args.min_count,
+        min_bg_sector=args.min_bg_count,
+        min_fg_total=args.min_fg_total,
+        min_adequacy_fraction=args.min_adequacy_fraction,
         seed=args.seed,
     )
+
+    umi_counts = None
+    if args.inference:
+        if args.umis:
+            umi_counts = load_umi_counts(
+                args.umis,
+                n_cells=len(coords),
+                column=args.umi_column,
+            )
+        else:
+            print(
+                "Warning: Using expression column sums as UMI counts. "
+                "For stratified inference, provide raw counts or use --umis."
+            )
+            umi_counts = df_expr.sum(axis=1).values
 
     print(f"Processing {len(genes)} genes...")
 
@@ -69,22 +87,35 @@ def run_analysis(args):
         y, threshold, coverage = binary_foreground(x, quantile=args.quantile)
 
         # 3. Adequacy
-        adequacy = gene_adequacy(y, theta, config.n_angles, min_count=args.min_count)
+        adequacy = gene_adequacy(
+            y,
+            theta,
+            config.n_angles,
+            config.sector_width_deg,
+            min_fg_sector=args.min_count,
+            min_bg_sector=args.min_bg_count,
+            min_fg_total=args.min_fg_total,
+            min_adequacy_fraction=args.min_adequacy_fraction,
+        )
 
         gene_res = {
             "coverage": coverage,
             "threshold": threshold,
             "is_adequate": adequacy.is_adequate,
             "adequacy_reason": adequacy.reason,
+            "adequacy_fraction": adequacy.adequacy_fraction,
         }
 
         if adequacy.is_adequate:
             # 4. Radar
-            theta_fg = theta[y]
             radar = compute_rsp_radar(
-                theta_fg,
+                r,
+                theta,
+                y,
                 B=config.n_angles,
                 delta_deg=config.sector_width_deg,
+                min_fg_sector=args.min_count,
+                min_bg_sector=args.min_bg_count,
             )
 
             # 5. Summaries
@@ -93,22 +124,33 @@ def run_analysis(args):
             gene_res.update(
                 {
                     "max_rsp": summary.max_rsp,
-                    "mean_abs_rsp": summary.mean_abs_rsp,
-                    "peak_angle": summary.peak_angle,
+                    "min_rsp": summary.min_rsp,
+                    "rms_anisotropy": summary.rms_anisotropy,
                     "integrated_rsp": summary.integrated_rsp,
+                    "peak_distal": summary.peak_distal,
+                    "peak_distal_angle": summary.peak_distal_angle,
+                    "peak_proximal": summary.peak_proximal,
+                    "peak_proximal_angle": summary.peak_proximal_angle,
+                    "peak_extremal": summary.peak_extremal,
+                    "peak_extremal_angle": summary.peak_extremal_angle,
                 }
             )
 
             # 6. Inference (optional)
             if args.inference:
                 p_val, _ = compute_p_value(
-                    summary.mean_abs_rsp,
+                    summary.rms_anisotropy,
+                    r,
                     theta,
                     y,
                     B=config.n_angles,
                     delta_deg=config.sector_width_deg,
                     n_perm=config.n_permutations,
+                    umi_counts=umi_counts,
+                    umi_bins=config.umi_bins,
                     seed=config.seed,
+                    min_fg_sector=args.min_count,
+                    min_bg_sector=args.min_bg_count,
                 )
                 gene_res["p_value"] = p_val
 
@@ -159,6 +201,26 @@ def main(argv=None):
     run_parser.add_argument("--quantile", type=float, default=0.90, help="Foreground quantile")
     run_parser.add_argument(
         "--min-count", type=int, default=10, help="Min foreground cells per sector"
+    )
+    run_parser.add_argument(
+        "--min-bg-count", type=int, default=50, help="Min background cells per sector"
+    )
+    run_parser.add_argument(
+        "--min-fg-total", type=int, default=100, help="Min total foreground cells"
+    )
+    run_parser.add_argument(
+        "--min-adequacy-fraction",
+        type=float,
+        default=0.9,
+        help="Min fraction of adequate sectors required",
+    )
+    run_parser.add_argument(
+        "--umis",
+        help="Optional CSV/TSV file with UMI counts per cell (required for stratification)",
+    )
+    run_parser.add_argument(
+        "--umi-column",
+        help="Column name to read UMI counts from the UMI file (defaults to umi/umis)",
     )
     run_parser.add_argument("--inference", action="store_true", help="Run permutation test")
     run_parser.add_argument("--n-perm", type=int, default=1000, help="Number of permutations")

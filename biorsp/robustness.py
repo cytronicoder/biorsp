@@ -25,7 +25,7 @@ class RobustnessResult:
 
     Attributes:
         mean_correlation: Mean Pearson correlation of subsampled RSP profiles with full profile.
-        cv_anisotropy: Coefficient of variation of anisotropy (mean_abs_rsp) across subsamples.
+        cv_anisotropy: Coefficient of variation of anisotropy across subsamples.
         n_subsamples: Number of subsamples performed.
     """
 
@@ -36,6 +36,7 @@ class RobustnessResult:
 
 def compute_robustness_score(
     x: np.ndarray,
+    r: np.ndarray,
     theta: np.ndarray,
     B: int = 360,
     delta_deg: float = 20.0,
@@ -48,6 +49,7 @@ def compute_robustness_score(
 
     Args:
         x: (N,) expression values.
+        r: (N,) radial distances.
         theta: (N,) angles.
         B: Number of sectors.
         delta_deg: Sector width.
@@ -64,10 +66,8 @@ def compute_robustness_score(
 
     # 1. Compute full profile
     y_full, _, _ = binary_foreground(x)
-    theta_fg_full = theta[y_full]
-
     # If full data is inadequate, robustness estimates may be unreliable
-    radar_full = compute_rsp_radar(theta_fg_full, B, delta_deg)
+    radar_full = compute_rsp_radar(r, theta, y_full, B, delta_deg)
     rsp_full = radar_full.rsp
 
     correlations = []
@@ -78,38 +78,38 @@ def compute_robustness_score(
         indices = rng.choice(n_cells, size=n_keep, replace=False)
 
         x_sub = x[indices]
+        r_sub = r[indices]
         theta_sub = theta[indices]
 
         # Recompute foreground on subsample
         y_sub, _, _ = binary_foreground(x_sub)
-        theta_fg_sub = theta_sub[y_sub]
-
         # Compute RSP
-        radar_sub = compute_rsp_radar(theta_fg_sub, B, delta_deg)
+        radar_sub = compute_rsp_radar(r_sub, theta_sub, y_sub, B, delta_deg)
         rsp_sub = radar_sub.rsp
 
-        # Correlate with full
-        # Handle constant arrays (std=0) to avoid warnings
-        if np.std(rsp_sub) == 0 or np.std(rsp_full) == 0:
+        mask = np.isfinite(rsp_sub) & np.isfinite(rsp_full)
+        if np.sum(mask) < 2:
+            corr = np.nan
+        elif np.std(rsp_sub[mask]) == 0 or np.std(rsp_full[mask]) == 0:
             corr = 0.0
         else:
-            corr, _ = pearsonr(rsp_sub, rsp_full)
+            corr, _ = pearsonr(rsp_sub[mask], rsp_full[mask])
 
         correlations.append(corr)
 
         # Compute anisotropy
         summ = compute_scalar_summaries(radar_sub)
-        anisotropies.append(summ.mean_abs_rsp)
+        anisotropies.append(summ.rms_anisotropy)
 
-    mean_corr = np.mean(correlations)
+    mean_corr = float(np.nanmean(correlations))
 
-    mean_ani = np.mean(anisotropies)
-    std_ani = np.std(anisotropies)
+    mean_ani = float(np.nanmean(anisotropies))
+    std_ani = float(np.nanstd(anisotropies))
 
-    if mean_ani > 0:
-        cv_ani = std_ani / mean_ani
+    if not np.isfinite(mean_ani) or mean_ani <= 0:
+        cv_ani = np.nan
     else:
-        cv_ani = 0.0
+        cv_ani = std_ani / mean_ani
 
     return RobustnessResult(
         mean_correlation=float(mean_corr),

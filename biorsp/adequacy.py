@@ -2,7 +2,7 @@
 Adequacy assessment module for BioRSP.
 
 Implements sector coverage checks:
-- Binning foreground cells into B sectors
+- Counting foreground/background cells in sliding angular windows
 - Checking minimum cell count per sector
 - Determining overall gene adequacy
 """
@@ -11,7 +11,18 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .constants import REASON_GENE_UNDERPOWERED, REASON_OK, REASON_SECTOR_FG_TOO_SMALL
+from .constants import (
+    ADEQUACY_FRACTION_DEFAULT,
+    N_BG_MIN_DEFAULT,
+    N_FG_MIN_DEFAULT,
+    N_FG_TOT_MIN_DEFAULT,
+    REASON_GENE_UNDERPOWERED,
+    REASON_OK,
+    REASON_SECTOR_BG_TOO_SMALL,
+    REASON_SECTOR_FG_TOO_SMALL,
+    REASON_SECTOR_MIXED_TOO_SMALL,
+)
+from .geometry import angle_grid
 
 
 @dataclass
@@ -22,16 +33,22 @@ class AdequacyReport:
     Attributes:
         is_adequate: Boolean indicating if gene passed all checks.
         reason: String code explaining failure (or OK).
-        sector_counts: (B,) array of foreground cell counts per sector.
-        sector_mask: (B,) boolean array, True if sector has >= min_count cells.
+        counts_fg: (B,) array of foreground cell counts per sector.
+        counts_bg: (B,) array of background cell counts per sector.
+        sector_mask: (B,) boolean array, True if sector meets fg/bg thresholds.
         n_foreground: Total number of foreground cells.
+        n_background: Total number of background cells.
+        adequacy_fraction: Fraction of sectors meeting adequacy thresholds.
     """
 
     is_adequate: bool
     reason: str
-    sector_counts: np.ndarray
+    counts_fg: np.ndarray
+    counts_bg: np.ndarray
     sector_mask: np.ndarray
     n_foreground: int
+    n_background: int
+    adequacy_fraction: float
 
 
 def sector_counts(theta: np.ndarray, n_sectors: int) -> np.ndarray:
@@ -72,48 +89,98 @@ def sector_adequacy_mask(counts: np.ndarray, min_count: int = 1) -> np.ndarray:
 
 
 def gene_adequacy(
-    y: np.ndarray, theta: np.ndarray, n_sectors: int, min_count: int = 1
+    y: np.ndarray,
+    theta: np.ndarray,
+    n_sectors: int,
+    delta_deg: float,
+    min_fg_sector: int = N_FG_MIN_DEFAULT,
+    min_bg_sector: int = N_BG_MIN_DEFAULT,
+    min_fg_total: int = N_FG_TOT_MIN_DEFAULT,
+    min_adequacy_fraction: float = ADEQUACY_FRACTION_DEFAULT,
 ) -> AdequacyReport:
     """
     Assess gene adequacy for RSP.
 
     Checks performed:
     - Presence of any foreground cells.
-    - Each of the `n_sectors` angular sectors has at least `min_count` foreground cells.
+    - Each sector has at least `min_fg_sector` foreground and `min_bg_sector` background cells.
 
     Args:
         y: (N,) boolean foreground indicator.
         theta: (N,) array of angles for ALL cells (radians, used for foreground cells only).
         n_sectors: Number of sectors.
-        min_count: Minimum cells per sector.
+        delta_deg: Sector width in degrees.
+        min_fg_sector: Minimum foreground cells per sector.
+        min_bg_sector: Minimum background cells per sector.
+        min_fg_total: Minimum total foreground cells required.
+        min_adequacy_fraction: Minimum fraction of adequate sectors.
 
     Returns:
         AdequacyReport object.
     """
-    theta_fg = theta[y]
-    n_fg = len(theta_fg)
+    if len(theta) != len(y):
+        raise ValueError("theta and y must have the same length.")
+    if n_sectors <= 0:
+        raise ValueError("n_sectors must be positive.")
+    if delta_deg <= 0:
+        raise ValueError("delta_deg must be > 0.")
 
-    if n_fg == 0:
+    n_fg = int(np.sum(y))
+    n_bg = len(y) - n_fg
+
+    if n_fg < min_fg_total:
         return AdequacyReport(
             is_adequate=False,
             reason=REASON_GENE_UNDERPOWERED,
-            sector_counts=np.zeros(n_sectors, dtype=int),
+            counts_fg=np.zeros(n_sectors, dtype=int),
+            counts_bg=np.zeros(n_sectors, dtype=int),
             sector_mask=np.zeros(n_sectors, dtype=bool),
-            n_foreground=0,
+            n_foreground=n_fg,
+            n_background=n_bg,
+            adequacy_fraction=0.0,
         )
 
-    counts = sector_counts(theta_fg, n_sectors)
-    mask = sector_adequacy_mask(counts, min_count)
-    all_sectors_ok = np.all(mask)
+    centers = angle_grid(n_sectors)
+    delta_rad = np.deg2rad(delta_deg)
+    half_width = delta_rad / 2.0
 
-    reason = REASON_OK if all_sectors_ok else REASON_SECTOR_FG_TOO_SMALL
+    counts_fg = np.zeros(n_sectors, dtype=int)
+    counts_bg = np.zeros(n_sectors, dtype=int)
+
+    y_fg = y == 1
+    y_bg = ~y_fg
+
+    for b, phi in enumerate(centers):
+        rel_theta = theta - phi
+        rel_theta = (rel_theta + np.pi) % (2 * np.pi) - np.pi
+        mask_all = np.abs(rel_theta) <= half_width
+        counts_fg[b] = int(np.sum(mask_all & y_fg))
+        counts_bg[b] = int(np.sum(mask_all & y_bg))
+
+    fg_mask = sector_adequacy_mask(counts_fg, min_fg_sector)
+    bg_mask = sector_adequacy_mask(counts_bg, min_bg_sector)
+    mask = fg_mask & bg_mask
+    adequacy_fraction = float(np.mean(mask)) if n_sectors > 0 else 0.0
+
+    is_adequate = adequacy_fraction >= min_adequacy_fraction
+    if is_adequate:
+        reason = REASON_OK
+    elif np.all(~fg_mask):
+        reason = REASON_SECTOR_FG_TOO_SMALL
+    elif np.all(~bg_mask):
+        reason = REASON_SECTOR_BG_TOO_SMALL
+    else:
+        reason = REASON_SECTOR_MIXED_TOO_SMALL
 
     return AdequacyReport(
-        is_adequate=all_sectors_ok,
+        is_adequate=is_adequate,
         reason=reason,
-        sector_counts=counts,
+        counts_fg=counts_fg,
+        counts_bg=counts_bg,
         sector_mask=mask,
         n_foreground=n_fg,
+        n_background=n_bg,
+        adequacy_fraction=adequacy_fraction,
     )
 
 

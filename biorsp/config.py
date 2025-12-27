@@ -11,6 +11,7 @@ from typing import Literal
 import numpy as np
 
 from .constants import (
+    ADEQUACY_FRACTION_DEFAULT,
     B_DEFAULT,
     DELTA_DEG_DEFAULT,
     K_EXPLORATORY_DEFAULT,
@@ -35,6 +36,7 @@ class BioRSPConfig:
     min_fg_sector: int = N_FG_MIN_DEFAULT
     min_bg_sector: int = N_BG_MIN_DEFAULT
     min_fg_total: int = N_FG_TOT_MIN_DEFAULT
+    min_adequacy_fraction: float = ADEQUACY_FRACTION_DEFAULT
     umi_bins: int = UMI_BINS_DEFAULT
     n_permutations: int = K_EXPLORATORY_DEFAULT
     smoothing_deg: float = SMOOTH_DEG_DEFAULT
