@@ -76,11 +76,22 @@ def compute_rsp_radar(
     counts_fg = np.zeros(B, dtype=int)
     counts_bg = np.zeros(B, dtype=int)
 
+    # Pre-compute relative angles for all sectors and cells
+    n_cells = len(theta)
+    rel_theta_matrix = np.zeros((B, n_cells))
+    for b in range(B):
+        phi = centers[b]
+        rel_theta = theta - phi
+        rel_theta = (rel_theta + np.pi) % (2 * np.pi) - np.pi
+        rel_theta_matrix[b] = rel_theta
+
     # Separate foreground and background
-    r_fg_all = r[y == 1]
-    theta_fg_all = theta[y == 1]
-    r_bg_all = r[y == 0]
-    theta_bg_all = theta[y == 0]
+    y_fg = y == 1
+    y_bg = y == 0
+    r_fg_all = r[y_fg]
+    theta_fg_all = theta[y_fg]
+    r_bg_all = r[y_bg]
+    theta_bg_all = theta[y_bg]
 
     # Global fallback for IQR if sector is degenerate
     # Use a small epsilon relative to global scale
@@ -90,23 +101,19 @@ def compute_rsp_radar(
     epsilon = 1e-8 * global_iqr
 
     for b in range(B):
-        phi = centers[b]
-
-        # Helper to get indices in window
-        def get_in_window(thetas):
-            rel_theta = thetas - phi
-            rel_theta = (rel_theta + np.pi) % (2 * np.pi) - np.pi
-            return np.abs(rel_theta) <= half_width
+        # Use pre-computed relative angles
+        rel_theta_b = rel_theta_matrix[b]
+        mask_all = np.abs(rel_theta_b) <= half_width
 
         # Foreground in window
-        mask_fg = get_in_window(theta_fg_all)
-        r_fg_sector = r_fg_all[mask_fg]
+        mask_fg = mask_all & y_fg
+        r_fg_sector = r[mask_fg]
         n_fg = len(r_fg_sector)
         counts_fg[b] = n_fg
 
         # Background in window
-        mask_bg = get_in_window(theta_bg_all)
-        r_bg_sector = r_bg_all[mask_bg]
+        mask_bg = mask_all & y_bg
+        r_bg_sector = r[mask_bg]
         n_bg = len(r_bg_sector)
         counts_bg[b] = n_bg
 
