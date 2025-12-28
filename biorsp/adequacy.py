@@ -8,6 +8,7 @@ Implements sector coverage checks:
 """
 
 from dataclasses import dataclass
+from typing import List, Optional
 
 import numpy as np
 
@@ -39,6 +40,7 @@ class AdequacyReport:
         n_foreground: Total number of foreground cells.
         n_background: Total number of background cells.
         adequacy_fraction: Fraction of sectors meeting adequacy thresholds.
+        sector_indices: Optional list of arrays, each with the (unique) cell indices inside the sector window.
     """
 
     is_adequate: bool
@@ -49,7 +51,7 @@ class AdequacyReport:
     n_foreground: int
     n_background: int
     adequacy_fraction: float
-
+    sector_indices: Optional[List[np.ndarray]] = None
 
 def sector_counts(theta: np.ndarray, n_sectors: int) -> np.ndarray:
     """
@@ -125,6 +127,9 @@ def gene_adequacy(
     if delta_deg <= 0:
         raise ValueError("delta_deg must be > 0.")
 
+    # Normalize y to boolean to avoid surprises from floats or non-binary inputs
+    y = np.asarray(y).astype(bool)
+
     n_fg = int(np.sum(y))
     n_bg = len(y) - n_fg
 
@@ -138,24 +143,64 @@ def gene_adequacy(
             n_foreground=n_fg,
             n_background=n_bg,
             adequacy_fraction=0.0,
+            sector_indices=None,
         )
 
     centers = angle_grid(n_sectors)
     delta_rad = np.deg2rad(delta_deg)
     half_width = delta_rad / 2.0
 
+    # Prepare sorted angles for two-pointer sliding window (O(N + B))
+    two_pi = 2 * np.pi
+    theta_mod = (theta % two_pi)
+    order = np.argsort(theta_mod)
+    theta_sorted = theta_mod[order]
+    # duplicated arrays to avoid wrap handling
+    theta2 = np.concatenate([theta_sorted, theta_sorted + two_pi])
+    idx2 = np.concatenate([order, order])
+
     counts_fg = np.zeros(n_sectors, dtype=int)
     counts_bg = np.zeros(n_sectors, dtype=int)
+    sector_indices = [np.array([], dtype=int) for _ in range(n_sectors)]
 
-    y_fg = y == 1
-    y_bg = ~y_fg
+    y_bool = np.asarray(y).astype(bool)
 
-    for b, phi in enumerate(centers):
-        rel_theta = theta - phi
-        rel_theta = (rel_theta + np.pi) % (2 * np.pi) - np.pi
-        mask_all = np.abs(rel_theta) <= half_width
-        counts_fg[b] = int(np.sum(mask_all & y_fg))
-        counts_bg[b] = int(np.sum(mask_all & y_bg))
+    # two-pointer window over theta2
+    left = 0
+    right = 0
+    n2 = len(theta2)
+
+    # Process centers in ascending angular order to allow monotonic two-pointer movement
+    centers_mod = (centers + two_pi) % two_pi
+    # Map centers that would wrap to the interval (2pi, 3pi) so phi_use is monotonic
+    centers_use = np.where((centers_mod - half_width) < 0, centers_mod + two_pi, centers_mod)
+    centers_order = np.argsort(centers_use)
+
+    for b_idx in centers_order:
+        phi = centers[b_idx]
+        phi_mod = (phi + two_pi) % two_pi
+        phi_use = phi_mod + two_pi if (phi_mod - half_width) < 0 else phi_mod
+
+        start = phi_use - half_width
+        end = phi_use + half_width
+
+        while left < n2 and theta2[left] < start:
+            left += 1
+        if right < left:
+            right = left
+        while right < n2 and theta2[right] <= end:
+            right += 1
+
+        if right <= left:
+            counts_fg[b_idx] = 0
+            counts_bg[b_idx] = 0
+            sector_indices[b_idx] = np.array([], dtype=int)
+        else:
+            window_idx = idx2[left:right]
+            unique_idx = np.unique(window_idx)
+            sector_indices[b_idx] = unique_idx
+            counts_fg[b_idx] = int(np.sum(y_bool[unique_idx]))
+            counts_bg[b_idx] = int(len(unique_idx) - counts_fg[b_idx])
 
     fg_mask = sector_adequacy_mask(counts_fg, min_fg_sector)
     bg_mask = sector_adequacy_mask(counts_bg, min_bg_sector)
@@ -181,6 +226,7 @@ def gene_adequacy(
         n_foreground=n_fg,
         n_background=n_bg,
         adequacy_fraction=adequacy_fraction,
+        sector_indices=sector_indices,
     )
 
 

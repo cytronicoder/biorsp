@@ -92,10 +92,12 @@ def run_analysis(args):
             theta,
             config.n_angles,
             config.sector_width_deg,
-            min_fg_sector=args.min_count,
-            min_bg_sector=args.min_bg_count,
-            min_fg_total=args.min_fg_total,
-            min_adequacy_fraction=args.min_adequacy_fraction,
+            min_fg_sector=config.min_fg_sector,
+            min_bg_sector=config.min_bg_sector,
+            min_fg_total=config.min_fg_total,
+            min_adequacy_fraction=config.min_adequacy_fraction,
+            # Request sector indices for reuse to avoid recomputing windows in radar
+            # (micro-optimization for large datasets)
         )
 
         gene_res = {
@@ -114,8 +116,9 @@ def run_analysis(args):
                 y,
                 B=config.n_angles,
                 delta_deg=config.sector_width_deg,
-                min_fg_sector=args.min_count,
-                min_bg_sector=args.min_bg_count,
+                min_fg_sector=config.min_fg_sector,
+                min_bg_sector=config.min_bg_sector,
+                sector_indices=adequacy.sector_indices,
             )
 
             # 5. Summaries
@@ -138,8 +141,7 @@ def run_analysis(args):
 
             # 6. Inference (optional)
             if args.inference:
-                p_val, _ = compute_p_value(
-                    summary.rms_anisotropy,
+                p_val, _, _ = compute_p_value(
                     r,
                     theta,
                     y,
@@ -149,8 +151,8 @@ def run_analysis(args):
                     umi_counts=umi_counts,
                     umi_bins=config.umi_bins,
                     seed=config.seed,
-                    min_fg_sector=args.min_count,
-                    min_bg_sector=args.min_bg_count,
+                    min_fg_sector=config.min_fg_sector,
+                    min_bg_sector=config.min_bg_sector,
                 )
                 gene_res["p_value"] = p_val
 

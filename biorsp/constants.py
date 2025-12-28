@@ -8,7 +8,7 @@ import numpy as np
 
 # Grid and Sector defaults
 B_DEFAULT = 360
-DELTA_DEG_DEFAULT = 20.0
+DELTA_DEG_DEFAULT = 180.0
 DELTA_RAD_DEFAULT = np.deg2rad(DELTA_DEG_DEFAULT)
 SMOOTH_DEG_DEFAULT = 5.0  # Visualization only
 
@@ -22,6 +22,7 @@ ADEQUACY_FRACTION_DEFAULT = 0.9
 UMI_BINS_DEFAULT = 10  # Q=10
 K_EXPLORATORY_DEFAULT = 200
 K_FINAL_DEFAULT = 1000
+IQR_FLOOR_DEFAULT = 0.1
 
 # Numeric stabilizers
 EPS = 1e-8

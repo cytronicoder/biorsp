@@ -138,6 +138,9 @@ def load_umi_counts(
                 "specify --umi-column."
             )
 
+    # Ensure numeric dtype and raise if coercion fails
+    counts = pd.to_numeric(counts, errors="raise").to_numpy()
+
     if n_cells is not None and len(counts) != n_cells:
         raise ValueError(
             f"UMI counts length ({len(counts)}) does not match number of cells ({n_cells})."
