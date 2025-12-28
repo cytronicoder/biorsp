@@ -8,3 +8,12 @@
 
 # Generated data
 data/
+
+# Profiling outputs
+*.prof
+
+# Annoy index files
+*.annoy
+
+# Results from this case study
+results/
