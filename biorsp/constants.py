@@ -8,7 +8,7 @@ import numpy as np
 
 # Grid and Sector defaults
 B_DEFAULT = 360
-DELTA_DEG_DEFAULT = 20.0
+DELTA_DEG_DEFAULT = 180.0
 DELTA_RAD_DEFAULT = np.deg2rad(DELTA_DEG_DEFAULT)
 SMOOTH_DEG_DEFAULT = 5.0  # Visualization only
 
