@@ -485,8 +485,7 @@ def analyze_gene(
     # 4. Compute P-values
     # 4. Compute P-values
     # Naive
-    p_naive, _ = compute_p_value(
-        summaries.rms_anisotropy,
+    p_naive, _, _ = compute_p_value(
         r,
         theta,
         y,
@@ -501,8 +500,7 @@ def analyze_gene(
 
     p_strat = np.nan
     if compute_stratified:
-        p_strat, _ = compute_p_value(
-            summaries.rms_anisotropy,
+        p_strat, _, _ = compute_p_value(
             r,
             theta,
             y,
@@ -1208,9 +1206,9 @@ if __name__ == "__main__":
         help="Number of worker processes to use (default: 1)",
     )
     parser.add_argument(
-        "--debug",
+        "--ultra-debug",
         action="store_true",
-        help="Enable debug mode (small n_genes / n_permutations)",
+        help="Enable ultra-fast debug mode (n_genes=2, n_permutations=5)",
     )
     parser.add_argument(
         "--executor",
@@ -1244,7 +1242,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Configure. Debug mode must be explicitly requested via --debug (no longer using SIM_DEBUG env var).
-    if args.debug:
+    if args.ultra_debug:
+        config = SimulationConfig()
+        config.n_genes, config.n_permutations = (2, 5)
+        print("ULTRA DEBUG mode enabled: using tiny test configuration (n_genes=2, n_permutations=5)")
+    elif args.debug:
         config = SimulationConfig()
         config.n_genes, config.n_permutations = (5, 50)
         print("DEBUG mode enabled: using small test configuration (n_genes=5, n_permutations=50)")

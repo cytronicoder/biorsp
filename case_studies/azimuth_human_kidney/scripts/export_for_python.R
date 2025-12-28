@@ -12,38 +12,76 @@ library(Seurat)
 library(Matrix)
 
 ref <- readRDS(input)
+cat(sprintf("Loaded Seurat object. Assays: %s\n", paste(names(ref@assays), collapse = ", ")))
 assay_name <- DefaultAssay(ref)
+cat(sprintf("Default assay: %s\n", assay_name))
+
 # prefer data slot, then counts
 # Try to retrieve assay layers (work with multiple Seurat versions)
 assay_obj <- ref@assays[[assay_name]]
+cat(sprintf("Assay class: %s\n", class(assay_obj)))
+cat(sprintf("Assay slots: %s\n", paste(slotNames(assay_obj), collapse = ", ")))
+if (.hasSlot(assay_obj, "counts")) cat(sprintf("Has counts slot: %s\n", !is.null(assay_obj@counts) && length(assay_obj@counts) > 0))
+if (.hasSlot(assay_obj, "data")) cat(sprintf("Has data slot: %s\n", !is.null(assay_obj@data) && length(assay_obj@data) > 0))
 mat_data <- NULL
 mat_counts <- NULL
 # common layer names to look for
-if (!is.null(assay_obj@layers) && length(assay_obj@layers) > 0) {
-  layer_names <- names(assay_obj@layers)
-  if ('data' %in% layer_names) mat_data <- assay_obj@layers[['data']]
-  if ('counts' %in% layer_names) mat_counts <- assay_obj@layers[['counts']]
-  # fallback to first numeric layer as data
-  if (is.null(mat_data) && length(layer_names) > 0) {
-    for (ln in layer_names) {
-      val <- assay_obj@layers[[ln]]
-      if (!is.null(val) && (inherits(val, 'dgCMatrix') || inherits(val, 'dgTMatrix') || is.matrix(val))) {
-        mat_data <- val
-        break
+try({
+  if (.hasSlot(assay_obj, "layers") && !is.null(assay_obj@layers) && length(assay_obj@layers) > 0) {
+    layer_names <- names(assay_obj@layers)
+    if ('data' %in% layer_names) mat_data <- assay_obj@layers[['data']]
+    if ('counts' %in% layer_names) mat_counts <- assay_obj@layers[['counts']]
+    # fallback to first numeric layer as data
+    if (is.null(mat_data) && length(layer_names) > 0) {
+      for (ln in layer_names) {
+        val <- assay_obj@layers[[ln]]
+        if (!is.null(val) && (inherits(val, 'dgCMatrix') || inherits(val, 'dgTMatrix') || is.matrix(val))) {
+          mat_data <- val
+          break
+        }
       }
     }
   }
-}
+}, silent = TRUE)
 # also attempt GetAssayData as an additional fallback
 if (is.null(mat_data)) mat_data <- tryCatch({ GetAssayData(ref, assay = assay_name, slot = 'data') }, error = function(e) NULL)
 if (is.null(mat_counts)) mat_counts <- tryCatch({ GetAssayData(ref, assay = assay_name, slot = 'counts') }, error = function(e) NULL)
+
+# Direct slot access fallback
+if (is.null(mat_data) && .hasSlot(assay_obj, "data")) {
+    cat("Using direct @data slot access fallback.\n")
+    mat_data <- assay_obj@data
+}
+if (is.null(mat_counts) && .hasSlot(assay_obj, "counts")) {
+    cat("Using direct @counts slot access fallback.\n")
+    mat_counts <- assay_obj@counts
+}
+
+cat(sprintf("mat_data retrieved: %s\n", !is.null(mat_data)))
+
+if (!is.null(mat_data)) cat(sprintf("mat_data class: %s\n", class(mat_data)))
+if (!is.null(mat_counts)) cat(sprintf("mat_counts class: %s\n", class(mat_counts)))
+
+
 
 # If data slot missing, fall back to counts for writing
 if (is.null(mat_data) && !is.null(mat_counts)) mat_data <- mat_counts
 
 # ensure matrices are dgCMatrix for writeMM
-if (!is.null(mat_data) && inherits(mat_data, 'dgTMatrix')) mat_data <- as(mat_data, 'dgCMatrix')
-if (!is.null(mat_counts) && inherits(mat_counts, 'dgTMatrix')) mat_counts <- as(mat_counts, 'dgCMatrix')
+if (!is.null(mat_data)) {
+    if (is.matrix(mat_data)) mat_data <- as(mat_data, "dgCMatrix")
+    if (inherits(mat_data, 'dgTMatrix')) mat_data <- as(mat_data, 'dgCMatrix')
+}
+if (!is.null(mat_counts)) {
+    if (is.matrix(mat_counts)) mat_counts <- as(mat_counts, "dgCMatrix")
+    if (inherits(mat_counts, 'dgTMatrix')) mat_counts <- as(mat_counts, 'dgCMatrix')
+    if (nrow(mat_counts) == 0 || ncol(mat_counts) == 0) {
+        cat("mat_counts is empty (0x0), ignoring.\n")
+        mat_counts <- NULL
+    }
+}
+
+
 
 if (!is.null(mat_data)) {
   Matrix::writeMM(mat_data, file.path(out_dir, 'data.mtx'))

@@ -50,7 +50,27 @@ if counts_mtx.exists():
         layers_counts = counts.T
     adata.layers["counts"] = layers_counts
 
+# Load embeddings
+for csv_file in export_dir.glob("*.csv"):
+    if csv_file.name in ["obs.csv", "var.csv"]:
+        continue
+    # Assume other CSVs are embeddings
+    emb_name = csv_file.stem
+    try:
+        emb_df = pd.read_csv(csv_file, index_col=0)
+        # Ensure index matches obs
+        if len(emb_df) == len(adata):
+            # Align with adata.obs_names
+            emb_df = emb_df.reindex(adata.obs_names)
+            # Use X_ prefix for convention if not present
+            key = f"X_{emb_name}" if not emb_name.startswith("X_") else emb_name
+            adata.obsm[key] = emb_df.values
+            print(f"Added embedding {emb_name} as {key}")
+    except Exception as e:
+        print(f"Failed to add embedding {emb_name}: {e}")
+
 # Save
 out_path.parent.mkdir(parents=True, exist_ok=True)
+
 adata.write_h5ad(str(out_path))
 print("Wrote", out_path)
