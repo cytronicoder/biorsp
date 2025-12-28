@@ -33,7 +33,7 @@ def _rms_with_mask(rsp: np.ndarray, valid_mask: np.ndarray) -> float:
     if masked_rsp.size == 0:
         return np.nan
 
-    return float(np.sqrt(np.mean(masked_rsp ** 2)))
+    return float(np.sqrt(np.mean(masked_rsp**2)))
 
 
 def _compute_permutation_stat(
@@ -56,9 +56,7 @@ def _compute_permutation_stat(
         rng.shuffle(y_subset)
         y_perm[idx] = y_subset
 
-    radar_perm = compute_rsp_radar(
-        r, theta, y_perm, B, delta_deg, min_fg_sector, min_bg_sector
-    )
+    radar_perm = compute_rsp_radar(r, theta, y_perm, B, delta_deg, min_fg_sector, min_bg_sector)
     return _rms_with_mask(radar_perm.rsp, valid_mask)
 
 
@@ -119,9 +117,7 @@ def compute_p_value(
     strata_indices = [np.where(strata == s)[0] for s in unique_strata]
 
     # Observed radar and valid mask
-    radar_obs = compute_rsp_radar(
-        r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector
-    )
+    radar_obs = compute_rsp_radar(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector)
     valid_mask = ~np.isnan(radar_obs.rsp)
     if not np.any(valid_mask):
         return np.nan, null_stats, np.nan
@@ -130,6 +126,7 @@ def compute_p_value(
 
     # Parallelized sampling loop: keep drawing trials until we collect n_perm valid stats
     import logging
+
     logger = logging.getLogger(__name__)
 
     # Reduce worker count to avoid oversubscription on systems with heavy BLAS/OpenMP usage
@@ -142,7 +139,9 @@ def compute_p_value(
     attempts = 0
     seed_counter = seed
 
-    logger.debug(f"compute_p_value start: n_perm={n_perm}, max_workers={max_workers}, max_attempts={max_attempts}")
+    logger.debug(
+        f"compute_p_value start: n_perm={n_perm}, max_workers={max_workers}, max_attempts={max_attempts}"
+    )
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         while collected < n_perm and attempts < max_attempts:
@@ -167,7 +166,9 @@ def compute_p_value(
                 for i in range(batch_size)
             }
             seed_counter += batch_size
-            logger.debug(f"Submitted permutation batch seeds {start_seed}..{seed_counter-1} (batch_size={batch_size})")
+            logger.debug(
+                f"Submitted permutation batch seeds {start_seed}..{seed_counter-1} (batch_size={batch_size})"
+            )
 
             # Collect results as they finish
             for future in concurrent.futures.as_completed(futures):
@@ -207,5 +208,6 @@ def compute_p_value(
     p_value = (np.sum(valid_nulls >= observed_stat) + 1) / (len(valid_nulls) + 1)
 
     return p_value, null_stats, observed_stat
+
 
 __all__ = ["compute_p_value"]

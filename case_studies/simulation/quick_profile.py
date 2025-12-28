@@ -1,10 +1,16 @@
-import numpy as np
-from line_profiler import LineProfiler
 import sys
-sys.path.append('/Users/cytronicoder/Documents/GitHub/biorsp-swordfish')
 
-from biorsp.config import BioRSPConfig
-from simulation import SimulationConfig, analyze_gene, generate_geometry_elliptical, generate_umis, generate_expression_null_B
+from line_profiler import LineProfiler
+
+sys.path.append("/Users/cytronicoder/Documents/GitHub/biorsp-swordfish")
+
+from simulation import (
+    SimulationConfig,
+    analyze_gene,
+    generate_expression_null_B,
+    generate_geometry_elliptical,
+    generate_umis,
+)
 
 # Quick profiling of analyze_gene
 config = SimulationConfig(n_cells=1000, n_genes=1, n_permutations=10)  # Very small

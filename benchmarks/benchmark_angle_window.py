@@ -2,7 +2,9 @@
 
 Usage: python -m benchmarks.benchmark_angle_window or python benchmarks/benchmark_angle_window.py
 """
+
 import time
+
 import numpy as np
 
 from biorsp.adequacy import gene_adequacy
@@ -28,7 +30,9 @@ def time_trial(n_cells, B, reps=5):
 
         # Flow B: reuse sector indices
         t0 = time.perf_counter()
-        _ = compute_rsp_radar(r, theta, y, B=B, delta_deg=20.0, sector_indices=adequacy.sector_indices)
+        _ = compute_rsp_radar(
+            r, theta, y, B=B, delta_deg=20.0, sector_indices=adequacy.sector_indices
+        )
         t_b.append(time.perf_counter() - t0)
 
     return np.mean(t_a), np.mean(t_b)

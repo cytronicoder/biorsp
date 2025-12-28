@@ -1245,7 +1245,9 @@ if __name__ == "__main__":
     if args.ultra_debug:
         config = SimulationConfig()
         config.n_genes, config.n_permutations = (2, 5)
-        print("ULTRA DEBUG mode enabled: using tiny test configuration (n_genes=2, n_permutations=5)")
+        print(
+            "ULTRA DEBUG mode enabled: using tiny test configuration (n_genes=2, n_permutations=5)"
+        )
     elif args.debug:
         config = SimulationConfig()
         config.n_genes, config.n_permutations = (5, 50)

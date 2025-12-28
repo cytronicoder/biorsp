@@ -35,8 +35,13 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
         if len(r_fg) < min_fg_sector or len(r_bg) < min_bg_sector:
             continue
         from scipy.stats import iqr, wasserstein_distance
+
         w1 = wasserstein_distance(r_fg, r_bg)
-        global_iqr = iqr(r[~np.asarray(y).astype(bool)]) if len(r[~np.asarray(y).astype(bool)])>0 else np.nan
+        global_iqr = (
+            iqr(r[~np.asarray(y).astype(bool)])
+            if len(r[~np.asarray(y).astype(bool)]) > 0
+            else np.nan
+        )
         if not np.isfinite(global_iqr) or global_iqr <= 0:
             global_iqr = 1.0
         iqr_floor = max(1e-3 * global_iqr, 1e-12)
@@ -54,7 +59,9 @@ def test_gene_adequacy_counts_match_naive():
     theta = rng.uniform(-np.pi, np.pi, size=n)
     y = rng.choice([0, 1], size=n, p=[0.7, 0.3])
     counts_fg_naive, counts_bg_naive = naive_sector_counts(theta, y, n_sectors=180, delta_deg=20.0)
-    report = gene_adequacy(y, theta, n_sectors=180, delta_deg=20.0, min_fg_sector=1, min_bg_sector=1)
+    report = gene_adequacy(
+        y, theta, n_sectors=180, delta_deg=20.0, min_fg_sector=1, min_bg_sector=1
+    )
     assert np.all(counts_fg_naive == report.counts_fg)
     assert np.all(counts_bg_naive == report.counts_bg)
 
@@ -65,7 +72,9 @@ def test_compute_rsp_radar_matches_naive():
     r = rng.normal(loc=5.0, scale=1.0, size=n)
     theta = rng.uniform(-np.pi, np.pi, size=n)
     y = rng.choice([0, 1], size=n, p=[0.8, 0.2])
-    rsp_opt = compute_rsp_radar(r, theta, y, B=180, delta_deg=20.0, min_fg_sector=5, min_bg_sector=20)
+    rsp_opt = compute_rsp_radar(
+        r, theta, y, B=180, delta_deg=20.0, min_fg_sector=5, min_bg_sector=20
+    )
     rsp_naive = naive_rsp(r, theta, y, B=180, delta_deg=20.0, min_fg_sector=5, min_bg_sector=20)
     # Compare where neither is NaN
     mask = np.isfinite(rsp_opt.rsp) | np.isfinite(rsp_naive)

@@ -1,7 +1,6 @@
 import numpy as np
 
 from biorsp.inference import compute_p_value
-from biorsp.radar import RadarResult
 
 
 def test_compute_p_value_resamples_until_enough_valid(monkeypatch):
@@ -16,7 +15,16 @@ def test_compute_p_value_resamples_until_enough_valid(monkeypatch):
     # Make observed radar finite by letting compute_rsp_radar be normal for observed
     # but replace _compute_permutation_stat to be deterministic: even seeds => NaN, odd => 0.5
     def fake_perm(
-        r_arg, theta_arg, y_arg, strata_indices, B, delta_deg, min_fg_sector, min_bg_sector, seed, valid_mask
+        r_arg,
+        theta_arg,
+        y_arg,
+        strata_indices,
+        B,
+        delta_deg,
+        min_fg_sector,
+        min_bg_sector,
+        seed,
+        valid_mask,
     ):
         if seed % 2 == 0:
             return np.nan

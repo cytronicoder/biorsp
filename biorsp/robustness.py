@@ -13,10 +13,10 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.stats import pearsonr
 
+from .constants import N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT
 from .foreground import binary_foreground
 from .radar import compute_rsp_radar
 from .summaries import compute_scalar_summaries
-from .constants import N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT
 
 
 @dataclass
@@ -70,9 +70,7 @@ def compute_robustness_score(
     # 1. Compute full profile
     y_full, _, _ = binary_foreground(x)
     # If full data is inadequate, robustness estimates may be unreliable
-    radar_full = compute_rsp_radar(
-        r, theta, y_full, B, delta_deg, min_fg_sector, min_bg_sector
-    )
+    radar_full = compute_rsp_radar(r, theta, y_full, B, delta_deg, min_fg_sector, min_bg_sector)
     rsp_full = radar_full.rsp
 
     correlations = []

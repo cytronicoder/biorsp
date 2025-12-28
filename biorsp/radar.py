@@ -8,7 +8,10 @@ Implements the radar radius function R_g(theta):
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+if TYPE_CHECKING:
+    from .adequacy import AdequacyReport
 
 import numpy as np
 from scipy.stats import iqr, wasserstein_distance
@@ -126,7 +129,7 @@ def compute_rsp_radar(
     if sector_indices is None:
         # Prepare sorted angles for two-pointer sliding window (O(N + B))
         two_pi = 2 * np.pi
-        theta_mod = (theta % two_pi)
+        theta_mod = theta % two_pi
         order = np.argsort(theta_mod)
         theta_sorted = theta_mod[order]
         theta2 = np.concatenate([theta_sorted, theta_sorted + two_pi])

@@ -29,9 +29,8 @@ import json
 import logging
 import signal
 import sys
-import time
 import warnings
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
+from concurrent.futures import TimeoutError, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
@@ -49,18 +48,18 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="legacy_api_wra
 # BioRSP imports
 try:
     from biorsp.config import BioRSPConfig
-    from biorsp.geometry import geometric_median, polar_coordinates
+    from biorsp.geometry import polar_coordinates
     from biorsp.inference import compute_p_value
-    from biorsp.plotting import plot_radar, plot_radar_absolute
+    from biorsp.plotting import plot_radar
     from biorsp.radar import compute_rsp_radar
     from biorsp.summaries import compute_scalar_summaries
 except ImportError:
     # Fallback for running from examples folder without install
     sys.path.append(str(Path(__file__).parent.parent))
     from biorsp.config import BioRSPConfig
-    from biorsp.geometry import geometric_median, polar_coordinates
+    from biorsp.geometry import polar_coordinates
     from biorsp.inference import compute_p_value
-    from biorsp.plotting import plot_radar, plot_radar_absolute
+    from biorsp.plotting import plot_radar
     from biorsp.radar import compute_rsp_radar
     from biorsp.summaries import compute_scalar_summaries
 

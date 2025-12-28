@@ -53,6 +53,7 @@ class AdequacyReport:
     adequacy_fraction: float
     sector_indices: Optional[List[np.ndarray]] = None
 
+
 def sector_counts(theta: np.ndarray, n_sectors: int) -> np.ndarray:
     """
     Count foreground cells in each of `n_sectors` angular sectors.
@@ -152,7 +153,7 @@ def gene_adequacy(
 
     # Prepare sorted angles for two-pointer sliding window (O(N + B))
     two_pi = 2 * np.pi
-    theta_mod = (theta % two_pi)
+    theta_mod = theta % two_pi
     order = np.argsort(theta_mod)
     theta_sorted = theta_mod[order]
     # duplicated arrays to avoid wrap handling
