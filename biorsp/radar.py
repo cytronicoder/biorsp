@@ -197,9 +197,16 @@ def compute_rsp_radar(
 
             normalized_w1 = w1 / denom
 
-            # 5. Determine sign
+            # 5. Determine sign with tie-breaker using mean
             diff_median = np.median(r_bg_sector) - np.median(r_fg_sector)
-            sign = np.sign(diff_median)
+            if diff_median > 0:
+                sign = 1.0
+            elif diff_median < 0:
+                sign = -1.0
+            else:
+                # Tie-breaker: use mean difference
+                diff_mean = np.mean(r_bg_sector) - np.mean(r_fg_sector)
+                sign = 1.0 if diff_mean >= 0 else -1.0
 
             rsp_values[b_idx] = sign * normalized_w1
     else:
@@ -234,7 +241,14 @@ def compute_rsp_radar(
 
             normalized_w1 = w1 / denom
             diff_median = np.median(r_bg_sector) - np.median(r_fg_sector)
-            sign = np.sign(diff_median)
+            if diff_median > 0:
+                sign = 1.0
+            elif diff_median < 0:
+                sign = -1.0
+            else:
+                # Tie-breaker: use mean difference
+                diff_mean = np.mean(r_bg_sector) - np.mean(r_fg_sector)
+                sign = 1.0 if diff_mean >= 0 else -1.0
             rsp_values[b_idx] = sign * normalized_w1
 
     return RadarResult(

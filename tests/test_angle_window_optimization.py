@@ -51,7 +51,14 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
             iqr_bg = 0.0
         denom = max(iqr_bg, iqr_floor)
         diff_median = np.median(r_bg) - np.median(r_fg)
-        sign = np.sign(diff_median)
+        if diff_median > 0:
+            sign = 1.0
+        elif diff_median < 0:
+            sign = -1.0
+        else:
+            # Tie-breaker: use mean difference
+            diff_mean = np.mean(r_bg) - np.mean(r_fg)
+            sign = 1.0 if diff_mean >= 0 else -1.0
         rsp[b] = sign * (w1 / denom)
     return rsp
 
