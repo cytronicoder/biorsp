@@ -15,9 +15,7 @@ from .constants import N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT, UMI_BINS_DEFAULT
 from .radar import compute_rsp_radar
 
 
-def _rms_with_mask(
-    rsp: np.ndarray, valid_mask: np.ndarray, missing_as_zero: bool = False
-) -> float:
+def _rms_with_mask(rsp: np.ndarray, valid_mask: np.ndarray, missing_as_zero: bool = False) -> float:
     """Compute RMS anisotropy using a fixed sector mask.
 
     Args:

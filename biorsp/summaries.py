@@ -81,7 +81,7 @@ def compute_scalar_summaries(
             peak_proximal_angle=np.nan,
             peak_extremal=np.nan,
             peak_extremal_angle=np.nan,
-        anisotropy=np.nan,
+            anisotropy=np.nan,
             max_rsp=np.nan,
             min_rsp=np.nan,
             integrated_rsp=np.nan,

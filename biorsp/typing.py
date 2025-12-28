@@ -37,16 +37,12 @@ def assign_feature_types(
         if fr.adequacy.is_adequate and np.isfinite(fr.summaries.anisotropy)
     ]
 
-    coverage_values = np.array(
-        [float(getattr(fr, coverage_field)) for fr in adequate], dtype=float
-    )
+    coverage_values = np.array([float(getattr(fr, coverage_field)) for fr in adequate], dtype=float)
     anisotropy_values = np.array([fr.summaries.anisotropy for fr in adequate], dtype=float)
 
     if method == "median":
         c_hi_val = float(np.median(coverage_values)) if coverage_values.size > 0 else np.nan
-        A_hi_val = (
-            float(np.median(anisotropy_values)) if anisotropy_values.size > 0 else np.nan
-        )
+        A_hi_val = float(np.median(anisotropy_values)) if anisotropy_values.size > 0 else np.nan
     elif method == "user":
         if c_hi is None or A_hi is None:
             raise ValueError("c_hi and A_hi must be provided when method='user'.")

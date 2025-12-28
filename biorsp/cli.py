@@ -167,9 +167,7 @@ def run_analysis(args):
         )
 
     if args.robustness:
-        adequate_features = [
-            fr for fr in feature_results.values() if fr.adequacy.is_adequate
-        ]
+        adequate_features = [fr for fr in feature_results.values() if fr.adequacy.is_adequate]
         ordered = sorted(adequate_features, key=lambda fr: fr.summaries.anisotropy, reverse=True)
         if args.robustness_top_k:
             ordered = ordered[: args.robustness_top_k]
@@ -236,22 +234,20 @@ def run_analysis(args):
                 "feature_type": fr.feature_type,
                 "p_value": fr.p_value,
                 "q_value": fr.q_value,
-                "mean_profile_corr": fr.robustness.mean_correlation
-                if fr.robustness
-                else None,
+                "mean_profile_corr": fr.robustness.mean_correlation if fr.robustness else None,
                 "cv_anisotropy": fr.robustness.cv_anisotropy if fr.robustness else None,
-                "rsp_profile": fr.radar.rsp.tolist()
-                if args.store_rsp and fr.radar is not None
-                else None,
-                "rsp_centers": fr.radar.centers.tolist()
-                if args.store_rsp and fr.radar is not None
-                else None,
+                "rsp_profile": (
+                    fr.radar.rsp.tolist() if args.store_rsp and fr.radar is not None else None
+                ),
+                "rsp_centers": (
+                    fr.radar.centers.tolist() if args.store_rsp and fr.radar is not None else None
+                ),
             }
             for name, fr in feature_results.items()
         },
-        "typing_thresholds": summary.typing_thresholds.__dict__
-        if summary.typing_thresholds
-        else None,
+        "typing_thresholds": (
+            summary.typing_thresholds.__dict__ if summary.typing_thresholds else None
+        ),
         "pairwise": pairwise_results,
     }
 
