@@ -1,61 +1,41 @@
 import numpy as np
 
 from biorsp.inference import compute_p_value
+from biorsp.radar import RadarResult
 
 
-def test_compute_p_value_resamples_until_enough_valid(monkeypatch):
-    # Construct simple geometry
-    n = 20
-    r = np.linspace(1, 10, n)
-    theta = np.linspace(-np.pi, np.pi, n)
-    # half of cells foreground randomly
-    rng = np.random.default_rng(0)
-    y = rng.choice([False, True], size=n)
+def test_permutation_missing_sectors_treated_as_zero(monkeypatch):
+    call_count = {"n": 0}
 
-    # Make observed radar finite by letting compute_rsp_radar be normal for observed
-    # but replace _compute_permutation_stat to be deterministic: even seeds => NaN, odd => 0.5
-    def fake_perm(
-        r_arg,
-        theta_arg,
-        y_arg,
-        strata_indices,
-        B,
-        delta_deg,
-        min_fg_sector,
-        min_bg_sector,
-        seed,
-        valid_mask,
-    ):
-        if seed % 2 == 0:
-            return np.nan
-        return 0.5
+    def fake_compute_rsp_radar(*args, **kwargs):
+        call_count["n"] += 1
+        centers = np.array([0.0, 1.0, 2.0])
+        if call_count["n"] == 1:
+            rsp = np.array([1.0, 2.0, np.nan])
+        else:
+            rsp = np.array([np.nan, 2.0, np.nan])
+        counts = np.array([1, 1, 1])
+        return RadarResult(
+            rsp=rsp,
+            counts_fg=counts,
+            counts_bg=counts,
+            centers=centers,
+            iqr_floor=1.0,
+            iqr_floor_hits=np.array([False, False, False]),
+        )
 
-    monkeypatch.setattr("biorsp.inference._compute_permutation_stat", fake_perm)
+    monkeypatch.setattr("biorsp.inference.compute_rsp_radar", fake_compute_rsp_radar)
 
-    p_val, nulls, obs = compute_p_value(
-        r, theta, y, B=4, delta_deg=180.0, n_perm=3, seed=1, min_fg_sector=1, min_bg_sector=1
+    r = np.ones(5)
+    theta = np.linspace(-np.pi, np.pi, 5, endpoint=False)
+    y = np.array([True, False, True, False, True])
+
+    p_val, nulls, obs, valid_mask = compute_p_value(
+        r, theta, y, B=3, delta_deg=360.0, n_perm=1, seed=0, min_fg_sector=1, min_bg_sector=1
     )
 
-    # We should collect exactly 3 valid nulls (not NaN)
-    assert np.sum(np.isfinite(nulls)) == 3
-    # p_val should be finite
-    assert np.isfinite(p_val)
+    assert np.array_equal(valid_mask, np.array([True, True, False]))
+    expected_perm = np.sqrt(np.mean(np.array([0.0, 2.0]) ** 2))
+    assert np.isclose(nulls[0], expected_perm)
     assert np.isfinite(obs)
-
-
-def test_compute_p_value_returns_nan_if_all_perms_invalid(monkeypatch):
-    n = 10
-    r = np.linspace(1, 5, n)
-    theta = np.linspace(-np.pi, np.pi, n)
-    y = np.zeros(n, dtype=bool)
-
-    def fake_perm_all_nan(*args, **kwargs):
-        return np.nan
-
-    monkeypatch.setattr("biorsp.inference._compute_permutation_stat", fake_perm_all_nan)
-
-    p_val, nulls, obs = compute_p_value(r, theta, y, B=36, delta_deg=20.0, n_perm=3, seed=2)
-
-    assert np.isnan(p_val)
-    assert np.sum(np.isfinite(nulls)) == 0
-    assert np.isfinite(obs) or np.isnan(obs)  # observed may be NaN depending on adequacy
+    assert np.isfinite(p_val)

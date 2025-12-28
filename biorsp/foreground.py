@@ -93,4 +93,23 @@ def check_gene_power(coverage: float) -> bool:
     return coverage > 0
 
 
-__all__ = ["binary_foreground", "soft_foreground_weights", "check_gene_power"]
+def coverage_prevalence(x: np.ndarray, t_detect: float = 0.0) -> float:
+    """
+    Compute prevalence-style coverage above a detection threshold.
+
+    Args:
+        x: (N,) array of expression values.
+        t_detect: Detection threshold (default 0.0).
+
+    Returns:
+        Fraction of cells with x_i > t_detect.
+    """
+    return float(np.mean(x > t_detect))
+
+
+__all__ = [
+    "binary_foreground",
+    "soft_foreground_weights",
+    "check_gene_power",
+    "coverage_prevalence",
+]

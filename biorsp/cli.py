@@ -8,16 +8,23 @@ Commands:
 
 import argparse
 import sys
+import warnings
+
+import numpy as np
 
 from .adequacy import gene_adequacy
 from .config import BioRSPConfig
-from .foreground import binary_foreground
-from .geometry import geometric_median, polar_coordinates
-from .inference import compute_p_value
+from .foreground import binary_foreground, coverage_prevalence
+from .geometry import compute_vantage, polar_coordinates
+from .inference import bh_fdr, compute_p_value
 from .io import load_expression_matrix, load_spatial_coords, load_umi_counts, save_results
 from .manifest import create_manifest, save_manifest
+from .pairwise import compute_pairwise_relationships
 from .radar import compute_rsp_radar
+from .results import FeatureResult, RunSummary
+from .robustness import compute_robustness_score
 from .summaries import compute_scalar_summaries
+from .typing import assign_feature_types
 
 try:
     from tqdm import tqdm
@@ -45,10 +52,10 @@ def run_analysis(args):
 
     # 1. Geometry
     print("Computing geometric median and polar coordinates...")
-    center, _, _ = geometric_median(coords)
+    center = compute_vantage(coords, method="geometric_median")
     r, theta = polar_coordinates(coords, center)
 
-    results = {}
+    feature_results = {}
     genes = df_expr.columns
 
     # Config
@@ -72,9 +79,11 @@ def run_analysis(args):
                 column=args.umi_column,
             )
         else:
-            print(
-                "Warning: Using expression column sums as UMI counts. "
-                "For stratified inference, provide raw counts or use --umis."
+            warnings.warn(
+                "Using expression row sums as UMI counts. For stratified inference, "
+                "provide raw counts or use --umis.",
+                RuntimeWarning,
+                stacklevel=2,
             )
             umi_counts = df_expr.sum(axis=1).values
 
@@ -85,6 +94,7 @@ def run_analysis(args):
 
         # 2. Foreground
         y, threshold, coverage = binary_foreground(x, quantile=args.quantile)
+        coverage_abs = coverage_prevalence(x, t_detect=args.t_detect)
 
         # 3. Adequacy
         adequacy = gene_adequacy(
@@ -100,70 +110,150 @@ def run_analysis(args):
             # (micro-optimization for large datasets)
         )
 
-        gene_res = {
-            "coverage": coverage,
-            "threshold": threshold,
-            "is_adequate": adequacy.is_adequate,
-            "adequacy_reason": adequacy.reason,
-            "adequacy_fraction": adequacy.adequacy_fraction,
-        }
+        radar = compute_rsp_radar(
+            r,
+            theta,
+            y,
+            B=config.n_angles,
+            delta_deg=config.sector_width_deg,
+            min_fg_sector=config.min_fg_sector,
+            min_bg_sector=config.min_bg_sector,
+            sector_indices=adequacy.sector_indices,
+        )
 
-        if adequacy.is_adequate:
-            # 4. Radar
-            radar = compute_rsp_radar(
+        summary = compute_scalar_summaries(radar)
+
+        feature_results[gene] = FeatureResult(
+            feature=gene,
+            threshold_quantile=float(threshold),
+            coverage_quantile=float(coverage),
+            coverage_prevalence=float(coverage_abs),
+            adequacy=adequacy,
+            summaries=summary,
+            radar=radar if args.store_rsp or args.pairwise else None,
+        )
+
+        if args.inference and adequacy.is_adequate:
+            p_val, _, _, _ = compute_p_value(
                 r,
                 theta,
                 y,
                 B=config.n_angles,
                 delta_deg=config.sector_width_deg,
+                n_perm=config.n_permutations,
+                umi_counts=umi_counts,
+                umi_bins=config.umi_bins,
+                seed=config.seed,
                 min_fg_sector=config.min_fg_sector,
                 min_bg_sector=config.min_bg_sector,
-                sector_indices=adequacy.sector_indices,
+            )
+            feature_results[gene].p_value = p_val
+
+    if args.inference:
+        eligible = [fr for fr in feature_results.values() if fr.adequacy.is_adequate]
+        p_values = np.array([fr.p_value for fr in eligible], dtype=float)
+        q_values = bh_fdr(p_values)
+        for fr, q_val in zip(eligible, q_values):
+            fr.q_value = float(q_val) if np.isfinite(q_val) else np.nan
+
+    typing_thresholds = None
+    if args.typing:
+        feature_results, typing_thresholds = assign_feature_types(
+            feature_results,
+            coverage_field="coverage_prevalence",
+            method=args.typing_threshold_method,
+            c_hi=args.c_hi,
+            A_hi=args.a_hi,
+        )
+
+    if args.robustness:
+        adequate_features = [
+            fr for fr in feature_results.values() if fr.adequacy.is_adequate
+        ]
+        ordered = sorted(adequate_features, key=lambda fr: fr.summaries.anisotropy, reverse=True)
+        if args.robustness_top_k:
+            ordered = ordered[: args.robustness_top_k]
+        for fr in ordered:
+            x = df_expr[fr.feature].values
+            fr.robustness = compute_robustness_score(
+                x,
+                r,
+                theta,
+                B=config.n_angles,
+                delta_deg=config.sector_width_deg,
+                n_subsample=args.robustness_subsamples,
+                subsample_frac=args.robustness_frac,
+                seed=config.seed,
+                min_fg_sector=config.min_fg_sector,
+                min_bg_sector=config.min_bg_sector,
+                quantile=args.quantile,
             )
 
-            # 5. Summaries
-            summary = compute_scalar_summaries(radar)
-
-            gene_res.update(
-                {
-                    "max_rsp": summary.max_rsp,
-                    "min_rsp": summary.min_rsp,
-                    "rms_anisotropy": summary.rms_anisotropy,
-                    "integrated_rsp": summary.integrated_rsp,
-                    "peak_distal": summary.peak_distal,
-                    "peak_distal_angle": summary.peak_distal_angle,
-                    "peak_proximal": summary.peak_proximal,
-                    "peak_proximal_angle": summary.peak_proximal_angle,
-                    "peak_extremal": summary.peak_extremal,
-                    "peak_extremal_angle": summary.peak_extremal_angle,
-                }
-            )
-
-            # 6. Inference (optional)
-            if args.inference:
-                p_val, _, _ = compute_p_value(
-                    r,
-                    theta,
-                    y,
-                    B=config.n_angles,
-                    delta_deg=config.sector_width_deg,
-                    n_perm=config.n_permutations,
-                    umi_counts=umi_counts,
-                    umi_bins=config.umi_bins,
-                    seed=config.seed,
-                    min_fg_sector=config.min_fg_sector,
-                    min_bg_sector=config.min_bg_sector,
-                )
-                gene_res["p_value"] = p_val
-
-            # Optionally store full RSP profile (disabled by default)
-            # gene_res["rsp_profile"] = radar.rsp.tolist()
-
-        results[gene] = gene_res
+    pairwise_results = None
+    if args.pairwise:
+        radar_by_feature = {
+            name: fr.radar
+            for name, fr in feature_results.items()
+            if fr.adequacy.is_adequate and fr.radar is not None
+        }
+        synergy, complement = compute_pairwise_relationships(
+            radar_by_feature, top_k=args.pairwise_top_k
+        )
+        pairwise_results = {
+            "synergy": [result.__dict__ for result in synergy],
+            "complementarity": [result.__dict__ for result in complement],
+        }
+        if args.pairwise_output:
+            save_results(pairwise_results, args.pairwise_output)
 
     # Save results
     print(f"Saving results to {args.output}...")
-    save_results(results, args.output)
+    summary = RunSummary(
+        typing_thresholds=typing_thresholds,
+        pairwise=pairwise_results,
+    )
+    output = {
+        "features": {
+            name: {
+                "threshold_quantile": fr.threshold_quantile,
+                "coverage_quantile": fr.coverage_quantile,
+                "coverage_prevalence": fr.coverage_prevalence,
+                "is_adequate": fr.adequacy.is_adequate,
+                "adequacy_reason": fr.adequacy.reason,
+                "adequacy_fraction": fr.adequacy.adequacy_fraction,
+                "n_fg_total": fr.adequacy.n_foreground,
+                "n_bg_total": fr.adequacy.n_background,
+                "anisotropy": fr.summaries.anisotropy,
+                "max_rsp": fr.summaries.max_rsp,
+                "min_rsp": fr.summaries.min_rsp,
+                "integrated_rsp": fr.summaries.integrated_rsp,
+                "peak_distal": fr.summaries.peak_distal,
+                "peak_distal_angle": fr.summaries.peak_distal_angle,
+                "peak_proximal": fr.summaries.peak_proximal,
+                "peak_proximal_angle": fr.summaries.peak_proximal_angle,
+                "peak_extremal": fr.summaries.peak_extremal,
+                "peak_extremal_angle": fr.summaries.peak_extremal_angle,
+                "feature_type": fr.feature_type,
+                "p_value": fr.p_value,
+                "q_value": fr.q_value,
+                "mean_profile_corr": fr.robustness.mean_correlation
+                if fr.robustness
+                else None,
+                "cv_anisotropy": fr.robustness.cv_anisotropy if fr.robustness else None,
+                "rsp_profile": fr.radar.rsp.tolist()
+                if args.store_rsp and fr.radar is not None
+                else None,
+                "rsp_centers": fr.radar.centers.tolist()
+                if args.store_rsp and fr.radar is not None
+                else None,
+            }
+            for name, fr in feature_results.items()
+        },
+        "typing_thresholds": summary.typing_thresholds.__dict__
+        if summary.typing_thresholds
+        else None,
+        "pairwise": pairwise_results,
+    }
 
     # Save manifest
     manifest = create_manifest(
@@ -174,7 +264,10 @@ def run_analysis(args):
             "n_cells": len(coords),
         },
     )
-    save_manifest(manifest, args.output + ".manifest.json")
+    manifest_path = args.output + ".manifest.json"
+    save_manifest(manifest, manifest_path)
+    output["manifest_path"] = manifest_path
+    save_results(output, args.output)
     print("Done.")
 
 
@@ -202,6 +295,12 @@ def main(argv=None):
     run_parser.add_argument("--delta", type=float, default=20.0, help="Sector width (degrees)")
     run_parser.add_argument("--quantile", type=float, default=0.90, help="Foreground quantile")
     run_parser.add_argument(
+        "--t-detect",
+        type=float,
+        default=0.0,
+        help="Detection threshold for prevalence coverage",
+    )
+    run_parser.add_argument(
         "--min-count", type=int, default=10, help="Min foreground cells per sector"
     )
     run_parser.add_argument(
@@ -225,8 +324,69 @@ def main(argv=None):
         help="Column name to read UMI counts from the UMI file (defaults to umi/umis)",
     )
     run_parser.add_argument("--inference", action="store_true", help="Run permutation test")
-    run_parser.add_argument("--n-perm", type=int, default=1000, help="Number of permutations")
+    run_parser.add_argument("--n-perm", type=int, default=200, help="Number of permutations")
     run_parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    run_parser.add_argument(
+        "--typing",
+        action="store_true",
+        default=True,
+        help="Assign coverage × anisotropy types",
+    )
+    run_parser.add_argument(
+        "--no-typing",
+        action="store_false",
+        dest="typing",
+        help="Disable coverage × anisotropy typing",
+    )
+    run_parser.add_argument(
+        "--typing-threshold-method",
+        choices=["median", "user"],
+        default="median",
+        help="Threshold method for typing",
+    )
+    run_parser.add_argument("--c-hi", type=float, help="Coverage threshold for typing")
+    run_parser.add_argument("--a-hi", type=float, help="Anisotropy threshold for typing")
+    run_parser.add_argument(
+        "--pairwise",
+        action="store_true",
+        help="Compute pairwise synergy/complementarity scores",
+    )
+    run_parser.add_argument(
+        "--pairwise-top-k",
+        type=int,
+        help="Limit pairwise computation to top-K anisotropy features",
+    )
+    run_parser.add_argument(
+        "--pairwise-output",
+        help="Optional JSON output for pairwise results",
+    )
+    run_parser.add_argument(
+        "--robustness",
+        action="store_true",
+        help="Compute robustness diagnostics via subsampling",
+    )
+    run_parser.add_argument(
+        "--robustness-top-k",
+        type=int,
+        help="Limit robustness computation to top-K anisotropy features",
+    )
+    run_parser.add_argument(
+        "--robustness-subsamples",
+        type=int,
+        default=20,
+        help="Number of robustness subsamples",
+    )
+    run_parser.add_argument(
+        "--robustness-frac",
+        type=float,
+        default=0.8,
+        help="Subsample fraction for robustness",
+    )
+    run_parser.add_argument(
+        "--store-rsp",
+        action="store_true",
+        help="Store full RSP profiles in output",
+    )
 
     args = parser.parse_args(argv)
 

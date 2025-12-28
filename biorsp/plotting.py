@@ -464,7 +464,7 @@ def plot_summary(summary: ScalarSummaries, ax: Optional[plt.Axes] = None) -> plt
     text = (
         f"Max RSP: {summary.max_rsp:.3f}\n"
         f"Min RSP: {summary.min_rsp:.3f}\n"
-        f"RMS Anisotropy: {summary.rms_anisotropy:.3f}\n"
+        f"RMS Anisotropy: {summary.anisotropy:.3f}\n"
         f"Integrated RSP: {summary.integrated_rsp:.3f}\n"
         f"Peak Distal Angle: {np.degrees(summary.peak_distal_angle):.1f}°\n"
         f"Peak Proximal Angle: {np.degrees(summary.peak_proximal_angle):.1f}°\n"

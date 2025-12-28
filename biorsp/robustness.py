@@ -46,6 +46,7 @@ def compute_robustness_score(
     seed: int = 42,
     min_fg_sector: int = N_FG_MIN_DEFAULT,
     min_bg_sector: int = N_BG_MIN_DEFAULT,
+    quantile: float = 0.90,
 ) -> RobustnessResult:
     """
     Compute robustness metrics via subsampling.
@@ -68,7 +69,7 @@ def compute_robustness_score(
     n_keep = int(n_cells * subsample_frac)
 
     # 1. Compute full profile
-    y_full, _, _ = binary_foreground(x)
+    y_full, _, _ = binary_foreground(x, quantile=quantile)
     # If full data is inadequate, robustness estimates may be unreliable
     radar_full = compute_rsp_radar(r, theta, y_full, B, delta_deg, min_fg_sector, min_bg_sector)
     rsp_full = radar_full.rsp
@@ -85,7 +86,7 @@ def compute_robustness_score(
         theta_sub = theta[indices]
 
         # Recompute foreground on subsample
-        y_sub, _, _ = binary_foreground(x_sub)
+        y_sub, _, _ = binary_foreground(x_sub, quantile=quantile)
         # Compute RSP
         radar_sub = compute_rsp_radar(
             r_sub, theta_sub, y_sub, B, delta_deg, min_fg_sector, min_bg_sector
@@ -104,15 +105,17 @@ def compute_robustness_score(
 
         # Compute anisotropy
         summ = compute_scalar_summaries(radar_sub)
-        anisotropies.append(summ.rms_anisotropy)
+        anisotropies.append(summ.anisotropy)
 
     mean_corr = float(np.nanmean(correlations))
 
     mean_ani = float(np.nanmean(anisotropies))
     std_ani = float(np.nanstd(anisotropies))
 
-    if not np.isfinite(mean_ani) or mean_ani <= 0:
+    if not np.isfinite(mean_ani):
         cv_ani = np.nan
+    elif mean_ani == 0:
+        cv_ani = 0.0
     else:
         cv_ani = std_ani / mean_ani
 

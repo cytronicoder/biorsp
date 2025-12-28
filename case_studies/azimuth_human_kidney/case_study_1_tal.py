@@ -423,7 +423,7 @@ def analyze_single_gene(
         if is_adequate:
             try:
                 logger.debug(f"Computing p-value (n_perm={n_perm}) for gene {gene_name}")
-                p_val, _, _ = compute_p_value(
+                p_val, _, _, _ = compute_p_value(
                     r,
                     theta,
                     fg_mask,
