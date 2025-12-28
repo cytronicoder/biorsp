@@ -24,7 +24,7 @@ def test_plot_radar_all_nan():
         iqr_floor_hits=np.zeros(B, dtype=bool),
     )
 
-    ax = plot_radar(res, mode="combined", title="Test NaN")
+    ax = plot_radar(res, mode="signed", title="Test NaN")
     # Should not raise and should have a title mentioning no valid sectors
     assert ax is not None
     assert "No valid sectors" in ax.get_title() or "Test NaN" in ax.get_title()
@@ -52,23 +52,23 @@ def test_plot_radar_basic_modes():
         iqr_floor_hits=np.zeros(B, dtype=bool),
     )
 
-    # Combined
-    ax = plot_radar(res, mode="combined", title="Combined")
+    # Signed (canonical)
+    ax = plot_radar(res, mode="signed", title="Signed")
     assert ax is not None
     plt.close()
 
-    # Enrichment
-    ax = plot_radar(res, mode="enrichment", title="Enrichment")
+    # Proximal (formerly 'enrichment')
+    ax = plot_radar(res, mode="proximal", title="Proximal")
     assert ax is not None
     plt.close()
 
-    # Depletion
-    ax = plot_radar(res, mode="depletion", title="Depletion")
+    # Distal (formerly 'depletion')
+    ax = plot_radar(res, mode="distal", title="Distal")
     assert ax is not None
     plt.close()
 
-    # Relative
-    ax = plot_radar(res, mode="relative", title="Relative")
+    # Legacy alias: 'relative' -> 'signed'
+    ax = plot_radar(res, mode="relative", title="Relative (alias)")
     assert ax is not None
     plt.close()
 
@@ -90,6 +90,9 @@ def test_plot_radar_absolute_helper():
 
     fig = plot_radar_absolute(res, title="Abs")
     assert fig is not None
+    # Ensure both subplots share the same radial limits
+    ax1, ax2 = fig.axes[:2]
+    assert ax1.get_ylim() == ax2.get_ylim()
     plt.close()
 
 
@@ -115,7 +118,7 @@ def test_plot_fills_no_gaps():
         iqr_floor_hits=np.zeros(B, dtype=bool),
     )
 
-    ax = plot_radar(res, mode="enrichment", title="Segments")
+    ax = plot_radar(res, mode="proximal", title="Segments")
     # ax.patches contains added Polygon patches for testing; expect 3 segments
     n_patches = len(ax.patches)
     assert n_patches >= 3, f"Expected at least 3 filled segments, found patches={n_patches}"

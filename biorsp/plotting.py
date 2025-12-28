@@ -86,7 +86,10 @@ def plot_radar(
     title: Optional[str] = None,
     color: str = "b",
     alpha: float = 0.5,
-    mode: str = "combined",
+    mode: str = "signed",
+    radial_max: Optional[float] = None,
+    summaries: Optional[ScalarSummaries] = None,
+    show_anchors: bool = False,
     **kwargs,
 ) -> plt.Axes:
     """
@@ -96,13 +99,17 @@ def plot_radar(
         radar: RadarResult object.
         ax: Matplotlib axes (must be polar). If None, created.
         title: Plot title.
-        color: Line/Fill color.
+        color: Line/Fill color for proximal (positive) values.
         alpha: Fill transparency.
-        mode: Plotting mode.
-            - "combined": Enrichment (R>0) and depletion (R<0 shown as positive magnitude) together.
-            - "enrichment": Only positive RSP values (R > 0).
-            - "depletion": Only negative RSP values (R < 0) as positive magnitudes.
-            - "relative": Signed RSP visualized robustly as magnitude wedges colored by sign.
+        mode: Plotting mode (semantic):
+            - "signed": canonical signed view; radial length = |R|, color/style encodes sign (proximal vs distal).
+            - "proximal": only proximal (R > 0) magnitudes.
+            - "distal": only distal (R < 0) magnitudes.
+        Note: legacy aliases supported: 'enrichment' -> 'proximal', 'depletion' -> 'distal',
+        'combined'/'relative' -> 'signed'.
+        radial_max: Optional override for the radial axis upper limit. If provided, used directly.
+        summaries: Optional `ScalarSummaries` object to annotate peak angles and statistics.
+        show_anchors: When True and `summaries` provided, plot peak markers and an annotation box.
         **kwargs: Additional arguments forwarded to matplotlib (e.g., linewidth).
 
     Returns:
@@ -134,7 +141,14 @@ def plot_radar(
         return ax
 
     max_mag = float(np.nanmax(np.abs(r_raw[finite_r])))
-    y_top = max(1e-6, max_mag * 1.05)
+    # radial_max override: if provided, use directly (caller ensures sensible scaling)
+    if radial_max is not None:
+        y_top = float(radial_max)
+    else:
+        y_top = max(1e-6, max_mag * 1.05)
+    # Ensure positive ymax
+    if y_top <= 0:
+        y_top = 1e-6
 
     # Normalize/sort theta and carry r accordingly
     theta_norm = _maybe_degrees_to_radians(theta_raw.astype(float, copy=False))
@@ -171,6 +185,41 @@ def plot_radar(
 
     lw = float(kwargs.pop("linewidth", 1.25))
 
+    # Render faint ticks for underpowered / missing sectors so users can see where data is absent
+    invalid_theta = theta[~valid]
+    if invalid_theta.size:
+        for t in invalid_theta:
+            ax.plot([t, t], [y_top * 0.95, y_top], color="gray", linewidth=1.0, alpha=0.6)
+
+    def _maybe_add_anchors(ax_obj: plt.Axes, summaries_obj: Optional[ScalarSummaries]):
+        if not summaries_obj or not show_anchors:
+            return
+        # Peak angles (radians) and visual markers
+        p_prox = getattr(summaries_obj, "peak_proximal_angle", None)
+        p_dist = getattr(summaries_obj, "peak_distal_angle", None)
+        if p_prox is not None:
+            ax_obj.plot(p_prox, y_top * 0.9, marker="^", color=color, markersize=8)
+        if p_dist is not None:
+            ax_obj.plot(p_dist, y_top * 0.9, marker="v", color="r", markersize=8)
+        # Annotation box with succinct stats
+        lines = []
+        anis = getattr(summaries_obj, "anisotropy", None)
+        integ = getattr(summaries_obj, "integrated_rsp", None)
+        if anis is not None:
+            lines.append(f"Anisotropy: {anis:.3f}")
+        if integ is not None:
+            lines.append(f"Integrated RSP: {integ:.3f}")
+        if lines:
+            ax_obj.text(
+                0.02,
+                0.95,
+                "\n".join(lines),
+                transform=ax_obj.transAxes,
+                va="top",
+                fontsize=12,
+                bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
+            )
+
     def _outline(ax_obj: plt.Axes, th: np.ndarray, vals: np.ndarray, **plot_kw) -> None:
         if th.size == 0:
             return
@@ -182,48 +231,86 @@ def plot_radar(
         v_closed = np.concatenate([vals, [vals[0]]])
         ax_obj.plot(th_closed, v_closed, **plot_kw)
 
+    # Normalize mode aliases to semantic names
     mode = mode.lower().strip()
+    mode_map = {
+        "enrichment": "proximal",
+        "depletion": "distal",
+        "combined": "signed",
+        "relative": "signed",
+    }
+    mode = mode_map.get(mode, mode)
+    if mode not in {"signed", "proximal", "distal"}:
+        raise ValueError(f"Unknown mode: {mode}")
 
-    if mode == "relative":
+    if mode == "signed":
         heights = np.abs(r_v)
-        bar_colors = np.where(r_v >= 0, color, "r")
+        # proximal: solid fill; distal: hatched fill with red edge
+        pos_mask = r_v >= 0
+        neg_mask = r_v < 0
 
-        ax.bar(
-            theta_v,
-            heights,
-            width=widths_v,
-            bottom=0.0,
-            align="center",
-            color=bar_colors,
-            alpha=alpha,
-            edgecolor=bar_colors,
-            linewidth=1.0,
-        )
-        _outline(ax, theta_v, heights, color="k", linewidth=lw)
+        if np.any(pos_mask):
+            ax.bar(
+                theta_v[pos_mask],
+                heights[pos_mask],
+                width=widths_v[pos_mask],
+                bottom=0.0,
+                align="center",
+                color=color,
+                alpha=alpha,
+                edgecolor=color,
+                linewidth=1.0,
+            )
+            _outline(ax, theta_v[pos_mask], heights[pos_mask], color="k", linewidth=lw)
+
+        if np.any(neg_mask):
+            ax.bar(
+                theta_v[neg_mask],
+                heights[neg_mask],
+                width=widths_v[neg_mask],
+                bottom=0.0,
+                align="center",
+                color="r",
+                alpha=alpha * 0.9,
+                edgecolor="r",
+                linewidth=1.0,
+                hatch="//",
+            )
+            _outline(
+                ax,
+                theta_v[neg_mask],
+                heights[neg_mask],
+                color="r",
+                linewidth=lw,
+                linestyle="--",
+            )
 
         ax.set_ylim(0, y_top)
         if title:
-            ax.set_title(f"{title} (relative)", fontsize=20)
+            ax.set_title(title + " RSP (signed)" if "RSP" not in title else title, fontsize=20)
 
-        # Legend only if both signs exist
+        # Legend only if any sign exists
         try:
             import matplotlib.patches as mpatches
 
             handles, labels = [], []
-            if np.any(r_v > 0):
+            if np.any(pos_mask):
                 handles.append(mpatches.Patch(color=color, alpha=alpha))
-                labels.append("Enrichment (R > 0)")
-            if np.any(r_v < 0):
-                handles.append(mpatches.Patch(color="r", alpha=alpha))
-                labels.append("Depletion (R < 0)")
+                labels.append("Proximal bias (R > 0)")
+            if np.any(neg_mask):
+                # hatched patch for distal
+                p = mpatches.Patch(facecolor="r", hatch="//", edgecolor="r", alpha=alpha)
+                handles.append(p)
+                labels.append("Distal bias (R < 0)")
             if handles:
                 ax.legend(handles, labels, loc="lower left", fontsize=18)
         except Exception:
             pass
 
+        _maybe_add_anchors(ax, summaries)
         return ax
 
-    if mode == "enrichment":
+    if mode == "proximal":
         r_pos = np.maximum(0.0, r_v)
         mask = r_pos > 0
         theta_m = theta_v[mask]
@@ -245,10 +332,11 @@ def plot_radar(
             _outline(ax, theta_m, r_pos_m, color=color, linewidth=lw)
         ax.set_ylim(0, y_top)
         if title:
-            ax.set_title(title + " RSP" if "RSP" not in title else title, fontsize=20)
+            ax.set_title(title + " RSP (proximal)", fontsize=20)
+        _maybe_add_anchors(ax, summaries)
         return ax
 
-    if mode == "depletion":
+    if mode == "distal":
         r_neg = np.maximum(0.0, -r_v)
         mask = r_neg > 0
         theta_m = theta_v[mask]
@@ -263,14 +351,16 @@ def plot_radar(
                 bottom=0.0,
                 align="center",
                 color="r",
-                alpha=alpha,
+                alpha=alpha * 0.9,
                 edgecolor="r",
                 linewidth=1.0,
+                hatch="//",
             )
             _outline(ax, theta_m, r_neg_m, color="r", linewidth=lw, linestyle="--")
         ax.set_ylim(0, y_top)
         if title:
-            ax.set_title(title + " RSP" if "RSP" not in title else title, fontsize=20)
+            ax.set_title(title + " RSP (distal)", fontsize=20)
+        _maybe_add_anchors(ax, summaries)
         return ax
 
     if mode == "combined":
@@ -346,17 +436,23 @@ def plot_radar_absolute(
     title: Optional[str] = None,
     color: str = "b",
     alpha: float = 0.5,
+    radial_max: Optional[float] = None,
+    summaries: Optional[ScalarSummaries] = None,
+    show_anchors: bool = False,
     **kwargs,
 ) -> plt.Figure:
     """
-    Generate both enrichment and depletion radar plots side-by-side.
+    Generate both proximal and distal radar plots side-by-side with shared radial scale.
 
     Args:
         radar: RadarResult object.
         fig: Matplotlib figure. If None, created.
         title: Overall title.
-        color: Line/Fill color for enrichment.
+        color: Line/Fill color for proximal.
         alpha: Fill transparency.
+        radial_max: Optional override for shared radial axis upper limit.
+        summaries: Optional `ScalarSummaries` object to annotate peaks and stats.
+        show_anchors: Whether to draw anchors/annotations when `summaries` is provided.
         **kwargs: Additional arguments for plot_radar.
 
     Returns:
@@ -365,14 +461,27 @@ def plot_radar_absolute(
     if fig is None:
         fig = plt.figure(figsize=(10, 5))
 
+    # Compute a shared radial max if not provided
+    finite = np.isfinite(radar.rsp)
+    if radial_max is None:
+        if np.any(finite):
+            radial_max_use = float(np.nanmax(np.abs(radar.rsp[finite]))) * 1.05
+        else:
+            radial_max_use = 1.0
+    else:
+        radial_max_use = float(radial_max)
+
     ax1 = fig.add_subplot(121, projection="polar")
     plot_radar(
         radar,
         ax=ax1,
-        title="Enrichment RSP ($R > 0$)",
+        title="Proximal RSP ($R > 0$)",
         color=color,
         alpha=alpha,
-        mode="enrichment",
+        mode="proximal",
+        radial_max=radial_max_use,
+        summaries=summaries,
+        show_anchors=show_anchors,
         **kwargs,
     )
 
@@ -380,10 +489,13 @@ def plot_radar_absolute(
     plot_radar(
         radar,
         ax=ax2,
-        title="Depletion RSP ($R < 0$)",
+        title="Distal RSP ($R < 0$)",
         color="r",
         alpha=alpha,
-        mode="depletion",
+        mode="distal",
+        radial_max=radial_max_use,
+        summaries=summaries,
+        show_anchors=show_anchors,
         **kwargs,
     )
 
@@ -393,6 +505,12 @@ def plot_radar_absolute(
     # Tight layout without crushing suptitle
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     return fig
+
+
+# Alias with clearer name
+def plot_radar_split(*args, **kwargs):
+    """Alias for `plot_radar_absolute` to emphasize split/proximal-vs-distal layout."""
+    return plot_radar_absolute(*args, **kwargs)
 
 
 def plot_embedding(
