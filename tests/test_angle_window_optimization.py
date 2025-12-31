@@ -1,7 +1,6 @@
 import numpy as np
 
 from biorsp.adequacy import gene_adequacy
-from biorsp.constants import EPS
 from biorsp.radar import compute_rsp_radar
 
 
@@ -35,31 +34,23 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
         r_bg = r[mask_all & ~np.asarray(y).astype(bool)]
         if len(r_fg) < min_fg_sector or len(r_bg) < min_bg_sector:
             continue
-        from scipy.stats import iqr, wasserstein_distance
+        from scipy.stats import wasserstein_distance
 
-        w1 = wasserstein_distance(r_fg, r_bg)
-        global_iqr = (
-            iqr(r[~np.asarray(y).astype(bool)])
-            if len(r[~np.asarray(y).astype(bool)]) > 0
-            else np.nan
-        )
-        if not np.isfinite(global_iqr) or global_iqr < 0:
-            global_iqr = 0.0
-        iqr_floor = max(0.1 * global_iqr, EPS)
-        iqr_bg = iqr(r_bg)
-        if not np.isfinite(iqr_bg):
-            iqr_bg = 0.0
-        denom = max(iqr_bg, iqr_floor)
-        diff_median = np.median(r_bg) - np.median(r_fg)
+        r_bg_sorted = np.sort(r_bg)
+        n_bg = len(r_bg_sorted)
+        u_fg = np.searchsorted(r_bg_sorted, r_fg, side="right") / n_bg
+        u_bg = np.searchsorted(r_bg_sorted, r_bg, side="right") / n_bg
+        w1 = wasserstein_distance(u_fg, u_bg)
+        diff_median = np.median(u_bg) - np.median(u_fg)
         if diff_median > 0:
             sign = 1.0
         elif diff_median < 0:
             sign = -1.0
         else:
             # Tie-breaker: use mean difference
-            diff_mean = np.mean(r_bg) - np.mean(r_fg)
+            diff_mean = np.mean(u_bg) - np.mean(u_fg)
             sign = 1.0 if diff_mean >= 0 else -1.0
-        rsp[b] = sign * (w1 / denom)
+        rsp[b] = sign * w1
     return rsp
 
 

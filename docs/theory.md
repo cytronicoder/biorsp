@@ -4,7 +4,7 @@ Below we reproduce the Methods section verbatim (headings and equations preserve
 
 ## Inputs and notation
 
-We analyze a single-cell or single-nucleus dataset with $$N$$ cells indexed by $$i \in \{1,\dots,N\}.$$ Each cell $$i$$ is associated with a two-dimensional coordinate $$z_i \in \mathbb{R}^2$$, representing a user-supplied low-dimensional embedding or projection of the dataset (e.g., UMAP, t-SNE, or a user-defined 2D layout). We do not assume that Euclidean distances in this embedding are globally faithful. Instead, the embedding is treated strictly as a coordinate system for defining angular directions and radial distances relative to a reference point.
+We analyze a single-cell or single-nucleus dataset with $$N$$ cells indexed by $$i \in \{1,\dots,N\}.$$ Each cell $$i$$ is associated with a two-dimensional coordinate $$z_i \in \mathbb{R}^2$$, representing a user-supplied low-dimensional embedding or projection of the dataset (e.g., UMAP, t-SNE, or a user-defined 2D layout). We do not assume that Euclidean distances in this embedding are globally faithful. Instead, the embedding is treated strictly as a coordinate system for defining angular directions and radial distances relative to a reference point. BioRSP therefore tests conditional spatial heterogeneity given a fixed embedding, not intrinsic physical geometry.
 
 For each gene $$g$$, let $$x_i^{(g)} \ge 0$$ denote the expression value of gene $$g$$ in cell $$i$$, after the user’s chosen normalization (e.g., log-normalized counts). More generally, $$x_i$$ may represent any scalar feature aligned to cells, including protein abundance, chromatin accessibility scores, module scores, or pathway activity scores. All definitions below apply unchanged provided the feature values are numeric and comparable within the analyzed cell set.
 
@@ -12,7 +12,7 @@ All analyses are performed within a user-defined subset of cells $$S \subseteq \
 
 When multi-sample structure is available, donor or sample membership is denoted by d(i), and library size (total counts for the relevant modality) by $$u_i.$$ These quantities are used only for stratified permutation inference and robustness diagnostics, not for defining the radar statistic itself.
 
-A key geometric input is a vantage point $$v \in \mathbb{R}^2$$, which serves as the origin for radar scanning. By default, $$v$$ is set to the geometric median of $$\{z_i : i \in S\}$$, which is more robust to outliers and irregular boundaries than the mean. The geometric median is computed using a standard iterative procedure with a fixed convergence tolerance, recorded in the run manifest. All reported results include the chosen vantage point, and sensitivity to the choice of $$v$$ is quantified using a vantage sensitivity diagnostic (Section 2.5). Alternative vantages are used only for sensitivity analyses and are not used to tune reported results.
+A key geometric input is a vantage point $$v \in \mathbb{R}^2$$, which serves as the origin for radar scanning. By default, $$v$$ is set to the geometric median of $$\{z_i : i \in S\}$$, which is more robust to outliers and irregular boundaries than the mean. If the geometric median falls in a low-density void (e.g., within a concavity), we snap $$v$$ to the nearest medoid (an observed cell minimizing total distance). The geometric median is computed using a standard iterative procedure with a fixed convergence tolerance, recorded in the run manifest. All reported results include the chosen vantage point, and sensitivity to the choice of $$v$$ is quantified using a vantage sensitivity diagnostic (Section 2.5). Alternative vantages are used only for sensitivity analyses and are not used to tune reported results.
 
 ## Foreground definition
 
@@ -28,6 +28,8 @@ where $$Q_{0.90}$$ denotes the 90th percentile, and $$\mathbf{1}(\cdot)$$ is the
 This choice fixes the expected foreground coverage near 10% (up to ties), improving comparability across genes and preventing low-coverage genes from producing unstable sector estimates. Because single-cell data frequently contain ties at low expression, the threshold is applied using a strict inequality ($$x_i^{(g)} > t_g$$). We report the realized foreground fraction
 $$c_g = \frac{1}{|S|}\sum_{i\in S} y_i^{(g)}$$
 to make the effective foreground size explicit. If $$c_g = 0$$, the gene is treated as underpowered and excluded from downstream inference.
+
+To avoid false confidence in sparse, tied, or zero-inflated genes, we abstain (mark the gene as inadequate) when the foreground is not identifiable. Specifically, we abstain if $$t_g = 0$$, if the foreground has too few distinct expression values, or if the number of unique ranks within the foreground is below a minimum threshold. Abstention is reported explicitly and treated as a feature rather than a limitation.
 
 Users may override the quantile threshold for sensitivity analyses; reported conclusions are expected to remain stable under modest changes in this setting for adequately expressed genes.
 
@@ -61,12 +63,14 @@ $$B_g = S \setminus F_g.$$
 Within each angular window $$\mathcal{W}(\theta)$$, we compare the radial distributions
 $$\mathcal{R}_F(\theta) = \{r_i : i \in \mathcal{W}(\theta)\cap F_g\}$$
 $$\mathcal{R}_B(\theta) = \{r_i : i \in \mathcal{W}(\theta)\cap B_g\}$$
-Let $$W_1(\mathcal{R}_F,\mathcal{R}_B)$$ denote the one-dimensional Wasserstein-1 (earth mover’s) distance between the two empirical samples of radii, computed directly from sorted values without binning. We define the radar radius function
-$$R_g(\theta) \;=\; s(\theta)\,\frac{W_1(\mathcal{R}_F(\theta),\,\mathcal{R}_B(\theta))}{\mathrm{IQR}(\mathcal{R}_B(\theta))+\varepsilon}$$
-where $$\mathrm{IQR}$$ denotes the interquartile range, $$\varepsilon = 10^{-8}$$ prevents division by zero, and
-$$s(\theta) = \mathrm{sign}!\left(\mathrm{median}(\mathcal{R}_F(\theta)) - \mathrm{median}(\mathcal{R}_B(\theta))\right)$$
+Let $$W_1(\mathcal{R}_F,\mathcal{R}_B)$$ denote the one-dimensional Wasserstein-1 (earth mover’s) distance between the two empirical samples of radii, computed directly from sorted values without binning. We define the radar radius function by first CDF-normalizing radii with respect to the sector background distribution. Let
+$$u_i = F_B(r_i)$$
+where $$F_B$$ is the empirical CDF of $$\mathcal{R}_B(\theta)$$. The sector statistic is then
+$$R_g(\theta) \;=\; s(\theta)\,W_1(\mathcal{U}_F(\theta),\,\mathcal{U}_B(\theta))$$
+where $$\mathcal{U}_F(\theta)$$ and $$\mathcal{U}_B(\theta)$$ are the CDF-normalized radii for foreground and background, respectively, and
+$$s(\theta) = \mathrm{sign}!\left(\mathrm{median}(\mathcal{U}_B(\theta)) - \mathrm{median}(\mathcal{U}_F(\theta))\right).$$
 
-The sign encodes whether foreground cells are radially closer to the vantage point ($$R_g(\theta) < 0$$) or farther away ($$R_g(\theta) > 0$$) than background cells in that direction. Standardizing by $$\mathrm{IQR}(\mathcal{R}_B(\theta))$$ improves comparability across sectors and genes under heterogeneous embedding scales and local densities.
+The sign encodes whether foreground cells are radially closer to the vantage point ($$R_g(\theta) < 0$$) or farther away ($$R_g(\theta) > 0$$) than background cells in that direction. CDF-normalization makes $$R_g(\theta)$$ scale-invariant and robust to monotone radial distortions while preserving ordering.
 
 The function $$R_g(\theta)$$ is evaluated on the grid $$\Theta$$. For visualization only, we optionally apply a circular moving-average smoother with a 5° window after masking underpowered sectors; all inferential quantities are computed from the unsmoothed values.
 
@@ -103,19 +107,19 @@ with default $$n_{\mathrm{fg,tot}}^{\min}=100.$$ Genes failing this criterion ar
 
 ## Inference
 
-Inference is performed on the gene-level anisotropy statistic $$A_g$$ using permutation tests. The null hypothesis is that, conditional on sequencing depth (and donor structure when applicable), foreground membership is independent of spatial position in the embedding.
+Inference is performed on the studentized gene-level anisotropy statistic
+$$T_g = \frac{A_g}{\widehat{\mathrm{SE}}(A_g)}$$
+using permutation tests. The null hypothesis is that, conditional on sequencing depth and donor structure, foreground membership is independent of spatial position in the embedding.
 
 ### Default null: UMI-stratified permutation
 
-Within a fixed cell set $$S$$ and gene $$g$$, embedding coordinates $$\{z_i\}$$ and expression values $$\{x_i^{(g)}\}$$ are held fixed. Cells are partitioned into $$Q=10$$ strata based on the library size $$u_i$$ (deciles within $$S$$). Foreground indicators $$y_i^{(g)}$$ are permuted independently within each stratum, preserving the foreground count per stratum and thus the depth–foreground relationship expected under technical confounding.
+Within a fixed cell set $$S$$ and gene $$g$$, embedding coordinates $$\{z_i\}$$ and expression values $$\{x_i^{(g)}\}$$ are held fixed. Cells are partitioned by donor (when available) and then into $$Q=10$$ strata based on the library size $$u_i$$ (deciles within each donor). Foreground indicators $$y_i^{(g)}$$ are permuted independently within each stratum, preserving the foreground count per stratum and thus the depth–foreground relationship expected under technical confounding.
 
-For each permutation $$k=1,\dots,K$$, we recompute $$R_g^{(k)}(\theta)$$ and $$A_g^{(k)}$$ using the same adequacy rules. The empirical one-sided p-value is
-$$p^{\mathrm{strat}}_g = \frac{1 + \sum_{k=1}^K \mathbf{1}\left(A_g^{(k)} \ge A_g\right)}{1+K}.$$
+For each permutation $$k=1,\dots,K$$, we recompute $$R_g^{(k)}(\theta)$$ and $$T_g^{(k)}$$ using the same adequacy rules. If a permutation yields missing values in any observed valid sector, it is rejected and resampled until exactly $$K$$ valid nulls are collected. The empirical one-sided p-value is
+$$p^{\mathrm{strat}}_g = \frac{1 + \sum_{k=1}^K \mathbf{1}\left(T_g^{(k)} \ge T_g\right)}{1+K}.$$
 We use $$K=200$$ permutations for exploratory analyses and $$K=1000$$ for final reporting.
 
-### Donor-stratified null (optional)
-
-When donor or sample labels $$d(i)$$ are available, permutations may be further stratified within the Cartesian product of donor and UMI bin to avoid donor-driven confounding. A minimum per-stratum cell count (default 50 cells) is required; strata failing this requirement are merged or fall back to UMI-only stratification according to a deterministic rule recorded in the run manifest.
+We report the number of rejected permutations per gene as a diagnostic (expected to be near zero in well-powered settings).
 
 ### Multiple testing correction
 

@@ -10,6 +10,7 @@ Implements geometric definitions from the Methods section:
 from typing import Literal, Tuple
 
 import numpy as np
+from scipy.spatial import cKDTree
 
 
 def geometric_median(
@@ -67,6 +68,24 @@ def geometric_median(
     return y, n_iter, converged
 
 
+def _medoid(points: np.ndarray) -> np.ndarray:
+    """Compute the medoid (observed point minimizing total distance)."""
+    n_points = len(points)
+    if n_points == 0:
+        return np.array([np.nan, np.nan])
+    if n_points == 1:
+        return points[0]
+
+    best_idx = 0
+    best_sum = np.inf
+    for i in range(n_points):
+        dist_sum = np.sum(np.linalg.norm(points - points[i], axis=1))
+        if dist_sum < best_sum:
+            best_sum = dist_sum
+            best_idx = i
+    return points[best_idx]
+
+
 def compute_vantage(
     coords: np.ndarray,
     method: Literal["geometric_median", "mean"] = "geometric_median",
@@ -90,6 +109,20 @@ def compute_vantage(
     """
     if method == "geometric_median":
         v, _, _ = geometric_median(coords, tol=tol, max_iter=max_iter)
+        if len(coords) < 3:
+            return v
+
+        tree = cKDTree(coords)
+        k = min(10, len(coords) - 1)
+        distances, _ = tree.query(coords, k=k + 1)
+        knn_dist = distances[:, -1]
+        density_threshold = np.percentile(knn_dist, 90)
+
+        v_distances, _ = tree.query(v, k=k)
+        v_knn_dist = np.max(np.atleast_1d(v_distances))
+
+        if v_knn_dist > density_threshold:
+            return _medoid(coords)
         return v
     if method == "mean":
         return np.mean(coords, axis=0)

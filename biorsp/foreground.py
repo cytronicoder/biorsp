@@ -10,6 +10,8 @@ from typing import Tuple
 
 import numpy as np
 
+from .constants import N_FG_DISTINCT_MIN_DEFAULT, N_FG_RANK_MIN_DEFAULT
+
 
 def binary_foreground(
     x: np.ndarray,
@@ -93,6 +95,45 @@ def check_gene_power(coverage: float) -> bool:
     return coverage > 0
 
 
+def foreground_identifiable(
+    x: np.ndarray,
+    y: np.ndarray,
+    threshold: float,
+    min_distinct: int = N_FG_DISTINCT_MIN_DEFAULT,
+    min_rank: int = N_FG_RANK_MIN_DEFAULT,
+) -> bool:
+    """
+    Check whether a foreground definition is identifiable under ties/zero inflation.
+
+    Args:
+        x: (N,) array of expression values.
+        y: (N,) boolean foreground indicator.
+        threshold: Quantile threshold used to define foreground.
+        min_distinct: Minimum distinct expression values within foreground.
+        min_rank: Minimum number of unique ranks within foreground.
+
+    Returns:
+        True if identifiable, False otherwise.
+    """
+    if threshold <= 0:
+        return False
+
+    fg_values = x[y]
+    if fg_values.size == 0:
+        return False
+
+    n_distinct = len(np.unique(fg_values))
+    if n_distinct < min_distinct:
+        return False
+
+    ranks = np.argsort(np.argsort(x))
+    unique_ranks = np.unique(ranks[y])
+    if len(unique_ranks) < min_rank:
+        return False
+
+    return True
+
+
 def coverage_prevalence(x: np.ndarray, t_detect: float = 0.0) -> float:
     """
     Compute prevalence-style coverage above a detection threshold.
@@ -111,5 +152,6 @@ __all__ = [
     "binary_foreground",
     "soft_foreground_weights",
     "check_gene_power",
+    "foreground_identifiable",
     "coverage_prevalence",
 ]

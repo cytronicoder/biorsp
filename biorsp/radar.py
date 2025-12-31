@@ -4,7 +4,7 @@ Radar estimand module for BioRSP.
 Implements the radar radius function R_g(theta):
 - Sliding window analysis
 - Radial distribution comparison (Foreground vs Background)
-- Signed, IQR-normalized Wasserstein-1 distance
+- Signed Wasserstein-1 distance on background-CDF-normalized radii
 """
 
 from dataclasses import dataclass
@@ -14,15 +14,9 @@ if TYPE_CHECKING:
     from .adequacy import AdequacyReport
 
 import numpy as np
-from scipy.stats import iqr, wasserstein_distance
+from scipy.stats import wasserstein_distance
 
-from .constants import (
-    B_DEFAULT,
-    DELTA_DEG_DEFAULT,
-    EPS,
-    N_BG_MIN_DEFAULT,
-    N_FG_MIN_DEFAULT,
-)
+from .constants import B_DEFAULT, DELTA_DEG_DEFAULT, N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT
 from .geometry import angle_grid
 
 
@@ -36,8 +30,8 @@ class RadarResult:
         counts_fg: (B,) array of foreground counts per sector.
         counts_bg: (B,) array of background counts per sector.
         centers: (B,) array of sector center angles.
-        iqr_floor: Lower bound used for IQR normalization.
-        iqr_floor_hits: (B,) boolean array indicating when floor was applied.
+        iqr_floor: Deprecated (retained for backward compatibility).
+        iqr_floor_hits: Deprecated (retained for backward compatibility).
     """
 
     rsp: np.ndarray
@@ -65,10 +59,10 @@ def compute_rsp_radar(
     For each sector b with center phi_b:
     1. Select foreground and background cells in window [phi_b - delta/2, phi_b + delta/2].
     2. Check adequacy (min counts). If not adequate, R_b = NaN.
-    3. Compute Wasserstein-1 distance (W1) between foreground radii and background radii.
-    4. Normalize by max(IQR(background sector), tau_IQR) where tau_IQR = max(0.1 * global_iqr, EPS).
+    3. Normalize radii by the background empirical CDF in the sector.
+    4. Compute Wasserstein-1 distance (W1) between foreground and background CDF-normalized radii.
     5. Determine sign: negative if foreground is radially distal (larger radii), positive if proximal.
-       Sign = sign(median(r_bg) - median(r_fg)).
+       Sign = sign(median(u_bg) - median(u_fg)).
        (Note: This convention makes 'rim' patterns negative, consistent with P_g = min R_g).
 
     Re-use API:
@@ -111,15 +105,7 @@ def compute_rsp_radar(
     y = np.asarray(y).astype(bool)
     y_fg = y
     y_bg = ~y
-    r_bg_all = r[y_bg]
-
-    # Global fallback for IQR if sector is degenerate
-    global_iqr = iqr(r_bg_all) if len(r_bg_all) > 0 else np.nan
-    if not np.isfinite(global_iqr) or global_iqr < 0:
-        global_iqr = 0.0
-
-    # Global IQR floor based on 10% of background IQR
-    iqr_floor = max(0.1 * global_iqr, EPS)
+    iqr_floor = np.nan
     iqr_floor_hits = np.zeros(B, dtype=bool)
 
     # Decide whether to use precomputed indices. Precedence: explicit `sector_indices` -> `adequacy` -> compute
@@ -184,31 +170,25 @@ def compute_rsp_radar(
             if n_fg < min_fg_sector or n_bg < min_bg_sector:
                 continue
 
-            # 3. Compute W1 distance
-            w1 = wasserstein_distance(r_fg_sector, r_bg_sector)
+            # 3. Compute W1 distance on background-CDF-normalized radii
+            r_bg_sorted = np.sort(r_bg_sector)
+            n_bg = len(r_bg_sorted)
+            u_fg = np.searchsorted(r_bg_sorted, r_fg_sector, side="right") / n_bg
+            u_bg = np.searchsorted(r_bg_sorted, r_bg_sector, side="right") / n_bg
+            w1 = wasserstein_distance(u_fg, u_bg)
 
-            # 4. Stabilize IQR using a global floor
-            iqr_bg = iqr(r_bg_sector)
-            if not np.isfinite(iqr_bg):
-                iqr_bg = 0.0
-            denom = max(iqr_bg, iqr_floor)
-            if iqr_bg < iqr_floor:
-                iqr_floor_hits[b_idx] = True
-
-            normalized_w1 = w1 / denom
-
-            # 5. Determine sign with tie-breaker using mean
-            diff_median = np.median(r_bg_sector) - np.median(r_fg_sector)
+            # 4. Determine sign with tie-breaker using mean
+            diff_median = np.median(u_bg) - np.median(u_fg)
             if diff_median > 0:
                 sign = 1.0
             elif diff_median < 0:
                 sign = -1.0
             else:
                 # Tie-breaker: use mean difference
-                diff_mean = np.mean(r_bg_sector) - np.mean(r_fg_sector)
+                diff_mean = np.mean(u_bg) - np.mean(u_fg)
                 sign = 1.0 if diff_mean >= 0 else -1.0
 
-            rsp_values[b_idx] = sign * normalized_w1
+            rsp_values[b_idx] = sign * w1
     else:
         # Use precomputed sector indices from adequacy to avoid re-scanning angles
         for b_idx in range(B):
@@ -231,25 +211,21 @@ def compute_rsp_radar(
             if n_fg < min_fg_sector or n_bg < min_bg_sector:
                 continue
 
-            w1 = wasserstein_distance(r_fg_sector, r_bg_sector)
-            iqr_bg = iqr(r_bg_sector)
-            if not np.isfinite(iqr_bg):
-                iqr_bg = 0.0
-            denom = max(iqr_bg, iqr_floor)
-            if iqr_bg < iqr_floor:
-                iqr_floor_hits[b_idx] = True
-
-            normalized_w1 = w1 / denom
-            diff_median = np.median(r_bg_sector) - np.median(r_fg_sector)
+            r_bg_sorted = np.sort(r_bg_sector)
+            n_bg = len(r_bg_sorted)
+            u_fg = np.searchsorted(r_bg_sorted, r_fg_sector, side="right") / n_bg
+            u_bg = np.searchsorted(r_bg_sorted, r_bg_sector, side="right") / n_bg
+            w1 = wasserstein_distance(u_fg, u_bg)
+            diff_median = np.median(u_bg) - np.median(u_fg)
             if diff_median > 0:
                 sign = 1.0
             elif diff_median < 0:
                 sign = -1.0
             else:
                 # Tie-breaker: use mean difference
-                diff_mean = np.mean(r_bg_sector) - np.mean(r_fg_sector)
+                diff_mean = np.mean(u_bg) - np.mean(u_fg)
                 sign = 1.0 if diff_mean >= 0 else -1.0
-            rsp_values[b_idx] = sign * normalized_w1
+            rsp_values[b_idx] = sign * w1
 
     return RadarResult(
         rsp=rsp_values,
@@ -260,5 +236,25 @@ def compute_rsp_radar(
         iqr_floor_hits=iqr_floor_hits,
     )
 
+def empty_radar(
+    B: int,
+    counts_fg: Optional[np.ndarray] = None,
+    counts_bg: Optional[np.ndarray] = None,
+) -> RadarResult:
+    """Create an empty radar result with NaN RSP values."""
+    centers = angle_grid(B)
+    if counts_fg is None:
+        counts_fg = np.zeros(B, dtype=int)
+    if counts_bg is None:
+        counts_bg = np.zeros(B, dtype=int)
+    return RadarResult(
+        rsp=np.full(B, np.nan),
+        counts_fg=counts_fg,
+        counts_bg=counts_bg,
+        centers=centers,
+        iqr_floor=np.nan,
+        iqr_floor_hits=np.zeros(B, dtype=bool),
+    )
 
-__all__ = ["RadarResult", "compute_rsp_radar"]
+
+__all__ = ["RadarResult", "compute_rsp_radar", "empty_radar"]

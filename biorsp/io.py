@@ -149,4 +149,42 @@ def load_umi_counts(
     return counts
 
 
-__all__ = ["load_expression_matrix", "load_spatial_coords", "load_umi_counts", "save_results"]
+def load_donor_ids(path: str, n_cells: Optional[int] = None) -> Optional[np.ndarray]:
+    """
+    Load donor/sample labels from a metadata file when available.
+
+    Args:
+        path: Path to file (csv, tsv, txt).
+        n_cells: Expected number of cells for validation.
+
+    Returns:
+        (N,) numpy array of donor/sample labels or None if no suitable column is found.
+    """
+    ext = os.path.splitext(path)[1].lower()
+
+    if ext in [".csv", ".txt"]:
+        df = pd.read_csv(path)
+    elif ext == ".tsv":
+        df = pd.read_csv(path, sep="\t")
+    else:
+        raise ValueError(f"Unsupported file extension: {ext}")
+
+    for column in ("donor", "donor_id", "sample", "sample_id"):
+        if column in df.columns:
+            labels = df[column].astype(str).to_numpy()
+            if n_cells is not None and len(labels) != n_cells:
+                raise ValueError(
+                    f"Donor labels length ({len(labels)}) does not match number of cells ({n_cells})."
+                )
+            return labels
+
+    return None
+
+
+__all__ = [
+    "load_expression_matrix",
+    "load_spatial_coords",
+    "load_umi_counts",
+    "load_donor_ids",
+    "save_results",
+]
