@@ -1,7 +1,6 @@
 import numpy as np
 
 from biorsp.adequacy import AdequacyReport, gene_adequacy
-from biorsp.constants import EPS
 from biorsp.pairwise import compute_pairwise_relationships
 from biorsp.radar import RadarResult, compute_rsp_radar
 from biorsp.results import FeatureResult
@@ -37,20 +36,22 @@ def test_adequacy_fraction_matches_manual():
 
 
 def test_rsp_sign_convention_distal_negative():
-    r = np.array([5.0, 5.0, 6.0, 7.0])
+    r = np.array([1.0, 2.0, 3.0, 4.0])
     theta = np.array([0.0, 0.1, -0.1, 0.2])
     y = np.array([False, False, True, True])
     radar = compute_rsp_radar(r, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1)
     assert radar.rsp[0] < 0
 
 
-def test_iqr_floor_hits_when_sector_iqr_zero():
-    r = np.array([5.0, 5.0, 5.0, 6.0, 6.0])
+def test_cdf_normalization_scale_invariant():
+    r = np.array([1.0, 2.0, 3.0, 4.0])
     theta = np.zeros_like(r)
-    y = np.array([False, False, False, True, True])
+    y = np.array([False, False, True, True])
     radar = compute_rsp_radar(r, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1)
-    assert np.isclose(radar.iqr_floor, EPS)
-    assert radar.iqr_floor_hits[0]
+    radar_scaled = compute_rsp_radar(
+        r * 10.0, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1
+    )
+    assert np.allclose(radar.rsp, radar_scaled.rsp)
 
 
 def test_scalar_summaries_anisotropy_and_peaks():
@@ -61,7 +62,7 @@ def test_scalar_summaries_anisotropy_and_peaks():
         counts_fg=np.ones(4, dtype=int),
         counts_bg=np.ones(4, dtype=int),
         centers=centers,
-        iqr_floor=1.0,
+        iqr_floor=np.nan,
         iqr_floor_hits=np.zeros(4, dtype=bool),
     )
     summary = compute_scalar_summaries(radar)
@@ -135,7 +136,7 @@ def test_pairwise_common_valid_directions_only():
             counts_fg=np.ones(3, dtype=int),
             counts_bg=np.ones(3, dtype=int),
             centers=centers,
-            iqr_floor=1.0,
+            iqr_floor=np.nan,
             iqr_floor_hits=np.zeros(3, dtype=bool),
         ),
         "f2": RadarResult(
@@ -143,7 +144,7 @@ def test_pairwise_common_valid_directions_only():
             counts_fg=np.ones(3, dtype=int),
             counts_bg=np.ones(3, dtype=int),
             centers=centers,
-            iqr_floor=1.0,
+            iqr_floor=np.nan,
             iqr_floor_hits=np.zeros(3, dtype=bool),
         ),
         "f3": RadarResult(
@@ -151,7 +152,7 @@ def test_pairwise_common_valid_directions_only():
             counts_fg=np.ones(3, dtype=int),
             counts_bg=np.ones(3, dtype=int),
             centers=centers,
-            iqr_floor=1.0,
+            iqr_floor=np.nan,
             iqr_floor_hits=np.zeros(3, dtype=bool),
         ),
     }

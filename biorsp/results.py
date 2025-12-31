@@ -29,6 +29,7 @@ class FeatureResult:
     feature_type: Optional[str] = None
     p_value: Optional[float] = None
     q_value: Optional[float] = None
+    n_perm_rejected: Optional[int] = None
     robustness: Optional[RobustnessResult] = None
 
 

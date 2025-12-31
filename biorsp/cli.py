@@ -12,15 +12,22 @@ import warnings
 
 import numpy as np
 
-from .adequacy import gene_adequacy
+from .adequacy import AdequacyReport, gene_adequacy
+from .constants import REASON_GENE_UNIDENTIFIABLE
 from .config import BioRSPConfig
-from .foreground import binary_foreground, coverage_prevalence
+from .foreground import binary_foreground, coverage_prevalence, foreground_identifiable
 from .geometry import compute_vantage, polar_coordinates
 from .inference import bh_fdr, compute_p_value
-from .io import load_expression_matrix, load_spatial_coords, load_umi_counts, save_results
+from .io import (
+    load_donor_ids,
+    load_expression_matrix,
+    load_spatial_coords,
+    load_umi_counts,
+    save_results,
+)
 from .manifest import create_manifest, save_manifest
 from .pairwise import compute_pairwise_relationships
-from .radar import compute_rsp_radar
+from .radar import compute_rsp_radar, empty_radar
 from .results import FeatureResult, RunSummary
 from .robustness import compute_robustness_score
 from .summaries import compute_scalar_summaries
@@ -71,6 +78,7 @@ def run_analysis(args):
     )
 
     umi_counts = None
+    donor_ids = None
     if args.inference:
         if args.umis:
             umi_counts = load_umi_counts(
@@ -78,6 +86,13 @@ def run_analysis(args):
                 n_cells=len(coords),
                 column=args.umi_column,
             )
+            donor_ids = load_donor_ids(args.umis, n_cells=len(coords))
+            if donor_ids is None:
+                warnings.warn(
+                    "No donor labels found in UMI metadata; using UMI-only stratification.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
         else:
             warnings.warn(
                 "Using expression row sums as UMI counts. For stratified inference, "
@@ -95,6 +110,7 @@ def run_analysis(args):
         # 2. Foreground
         y, threshold, coverage = binary_foreground(x, quantile=args.quantile)
         coverage_abs = coverage_prevalence(x, t_detect=args.t_detect)
+        identifiable = foreground_identifiable(x, y, threshold)
 
         # 3. Adequacy
         adequacy = gene_adequacy(
@@ -110,16 +126,34 @@ def run_analysis(args):
             # (micro-optimization for large datasets)
         )
 
-        radar = compute_rsp_radar(
-            r,
-            theta,
-            y,
-            B=config.n_angles,
-            delta_deg=config.sector_width_deg,
-            min_fg_sector=config.min_fg_sector,
-            min_bg_sector=config.min_bg_sector,
-            sector_indices=adequacy.sector_indices,
-        )
+        if not identifiable:
+            adequacy = AdequacyReport(
+                is_adequate=False,
+                reason=REASON_GENE_UNIDENTIFIABLE,
+                counts_fg=adequacy.counts_fg,
+                counts_bg=adequacy.counts_bg,
+                sector_mask=adequacy.sector_mask,
+                n_foreground=adequacy.n_foreground,
+                n_background=adequacy.n_background,
+                adequacy_fraction=adequacy.adequacy_fraction,
+                sector_indices=adequacy.sector_indices,
+            )
+            radar = empty_radar(
+                config.n_angles,
+                counts_fg=adequacy.counts_fg,
+                counts_bg=adequacy.counts_bg,
+            )
+        else:
+            radar = compute_rsp_radar(
+                r,
+                theta,
+                y,
+                B=config.n_angles,
+                delta_deg=config.sector_width_deg,
+                min_fg_sector=config.min_fg_sector,
+                min_bg_sector=config.min_bg_sector,
+                sector_indices=adequacy.sector_indices,
+            )
 
         summary = compute_scalar_summaries(radar)
 
@@ -134,7 +168,7 @@ def run_analysis(args):
         )
 
         if args.inference and adequacy.is_adequate:
-            p_val, _, _, _ = compute_p_value(
+            p_val, _, _, _, rejected = compute_p_value(
                 r,
                 theta,
                 y,
@@ -143,11 +177,13 @@ def run_analysis(args):
                 n_perm=config.n_permutations,
                 umi_counts=umi_counts,
                 umi_bins=config.umi_bins,
+                donor_ids=donor_ids,
                 seed=config.seed,
                 min_fg_sector=config.min_fg_sector,
                 min_bg_sector=config.min_bg_sector,
             )
             feature_results[gene].p_value = p_val
+            feature_results[gene].n_perm_rejected = rejected
 
     if args.inference:
         eligible = [fr for fr in feature_results.values() if fr.adequacy.is_adequate]
@@ -234,6 +270,7 @@ def run_analysis(args):
                 "feature_type": fr.feature_type,
                 "p_value": fr.p_value,
                 "q_value": fr.q_value,
+                "n_perm_rejected": fr.n_perm_rejected,
                 "mean_profile_corr": fr.robustness.mean_correlation if fr.robustness else None,
                 "cv_anisotropy": fr.robustness.cv_anisotropy if fr.robustness else None,
                 "rsp_profile": (

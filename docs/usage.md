@@ -19,7 +19,7 @@ This guide mirrors the Methods workflow. Where the Methods intentionally omits o
 6. Apply adequacy filters:
    - Per-sector minima: `n_fg^min = 10`, `n_bg^min = 50`
    - Gene-level minimum total foreground: `n_fg,tot^min = 100`
-7. Run stratified permutation inference (UMI-decile stratification `Q = 10`, `K = 200` exploratory / `K = 1000` final).
+7. Run stratified permutation inference (within-donor UMI-decile stratification when donor labels are available; `Q = 10`, `K = 200` exploratory / `K = 1000` final).
 8. Apply multiple-testing correction (Benjamini-Hochberg on genes passing adequacy).
 9. Run diagnostics (split-half reproducibility, subsampling stability, cross-embedding sensitivity, VSI).
 
