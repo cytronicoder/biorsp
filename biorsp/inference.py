@@ -7,7 +7,6 @@ Implements permutation testing for statistical significance:
 - Stratified permutation of labels (optional) to control for UMI count confounders.
 """
 
-import concurrent.futures
 from typing import Optional, Tuple
 
 import numpy as np
@@ -16,21 +15,23 @@ from .constants import N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT, UMI_BINS_DEFAULT
 from .radar import compute_rsp_radar
 
 
-def _rms_with_mask(rsp: np.ndarray, valid_mask: np.ndarray) -> float:
+def _rms_with_mask(rsp: np.ndarray, valid_mask: np.ndarray, missing_as_zero: bool = False) -> float:
     """Compute RMS anisotropy using a fixed sector mask.
 
-    Notes:
-        - If any sector in `valid_mask` contains NaN in `rsp`, return NaN to indicate
-          the statistic is invalid for that permutation. This prevents shrinking the
-          null distribution by treating missing sectors as zeros.
+    Args:
+        rsp: RSP values (may include NaN).
+        valid_mask: Boolean mask specifying observed valid sectors.
+        missing_as_zero: If True, treat NaNs in valid sectors as zeros.
     """
     masked_rsp = rsp[valid_mask]
 
-    # If any NaNs occur in the masked regions, mark the statistic invalid
-    if np.isnan(masked_rsp).any():
+    if masked_rsp.size == 0:
         return np.nan
 
-    if masked_rsp.size == 0:
+    if missing_as_zero and np.isnan(masked_rsp).any():
+        masked_rsp = np.nan_to_num(masked_rsp, nan=0.0)
+
+    if np.isnan(masked_rsp).any():
         return np.nan
 
     return float(np.sqrt(np.mean(masked_rsp**2)))
@@ -45,19 +46,17 @@ def _compute_permutation_stat(
     delta_deg: float,
     min_fg_sector: int,
     min_bg_sector: int,
-    seed: int,
+    rng: np.random.Generator,
     valid_mask: np.ndarray,
 ) -> float:
     """Compute the test statistic for a single permutation."""
-    rng = np.random.default_rng(seed)
     y_perm = y.copy()
     for idx in strata_indices:
-        y_subset = y_perm[idx]
-        rng.shuffle(y_subset)
-        y_perm[idx] = y_subset
+        shuffled = rng.permutation(idx)
+        y_perm[idx] = y_perm[shuffled]
 
     radar_perm = compute_rsp_radar(r, theta, y_perm, B, delta_deg, min_fg_sector, min_bg_sector)
-    return _rms_with_mask(radar_perm.rsp, valid_mask)
+    return _rms_with_mask(radar_perm.rsp, valid_mask, missing_as_zero=True)
 
 
 def compute_p_value(
@@ -72,7 +71,7 @@ def compute_p_value(
     seed: int = 42,
     min_fg_sector: int = N_FG_MIN_DEFAULT,
     min_bg_sector: int = N_BG_MIN_DEFAULT,
-) -> Tuple[float, np.ndarray, float]:
+) -> Tuple[float, np.ndarray, float, np.ndarray]:
     """
     Compute p-value for the observed anisotropy using permutation test.
     Foreground labels are permuted within UMI strata to keep geometry fixed.
@@ -91,9 +90,10 @@ def compute_p_value(
         min_bg_sector: Minimum background counts per sector.
 
     Returns:
-        p_value: Estimated p-value (NaN if insufficient valid permutations collected).
-        null_stats: (n_perm,) array of valid null statistics (padded with NaN if insufficient).
+        p_value: Estimated p-value (NaN if observed mask empty).
+        null_stats: (n_perm,) array of null statistics.
         observed_stat: Observed statistic recomputed from data.
+        valid_mask: Boolean mask of observed valid sectors.
     """
     # Prepare output buffer
     null_stats = np.full(n_perm, np.nan)
@@ -120,94 +120,58 @@ def compute_p_value(
     radar_obs = compute_rsp_radar(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector)
     valid_mask = ~np.isnan(radar_obs.rsp)
     if not np.any(valid_mask):
-        return np.nan, null_stats, np.nan
+        return np.nan, null_stats, np.nan, valid_mask
 
     observed_stat = _rms_with_mask(radar_obs.rsp, valid_mask)
 
-    # Parallelized sampling loop: keep drawing trials until we collect n_perm valid stats
-    import logging
+    rng = np.random.default_rng(seed)
 
-    logger = logging.getLogger(__name__)
+    for k in range(n_perm):
+        null_stats[k] = _compute_permutation_stat(
+            r,
+            theta,
+            y,
+            strata_indices,
+            B,
+            delta_deg,
+            min_fg_sector,
+            min_bg_sector,
+            rng,
+            valid_mask,
+        )
 
-    # Reduce worker count to avoid oversubscription on systems with heavy BLAS/OpenMP usage
-    max_workers = min(4, n_perm)
+    p_value = (np.sum(null_stats >= observed_stat) + 1) / (len(null_stats) + 1)
 
-    # Cap the number of attempts to a reasonable multiplier to avoid very long hangs
-    max_attempts = max(3 * n_perm, n_perm + 100)
-
-    collected = 0
-    attempts = 0
-    seed_counter = seed
-
-    logger.debug(
-        f"compute_p_value start: n_perm={n_perm}, max_workers={max_workers}, max_attempts={max_attempts}"
-    )
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        while collected < n_perm and attempts < max_attempts:
-            # Submit a batch of jobs (bounded by remaining needed and workers)
-            batch_size = min(max_workers, n_perm - collected)
-            start_seed = seed_counter
-            # Map each future to its absolute trial id (seed number) for correct bookkeeping
-            futures = {
-                executor.submit(
-                    _compute_permutation_stat,
-                    r,
-                    theta,
-                    y,
-                    strata_indices,
-                    B,
-                    delta_deg,
-                    min_fg_sector,
-                    min_bg_sector,
-                    seed_counter + i,
-                    valid_mask,
-                ): (seed_counter + i)
-                for i in range(batch_size)
-            }
-            seed_counter += batch_size
-            logger.debug(
-                f"Submitted permutation batch seeds {start_seed}..{seed_counter-1} (batch_size={batch_size})"
-            )
-
-            # Collect results as they finish
-            for future in concurrent.futures.as_completed(futures):
-                trial_id = futures[future]
-                attempts += 1
-                try:
-                    stat = future.result()
-                except Exception as e:
-                    logger.debug(f"Permutation trial {trial_id} failed: {e}")
-                    stat = np.nan
-
-                # Preserve the mapping between trial seed and statistic in logs (debug-friendly)
-                # Accept only finite statistics as valid samples
-                if np.isfinite(stat):
-                    null_stats[collected] = stat
-                    collected += 1
-
-                logger.debug(f"Permutation progress: attempts={attempts}, collected={collected}")
-
-                # Stop early if we have enough
-                if collected >= n_perm:
-                    break
-
-            # If we are making no progress (many attempts with few valid samples), break early
-            if attempts > 0 and collected == 0 and attempts >= 5 * n_perm:
-                logger.debug(
-                    "Aborting permutation loop early: no valid nulls collected after many attempts"
-                )
-                break
-
-    # If we didn't collect enough valid nulls, return NaN p-value to indicate failure
-    if collected < n_perm:
-        return np.nan, null_stats, observed_stat
-
-    # Compute p-value using only the collected valid nulls
-    valid_nulls = null_stats[:n_perm]
-    p_value = (np.sum(valid_nulls >= observed_stat) + 1) / (len(valid_nulls) + 1)
-
-    return p_value, null_stats, observed_stat
+    return p_value, null_stats, observed_stat, valid_mask
 
 
-__all__ = ["compute_p_value"]
+def bh_fdr(p_values: np.ndarray) -> np.ndarray:
+    """
+    Benjamini-Hochberg FDR correction.
+
+    Args:
+        p_values: Array of p-values (NaNs allowed).
+
+    Returns:
+        Array of q-values with NaNs preserved.
+    """
+    p_values = np.asarray(p_values, dtype=float)
+    q_values = np.full_like(p_values, np.nan, dtype=float)
+
+    finite_mask = np.isfinite(p_values)
+    if not np.any(finite_mask):
+        return q_values
+
+    pvals = p_values[finite_mask]
+    order = np.argsort(pvals)
+    ranked = pvals[order]
+    n = len(ranked)
+    q = ranked * n / (np.arange(n) + 1)
+    q = np.minimum.accumulate(q[::-1])[::-1]
+    q = np.clip(q, 0.0, 1.0)
+
+    q_values[finite_mask] = q[np.argsort(order)]
+    return q_values
+
+
+__all__ = ["compute_p_value", "bh_fdr"]

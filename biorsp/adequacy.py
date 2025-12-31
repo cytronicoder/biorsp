@@ -134,19 +134,6 @@ def gene_adequacy(
     n_fg = int(np.sum(y))
     n_bg = len(y) - n_fg
 
-    if n_fg < min_fg_total:
-        return AdequacyReport(
-            is_adequate=False,
-            reason=REASON_GENE_UNDERPOWERED,
-            counts_fg=np.zeros(n_sectors, dtype=int),
-            counts_bg=np.zeros(n_sectors, dtype=int),
-            sector_mask=np.zeros(n_sectors, dtype=bool),
-            n_foreground=n_fg,
-            n_background=n_bg,
-            adequacy_fraction=0.0,
-            sector_indices=None,
-        )
-
     centers = angle_grid(n_sectors)
     delta_rad = np.deg2rad(delta_deg)
     half_width = delta_rad / 2.0
@@ -208,8 +195,10 @@ def gene_adequacy(
     mask = fg_mask & bg_mask
     adequacy_fraction = float(np.mean(mask)) if n_sectors > 0 else 0.0
 
-    is_adequate = adequacy_fraction >= min_adequacy_fraction
-    if is_adequate:
+    is_adequate = adequacy_fraction >= min_adequacy_fraction and n_fg >= min_fg_total
+    if n_fg < min_fg_total:
+        reason = REASON_GENE_UNDERPOWERED
+    elif is_adequate:
         reason = REASON_OK
     elif np.all(~fg_mask):
         reason = REASON_SECTOR_FG_TOO_SMALL

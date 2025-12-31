@@ -485,7 +485,7 @@ def analyze_gene(
     # 4. Compute P-values
     # 4. Compute P-values
     # Naive
-    p_naive, _, _ = compute_p_value(
+    p_naive, _, _, _ = compute_p_value(
         r,
         theta,
         y,
@@ -500,7 +500,7 @@ def analyze_gene(
 
     p_strat = np.nan
     if compute_stratified:
-        p_strat, _, _ = compute_p_value(
+        p_strat, _, _, _ = compute_p_value(
             r,
             theta,
             y,

@@ -423,7 +423,7 @@ def analyze_single_gene(
         if is_adequate:
             try:
                 logger.debug(f"Computing p-value (n_perm={n_perm}) for gene {gene_name}")
-                p_val, _, _ = compute_p_value(
+                p_val, _, _, _ = compute_p_value(
                     r,
                     theta,
                     fg_mask,
@@ -600,12 +600,13 @@ def plot_results(
             ax2.text(0.5, 0.5, msg, transform=ax2.transAxes, ha="center", va="center", fontsize=10)
     else:
         if plot_mode == "absolute":
-            plot_radar(radar_res, ax=ax2, title="Enrichment RSP ($R > 0$)", mode="enrichment")
-            plot_radar(radar_res, ax=ax3, title="Depletion RSP ($R < 0$)", mode="depletion")
+            plot_radar(radar_res, ax=ax2, title="Proximal RSP ($R > 0$)", mode="proximal")
+            plot_radar(radar_res, ax=ax3, title="Distal RSP ($R < 0$)", mode="distal")
         elif plot_mode == "relative":
-            plot_radar(radar_res, ax=ax2, title="BioRSP RSP (Relative)", mode="relative")
-        else:  # combined
-            plot_radar(radar_res, ax=ax2, title="BioRSP RSP (Combined)", mode="combined")
+            # Legacy alias: show signed plot
+            plot_radar(radar_res, ax=ax2, title="BioRSP RSP (Signed)", mode="signed")
+        else:  # combined (legacy)
+            plot_radar(radar_res, ax=ax2, title="BioRSP RSP (Signed)", mode="signed")
 
     # Annotate metrics (safe formatting)
     A_g = res.get("A_g", np.nan)

@@ -18,3 +18,7 @@ def test_angular_distance():
     # 0.1 and 2pi + 0.2 -> 0.1
     d = wrapped_circular_distance(np.array([0.1]), 2 * np.pi + 0.2)
     assert np.isclose(d[0], 0.1)
+
+    # near -pi and pi should wrap to small distance
+    d = wrapped_circular_distance(np.array([-np.pi + 0.05]), np.pi - 0.05)
+    assert np.isclose(d[0], 0.1)

@@ -66,7 +66,7 @@ def compute_rsp_radar(
     1. Select foreground and background cells in window [phi_b - delta/2, phi_b + delta/2].
     2. Check adequacy (min counts). If not adequate, R_b = NaN.
     3. Compute Wasserstein-1 distance (W1) between foreground radii and background radii.
-    4. Normalize by IQR of background radii in the sector with a global floor.
+    4. Normalize by max(IQR(background sector), tau_IQR) where tau_IQR = max(0.1 * global_iqr, EPS).
     5. Determine sign: negative if foreground is radially distal (larger radii), positive if proximal.
        Sign = sign(median(r_bg) - median(r_fg)).
        (Note: This convention makes 'rim' patterns negative, consistent with P_g = min R_g).
@@ -115,11 +115,11 @@ def compute_rsp_radar(
 
     # Global fallback for IQR if sector is degenerate
     global_iqr = iqr(r_bg_all) if len(r_bg_all) > 0 else np.nan
-    if not np.isfinite(global_iqr) or global_iqr <= 0:
-        global_iqr = 1.0  # Fallback if even global is degenerate
+    if not np.isfinite(global_iqr) or global_iqr < 0:
+        global_iqr = 0.0
 
-    # Use a gentle additive stabilizer rather than an aggressive 0.1 multiplier
-    iqr_floor = max(1e-3 * global_iqr, EPS)
+    # Global IQR floor based on 10% of background IQR
+    iqr_floor = max(0.1 * global_iqr, EPS)
     iqr_floor_hits = np.zeros(B, dtype=bool)
 
     # Decide whether to use precomputed indices. Precedence: explicit `sector_indices` -> `adequacy` -> compute
@@ -187,18 +187,26 @@ def compute_rsp_radar(
             # 3. Compute W1 distance
             w1 = wasserstein_distance(r_fg_sector, r_bg_sector)
 
-            # 4. Stabilize IQR using an additive floor
+            # 4. Stabilize IQR using a global floor
             iqr_bg = iqr(r_bg_sector)
-            floor = iqr_floor
-            denom = (iqr_bg if np.isfinite(iqr_bg) else 0.0) + floor
-            if iqr_bg < floor:
+            if not np.isfinite(iqr_bg):
+                iqr_bg = 0.0
+            denom = max(iqr_bg, iqr_floor)
+            if iqr_bg < iqr_floor:
                 iqr_floor_hits[b_idx] = True
 
             normalized_w1 = w1 / denom
 
-            # 5. Determine sign
+            # 5. Determine sign with tie-breaker using mean
             diff_median = np.median(r_bg_sector) - np.median(r_fg_sector)
-            sign = 1.0 if diff_median >= 0 else -1.0
+            if diff_median > 0:
+                sign = 1.0
+            elif diff_median < 0:
+                sign = -1.0
+            else:
+                # Tie-breaker: use mean difference
+                diff_mean = np.mean(r_bg_sector) - np.mean(r_fg_sector)
+                sign = 1.0 if diff_mean >= 0 else -1.0
 
             rsp_values[b_idx] = sign * normalized_w1
     else:
@@ -225,14 +233,22 @@ def compute_rsp_radar(
 
             w1 = wasserstein_distance(r_fg_sector, r_bg_sector)
             iqr_bg = iqr(r_bg_sector)
-            floor = iqr_floor
-            denom = (iqr_bg if np.isfinite(iqr_bg) else 0.0) + floor
-            if iqr_bg < floor:
+            if not np.isfinite(iqr_bg):
+                iqr_bg = 0.0
+            denom = max(iqr_bg, iqr_floor)
+            if iqr_bg < iqr_floor:
                 iqr_floor_hits[b_idx] = True
 
             normalized_w1 = w1 / denom
             diff_median = np.median(r_bg_sector) - np.median(r_fg_sector)
-            sign = 1.0 if diff_median >= 0 else -1.0
+            if diff_median > 0:
+                sign = 1.0
+            elif diff_median < 0:
+                sign = -1.0
+            else:
+                # Tie-breaker: use mean difference
+                diff_mean = np.mean(r_bg_sector) - np.mean(r_fg_sector)
+                sign = 1.0 if diff_mean >= 0 else -1.0
             rsp_values[b_idx] = sign * normalized_w1
 
     return RadarResult(

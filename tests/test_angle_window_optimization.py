@@ -1,6 +1,7 @@
 import numpy as np
 
 from biorsp.adequacy import gene_adequacy
+from biorsp.constants import EPS
 from biorsp.radar import compute_rsp_radar
 
 
@@ -42,13 +43,22 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
             if len(r[~np.asarray(y).astype(bool)]) > 0
             else np.nan
         )
-        if not np.isfinite(global_iqr) or global_iqr <= 0:
-            global_iqr = 1.0
-        iqr_floor = max(1e-3 * global_iqr, 1e-12)
+        if not np.isfinite(global_iqr) or global_iqr < 0:
+            global_iqr = 0.0
+        iqr_floor = max(0.1 * global_iqr, EPS)
         iqr_bg = iqr(r_bg)
-        denom = (iqr_bg if np.isfinite(iqr_bg) else 0.0) + iqr_floor
+        if not np.isfinite(iqr_bg):
+            iqr_bg = 0.0
+        denom = max(iqr_bg, iqr_floor)
         diff_median = np.median(r_bg) - np.median(r_fg)
-        sign = 1.0 if diff_median >= 0 else -1.0
+        if diff_median > 0:
+            sign = 1.0
+        elif diff_median < 0:
+            sign = -1.0
+        else:
+            # Tie-breaker: use mean difference
+            diff_mean = np.mean(r_bg) - np.mean(r_fg)
+            sign = 1.0 if diff_mean >= 0 else -1.0
         rsp[b] = sign * (w1 / denom)
     return rsp
 

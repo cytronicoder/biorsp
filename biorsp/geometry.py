@@ -7,7 +7,7 @@ Implements geometric definitions from the Methods section:
 - Wrapped angular distance on S1
 """
 
-from typing import Tuple
+from typing import Literal, Tuple
 
 import numpy as np
 
@@ -65,6 +65,35 @@ def geometric_median(
         y = y_next
 
     return y, n_iter, converged
+
+
+def compute_vantage(
+    coords: np.ndarray,
+    method: Literal["geometric_median", "mean"] = "geometric_median",
+    tol: float = 1e-5,
+    max_iter: int = 100,
+) -> np.ndarray:
+    """
+    Compute the vantage point for polar transformation.
+
+    Default uses the geometric median:
+        v = argmin_v \\sum_i ||z_i - v||_2
+
+    Args:
+        coords: (N, 2) array of coordinates.
+        method: Vantage method ("geometric_median" or "mean").
+        tol: Convergence tolerance for geometric median.
+        max_iter: Maximum iterations for geometric median.
+
+    Returns:
+        (2,) array of vantage coordinates.
+    """
+    if method == "geometric_median":
+        v, _, _ = geometric_median(coords, tol=tol, max_iter=max_iter)
+        return v
+    if method == "mean":
+        return np.mean(coords, axis=0)
+    raise ValueError(f"Unknown vantage method: {method}")
 
 
 def polar_coordinates(z: np.ndarray, v: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -126,6 +155,7 @@ def angle_grid(B: int) -> np.ndarray:
 
 
 __all__ = [
+    "compute_vantage",
     "geometric_median",
     "polar_coordinates",
     "wrapped_circular_distance",

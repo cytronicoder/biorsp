@@ -27,7 +27,7 @@ class ScalarSummaries:
         peak_proximal_angle: Angle corresponding to peak_proximal.
         peak_extremal: RSP value with maximum absolute magnitude.
         peak_extremal_angle: Angle corresponding to peak_extremal.
-        rms_anisotropy: RMS of RSP values (A_g).
+        anisotropy: RMS of RSP values (A_g).
         max_rsp: Maximum RSP value (for diagnostics).
         min_rsp: Minimum RSP value (same as peak_distal).
         integrated_rsp: Sum of RSP values (net directionality).
@@ -39,10 +39,15 @@ class ScalarSummaries:
     peak_proximal_angle: float
     peak_extremal: float
     peak_extremal_angle: float
-    rms_anisotropy: float
+    anisotropy: float
     max_rsp: float
     min_rsp: float
     integrated_rsp: float
+
+    @property
+    def rms_anisotropy(self) -> float:
+        """Backward compatible alias for anisotropy."""
+        return self.anisotropy
 
 
 def compute_scalar_summaries(
@@ -76,7 +81,7 @@ def compute_scalar_summaries(
             peak_proximal_angle=np.nan,
             peak_extremal=np.nan,
             peak_extremal_angle=np.nan,
-            rms_anisotropy=np.nan,
+            anisotropy=np.nan,
             max_rsp=np.nan,
             min_rsp=np.nan,
             integrated_rsp=np.nan,
@@ -103,7 +108,7 @@ def compute_scalar_summaries(
     peak_extremal_angle = valid_centers[extremal_idx]
 
     # A_g = RMS
-    rms_anisotropy = np.sqrt(np.mean(valid_rsp**2))
+    anisotropy = np.sqrt(np.mean(valid_rsp**2))
 
     # Integrated (Sum)
     integrated_rsp = np.sum(valid_rsp)
@@ -115,7 +120,7 @@ def compute_scalar_summaries(
         peak_proximal_angle=float(peak_proximal_angle),
         peak_extremal=float(peak_extremal),
         peak_extremal_angle=float(peak_extremal_angle),
-        rms_anisotropy=float(rms_anisotropy),
+        anisotropy=float(anisotropy),
         max_rsp=float(max_rsp),
         min_rsp=float(min_rsp),
         integrated_rsp=float(integrated_rsp),
