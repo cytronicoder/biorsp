@@ -31,7 +31,19 @@ def test_permutation_missing_sectors_treated_as_zero(monkeypatch):
     y = np.array([True, False, True, False, True])
 
     config = BioRSPConfig(B=3, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1)
-    res = compute_p_value(r, theta, y, config=config, n_perm=1, seed=0)
+    from biorsp.typing import AdequacyReport
+
+    adequacy = AdequacyReport(
+        is_adequate=True,
+        reason="ok",
+        counts_fg=np.array([1, 1, 1]),
+        counts_bg=np.array([1, 1, 1]),
+        sector_mask=np.array([True, True, False]),
+        n_foreground=3,
+        n_background=2,
+        adequacy_fraction=0.66,
+    )
+    res = compute_p_value(r, theta, y, config=config, n_perm=1, seed=0, adequacy=adequacy)
     p_val = res.p_value
     nulls = res.null_stats
     obs = res.observed_stat

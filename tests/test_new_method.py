@@ -22,9 +22,11 @@ def test_adequacy_fraction_matches_manual():
         ]
     )
     y = np.array([True, False] * 4)
+    r = np.zeros_like(theta)
     report = assess_adequacy(
-        y,
+        r,
         theta,
+        y,
         n_sectors=4,
         delta_deg=90.0,
         min_fg_sector=1,

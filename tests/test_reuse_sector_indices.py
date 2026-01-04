@@ -11,7 +11,7 @@ def test_compute_rsp_with_precomputed_indices_matches():
     y = rng.choice([0, 1], size=n, p=[0.85, 0.15])
 
     adequacy = assess_adequacy(
-        y, theta, n_sectors=180, delta_deg=20.0, min_fg_sector=3, min_bg_sector=20
+        r, theta, y, n_sectors=180, delta_deg=20.0, min_fg_sector=3, min_bg_sector=20
     )
 
     # Compute radar without reuse

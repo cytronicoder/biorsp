@@ -13,7 +13,7 @@ def test_compute_rsp_accepts_adequacy_object():
 
     config = BioRSPConfig(B=180, delta_deg=20.0, min_fg_sector=2, min_bg_sector=10)
 
-    adequacy = assess_adequacy(y, theta, config=config)
+    adequacy = assess_adequacy(r, theta, y, config=config)
 
     radar_direct = compute_rsp_radar(r, theta, y, config=config)
     radar_from_adequacy = compute_rsp_radar(r, theta, y, config=config, adequacy=adequacy)

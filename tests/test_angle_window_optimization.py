@@ -68,8 +68,9 @@ def test_assess_adequacy_counts_match_naive():
     theta = rng.uniform(-np.pi, np.pi, size=n)
     y = rng.choice([0, 1], size=n, p=[0.7, 0.3])
     counts_fg_naive, counts_bg_naive = naive_sector_counts(theta, y, n_sectors=180, delta_deg=20.0)
+    r = np.zeros_like(theta)
     report = assess_adequacy(
-        y, theta, n_sectors=180, delta_deg=20.0, min_fg_sector=1, min_bg_sector=1
+        r, theta, y, n_sectors=180, delta_deg=20.0, min_fg_sector=1, min_bg_sector=1
     )
     assert np.all(counts_fg_naive == report.counts_fg)
     assert np.all(counts_bg_naive == report.counts_bg)

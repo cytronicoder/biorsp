@@ -79,17 +79,18 @@ def test_radar_weighted_mode():
 def test_adequacy_effective_mass():
     y = np.array([0.1, 0.1, 0.1, 0.1, 0.1])  # Total mass = 0.5
     theta = np.zeros(5)
+    r = np.zeros(5)
 
     # min_fg_total = 1.0 should fail
     report = assess_adequacy(
-        y, theta, n_sectors=1, delta_deg=360, min_fg_total=1.0, min_bg_sector=1
+        r, theta, y, n_sectors=1, delta_deg=360, min_fg_total=1.0, min_bg_sector=1
     )
     assert not report.is_adequate
     assert report.n_foreground == 0.5
 
     # min_fg_total = 0.4 should pass
     report = assess_adequacy(
-        y, theta, n_sectors=1, delta_deg=360, min_fg_total=0.4, min_fg_sector=0.4, min_bg_sector=1
+        r, theta, y, n_sectors=1, delta_deg=360, min_fg_total=0.4, min_fg_sector=0.4, min_bg_sector=1
     )
     assert report.is_adequate
 
