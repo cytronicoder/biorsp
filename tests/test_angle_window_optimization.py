@@ -48,16 +48,14 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
         iqr_bg = iqr(r_bg)
         if not np.isfinite(iqr_bg):
             iqr_bg = 0.0
-        denom = max(iqr_bg, iqr_floor)
+        denom = iqr_bg + iqr_floor
         diff_median = np.median(r_bg) - np.median(r_fg)
         if diff_median > 0:
             sign = 1.0
         elif diff_median < 0:
             sign = -1.0
         else:
-            # Tie-breaker: use mean difference
-            diff_mean = np.mean(r_bg) - np.mean(r_fg)
-            sign = 1.0 if diff_mean >= 0 else -1.0
+            sign = 0.0
         rsp[b] = sign * (w1 / denom)
     return rsp
 
@@ -83,7 +81,14 @@ def test_compute_rsp_radar_matches_naive():
     theta = rng.uniform(-np.pi, np.pi, size=n)
     y = rng.choice([0, 1], size=n, p=[0.8, 0.2])
     rsp_opt = compute_rsp_radar(
-        r, theta, y, B=180, delta_deg=20.0, min_fg_sector=5, min_bg_sector=20
+        r,
+        theta,
+        y,
+        B=180,
+        delta_deg=20.0,
+        min_fg_sector=5,
+        min_bg_sector=20,
+        scale_mode="bg_iqr",
     )
     rsp_naive = naive_rsp(r, theta, y, B=180, delta_deg=20.0, min_fg_sector=5, min_bg_sector=20)
     # Compare where neither is NaN

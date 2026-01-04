@@ -10,7 +10,138 @@ from typing import List, Optional
 import numpy as np
 
 from .typing import AdequacyReport, BioRSPConfig, RadarResult
-from .utils import weighted_quantile, weighted_quantile_sorted
+from .utils import (
+    weighted_quantile,
+    weighted_quantile_sorted,
+    weighted_wasserstein_1d,
+)
+
+
+def sector_signed_stat(
+    r: np.ndarray,
+    y: np.ndarray,
+    in_sector_idx: np.ndarray,
+    *,
+    eps: float = 1e-12,
+    sign_tol: float = 0.0,
+    scale_mode: str = "pooled_iqr",
+) -> dict:
+    """
+    Compute the signed per-sector radar statistic R_g(theta).
+
+    Parameters
+    ----------
+    r : np.ndarray
+        (N,) array of radial distances.
+    y : np.ndarray
+        (N,) foreground weights or binary indicators.
+    in_sector_idx : np.ndarray
+        Indices of cells in the current sector.
+    eps : float, optional
+        Small value to avoid division by zero, by default 1e-12.
+    sign_tol : float, optional
+        Tolerance for median difference to be considered zero, by default 0.0.
+    scale_mode : str, optional
+        How to compute the robust scale denominator, by default "pooled_iqr".
+        Options: "pooled_iqr", "bg_iqr".
+
+    Returns
+    -------
+    dict
+        Dictionary containing the statistic and metadata.
+    """
+    if in_sector_idx.size == 0:
+        return {
+            "stat": np.nan,
+            "sign": 0,
+            "w1": np.nan,
+            "denom": np.nan,
+            "medF": np.nan,
+            "medB": np.nan,
+            "nF": 0.0,
+            "nB": 0.0,
+            "status": "empty_sector",
+        }
+
+    r_s = r[in_sector_idx]
+    y_s = y[in_sector_idx]
+    w_fg = y_s
+    w_bg = 1.0 - y_s
+
+    nF = float(np.sum(w_fg))
+    nB = float(np.sum(w_bg))
+
+    if nF <= 0:
+        return {
+            "stat": np.nan,
+            "sign": 0,
+            "w1": np.nan,
+            "denom": np.nan,
+            "medF": np.nan,
+            "medB": np.nan,
+            "nF": nF,
+            "nB": nB,
+            "status": "empty_fg",
+        }
+    if nB <= 0:
+        return {
+            "stat": np.nan,
+            "sign": 0,
+            "w1": np.nan,
+            "denom": np.nan,
+            "medF": np.nan,
+            "medB": np.nan,
+            "nF": nF,
+            "nB": nB,
+            "status": "empty_bg",
+        }
+
+    # Medians
+    medF = weighted_quantile(r_s, w_fg, 0.5)
+    medB = weighted_quantile(r_s, w_bg, 0.5)
+
+    # Sign: positive if foreground is proximal (smaller radii)
+    diff = medB - medF
+    if np.abs(diff) <= sign_tol:
+        s = 0
+    else:
+        s = 1 if diff > 0 else -1
+
+    # Wasserstein-1 (unsigned)
+    w1 = weighted_wasserstein_1d(r_s, w_fg, r_s, w_bg)
+
+    # Scale
+    if scale_mode == "pooled_iqr":
+        # IQR(concat(R_F, R_B)) -> for binary this is just IQR(r_s)
+        # For weighted, we use unweighted IQR of the sector points
+        q75 = np.percentile(r_s, 75)
+        q25 = np.percentile(r_s, 25)
+        denom = q75 - q25 + eps
+    elif scale_mode == "bg_iqr":
+        q75 = weighted_quantile(r_s, w_bg, 0.75)
+        q25 = weighted_quantile(r_s, w_bg, 0.25)
+        denom = q75 - q25 + eps
+    else:
+        raise ValueError(f"Unknown scale_mode: {scale_mode}")
+
+    if denom <= eps:
+        status = "degenerate_scale"
+    else:
+        status = "ok"
+
+    stat = s * (w1 / denom)
+
+    return {
+        "stat": stat,
+        "sign": s,
+        "w1": w1,
+        "denom": denom,
+        "medF": medF,
+        "medB": medB,
+        "nF": nF,
+        "nB": nB,
+        "status": status,
+    }
 
 
 def compute_anisotropy(rsp: np.ndarray, valid_mask: np.ndarray) -> float:
@@ -57,9 +188,14 @@ def compute_rsp_radar(
     Compute the signed RSP radar function $R_g(\theta)$.
 
     For each sector $b$ with center $\phi_b$, the radar function is defined as:
-    $$R_g(\phi_b) = \text{sign}(\text{median}(r_{bg}) - \text{median}(r_{fg})) \cdot \frac{W_1(P_{fg}, P_{bg})}{\max(\text{IQR}(r_{bg}), \tau_{IQR})}$$
-    where $W_1$ is the Wasserstein-1 distance between foreground and background
+    $$R_g(\phi_b) = s \cdot \frac{W_1(P_{fg}, P_{bg})}{\text{scale}}$$
+    where $s = \text{sign}(\text{median}(r_{bg}) - \text{median}(r_{fg}))$ is the robust sign,
+    and $W_1$ is the Wasserstein-1 distance between foreground and background
     radial distributions in the angular window $[\phi_b - \delta/2, \phi_b + \delta/2]$.
+    The scale is either the pooled IQR or background IQR plus a stability floor.
+
+    Positive $R$ means core/proximal enrichment (foreground radii smaller than background).
+    Negative $R$ means rim/distal enrichment (foreground radii larger than background).
 
     Parameters
     ----------
@@ -119,67 +255,38 @@ def compute_rsp_radar(
     iqr_floor = max(config.iqr_floor_pct * global_iqr, 1e-8)
 
     # 2. Per-sector computation
-    n_points = r.size
     for b in range(B):
         idx = sector_indices[b]
         if idx.size == 0:
             continue
 
-        # Efficiently get sorted values for this sector using global sort
-        mask = np.zeros(n_points, dtype=bool)
-        mask[idx] = True
-        sector_sort_idx = global_sort_idx[mask[global_sort_idx]]
+        # Use the new robust signed stat function
+        # We pass iqr_floor as the eps to maintain the stability floor
+        res = sector_signed_stat(
+            r,
+            y,
+            idx,
+            eps=iqr_floor,
+            sign_tol=config.sign_tol,
+            scale_mode=config.scale_mode,
+        )
 
-        r_sorted = r[sector_sort_idx]
-        w_fg_sorted = y[sector_sort_idx]
-        w_bg_sorted = (1.0 - y)[sector_sort_idx]
-
-        n_fg = np.sum(w_fg_sorted)
-        n_bg = np.sum(w_bg_sorted)
-        counts_fg[b] = n_fg
-        counts_bg[b] = n_bg
+        counts_fg[b] = res["nF"]
+        counts_bg[b] = res["nB"]
 
         if frozen_mask is not None:
             if not frozen_mask[b]:
                 continue
-            if n_fg == 0 or n_bg == 0:
+            if res["nF"] == 0 or res["nB"] == 0:
                 # Safe behavior for empty sectors in permutations
                 rsp_values[b] = 0.0
                 continue
-        elif n_fg < config.min_fg_sector or n_bg < config.min_bg_sector:
+        elif res["nF"] < config.min_fg_sector or res["nB"] < config.min_bg_sector:
             continue
 
-        # CDFs
-        cdf_fg = np.cumsum(w_fg_sorted) / n_fg
-        cdf_bg = np.cumsum(w_bg_sorted) / n_bg
-
-        # Integral |CDF_fg - CDF_bg| dr
-        dr = np.diff(r_sorted)
-        w1 = np.sum(np.abs(cdf_fg[:-1] - cdf_bg[:-1]) * dr)
-
-        # IQR normalization
-        q75 = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.75)
-        q25 = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.25)
-        iqr_b = q75 - q25
-
-        denom = max(iqr_b, iqr_floor)
-        if iqr_b < iqr_floor:
+        rsp_values[b] = res["stat"]
+        if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
-
-        # Sign: positive if foreground is proximal (smaller radii)
-        # Sign = sign(median_bg - median_fg)
-        med_fg = weighted_quantile(r_sorted, w_fg_sorted, 0.5)
-        med_bg = weighted_quantile(r_sorted, w_bg_sorted, 0.5)
-
-        diff = med_bg - med_fg
-        if diff == 0:
-            # Tie-breaker: mean
-            mean_fg = np.sum(r_sorted * w_fg_sorted) / n_fg
-            mean_bg = np.sum(r_sorted * w_bg_sorted) / n_bg
-            diff = mean_bg - mean_fg
-
-        sign = 1.0 if diff >= 0 else -1.0
-        rsp_values[b] = sign * (w1 / denom)
 
     from .geometry import angle_grid
 

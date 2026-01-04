@@ -54,6 +54,8 @@ class BioRSPConfig:
     min_stratum_size: int = MIN_STRATUM_SIZE_DEFAULT
     foreground_quantile: float = 0.90
     iqr_floor_pct: float = 0.1
+    sign_tol: float = 0.0
+    scale_mode: Literal["pooled_iqr", "bg_iqr"] = "pooled_iqr"
 
     @property
     def n_angles(self) -> int:
