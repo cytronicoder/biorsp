@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from biorsp.plotting import plot_embedding
+
 # seaborn is optional; fall back to matplotlib when unavailable
 try:
     import seaborn as sns
@@ -440,8 +442,8 @@ def plot_embedding_with_rsp(indir: str, outdir: str, top_frac: float = 0.1):
         ax1 = fig.add_subplot(1, 2, 1)
         ax2 = fig.add_subplot(1, 2, 2, projection="polar")
 
-        sc = ax1.scatter(z[:, 0], z[:, 1], c=x, s=1, cmap="viridis")
-        ax1.scatter(z[y_fg, 0], z[y_fg, 1], s=2, facecolors="none", edgecolors="k")
+        # Standardized embedding: background grey, foreground red; show vantage
+        plot_embedding(z, c=y_fg, ax=ax1, fg_color="red", bg_color="lightgrey", show_vantage=True)
         # Title: prettified geometry (omit job ids)
         # include A_g if present in the row
         a_val = row.get("A_g", None)
@@ -460,12 +462,12 @@ def plot_embedding_with_rsp(indir: str, outdir: str, top_frac: float = 0.1):
         half = max((xlim[1] - xlim[0]), (ylim[1] - ylim[0])) / 2.0
         ax1.set_xlim(xmid - half, xmid + half)
         ax1.set_ylim(ymid - half, ymid + half)
-        fig.colorbar(sc, ax=ax1, label="Expression")
 
         # Polar RSP: centers are in radians already
         ax2.plot(centers, rsp, "-o", markersize=2)
-        ax2.set_theta_zero_location("N")  # zero at top
-        ax2.set_theta_direction(-1)  # clockwise
+        # 0° at right (+x axis) and angles increase counter-clockwise (mathematical convention)
+        ax2.set_theta_zero_location("E")  # 0° at right
+        ax2.set_theta_direction(1)  # counter-clockwise
         ax2.set_title("RSP (foreground)", va="bottom")
         # set radial limits and r-labels
         ax2.set_ylim(-1.0, 1.0)
@@ -727,8 +729,9 @@ def representative_rsp_curves(df: pd.DataFrame, indir: str, outpath: str, n_exam
 
         ax = plt.subplot(2, int(np.ceil(n_examples / 2)), i + 1, projection="polar")
         ax.plot(centers, rsp, "-o", markersize=2)
-        ax.set_theta_zero_location("N")
-        ax.set_theta_direction(-1)
+        # 0° at right (+x axis) and angles increase counter-clockwise (mathematical convention)
+        ax.set_theta_zero_location("E")
+        ax.set_theta_direction(1)
         # Remove job id and use LaTeX for A_g
         ax.set_title(
             f"{prettify_name(row.get('geometry'))} — $A_g$={row.get('A_g'):.3f}", va="bottom"
