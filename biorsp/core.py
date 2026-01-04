@@ -50,6 +50,7 @@ def compute_rsp_radar(
     sector_indices: Optional[List[np.ndarray]] = None,
     adequacy: Optional[AdequacyReport] = None,
     normalization_stats: Optional[dict] = None,
+    frozen_mask: Optional[np.ndarray] = None,
     **kwargs,
 ) -> RadarResult:
     r"""
@@ -138,7 +139,14 @@ def compute_rsp_radar(
         counts_fg[b] = n_fg
         counts_bg[b] = n_bg
 
-        if n_fg < config.min_fg_sector or n_bg < config.min_bg_sector:
+        if frozen_mask is not None:
+            if not frozen_mask[b]:
+                continue
+            if n_fg == 0 or n_bg == 0:
+                # Safe behavior for empty sectors in permutations
+                rsp_values[b] = 0.0
+                continue
+        elif n_fg < config.min_fg_sector or n_bg < config.min_bg_sector:
             continue
 
         # CDFs

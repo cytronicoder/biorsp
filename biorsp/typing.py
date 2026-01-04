@@ -81,6 +81,9 @@ class InferenceResult:
     valid_mask: np.ndarray
     seeds: Optional[np.ndarray] = None
     q_value: Optional[float] = None
+    perm_mode: Optional[str] = None
+    K_eff: Optional[int] = None
+    empty_sector_count: Optional[int] = None
 
 
 __all__ = [

@@ -15,9 +15,12 @@ from .constants import (
     B_DEFAULT,
     DELTA_DEG_DEFAULT,
     K_EXPLORATORY_DEFAULT,
+    MIN_STRATUM_SIZE_DEFAULT,
     N_BG_MIN_DEFAULT,
     N_FG_MIN_DEFAULT,
     N_FG_TOT_MIN_DEFAULT,
+    N_R_BINS_DEFAULT,
+    N_THETA_BINS_DEFAULT,
     SMOOTH_DEG_DEFAULT,
     UMI_BINS_DEFAULT,
 )
@@ -38,6 +41,9 @@ class BioRSPConfig:
     min_fg_total: float = N_FG_TOT_MIN_DEFAULT
     min_adequacy_fraction: float = ADEQUACY_FRACTION_DEFAULT
     umi_bins: int = UMI_BINS_DEFAULT
+    n_r_bins: int = N_R_BINS_DEFAULT
+    n_theta_bins: int = N_THETA_BINS_DEFAULT
+    perm_mode: Literal["radial", "joint", "rt_umi", "none"] = "radial"
     n_permutations: int = K_EXPLORATORY_DEFAULT
     smoothing_deg: float = SMOOTH_DEG_DEFAULT
     vantage: Literal["geometric_median", "mean", "user"] = "geometric_median"
@@ -45,7 +51,7 @@ class BioRSPConfig:
     geom_median_max_iter: int = 100
     seed: int = 0
     donor_stratify: bool = False
-    min_stratum_size: int = 50
+    min_stratum_size: int = MIN_STRATUM_SIZE_DEFAULT
     foreground_quantile: float = 0.90
     iqr_floor_pct: float = 0.1
 
