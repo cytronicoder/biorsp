@@ -1,8 +1,8 @@
 import numpy as np
 
 from biorsp.core import compute_rsp_radar
+from biorsp.inference import compute_p_value
 from biorsp.simulations.generator import simulate_dataset
-from biorsp.stats import compute_p_value
 from biorsp.summaries import compute_scalar_summaries
 
 

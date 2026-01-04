@@ -1,6 +1,6 @@
 import numpy as np
 
-from biorsp.stats import compute_p_value
+from biorsp.inference import compute_p_value
 from biorsp.typing import BioRSPConfig, RadarResult
 
 
@@ -24,7 +24,7 @@ def test_permutation_missing_sectors_treated_as_zero(monkeypatch):
             iqr_floor_hits=np.array([False, False, False]),
         )
 
-    monkeypatch.setattr("biorsp.stats.compute_rsp_radar", fake_compute_rsp_radar)
+    monkeypatch.setattr("biorsp.inference.compute_rsp_radar", fake_compute_rsp_radar)
 
     r = np.ones(5)
     theta = np.linspace(-np.pi, np.pi, 5, endpoint=False)

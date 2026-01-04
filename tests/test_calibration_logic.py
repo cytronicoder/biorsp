@@ -1,8 +1,9 @@
 import numpy as np
 
+from biorsp.adequacy import assess_adequacy
 from biorsp.config import BioRSPConfig
-from biorsp.core import assess_adequacy, compute_rsp_radar
-from biorsp.stats import compute_p_value
+from biorsp.core import compute_rsp_radar
+from biorsp.inference import compute_p_value
 from biorsp.stratification import get_strata_indices
 
 

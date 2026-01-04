@@ -1,7 +1,8 @@
 import numpy as np
 
+from biorsp.adequacy import assess_adequacy
 from biorsp.constants import EPS
-from biorsp.core import assess_adequacy, compute_rsp_radar
+from biorsp.core import compute_rsp_radar
 from biorsp.pairwise import compute_pairwise_relationships
 from biorsp.results import FeatureResult, assign_feature_types
 from biorsp.summaries import ScalarSummaries, compute_scalar_summaries
@@ -33,6 +34,7 @@ def test_adequacy_fraction_matches_manual():
         min_bg_sector=1,
         min_fg_total=1,
         min_adequacy_fraction=0.5,
+        min_scale=0.0,
     )
     assert np.isclose(report.adequacy_fraction, 1.0)
 
@@ -49,7 +51,9 @@ def test_iqr_floor_hits_when_sector_iqr_zero():
     r = np.array([5.0, 5.0, 5.0, 6.0, 6.0])
     theta = np.zeros_like(r)
     y = np.array([False, False, False, True, True])
-    radar = compute_rsp_radar(r, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1)
+    radar = compute_rsp_radar(
+        r, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1, scale_mode="bg_iqr"
+    )
     assert np.isclose(radar.iqr_floor, EPS)
     assert radar.iqr_floor_hits[0]
 

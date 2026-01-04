@@ -46,7 +46,7 @@ def test_sign_rule_empty():
     idx = np.arange(2)
 
     res = sector_signed_stat(r, y, idx)
-    assert res["status"] == "empty_bg"
+    assert res["status"] == "empty_fg_or_bg"
     assert np.isnan(res["stat"])
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 
 from biorsp.core import compute_rsp_radar
-from biorsp.stats import compute_p_value
+from biorsp.inference import compute_p_value
 from biorsp.typing import BioRSPConfig
 
 

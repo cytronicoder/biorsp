@@ -73,7 +73,7 @@ def test_adequacy_scale_guard():
     theta = np.zeros(4)
     y = np.array([0, 0, 1, 1])
 
-    from biorsp.core import assess_adequacy
+    from biorsp.adequacy import assess_adequacy
 
     # min_scale = 0.1 should make the sector inadequate
     report = assess_adequacy(

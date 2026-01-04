@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
 
-from biorsp.core import assess_adequacy, compute_rsp_radar
-from biorsp.preprocessing import define_foreground_weights
+from biorsp.adequacy import assess_adequacy
+from biorsp.core import compute_rsp_radar
+from biorsp.foreground import define_foreground_weights
 from biorsp.utils import weighted_wasserstein_1d
 
 
@@ -28,12 +29,13 @@ def test_weighted_wasserstein_1d_correctness():
 def test_define_foreground_weights_logistic():
     x = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=float)
     # tau=5, scale=1, sharpness=10
-    w, info = define_foreground_weights(x, tau=5.0, scale=1.0, sharpness=10.0)
+    w, info = define_foreground_weights(x, tau=5.0, scale=1.0, sharpness=10.0, min_effective_fg=5.0)
 
     assert len(w) == len(x)
     assert w[5] == 0.5
     assert w[0] < 0.01
     assert w[10] > 0.99
+    assert info["status"] == "ok"
     assert info["mode"] == "weights"
     assert info["tau"] == 5.0
 
