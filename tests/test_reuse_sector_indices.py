@@ -1,7 +1,6 @@
 import numpy as np
 
-from biorsp.adequacy import gene_adequacy
-from biorsp.radar import compute_rsp_radar
+from biorsp.core import assess_adequacy, compute_rsp_radar
 
 
 def test_compute_rsp_with_precomputed_indices_matches():
@@ -11,7 +10,7 @@ def test_compute_rsp_with_precomputed_indices_matches():
     theta = rng.uniform(-np.pi, np.pi, size=n)
     y = rng.choice([0, 1], size=n, p=[0.85, 0.15])
 
-    adequacy = gene_adequacy(
+    adequacy = assess_adequacy(
         y, theta, n_sectors=180, delta_deg=20.0, min_fg_sector=3, min_bg_sector=20
     )
 

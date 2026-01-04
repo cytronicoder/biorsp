@@ -6,7 +6,7 @@ import numpy as np
 
 from biorsp.geometry import angle_grid
 from biorsp.plotting import plot_radar, plot_radar_absolute
-from biorsp.radar import RadarResult
+from biorsp.typing import RadarResult
 
 
 def test_plot_radar_all_nan():

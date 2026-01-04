@@ -1,12 +1,11 @@
 import numpy as np
 
-from biorsp.adequacy import AdequacyReport, gene_adequacy
 from biorsp.constants import EPS
+from biorsp.core import assess_adequacy, compute_rsp_radar
 from biorsp.pairwise import compute_pairwise_relationships
-from biorsp.radar import RadarResult, compute_rsp_radar
-from biorsp.results import FeatureResult
+from biorsp.results import FeatureResult, assign_feature_types
 from biorsp.summaries import ScalarSummaries, compute_scalar_summaries
-from biorsp.typing import assign_feature_types
+from biorsp.typing import AdequacyReport, RadarResult
 
 
 def test_adequacy_fraction_matches_manual():
@@ -23,7 +22,7 @@ def test_adequacy_fraction_matches_manual():
         ]
     )
     y = np.array([True, False] * 4)
-    report = gene_adequacy(
+    report = assess_adequacy(
         y,
         theta,
         n_sectors=4,

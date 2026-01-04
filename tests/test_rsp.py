@@ -1,6 +1,7 @@
 import numpy as np
 
-from biorsp.radar import compute_rsp_radar
+from biorsp.core import compute_rsp_radar
+from biorsp.typing import BioRSPConfig
 
 
 def test_radar_simple():
@@ -13,7 +14,8 @@ def test_radar_simple():
     r = np.ones_like(theta)
 
     # Should run without error using full API (r, theta, y)
-    result = compute_rsp_radar(r, theta, y, B=360, delta_deg=20.0)
+    config = BioRSPConfig(B=360, delta_deg=20.0)
+    result = compute_rsp_radar(r, theta, y, config=config)
     assert len(result.rsp) == 360
     assert len(result.counts_fg) == 360
     assert len(result.counts_bg) == 360

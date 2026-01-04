@@ -1,7 +1,7 @@
 import numpy as np
 
-from biorsp.inference import compute_p_value
-from biorsp.radar import RadarResult
+from biorsp.stats import compute_p_value
+from biorsp.typing import BioRSPConfig, RadarResult
 
 
 def test_permutation_missing_sectors_treated_as_zero(monkeypatch):
@@ -24,15 +24,18 @@ def test_permutation_missing_sectors_treated_as_zero(monkeypatch):
             iqr_floor_hits=np.array([False, False, False]),
         )
 
-    monkeypatch.setattr("biorsp.inference.compute_rsp_radar", fake_compute_rsp_radar)
+    monkeypatch.setattr("biorsp.stats.compute_rsp_radar", fake_compute_rsp_radar)
 
     r = np.ones(5)
     theta = np.linspace(-np.pi, np.pi, 5, endpoint=False)
     y = np.array([True, False, True, False, True])
 
-    p_val, nulls, obs, valid_mask = compute_p_value(
-        r, theta, y, B=3, delta_deg=360.0, n_perm=1, seed=0, min_fg_sector=1, min_bg_sector=1
-    )
+    config = BioRSPConfig(B=3, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1)
+    res = compute_p_value(r, theta, y, config=config, n_perm=1, seed=0)
+    p_val = res.p_value
+    nulls = res.null_stats
+    obs = res.observed_stat
+    valid_mask = res.valid_mask
 
     assert np.array_equal(valid_mask, np.array([True, True, False]))
     expected_perm = np.sqrt(np.mean(np.array([0.0, 2.0]) ** 2))

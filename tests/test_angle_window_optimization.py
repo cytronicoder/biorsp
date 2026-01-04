@@ -1,8 +1,7 @@
 import numpy as np
 
-from biorsp.adequacy import gene_adequacy
 from biorsp.constants import EPS
-from biorsp.radar import compute_rsp_radar
+from biorsp.core import assess_adequacy, compute_rsp_radar
 
 
 def naive_sector_counts(theta, y, n_sectors, delta_deg):
@@ -63,13 +62,13 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
     return rsp
 
 
-def test_gene_adequacy_counts_match_naive():
+def test_assess_adequacy_counts_match_naive():
     rng = np.random.default_rng(1)
     n = 500
     theta = rng.uniform(-np.pi, np.pi, size=n)
     y = rng.choice([0, 1], size=n, p=[0.7, 0.3])
     counts_fg_naive, counts_bg_naive = naive_sector_counts(theta, y, n_sectors=180, delta_deg=20.0)
-    report = gene_adequacy(
+    report = assess_adequacy(
         y, theta, n_sectors=180, delta_deg=20.0, min_fg_sector=1, min_bg_sector=1
     )
     assert np.all(counts_fg_naive == report.counts_fg)
