@@ -2,8 +2,6 @@
 Utility functions for BioRSP.
 """
 
-from typing import Optional
-
 import numpy as np
 
 
@@ -16,16 +14,25 @@ def weighted_wasserstein_1d(
     """
     Compute 1D Wasserstein-1 distance between two weighted samples.
 
-    EMD = integral |CDF_u(t) - CDF_v(t)| dt
+    The 1D Wasserstein-1 distance (Earth Mover's Distance) is defined as:
+    $$W_1(P, Q) = \int_{-\infty}^{\infty} |F_P(t) - F_Q(t)| dt$$
+    where $F_P$ and $F_Q$ are the cumulative distribution functions of $P$ and $Q$.
 
-    Args:
-        values_a: (N_a,) array of values.
-        weights_a: (N_a,) array of weights.
-        values_b: (N_b,) array of values.
-        weights_b: (N_b,) array of weights.
+    Parameters
+    ----------
+    values_a : np.ndarray
+        (N_a,) array of values for distribution A.
+    weights_a : np.ndarray
+        (N_a,) array of weights for distribution A.
+    values_b : np.ndarray
+        (N_b,) array of values for distribution B.
+    weights_b : np.ndarray
+        (N_b,) array of weights for distribution B.
 
-    Returns:
-        w1: Wasserstein-1 distance.
+    Returns
+    -------
+    float
+        The Wasserstein-1 distance. Returns NaN if either input is empty or has zero total weight.
     """
     if values_a.size == 0 or values_b.size == 0:
         return np.nan
@@ -36,13 +43,15 @@ def weighted_wasserstein_1d(
     if sum_a <= 0 or sum_b <= 0:
         return np.nan
 
+    # Combine and sort all values
+    all_values = np.concatenate([values_a, values_b])
+    # We can avoid creating large zero arrays by using searchsorted or just being careful
+    # but for now, let's keep it simple and correct.
     u = weights_a / sum_a
     v = weights_b / sum_b
 
-    # Combine and sort all values
-    all_values = np.concatenate([values_a, values_b])
-    all_weights_u = np.concatenate([u, np.zeros_like(v)])
-    all_weights_v = np.concatenate([np.zeros_like(u), v])
+    all_weights_u = np.concatenate([u, np.zeros(values_b.size)])
+    all_weights_v = np.concatenate([np.zeros(values_a.size), v])
 
     sort_idx = np.argsort(all_values)
     all_values = all_values[sort_idx]
@@ -61,19 +70,26 @@ def weighted_wasserstein_1d(
 
 
 def weighted_quantile(
-    values: np.ndarray, weights: np.ndarray, q: float, rng: Optional[np.random.Generator] = None
+    values: np.ndarray,
+    weights: np.ndarray,
+    q: float,
 ) -> float:
     """
     Compute weighted quantile with deterministic tie-handling.
 
-    Args:
-        values: (N,) array of values.
-        weights: (N,) array of weights.
-        q: Quantile in [0, 1].
-        rng: Optional random generator for tie-breaking.
+    Parameters
+    ----------
+    values : np.ndarray
+        (N,) array of values.
+    weights : np.ndarray
+        (N,) array of weights.
+    q : float
+        Quantile in [0, 1].
 
-    Returns:
-        The weighted quantile.
+    Returns
+    -------
+    float
+        The weighted quantile. Returns NaN if input is empty or has zero total weight.
     """
     if values.size == 0:
         return np.nan
@@ -87,13 +103,25 @@ def weighted_quantile_sorted(
     """
     Compute weighted quantile from pre-sorted values.
 
-    Args:
-        values_sorted: (N,) array of values, sorted ascending.
-        weights_sorted: (N,) array of weights corresponding to values_sorted.
-        q: Quantile in [0, 1].
+    Uses the definition:
+    $$Q(q) = \inf \{x : F(x) \geq q\}$$
+    where $F(x)$ is the weighted CDF. We use linear interpolation of the CDF
+    shifted by half-weights for smoothness, matching R's type 7 quantile
+    behavior for unweighted data.
 
-    Returns:
-        The weighted quantile.
+    Parameters
+    ----------
+    values_sorted : np.ndarray
+        (N,) array of values, sorted ascending.
+    weights_sorted : np.ndarray
+        (N,) array of weights corresponding to values_sorted.
+    q : float
+        Quantile in [0, 1].
+
+    Returns
+    -------
+    float
+        The weighted quantile. Returns NaN if input is empty or has zero total weight.
     """
     if values_sorted.size == 0:
         return np.nan
@@ -102,17 +130,18 @@ def weighted_quantile_sorted(
         return np.nan
 
     # If weights are binary, use standard quantile for exact match with scipy/numpy
+    # This is faster and more robust for the common binary case.
     if np.all((weights_sorted == 0) | (weights_sorted == 1)):
         target_values = values_sorted[weights_sorted == 1]
         if target_values.size == 0:
             return np.nan
-        # np.quantile is still O(N) but faster than full sort if we already have sorted input
-        # Actually, for sorted input, we can just pick the element.
         n = target_values.size
+        if n == 1:
+            return float(target_values[0])
         idx = q * (n - 1)
         i = int(idx)
         f = idx - i
-        if i == n - 1:
+        if i >= n - 1:
             return float(target_values[-1])
         return float(target_values[i] * (1 - f) + target_values[i + 1] * f)
 

@@ -14,11 +14,12 @@ import numpy as np
 
 from .config import BioRSPConfig
 from .core import assess_adequacy, compute_rsp_radar
+from .foreground import define_foreground
 from .geometry import compute_vantage, polar_coordinates
 from .io import load_expression_matrix, load_spatial_coords, load_umi_counts, save_results
 from .manifest import create_manifest, save_manifest
 from .pairwise import compute_pairwise_relationships
-from .preprocessing import define_foreground, normalize_radii
+from .preprocessing import normalize_radii
 from .results import FeatureResult, RunSummary, assign_feature_types
 from .robustness import compute_robustness_score
 from .stats import bh_fdr, compute_p_value

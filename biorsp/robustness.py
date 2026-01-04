@@ -16,7 +16,7 @@ from scipy.stats import pearsonr
 
 from .config import BioRSPConfig
 from .core import compute_rsp_radar
-from .preprocessing import define_foreground
+from .foreground import define_foreground
 from .summaries import compute_scalar_summaries
 
 
