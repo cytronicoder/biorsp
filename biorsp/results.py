@@ -31,6 +31,9 @@ class FeatureResult:
     feature_type: Optional[str] = None
     p_value: Optional[float] = None
     q_value: Optional[float] = None
+    perm_mode: Optional[str] = None
+    K_eff: Optional[int] = None
+    empty_sector_count: Optional[int] = None
     robustness: Optional[RobustnessResult] = None
 
 

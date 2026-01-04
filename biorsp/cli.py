@@ -65,6 +65,11 @@ def run_analysis(args):
         B=args.B,
         delta_deg=args.delta,
         n_permutations=args.n_perm,
+        perm_mode=args.perm_mode,
+        n_r_bins=args.n_r_bins,
+        n_theta_bins=args.n_theta_bins,
+        umi_bins=args.n_umi_bins,
+        min_stratum_size=args.min_stratum_size,
         min_fg_sector=args.min_count,
         min_bg_sector=args.min_bg_count,
         min_fg_total=args.min_fg_total,
@@ -189,6 +194,9 @@ def run_analysis(args):
                 show_progress=False,
             )
             feature_results[gene].p_value = inf_res.p_value
+            feature_results[gene].perm_mode = inf_res.perm_mode
+            feature_results[gene].K_eff = inf_res.K_eff
+            feature_results[gene].empty_sector_count = inf_res.empty_sector_count
 
     if args.inference:
         eligible = [fr for fr in feature_results.values() if fr.adequacy.is_adequate]
@@ -277,6 +285,9 @@ def run_analysis(args):
                 "feature_type": fr.feature_type,
                 "p_value": fr.p_value,
                 "q_value": fr.q_value,
+                "perm_mode": fr.perm_mode,
+                "K_eff": fr.K_eff,
+                "empty_sector_count": fr.empty_sector_count,
                 "mean_profile_corr": fr.robustness.mean_correlation if fr.robustness else None,
                 "cv_anisotropy": fr.robustness.cv_anisotropy if fr.robustness else None,
                 "rsp_profile": (
@@ -376,6 +387,18 @@ def main(argv=None):
     )
     run_parser.add_argument("--inference", action="store_true", help="Run permutation test")
     run_parser.add_argument("--n-perm", type=int, default=200, help="Number of permutations")
+    run_parser.add_argument(
+        "--perm-mode",
+        choices=["radial", "joint", "rt_umi", "none"],
+        default="radial",
+        help="Permutation mode",
+    )
+    run_parser.add_argument("--n-r-bins", type=int, default=10, help="Number of radial bins")
+    run_parser.add_argument("--n-theta-bins", type=int, default=4, help="Number of angular bins")
+    run_parser.add_argument("--n-umi-bins", type=int, default=10, help="Number of UMI bins")
+    run_parser.add_argument(
+        "--min-stratum-size", type=int, default=50, help="Min cells per stratum"
+    )
     run_parser.add_argument("--seed", type=int, default=42, help="Random seed")
     run_parser.add_argument(
         "--typing",
