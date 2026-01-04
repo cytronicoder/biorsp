@@ -12,19 +12,17 @@ import warnings
 
 import numpy as np
 
-from .adequacy import gene_adequacy
 from .config import BioRSPConfig
-from .foreground import binary_foreground, coverage_prevalence
+from .core import assess_adequacy, compute_rsp_radar
 from .geometry import compute_vantage, polar_coordinates
-from .inference import bh_fdr, compute_p_value
 from .io import load_expression_matrix, load_spatial_coords, load_umi_counts, save_results
 from .manifest import create_manifest, save_manifest
 from .pairwise import compute_pairwise_relationships
-from .radar import compute_rsp_radar
-from .results import FeatureResult, RunSummary
+from .preprocessing import define_foreground, normalize_radii
+from .results import FeatureResult, RunSummary, assign_feature_types
 from .robustness import compute_robustness_score
+from .stats import bh_fdr, compute_p_value
 from .summaries import compute_scalar_summaries
-from .typing import assign_feature_types
 
 try:
     from tqdm import tqdm
@@ -55,13 +53,17 @@ def run_analysis(args):
     center = compute_vantage(coords, method="geometric_median")
     r, theta = polar_coordinates(coords, center)
 
+    # Within-set robust radial normalization
+    # This ensures that radial distances are comparable across different spatial scales.
+    r, norm_stats = normalize_radii(r)
+
     feature_results = {}
     genes = df_expr.columns
 
     # Config
     config = BioRSPConfig(
-        n_angles=args.B,
-        sector_width_deg=args.delta,
+        B=args.B,
+        delta_deg=args.delta,
         n_permutations=args.n_perm,
         min_fg_sector=args.min_count,
         min_bg_sector=args.min_bg_count,
@@ -69,6 +71,8 @@ def run_analysis(args):
         min_adequacy_fraction=args.min_adequacy_fraction,
         seed=args.seed,
     )
+
+    rng = np.random.default_rng(config.seed)
 
     umi_counts = None
     if args.inference:
@@ -93,61 +97,98 @@ def run_analysis(args):
         x = df_expr[gene].values
 
         # 2. Foreground
-        y, threshold, coverage = binary_foreground(x, quantile=args.quantile)
-        coverage_abs = coverage_prevalence(x, t_detect=args.t_detect)
+        y, fg_info = define_foreground(
+            x,
+            mode=args.fg_mode,
+            q=args.quantile,
+            abs_threshold=args.abs_threshold,
+            rng=rng,
+            min_fg=args.min_fg_total,
+        )
+        coverage_abs = np.mean(x > args.t_detect)
+
+        if y is None:
+            # Create a dummy adequacy report for underpowered genes
+            from .summaries import ScalarSummaries
+            from .typing import AdequacyReport
+
+            n_sectors = config.B
+            adequacy = AdequacyReport(
+                is_adequate=False,
+                reason=fg_info["status"],
+                counts_fg=np.zeros(n_sectors),
+                counts_bg=np.zeros(n_sectors),
+                sector_mask=np.zeros(n_sectors, dtype=bool),
+                n_foreground=0.0,
+                n_background=float(len(x)),
+                adequacy_fraction=0.0,
+                sector_indices=None,
+            )
+            feature_results[gene] = FeatureResult(
+                feature=gene,
+                threshold_quantile=fg_info.get("tau", 0.0),
+                coverage_quantile=0.0,
+                coverage_prevalence=float(coverage_abs),
+                adequacy=adequacy,
+                summaries=ScalarSummaries(
+                    peak_distal=np.nan,
+                    peak_distal_angle=np.nan,
+                    peak_proximal=np.nan,
+                    peak_proximal_angle=np.nan,
+                    peak_extremal=np.nan,
+                    peak_extremal_angle=np.nan,
+                    anisotropy=np.nan,
+                    max_rsp=np.nan,
+                    min_rsp=np.nan,
+                    integrated_rsp=np.nan,
+                ),
+                foreground_info=fg_info,
+            )
+            continue
 
         # 3. Adequacy
-        adequacy = gene_adequacy(
+        adequacy = assess_adequacy(
             y,
             theta,
-            config.n_angles,
-            config.sector_width_deg,
-            min_fg_sector=config.min_fg_sector,
-            min_bg_sector=config.min_bg_sector,
-            min_fg_total=config.min_fg_total,
-            min_adequacy_fraction=config.min_adequacy_fraction,
-            # Request sector indices for reuse to avoid recomputing windows in radar
-            # (micro-optimization for large datasets)
+            config=config,
         )
 
         radar = compute_rsp_radar(
             r,
             theta,
             y,
-            B=config.n_angles,
-            delta_deg=config.sector_width_deg,
-            min_fg_sector=config.min_fg_sector,
-            min_bg_sector=config.min_bg_sector,
-            sector_indices=adequacy.sector_indices,
+            config=config,
+            adequacy=adequacy,
         )
 
         summary = compute_scalar_summaries(radar)
 
         feature_results[gene] = FeatureResult(
             feature=gene,
-            threshold_quantile=float(threshold),
-            coverage_quantile=float(coverage),
+            threshold_quantile=float(
+                fg_info.get("tau", args.abs_threshold if args.fg_mode == "absolute" else 0.0)
+            ),
+            coverage_quantile=float(fg_info["realized_frac"]),
             coverage_prevalence=float(coverage_abs),
             adequacy=adequacy,
             summaries=summary,
+            foreground_info=fg_info,
             radar=radar if args.store_rsp or args.pairwise else None,
         )
 
         if args.inference and adequacy.is_adequate:
-            p_val, _, _, _ = compute_p_value(
+            inf_res = compute_p_value(
                 r,
                 theta,
                 y,
-                B=config.n_angles,
-                delta_deg=config.sector_width_deg,
+                config=config,
                 n_perm=config.n_permutations,
                 umi_counts=umi_counts,
-                umi_bins=config.umi_bins,
-                seed=config.seed,
-                min_fg_sector=config.min_fg_sector,
-                min_bg_sector=config.min_bg_sector,
+                rng=rng,
+                adequacy=adequacy,
+                show_progress=False,
             )
-            feature_results[gene].p_value = p_val
+            feature_results[gene].p_value = inf_res.p_value
 
     if args.inference:
         eligible = [fr for fr in feature_results.values() if fr.adequacy.is_adequate]
@@ -185,6 +226,8 @@ def run_analysis(args):
                 min_fg_sector=config.min_fg_sector,
                 min_bg_sector=config.min_bg_sector,
                 quantile=args.quantile,
+                fg_mode=args.fg_mode,
+                abs_threshold=args.abs_threshold,
             )
 
     pairwise_results = None
@@ -258,6 +301,7 @@ def run_analysis(args):
         extra_metadata={
             "n_genes": len(genes),
             "n_cells": len(coords),
+            "radial_normalization": norm_stats,
         },
     )
     manifest_path = args.output + ".manifest.json"
@@ -289,7 +333,18 @@ def main(argv=None):
     # Parameters
     run_parser.add_argument("--B", type=int, default=360, help="Number of sectors")
     run_parser.add_argument("--delta", type=float, default=20.0, help="Sector width (degrees)")
+    run_parser.add_argument(
+        "--fg-mode",
+        choices=["quantile", "absolute", "auto"],
+        default="quantile",
+        help="Foreground selection mode",
+    )
     run_parser.add_argument("--quantile", type=float, default=0.90, help="Foreground quantile")
+    run_parser.add_argument(
+        "--abs-threshold",
+        type=float,
+        help="Absolute threshold for foreground (expr >= T)",
+    )
     run_parser.add_argument(
         "--t-detect",
         type=float,

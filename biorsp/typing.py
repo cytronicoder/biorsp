@@ -1,82 +1,91 @@
 """
-Coverage × anisotropy typing for BioRSP features.
+Core data models for BioRSP.
 """
 
-from __future__ import annotations
-
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
 
 import numpy as np
 
-from .results import FeatureResult, TypingThresholds
+from .config import BioRSPConfig
 
 
-def assign_feature_types(
-    feature_results: Dict[str, FeatureResult],
-    coverage_field: str = "coverage_prevalence",
-    method: str = "median",
-    c_hi: Optional[float] = None,
-    A_hi: Optional[float] = None,
-) -> Tuple[Dict[str, FeatureResult], TypingThresholds]:
+@dataclass
+class RadarResult:
     """
-    Assign coverage × anisotropy types (I-IV) for adequate features.
+    Result of the R(theta) radar function computation.
 
-    Args:
-        feature_results: Mapping of feature name to FeatureResult.
-        coverage_field: Coverage field used for typing.
-        method: Threshold method ('median' or 'user').
-        c_hi: Coverage threshold (required if method='user').
-        A_hi: Anisotropy threshold (required if method='user').
-
-    Returns:
-        Updated feature_results and TypingThresholds.
+    Attributes:
+        rsp: (B,) array of signed RSP values. NaNs indicate underpowered sectors.
+        counts_fg: (B,) array of foreground mass per sector.
+        counts_bg: (B,) array of background mass per sector.
+        centers: (B,) array of sector center angles in radians.
+        iqr_floor: The stability floor used for IQR normalization.
+        iqr_floor_hits: (B,) boolean array indicating where the floor was applied.
+        normalization_stats: Metadata from radial normalization.
     """
-    adequate = [
-        fr
-        for fr in feature_results.values()
-        if fr.adequacy.is_adequate and np.isfinite(fr.summaries.anisotropy)
-    ]
 
-    coverage_values = np.array([float(getattr(fr, coverage_field)) for fr in adequate], dtype=float)
-    anisotropy_values = np.array([fr.summaries.anisotropy for fr in adequate], dtype=float)
-
-    if method == "median":
-        c_hi_val = float(np.median(coverage_values)) if coverage_values.size > 0 else np.nan
-        A_hi_val = float(np.median(anisotropy_values)) if anisotropy_values.size > 0 else np.nan
-    elif method == "user":
-        if c_hi is None or A_hi is None:
-            raise ValueError("c_hi and A_hi must be provided when method='user'.")
-        c_hi_val = float(c_hi)
-        A_hi_val = float(A_hi)
-    else:
-        raise ValueError(f"Unknown typing threshold method: {method}")
-
-    for fr in feature_results.values():
-        if not fr.adequacy.is_adequate:
-            fr.feature_type = None
-            continue
-
-        coverage_value = float(getattr(fr, coverage_field))
-        high_cov = coverage_value >= c_hi_val
-        high_ani = fr.summaries.anisotropy >= A_hi_val
-
-        if high_cov and high_ani:
-            fr.feature_type = "Type I"
-        elif not high_cov and high_ani:
-            fr.feature_type = "Type II"
-        elif high_cov and not high_ani:
-            fr.feature_type = "Type III"
-        else:
-            fr.feature_type = "Type IV"
-
-    thresholds = TypingThresholds(
-        coverage_field=coverage_field,
-        method=method,
-        coverage_threshold=c_hi_val,
-        anisotropy_threshold=A_hi_val,
-    )
-
-    return feature_results, thresholds
+    rsp: np.ndarray
+    counts_fg: np.ndarray
+    counts_bg: np.ndarray
+    centers: np.ndarray
+    iqr_floor: float
+    iqr_floor_hits: np.ndarray
+    normalization_stats: Dict = field(default_factory=dict)
 
 
-__all__ = ["assign_feature_types"]
+@dataclass
+class AdequacyReport:
+    """
+    Report on gene adequacy for BioRSP computation.
+
+    Attributes:
+        is_adequate: Whether the gene meets all adequacy criteria.
+        reason: Explanation for failure (or "ok").
+        counts_fg: (B,) array of foreground mass per sector.
+        counts_bg: (B,) array of background mass per sector.
+        sector_mask: (B,) boolean mask of adequate sectors.
+        n_foreground: Total foreground mass.
+        n_background: Total background mass.
+        adequacy_fraction: Fraction of sectors that are adequate.
+        sector_indices: List of arrays containing cell indices for each sector window.
+    """
+
+    is_adequate: bool
+    reason: str
+    counts_fg: np.ndarray
+    counts_bg: np.ndarray
+    sector_mask: np.ndarray
+    n_foreground: float
+    n_background: float
+    adequacy_fraction: float
+    sector_indices: Optional[List[np.ndarray]] = None
+
+
+@dataclass
+class InferenceResult:
+    """
+    Result of statistical inference (permutation test).
+
+    Attributes:
+        p_value: Finite-permutation corrected p-value.
+        observed_stat: Observed RMS anisotropy.
+        null_stats: (n_perm,) array of null statistics.
+        valid_mask: (B,) boolean mask of sectors used for anisotropy.
+        q_value: FDR-corrected p-value (if computed).
+    """
+
+    p_value: float
+    observed_stat: float
+    null_stats: np.ndarray
+    valid_mask: np.ndarray
+    seeds: Optional[np.ndarray] = None
+    q_value: Optional[float] = None
+
+
+__all__ = [
+    "BioRSPConfig",
+    "RadarResult",
+    "AdequacyReport",
+    "InferenceResult",
+]

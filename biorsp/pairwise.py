@@ -9,9 +9,9 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from .geometry import wrapped_circular_distance
-from .radar import RadarResult
 from .results import PairwiseResult
 from .summaries import compute_scalar_summaries
+from .typing import RadarResult
 
 
 def _pearson_corr(a: np.ndarray, b: np.ndarray) -> float:

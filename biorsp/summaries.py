@@ -12,7 +12,7 @@ from typing import Optional
 
 import numpy as np
 
-from .radar import RadarResult
+from .typing import RadarResult
 
 
 @dataclass

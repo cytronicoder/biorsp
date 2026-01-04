@@ -31,11 +31,11 @@ class BioRSPConfig:
     Maps directly to Methods parameters.
     """
 
-    n_angles: int = B_DEFAULT
-    sector_width_deg: float = DELTA_DEG_DEFAULT
-    min_fg_sector: int = N_FG_MIN_DEFAULT
-    min_bg_sector: int = N_BG_MIN_DEFAULT
-    min_fg_total: int = N_FG_TOT_MIN_DEFAULT
+    B: int = B_DEFAULT
+    delta_deg: float = DELTA_DEG_DEFAULT
+    min_fg_sector: float = N_FG_MIN_DEFAULT
+    min_bg_sector: float = N_BG_MIN_DEFAULT
+    min_fg_total: float = N_FG_TOT_MIN_DEFAULT
     min_adequacy_fraction: float = ADEQUACY_FRACTION_DEFAULT
     umi_bins: int = UMI_BINS_DEFAULT
     n_permutations: int = K_EXPLORATORY_DEFAULT
@@ -47,6 +47,17 @@ class BioRSPConfig:
     donor_stratify: bool = False
     min_stratum_size: int = 50
     foreground_quantile: float = 0.90
+    iqr_floor_pct: float = 0.1
+
+    @property
+    def n_angles(self) -> int:
+        """Backward compatible alias for B."""
+        return self.B
+
+    @property
+    def sector_width_deg(self) -> float:
+        """Backward compatible alias for delta_deg."""
+        return self.delta_deg
 
     @property
     def sector_width_rad(self) -> float:

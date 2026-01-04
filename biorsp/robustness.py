@@ -9,13 +9,14 @@ Implements stability checks via subsampling:
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 import numpy as np
 from scipy.stats import pearsonr
 
-from .constants import N_BG_MIN_DEFAULT, N_FG_MIN_DEFAULT
-from .foreground import binary_foreground
-from .radar import compute_rsp_radar
+from .config import BioRSPConfig
+from .core import compute_rsp_radar
+from .preprocessing import define_foreground
 from .summaries import compute_scalar_summaries
 
 
@@ -39,45 +40,61 @@ def compute_robustness_score(
     x: np.ndarray,
     r: np.ndarray,
     theta: np.ndarray,
-    B: int = 360,
-    delta_deg: float = 20.0,
+    config: BioRSPConfig = BioRSPConfig(),
     n_subsample: int = 20,
     subsample_frac: float = 0.8,
     seed: int = 42,
-    min_fg_sector: int = N_FG_MIN_DEFAULT,
-    min_bg_sector: int = N_BG_MIN_DEFAULT,
-    quantile: float = 0.90,
+    fg_mode: str = "quantile",
+    abs_threshold: Optional[float] = None,
 ) -> RobustnessResult:
     """
     Compute robustness metrics via subsampling.
 
-    Args:
-        x: (N,) expression values.
-        r: (N,) radial distances.
-        theta: (N,) angles.
-        B: Number of sectors.
-        delta_deg: Sector width.
-        n_subsample: Number of iterations.
-        subsample_frac: Fraction of cells to keep per iteration.
-        seed: Random seed.
+    Parameters
+    ----------
+    x : np.ndarray
+        (N,) expression values.
+    r : np.ndarray
+        (N,) radial distances.
+    theta : np.ndarray
+        (N,) angles.
+    config : BioRSPConfig, optional
+        Configuration object, by default BioRSPConfig().
+    n_subsample : int, optional
+        Number of iterations, by default 20.
+    subsample_frac : float, optional
+        Fraction of cells to keep per iteration, by default 0.8.
+    seed : int, optional
+        Random seed, by default 42.
+    fg_mode : str, optional
+        Foreground selection mode, by default "quantile".
+    abs_threshold : float, optional
+        Absolute threshold for foreground, by default None.
 
-    Returns:
-        RobustnessResult object.
+    Returns
+    -------
+    RobustnessResult
+        The result of the robustness analysis.
     """
     rng = np.random.default_rng(seed)
     n_cells = len(x)
     n_keep = int(n_cells * subsample_frac)
 
     # 1. Compute full profile
-    y_full, _, _ = binary_foreground(x, quantile=quantile)
+    y_full, _ = define_foreground(
+        x, mode=fg_mode, q=config.foreground_quantile, abs_threshold=abs_threshold, rng=rng
+    )
+    if y_full is None:
+        return RobustnessResult(mean_correlation=np.nan, cv_anisotropy=np.nan, n_subsamples=0)
+
     # If full data is inadequate, robustness estimates may be unreliable
-    radar_full = compute_rsp_radar(r, theta, y_full, B, delta_deg, min_fg_sector, min_bg_sector)
+    radar_full = compute_rsp_radar(r, theta, y_full, config=config)
     rsp_full = radar_full.rsp
 
     correlations = []
     anisotropies = []
 
-    for _ in range(n_subsample):
+    for i in range(n_subsample):
         # Subsample indices
         indices = rng.choice(n_cells, size=n_keep, replace=False)
 
@@ -86,11 +103,15 @@ def compute_robustness_score(
         theta_sub = theta[indices]
 
         # Recompute foreground on subsample
-        y_sub, _, _ = binary_foreground(x_sub, quantile=quantile)
-        # Compute RSP
-        radar_sub = compute_rsp_radar(
-            r_sub, theta_sub, y_sub, B, delta_deg, min_fg_sector, min_bg_sector
+        # Use the same rng to ensure deterministic but varied tie-breaking
+        y_sub, _ = define_foreground(
+            x_sub, mode=fg_mode, q=config.foreground_quantile, abs_threshold=abs_threshold, rng=rng
         )
+        if y_sub is None:
+            continue
+
+        # Compute RSP
+        radar_sub = compute_rsp_radar(r_sub, theta_sub, y_sub, config=config)
         rsp_sub = radar_sub.rsp
 
         mask = np.isfinite(rsp_sub) & np.isfinite(rsp_full)

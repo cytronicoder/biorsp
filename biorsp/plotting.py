@@ -14,8 +14,8 @@ from typing import Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .radar import RadarResult
 from .summaries import ScalarSummaries
+from .typing import RadarResult
 
 
 def _as_1d(a) -> np.ndarray:
@@ -76,8 +76,78 @@ def _ensure_polar_ax(ax: Optional[plt.Axes]) -> plt.Axes:
 
 def _set_default_polar_style(ax: plt.Axes) -> None:
     # Reasonable defaults; do not enforce colors/styles beyond readability.
-    ax.set_theta_direction(-1)  # clockwise
-    ax.set_theta_zero_location("N")  # 0° at top
+    # Align visual orientation with internal math: 0° at +x (East) and angles increase CCW.
+    ax.set_theta_direction(1)  # counter-clockwise (mathematical convention)
+    ax.set_theta_zero_location("E")  # 0° at right (+x axis)
+
+
+def _draw_segmented_rsp(
+    ax: plt.Axes,
+    th: np.ndarray,
+    vals: np.ndarray,
+    fill: bool = True,
+    color: str = "b",
+    alpha: float = 0.5,
+    line_color: Optional[str] = None,
+    **kwargs,
+) -> None:
+    """
+    Draw RSP outline and fill, handling NaN gaps and wrap-around.
+    """
+    if th.size == 0:
+        return
+
+    mask = np.isfinite(vals)
+    if not np.any(mask):
+        return
+
+    # Find contiguous segments of True in mask
+    idx = np.where(mask)[0]
+    if len(idx) == 0:
+        return
+
+    # Split where indices are not consecutive
+    splits = np.where(np.diff(idx) > 1)[0] + 1
+    seg_indices = np.split(idx, splits)
+    segments = [s.tolist() for s in seg_indices]
+
+    # Handle wrap-around: if first and last points are finite, they are contiguous
+    # across the 0/2pi boundary.
+    if len(segments) > 1 and mask[0] and mask[-1]:
+        last_seg = segments.pop(-1)
+        first_seg = segments.pop(0)
+        # Merge them: last segment followed by first segment
+        merged_seg = last_seg + first_seg
+        segments.append(merged_seg)
+    elif len(segments) == 1 and mask.all():
+        # All finite: close the loop by adding the first point to the end
+        segments[0].append(segments[0][0])
+
+    for seg in segments:
+        th_seg = th[seg].astype(float, copy=True)
+        v_seg = vals[seg].astype(float, copy=True)
+
+        # Ensure monotonicity for plotting across the 0/2pi boundary
+        for i in range(1, len(th_seg)):
+            if th_seg[i] < th_seg[i - 1]:
+                th_seg[i:] += 2 * np.pi
+
+        # Plot outline
+        l_color = line_color if line_color is not None else color
+        line_kw = kwargs.copy()
+        line_kw.pop("hatch", None)  # Line2D does not support hatching
+        ax.plot(th_seg, v_seg, color=l_color, **line_kw)
+
+        # Fill to center
+        if fill:
+            fill_kw = {"color": color, "alpha": alpha}
+            if "hatch" in kwargs:
+                fill_kw["hatch"] = kwargs["hatch"]
+
+            # To fill to center, we add (th_seg[0], 0) and (th_seg[-1], 0)
+            th_fill = np.concatenate([[th_seg[0]], th_seg, [th_seg[-1]]])
+            v_fill = np.concatenate([[0], v_seg, [0]])
+            ax.fill(th_fill, v_fill, edgecolor="none", **fill_kw)
 
 
 def plot_radar(
@@ -174,8 +244,6 @@ def plot_radar(
     # Mask invalid values consistently
     valid = np.isfinite(r)
     theta_v = theta[valid]
-    widths_v = widths[valid]
-    r_v = r[valid]
 
     if theta_v.size == 0:
         msg = "No valid sectors (insufficient foreground/background counts)"
@@ -220,17 +288,6 @@ def plot_radar(
                 bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
             )
 
-    def _outline(ax_obj: plt.Axes, th: np.ndarray, vals: np.ndarray, **plot_kw) -> None:
-        if th.size == 0:
-            return
-        if th.size == 1:
-            # One point: draw a short radial marker to make it visible
-            ax_obj.plot([th[0], th[0]], [0.0, float(vals[0])], **plot_kw)
-            return
-        th_closed = np.concatenate([th, [th[0] + 2 * np.pi]])
-        v_closed = np.concatenate([vals, [vals[0]]])
-        ax_obj.plot(th_closed, v_closed, **plot_kw)
-
     # Normalize mode aliases to semantic names
     mode = mode.lower().strip()
     mode_map = {
@@ -244,43 +301,31 @@ def plot_radar(
         raise ValueError(f"Unknown mode: {mode}")
 
     if mode == "signed":
-        heights = np.abs(r_v)
         # proximal: solid fill; distal: hatched fill with red edge
-        pos_mask = r_v >= 0
-        neg_mask = r_v < 0
+        r_pos = np.where(r >= 0, np.abs(r), np.nan)
+        r_neg = np.where(r < 0, np.abs(r), np.nan)
 
-        if np.any(pos_mask):
-            ax.bar(
-                theta_v[pos_mask],
-                heights[pos_mask],
-                width=widths_v[pos_mask],
-                bottom=0.0,
-                align="center",
+        if np.any(np.isfinite(r_pos)):
+            _draw_segmented_rsp(
+                ax,
+                theta,
+                r_pos,
+                fill=True,
                 color=color,
                 alpha=alpha,
-                edgecolor=color,
-                linewidth=1.0,
+                line_color="k",
+                linewidth=lw,
             )
-            _outline(ax, theta_v[pos_mask], heights[pos_mask], color="k", linewidth=lw)
 
-        if np.any(neg_mask):
-            ax.bar(
-                theta_v[neg_mask],
-                heights[neg_mask],
-                width=widths_v[neg_mask],
-                bottom=0.0,
-                align="center",
+        if np.any(np.isfinite(r_neg)):
+            _draw_segmented_rsp(
+                ax,
+                theta,
+                r_neg,
+                fill=True,
                 color="r",
                 alpha=alpha * 0.9,
-                edgecolor="r",
-                linewidth=1.0,
                 hatch="//",
-            )
-            _outline(
-                ax,
-                theta_v[neg_mask],
-                heights[neg_mask],
-                color="r",
                 linewidth=lw,
                 linestyle="--",
             )
@@ -294,10 +339,10 @@ def plot_radar(
             import matplotlib.patches as mpatches
 
             handles, labels = [], []
-            if np.any(pos_mask):
+            if np.any(np.isfinite(r_pos)):
                 handles.append(mpatches.Patch(color=color, alpha=alpha))
                 labels.append("Proximal bias (R > 0)")
-            if np.any(neg_mask):
+            if np.any(np.isfinite(r_neg)):
                 # hatched patch for distal
                 p = mpatches.Patch(facecolor="r", hatch="//", edgecolor="r", alpha=alpha)
                 handles.append(p)
@@ -311,25 +356,9 @@ def plot_radar(
         return ax
 
     if mode == "proximal":
-        r_pos = np.maximum(0.0, r_v)
-        mask = r_pos > 0
-        theta_m = theta_v[mask]
-        widths_m = widths_v[mask]
-        r_pos_m = r_pos[mask]
-
-        if theta_m.size:
-            ax.bar(
-                theta_m,
-                r_pos_m,
-                width=widths_m,
-                bottom=0.0,
-                align="center",
-                color=color,
-                alpha=alpha,
-                edgecolor=color,
-                linewidth=1.0,
-            )
-            _outline(ax, theta_m, r_pos_m, color=color, linewidth=lw)
+        r_pos = np.where(r > 0, r, np.nan)
+        if np.any(np.isfinite(r_pos)):
+            _draw_segmented_rsp(ax, theta, r_pos, fill=True, color=color, alpha=alpha, linewidth=lw)
         ax.set_ylim(0, y_top)
         if title:
             ax.set_title(title + " RSP (proximal)", fontsize=20)
@@ -337,26 +366,19 @@ def plot_radar(
         return ax
 
     if mode == "distal":
-        r_neg = np.maximum(0.0, -r_v)
-        mask = r_neg > 0
-        theta_m = theta_v[mask]
-        widths_m = widths_v[mask]
-        r_neg_m = r_neg[mask]
-
-        if theta_m.size:
-            ax.bar(
-                theta_m,
-                r_neg_m,
-                width=widths_m,
-                bottom=0.0,
-                align="center",
+        r_neg = np.where(r < 0, np.abs(r), np.nan)
+        if np.any(np.isfinite(r_neg)):
+            _draw_segmented_rsp(
+                ax,
+                theta,
+                r_neg,
+                fill=True,
                 color="r",
                 alpha=alpha * 0.9,
-                edgecolor="r",
-                linewidth=1.0,
                 hatch="//",
+                linewidth=lw,
+                linestyle="--",
             )
-            _outline(ax, theta_m, r_neg_m, color="r", linewidth=lw, linestyle="--")
         ax.set_ylim(0, y_top)
         if title:
             ax.set_title(title + " RSP (distal)", fontsize=20)
@@ -364,43 +386,20 @@ def plot_radar(
         return ax
 
     if mode == "combined":
-        r_pos = np.maximum(0.0, r_v)
-        r_neg = np.maximum(0.0, -r_v)
+        r_pos = np.where(r > 0, r, np.nan)
+        r_neg = np.where(r < 0, np.abs(r), np.nan)
 
-        mask_pos = r_pos > 0
-        mask_neg = r_neg > 0
+        if np.any(np.isfinite(r_pos)):
+            _draw_segmented_rsp(ax, theta, r_pos, fill=True, color=color, alpha=alpha, linewidth=lw)
 
-        if np.any(mask_pos):
-            ax.bar(
-                theta_v[mask_pos],
-                r_pos[mask_pos],
-                width=widths_v[mask_pos],
-                bottom=0.0,
-                align="center",
-                color=color,
-                alpha=alpha,
-                edgecolor=color,
-                linewidth=1.0,
-            )
-            _outline(ax, theta_v[mask_pos], r_pos[mask_pos], color=color, linewidth=lw)
-
-        if np.any(mask_neg):
-            ax.bar(
-                theta_v[mask_neg],
-                r_neg[mask_neg],
-                width=widths_v[mask_neg],
-                bottom=0.0,
-                align="center",
-                color="r",
-                alpha=alpha,
-                edgecolor="r",
-                linewidth=1.0,
-            )
-            _outline(
+        if np.any(np.isfinite(r_neg)):
+            _draw_segmented_rsp(
                 ax,
-                theta_v[mask_neg],
-                r_neg[mask_neg],
+                theta,
+                r_neg,
+                fill=True,
                 color="r",
+                alpha=alpha,
                 linewidth=lw,
                 linestyle="--",
             )
@@ -414,10 +413,10 @@ def plot_radar(
             import matplotlib.patches as mpatches
 
             handles, labels = [], []
-            if np.any(mask_pos):
+            if np.any(np.isfinite(r_pos)):
                 handles.append(mpatches.Patch(color=color, alpha=alpha))
                 labels.append("Enrichment")
-            if np.any(mask_neg):
+            if np.any(np.isfinite(r_neg)):
                 handles.append(mpatches.Patch(color="r", alpha=alpha))
                 labels.append("Depletion")
             if handles:
@@ -519,20 +518,37 @@ def plot_embedding(
     ax: Optional[plt.Axes] = None,
     title: Optional[str] = None,
     cmap: str = "viridis",
-    s: int = 10,
+    s: int = 4,
+    fg_color: str = "red",
+    bg_color: str = "grey",
+    show_vantage: bool = False,
+    vantage: Optional[np.ndarray] = None,
+    show_legend: bool = True,
+    legend_loc: str = "best",
     **kwargs,
 ) -> plt.Axes:
     """
     Scatter plot of embedding.
 
+    Special behavior:
+      - If `c` is a binary array (0/1 or booleans), the function will plot background
+        points in `bg_color` and foreground points in `fg_color` to enforce a consistent
+        visual convention across the codebase.
+      - If `show_vantage` is True, a large, prominent "X" marker is plotted at the
+        vantage point (geometric median by default) with a small "v" label.
+
     Args:
         Z: (N, 2) embedding coordinates.
-        c: (N,) color values (e.g. expression).
+        c: (N,) color values (e.g. expression) or binary foreground mask.
         ax: Matplotlib axes. If None, created.
         title: Plot title.
-        cmap: Colormap.
-        s: Marker size.
-        **kwargs: Additional arguments for scatter.
+        cmap: Colormap (used when not plotting binary mask).
+        s: Base marker size for points (default 1 per request).
+        fg_color: Color string for foreground points (default: 'red').
+        bg_color: Color string for background points (default: 'grey').
+        show_vantage: Whether to mark the vantage point on the plot.
+        vantage: Optional (2,) vantage coordinates; if None and show_vantage True, computed.
+        **kwargs: Additional kwargs forwarded to `scatter`.
 
     Returns:
         ax: The axes object.
@@ -549,13 +565,83 @@ def plot_embedding(
     if ax is None:
         _, ax = plt.subplots()
 
-    sc = ax.scatter(Z[:, 0], Z[:, 1], c=c, s=s, cmap=cmap, **kwargs)
-
+    # Special-case binary mask coloring for consistent fg/bg colors
+    plotted_sc = None
     if c is not None:
-        plt.colorbar(sc, ax=ax)
+        uniq = np.unique(c)
+        try:
+            uniq_set = set(uniq.tolist())
+        except Exception:
+            uniq_set = set(uniq)
+        if uniq_set <= {0, 1}:
+            mask_fg = c.astype(bool)
+            mask_bg = ~mask_fg
+            if np.any(mask_bg):
+                ax.scatter(
+                    Z[mask_bg, 0],
+                    Z[mask_bg, 1],
+                    c=bg_color,
+                    s=s,
+                    alpha=0.8,
+                    edgecolors="none",
+                    label="Background",
+                    **kwargs,
+                )
+            if np.any(mask_fg):
+                ax.scatter(
+                    Z[mask_fg, 0],
+                    Z[mask_fg, 1],
+                    c=fg_color,
+                    s=s,
+                    alpha=0.95,
+                    edgecolors="none",
+                    label="Foreground",
+                    **kwargs,
+                )
+        else:
+            plotted_sc = ax.scatter(
+                Z[:, 0], Z[:, 1], c=c, s=s, cmap=cmap, edgecolors="none", **kwargs
+            )
+    else:
+        plotted_sc = ax.scatter(Z[:, 0], Z[:, 1], c=None, s=s, edgecolors="none", **kwargs)
+
+    # Colorbar only when a continuous color was used
+    if plotted_sc is not None and c is not None and not (set(np.unique(c).tolist()) <= {0, 1}):
+        plt.colorbar(plotted_sc, ax=ax)
 
     if title:
         ax.set_title(title)
+
+    # Vantage marker (prominent)
+    vp_h = None
+    if show_vantage:
+        if vantage is None:
+            try:
+                from .geometry import compute_vantage
+            except Exception:
+                from .geometry import compute_vantage
+            v = compute_vantage(Z)
+        else:
+            v = vantage
+        vp_h = ax.scatter(
+            v[0], v[1], marker="X", s=300, color="black", zorder=20, linewidths=1.5, label="Vantage"
+        )
+        ax.text(v[0], v[1], "v", fontsize=10, fontweight="bold", va="bottom", ha="left", zorder=21)
+
+    # Legend
+    if show_legend:
+        # If binary mask was plotted, legend entries were attached to those scatters via labels.
+        # For continuous color, only show vantage if present.
+        handles, labels = ax.get_legend_handles_labels()
+        if not handles:
+            if vp_h is not None:
+                ax.legend(handles=[vp_h], labels=["Vantage"], loc=legend_loc, frameon=False)
+        else:
+            # Ensure vantage appears in legend if present
+            if vp_h is not None and "Vantage" not in labels:
+                handles.append(vp_h)
+                labels.append("Vantage")
+            ax.legend(handles=handles, labels=labels, loc=legend_loc, frameon=False)
 
     ax.set_xlabel("Dim 1")
     ax.set_ylabel("Dim 2")
