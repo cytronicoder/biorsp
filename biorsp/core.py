@@ -9,9 +9,8 @@ from typing import List, Optional
 
 import numpy as np
 
-from .typing import AdequacyReport, BioRSPConfig, RadarResult
+from .typing import BioRSPConfig, RadarResult
 from .utils import (
-    weighted_quantile,
     weighted_quantile_sorted,
     weighted_wasserstein_1d,
 )
@@ -74,7 +73,7 @@ def sector_signed_stat(
     nF = float(np.sum(w_fg))
     nB = float(np.sum(w_bg))
 
-    if nF <= 0:
+    if nF <= 0 or nB <= 0:
         return {
             "stat": np.nan,
             "sign": 0,
@@ -84,24 +83,18 @@ def sector_signed_stat(
             "medB": np.nan,
             "nF": nF,
             "nB": nB,
-            "status": "empty_fg",
-        }
-    if nB <= 0:
-        return {
-            "stat": np.nan,
-            "sign": 0,
-            "w1": np.nan,
-            "denom": np.nan,
-            "medF": np.nan,
-            "medB": np.nan,
-            "nF": nF,
-            "nB": nB,
-            "status": "empty_bg",
+            "status": "empty_fg_or_bg",
         }
 
+    # Sort once for all weighted stats in this sector
+    sort_idx = np.argsort(r_s)
+    r_sorted = r_s[sort_idx]
+    w_fg_sorted = w_fg[sort_idx]
+    w_bg_sorted = w_bg[sort_idx]
+
     # Medians
-    medF = weighted_quantile(r_s, w_fg, 0.5)
-    medB = weighted_quantile(r_s, w_bg, 0.5)
+    medF = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.5)
+    medB = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.5)
 
     # Sign: positive if foreground is proximal (smaller radii)
     diff = medB - medF
@@ -111,25 +104,23 @@ def sector_signed_stat(
         s = 1 if diff > 0 else -1
 
     # Wasserstein-1 (unsigned)
-    w1 = weighted_wasserstein_1d(r_s, w_fg, r_s, w_bg)
+    w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
 
     # Scale
     if scale_mode == "pooled_iqr":
         # IQR(concat(R_F, R_B)) -> for binary this is just IQR(r_s)
-        # For weighted, we use unweighted IQR of the sector points
         q75 = np.percentile(r_s, 75)
         q25 = np.percentile(r_s, 25)
         denom = q75 - q25
     elif scale_mode == "bg_iqr":
-        q75 = weighted_quantile(r_s, w_bg, 0.75)
-        q25 = weighted_quantile(r_s, w_bg, 0.25)
+        q75 = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.75)
+        q25 = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.25)
         denom = q75 - q25
     elif scale_mode == "fg_iqr":
-        q75 = weighted_quantile(r_s, w_fg, 0.75)
-        q25 = weighted_quantile(r_s, w_fg, 0.25)
+        q75 = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.75)
+        q25 = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.25)
         denom = q75 - q25
     elif scale_mode == "pooled_mad":
-        # MAD(concat(R_F, R_B)) -> unweighted MAD of sector points
         med = np.median(r_s)
         denom = 1.4826 * np.median(np.abs(r_s - med))
     else:
@@ -138,7 +129,7 @@ def sector_signed_stat(
     # Degeneracy guard
     if denom < min_scale:
         status = "degenerate_scale"
-        stat = 0.0  # Set to 0 as per requirement (a)
+        stat = 0.0
     else:
         status = "ok"
         stat = s * (w1 / (denom + eps))
@@ -191,9 +182,8 @@ def compute_rsp_radar(
     y: np.ndarray,
     config: Optional[BioRSPConfig] = None,
     sector_indices: Optional[List[np.ndarray]] = None,
-    adequacy: Optional[AdequacyReport] = None,
-    normalization_stats: Optional[dict] = None,
     frozen_mask: Optional[np.ndarray] = None,
+    normalization_stats: Optional[dict] = None,
     **kwargs,
 ) -> RadarResult:
     r"""
@@ -204,14 +194,6 @@ def compute_rsp_radar(
     where $s = \text{sign}(\text{median}(r_{bg}) - \text{median}(r_{fg}))$ is the robust sign,
     and $W_1$ is the Wasserstein-1 distance between foreground and background
     radial distributions in the angular window $[\phi_b - \delta/2, \phi_b + \delta/2]$.
-    The scale is either the pooled IQR or background IQR plus a stability floor.
-    We normalize by the pooled robust scale within each sector by default to improve
-    stability under heterogeneous density and to prevent inflation when background
-    dispersion is small. Degenerate sectors (scale < min_scale) are assigned a
-    statistic of 0.0 and may be excluded from the adequacy mask.
-
-    Positive $R$ means core/proximal enrichment (foreground radii smaller than background).
-    Negative $R$ means rim/distal enrichment (foreground radii larger than background).
 
     Parameters
     ----------
@@ -225,10 +207,12 @@ def compute_rsp_radar(
         Configuration object, by default BioRSPConfig().
     sector_indices : List[np.ndarray], optional
         Precomputed per-sector cell indices, by default None.
-    adequacy : AdequacyReport, optional
-        Precomputed adequacy report to reuse indices/mask, by default None.
+    frozen_mask : np.ndarray, optional
+        Fixed boolean mask of valid sectors to compute, by default None.
     normalization_stats : dict, optional
         Radial normalization metadata, by default None.
+    **kwargs
+        Overrides for config parameters.
 
     Returns
     -------
@@ -238,14 +222,14 @@ def compute_rsp_radar(
     if config is None:
         config = BioRSPConfig(**kwargs)
     elif kwargs:
-        from dataclasses import replace
+        from dataclasses import fields, replace
 
-        config = replace(config, **kwargs)
+        config_fields = {f.name for f in fields(BioRSPConfig)}
+        config_overrides = {k: v for k, v in kwargs.items() if k in config_fields}
+        if config_overrides:
+            config = replace(config, **config_overrides)
 
     B = config.B
-    if sector_indices is None and adequacy is not None:
-        sector_indices = adequacy.sector_indices
-
     if sector_indices is None:
         from .geometry import get_sector_indices
 
@@ -272,12 +256,15 @@ def compute_rsp_radar(
 
     # 2. Per-sector computation
     for b in range(B):
-        idx = sector_indices[b]
-        if idx.size == 0:
+        if frozen_mask is not None and not frozen_mask[b]:
             continue
 
-        # Use the new robust signed stat function
-        # We pass iqr_floor as the eps to maintain the stability floor
+        idx = sector_indices[b]
+        if idx.size == 0:
+            if frozen_mask is not None:
+                rsp_values[b] = 0.0
+            continue
+
         res = sector_signed_stat(
             r,
             y,
@@ -291,22 +278,19 @@ def compute_rsp_radar(
         counts_fg[b] = res["nF"]
         counts_bg[b] = res["nB"]
 
-        if frozen_mask is not None:
-            if not frozen_mask[b]:
-                continue
-            if res["nF"] == 0 or res["nB"] == 0:
-                # Safe behavior for empty sectors in permutations
+        if res["status"] == "empty_fg_or_bg":
+            if frozen_mask is not None:
                 rsp_values[b] = 0.0
-                continue
-        elif res["nF"] < config.min_fg_sector or res["nB"] < config.min_bg_sector:
+            continue
+
+        if res["nF"] < config.min_fg_sector or res["nB"] < config.min_bg_sector:
+            if frozen_mask is not None:
+                rsp_values[b] = 0.0
             continue
 
         rsp_values[b] = res["stat"]
         if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
-            # If degenerate, we set to 0 as per sector_signed_stat
-            # but we might also want to mark it as invalid in some contexts.
-            # For now, we follow the requirement to set stat=0.
 
     from .geometry import angle_grid
 
@@ -321,132 +305,7 @@ def compute_rsp_radar(
     )
 
 
-def assess_adequacy(
-    r: np.ndarray,
-    theta: np.ndarray,
-    y: np.ndarray,
-    config: Optional[BioRSPConfig] = None,
-    **kwargs,
-) -> AdequacyReport:
-    r"""
-    Assess gene adequacy for BioRSP.
-
-    Parameters
-    ----------
-    r : np.ndarray
-        (N,) array of normalized radial distances.
-    theta : np.ndarray
-        (N,) array of angles in radians.
-    y : np.ndarray
-        (N,) foreground weights or binary indicators.
-    config : BioRSPConfig, optional
-        Configuration object, by default BioRSPConfig().
-
-    AdequacyReport
-        Report on gene adequacy.
-    """
-    if config is None:
-        # Handle n_sectors alias for B
-        if "n_sectors" in kwargs:
-            kwargs["B"] = kwargs.pop("n_sectors")
-        config = BioRSPConfig(**kwargs)
-    elif kwargs:
-        from dataclasses import replace
-
-        if "n_sectors" in kwargs:
-            kwargs["B"] = kwargs.pop("n_sectors")
-        config = replace(config, **kwargs)
-
-    from .constants import (
-        REASON_GENE_UNDERPOWERED,
-        REASON_OK,
-        REASON_SECTOR_BG_TOO_SMALL,
-        REASON_SECTOR_FG_TOO_SMALL,
-        REASON_SECTOR_MIXED_TOO_SMALL,
-    )
-    from .geometry import get_sector_indices
-
-    B = config.B
-    sector_indices = get_sector_indices(theta, B, config.delta_deg)
-
-    counts_fg = np.zeros(B)
-    counts_bg = np.zeros(B)
-    scale_mask = np.ones(B, dtype=bool)
-
-    for b in range(B):
-        idx = sector_indices[b]
-        if idx.size > 0:
-            counts_fg[b] = np.sum(y[idx])
-            counts_bg[b] = np.sum(1.0 - y[idx])
-
-            # Scale guard
-            if config.min_scale > 0:
-                r_s = r[idx]
-                if config.scale_mode == "pooled_iqr":
-                    scale = np.percentile(r_s, 75) - np.percentile(r_s, 25)
-                elif config.scale_mode == "bg_iqr":
-                    w_bg = 1.0 - y[idx]
-                    if np.sum(w_bg) > 0:
-                        scale = weighted_quantile(r_s, w_bg, 0.75) - weighted_quantile(
-                            r_s, w_bg, 0.25
-                        )
-                    else:
-                        scale = 0.0
-                elif config.scale_mode == "fg_iqr":
-                    w_fg = y[idx]
-                    if np.sum(w_fg) > 0:
-                        scale = weighted_quantile(r_s, w_fg, 0.75) - weighted_quantile(
-                            r_s, w_fg, 0.25
-                        )
-                    else:
-                        scale = 0.0
-                elif config.scale_mode == "pooled_mad":
-                    med = np.median(r_s)
-                    scale = 1.4826 * np.median(np.abs(r_s - med))
-                else:
-                    scale = 0.0
-
-                if scale < config.min_scale:
-                    scale_mask[b] = False
-
-    fg_mask = counts_fg >= config.min_fg_sector
-    bg_mask = counts_bg >= config.min_bg_sector
-    sector_mask = fg_mask & bg_mask & scale_mask
-
-    n_fg_total = np.sum(y)
-    n_bg_total = np.sum(1.0 - y)
-    adequacy_fraction = np.mean(sector_mask)
-
-    is_adequate = (
-        n_fg_total >= config.min_fg_total and adequacy_fraction >= config.min_adequacy_fraction
-    )
-
-    if n_fg_total < config.min_fg_total:
-        reason = REASON_GENE_UNDERPOWERED
-    elif is_adequate:
-        reason = REASON_OK
-    elif not np.any(fg_mask):
-        reason = REASON_SECTOR_FG_TOO_SMALL
-    elif not np.any(bg_mask):
-        reason = REASON_SECTOR_BG_TOO_SMALL
-    else:
-        reason = REASON_SECTOR_MIXED_TOO_SMALL
-
-    return AdequacyReport(
-        is_adequate=is_adequate,
-        reason=reason,
-        counts_fg=counts_fg,
-        counts_bg=counts_bg,
-        sector_mask=sector_mask,
-        n_foreground=float(n_fg_total),
-        n_background=float(n_bg_total),
-        adequacy_fraction=float(adequacy_fraction),
-        sector_indices=sector_indices,
-    )
-
-
 __all__ = [
     "compute_anisotropy",
     "compute_rsp_radar",
-    "assess_adequacy",
 ]
