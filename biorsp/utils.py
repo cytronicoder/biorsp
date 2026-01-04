@@ -123,6 +123,28 @@ def weighted_quantile_sorted(
     return float(np.interp(q, cdf, values_sorted))
 
 
+def weighted_mad(values: np.ndarray, weights: np.ndarray, scale_factor: float = 1.4826) -> float:
+    """
+    Compute weighted Median Absolute Deviation (MAD).
+
+    Args:
+        values: (N,) array of values.
+        weights: (N,) array of weights.
+        scale_factor: Factor to match normal distribution (default 1.4826).
+
+    Returns:
+        The weighted MAD.
+    """
+    if values.size == 0:
+        return np.nan
+    med = weighted_quantile(values, weights, 0.5)
+    if np.isnan(med):
+        return np.nan
+    abs_dev = np.abs(values - med)
+    mad = weighted_quantile(abs_dev, weights, 0.5)
+    return float(scale_factor * mad)
+
+
 def bh_fdr(p_values: np.ndarray) -> np.ndarray:
     """
     Benjamini-Hochberg FDR correction.

@@ -55,7 +55,8 @@ class BioRSPConfig:
     foreground_quantile: float = 0.90
     iqr_floor_pct: float = 0.1
     sign_tol: float = 0.0
-    scale_mode: Literal["pooled_iqr", "bg_iqr"] = "pooled_iqr"
+    scale_mode: Literal["pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad"] = "pooled_iqr"
+    min_scale: float = 1e-3
 
     @property
     def n_angles(self) -> int:

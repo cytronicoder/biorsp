@@ -25,6 +25,7 @@ def sector_signed_stat(
     eps: float = 1e-12,
     sign_tol: float = 0.0,
     scale_mode: str = "pooled_iqr",
+    min_scale: float = 0.0,
 ) -> dict:
     """
     Compute the signed per-sector radar statistic R_g(theta).
@@ -43,7 +44,9 @@ def sector_signed_stat(
         Tolerance for median difference to be considered zero, by default 0.0.
     scale_mode : str, optional
         How to compute the robust scale denominator, by default "pooled_iqr".
-        Options: "pooled_iqr", "bg_iqr".
+        Options: "pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad".
+    min_scale : float, optional
+        Minimum scale value to avoid degeneracy, by default 0.0.
 
     Returns
     -------
@@ -116,20 +119,29 @@ def sector_signed_stat(
         # For weighted, we use unweighted IQR of the sector points
         q75 = np.percentile(r_s, 75)
         q25 = np.percentile(r_s, 25)
-        denom = q75 - q25 + eps
+        denom = q75 - q25
     elif scale_mode == "bg_iqr":
         q75 = weighted_quantile(r_s, w_bg, 0.75)
         q25 = weighted_quantile(r_s, w_bg, 0.25)
-        denom = q75 - q25 + eps
+        denom = q75 - q25
+    elif scale_mode == "fg_iqr":
+        q75 = weighted_quantile(r_s, w_fg, 0.75)
+        q25 = weighted_quantile(r_s, w_fg, 0.25)
+        denom = q75 - q25
+    elif scale_mode == "pooled_mad":
+        # MAD(concat(R_F, R_B)) -> unweighted MAD of sector points
+        med = np.median(r_s)
+        denom = 1.4826 * np.median(np.abs(r_s - med))
     else:
         raise ValueError(f"Unknown scale_mode: {scale_mode}")
 
-    if denom <= eps:
+    # Degeneracy guard
+    if denom < min_scale:
         status = "degenerate_scale"
+        stat = 0.0  # Set to 0 as per requirement (a)
     else:
         status = "ok"
-
-    stat = s * (w1 / denom)
+        stat = s * (w1 / (denom + eps))
 
     return {
         "stat": stat,
@@ -193,6 +205,10 @@ def compute_rsp_radar(
     and $W_1$ is the Wasserstein-1 distance between foreground and background
     radial distributions in the angular window $[\phi_b - \delta/2, \phi_b + \delta/2]$.
     The scale is either the pooled IQR or background IQR plus a stability floor.
+    We normalize by the pooled robust scale within each sector by default to improve
+    stability under heterogeneous density and to prevent inflation when background
+    dispersion is small. Degenerate sectors (scale < min_scale) are assigned a
+    statistic of 0.0 and may be excluded from the adequacy mask.
 
     Positive $R$ means core/proximal enrichment (foreground radii smaller than background).
     Negative $R$ means rim/distal enrichment (foreground radii larger than background).
@@ -269,6 +285,7 @@ def compute_rsp_radar(
             eps=iqr_floor,
             sign_tol=config.sign_tol,
             scale_mode=config.scale_mode,
+            min_scale=config.min_scale,
         )
 
         counts_fg[b] = res["nF"]
@@ -287,6 +304,9 @@ def compute_rsp_radar(
         rsp_values[b] = res["stat"]
         if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
+            # If degenerate, we set to 0 as per sector_signed_stat
+            # but we might also want to mark it as invalid in some contexts.
+            # For now, we follow the requirement to set stat=0.
 
     from .geometry import angle_grid
 
@@ -314,7 +334,7 @@ def assess_adequacy(
     Parameters
     ----------
     r : np.ndarray
-        (N,) array of normalized radial distances (unused, for API consistency).
+        (N,) array of normalized radial distances.
     theta : np.ndarray
         (N,) array of angles in radians.
     y : np.ndarray
@@ -351,6 +371,7 @@ def assess_adequacy(
 
     counts_fg = np.zeros(B)
     counts_bg = np.zeros(B)
+    scale_mask = np.ones(B, dtype=bool)
 
     for b in range(B):
         idx = sector_indices[b]
@@ -358,9 +379,39 @@ def assess_adequacy(
             counts_fg[b] = np.sum(y[idx])
             counts_bg[b] = np.sum(1.0 - y[idx])
 
+            # Scale guard
+            if config.min_scale > 0:
+                r_s = r[idx]
+                if config.scale_mode == "pooled_iqr":
+                    scale = np.percentile(r_s, 75) - np.percentile(r_s, 25)
+                elif config.scale_mode == "bg_iqr":
+                    w_bg = 1.0 - y[idx]
+                    if np.sum(w_bg) > 0:
+                        scale = weighted_quantile(r_s, w_bg, 0.75) - weighted_quantile(
+                            r_s, w_bg, 0.25
+                        )
+                    else:
+                        scale = 0.0
+                elif config.scale_mode == "fg_iqr":
+                    w_fg = y[idx]
+                    if np.sum(w_fg) > 0:
+                        scale = weighted_quantile(r_s, w_fg, 0.75) - weighted_quantile(
+                            r_s, w_fg, 0.25
+                        )
+                    else:
+                        scale = 0.0
+                elif config.scale_mode == "pooled_mad":
+                    med = np.median(r_s)
+                    scale = 1.4826 * np.median(np.abs(r_s - med))
+                else:
+                    scale = 0.0
+
+                if scale < config.min_scale:
+                    scale_mask[b] = False
+
     fg_mask = counts_fg >= config.min_fg_sector
     bg_mask = counts_bg >= config.min_bg_sector
-    sector_mask = fg_mask & bg_mask
+    sector_mask = fg_mask & bg_mask & scale_mask
 
     n_fg_total = np.sum(y)
     n_bg_total = np.sum(1.0 - y)

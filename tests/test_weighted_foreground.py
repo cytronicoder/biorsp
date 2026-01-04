@@ -90,7 +90,15 @@ def test_adequacy_effective_mass():
 
     # min_fg_total = 0.4 should pass
     report = assess_adequacy(
-        r, theta, y, n_sectors=1, delta_deg=360, min_fg_total=0.4, min_fg_sector=0.4, min_bg_sector=1
+        r,
+        theta,
+        y,
+        n_sectors=1,
+        delta_deg=360,
+        min_fg_total=0.4,
+        min_fg_sector=0.4,
+        min_bg_sector=1,
+        min_scale=0.0,
     )
     assert report.is_adequate
 
