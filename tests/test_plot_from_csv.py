@@ -1,12 +1,22 @@
+import warnings
 from pathlib import Path
 
 import matplotlib
+import pandas as pd
+import pytest
+
+from case_studies.simulations import plot_from_csv
 
 matplotlib.use("Agg")
 
-import pandas as pd
+pytestmark = pytest.mark.filterwarnings("ignore:vert:PendingDeprecationWarning")
 
-from case_studies.simulations import plot_from_csv
+warnings.filterwarnings(
+    "ignore",
+    message="vert: bool will be deprecated",
+    category=PendingDeprecationWarning,
+    module="seaborn.categorical",
+)
 
 
 def _touch_csv(path: Path, df: pd.DataFrame):
