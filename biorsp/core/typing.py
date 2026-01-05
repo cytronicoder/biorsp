@@ -61,6 +61,7 @@ class AdequacyReport:
     n_background: float
     adequacy_fraction: float
     sector_indices: Optional[List[np.ndarray]] = None
+    sector_reasons: Optional[List[str]] = None
 
 
 @dataclass

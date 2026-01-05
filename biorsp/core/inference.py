@@ -73,6 +73,11 @@ def _permutation_worker(
             y_perm[idx] = y_perm[shuffled_idx]
 
     # 2. Compute RSP with frozen mask and reused weights
+    # We use the frozen mask Theta_g computed from the observed data.
+    # If a sector in the frozen mask becomes invalid under permutation
+    # (e.g. zero foreground mass), compute_rsp_radar will set its
+    # contribution to 0.0. This is more defensible than resampling
+    # as it preserves the null distribution's variance properties.
     radar_perm = compute_rsp_radar(
         r,
         theta,

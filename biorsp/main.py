@@ -153,7 +153,7 @@ def run(
     rng = np.random.default_rng(config.seed)
     seeds = rng.integers(0, 2**31 - 1, size=n_features)
 
-    abstention_counts = 0
+    abstention_reasons = {}
 
     if n_workers > 1:
         from concurrent.futures import ProcessPoolExecutor
@@ -181,17 +181,41 @@ def run(
                     if res is not None:
                         feature_results[name] = res
                     else:
-                        abstention_counts += 1
+                        # We don't have the reason here easily without changing _process_feature
+                        # but we can count it.
+                        abstention_reasons["unknown_or_underpowered"] = (
+                            abstention_reasons.get("unknown_or_underpowered", 0) + 1
+                        )
                 except Exception as e:
                     logger.error(f"Error processing feature '{name}': {e}")
-                    abstention_counts += 1
+                    abstention_reasons["error"] = abstention_reasons.get("error", 0) + 1
     else:
         for i, name in enumerate(tqdm(feature_names, desc="BioRSP Features")):
+            # Define foreground to get reason if it fails there
+            y, fg_info = define_foreground(
+                x_mat[:, i],
+                mode=config.foreground_mode,
+                q=config.foreground_quantile,
+                abs_threshold=config.foreground_threshold,
+                min_fg=config.min_fg_total,
+                rng=np.random.default_rng(seeds[i]),
+            )
+            if y is None:
+                reason = fg_info.get("status", "underpowered")
+                abstention_reasons[reason] = abstention_reasons.get(reason, 0) + 1
+                continue
+
+            adequacy = assess_adequacy(r_norm, theta, y, config=config)
+            if not adequacy.is_adequate:
+                reason = adequacy.reason
+                abstention_reasons[reason] = abstention_reasons.get(reason, 0) + 1
+                continue
+
             res = _process_feature(name, x_mat[:, i], r_norm, theta, umi_counts, config, seeds[i])
             if res is not None:
                 feature_results[name] = res
             else:
-                abstention_counts += 1
+                abstention_reasons["unknown"] = abstention_reasons.get("unknown", 0) + 1
 
     # 4. Typing
     logger.info("Assigning feature types")
@@ -200,6 +224,7 @@ def run(
     end_time = time.time()
     duration = end_time - start_time
 
+    total_abstained = sum(abstention_reasons.values())
     summary = RunSummary(
         feature_results=feature_results,
         config=config,
@@ -207,7 +232,8 @@ def run(
             "duration_seconds": duration,
             "n_cells": n_cells,
             "n_features": n_features,
-            "abstention_count": abstention_counts,
+            "abstention_count": total_abstained,
+            "abstention_reasons": abstention_reasons,
         },
         typing_thresholds=typing_thresholds,
     )
@@ -218,18 +244,30 @@ def run(
 
         os.makedirs(outdir, exist_ok=True)
 
+        # Calculate coverage distribution
+        coverages = [res.adequacy.adequacy_fraction for res in feature_results.values()]
+        coverage_dist = {
+            "mean": float(np.mean(coverages)) if coverages else 0.0,
+            "median": float(np.median(coverages)) if coverages else 0.0,
+            "min": float(np.min(coverages)) if coverages else 0.0,
+            "max": float(np.max(coverages)) if coverages else 0.0,
+        }
+
         manifest = create_manifest(
             parameters=config.to_dict(),
             seed=config.seed,
             dataset_summary={
                 "n_cells": n_cells,
                 "n_features": n_features,
-                "n_foreground_avg": np.mean(
-                    [np.sum(feature_results[n].radar.counts_fg) for n in feature_names]
+                "n_adequate": len(feature_results),
+                "abstention_rate": total_abstained / n_features if n_features > 0 else 0.0,
+                "top_abstention_reasons": dict(
+                    sorted(abstention_reasons.items(), key=lambda x: x[1], reverse=True)[:3]
                 ),
+                "coverage_distribution": coverage_dist,
             },
             timings={"total_duration": duration},
-            extra_metadata={"abstention_count": abstention_counts},
+            extra_metadata={"abstention_reasons": abstention_reasons},
         )
         save_manifest(manifest, os.path.join(outdir, "run_metadata.json"))
         logger.info(f"Results and manifest saved to {outdir}")

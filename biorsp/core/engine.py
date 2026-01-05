@@ -9,8 +9,10 @@ from typing import List, Optional
 
 import numpy as np
 
+from biorsp.core.qc import compute_sector_qc
 from biorsp.core.typing import RadarResult
 from biorsp.utils.config import BioRSPConfig
+from biorsp.utils.constants import REASON_OK
 from biorsp.utils.helpers import (
     compute_sector_weight,
     weighted_quantile_sorted,
@@ -29,6 +31,7 @@ def sector_signed_stat(
     min_scale: float = 0.0,
     weight_mode: str = "none",
     weight_k: float = 5.0,
+    config: Optional[BioRSPConfig] = None,
 ) -> dict:
     """
     Compute the signed per-sector radar statistic R_g(theta).
@@ -54,6 +57,8 @@ def sector_signed_stat(
         Weighting mode for support-based downweighting, by default "none".
     weight_k : float, optional
         Tunable parameter for weighting, by default 5.0.
+    config : BioRSPConfig, optional
+        Configuration object for principled QC.
 
     Returns
     -------
@@ -73,6 +78,7 @@ def sector_signed_stat(
             "nF": 0.0,
             "nB": 0.0,
             "status": "empty_sector",
+            "valid": False,
         }
 
     r_s = r[in_sector_idx]
@@ -96,6 +102,7 @@ def sector_signed_stat(
             "nF": nF,
             "nB": nB,
             "status": "empty_fg_or_bg",
+            "valid": False,
         }
 
     # Sort once for all weighted stats in this sector
@@ -120,7 +127,6 @@ def sector_signed_stat(
 
     # Scale
     if scale_mode == "pooled_iqr":
-        # IQR(concat(R_F, R_B)) -> for binary this is just IQR(r_s)
         q75 = np.percentile(r_s, 75)
         q25 = np.percentile(r_s, 25)
         denom = q75 - q25
@@ -138,15 +144,25 @@ def sector_signed_stat(
     else:
         raise ValueError(f"Unknown scale_mode: {scale_mode}")
 
+    # QC Check
+    if config is not None and config.qc_mode == "principled":
+        valid, status, _ = compute_sector_qc(y_s, denom, config)
+    else:
+        # Legacy/Basic check
+        valid = (
+            (nF >= (config.min_fg_sector if config else 0))
+            and (nB >= (config.min_bg_sector if config else 0))
+            and (denom >= min_scale)
+        )
+        status = REASON_OK if valid else "low_support_or_scale"
+
     # Support weight
     support_weight = compute_sector_weight(nF, nB, mode=weight_mode, k=weight_k)
 
-    # Degeneracy guard
-    if denom < min_scale:
-        status = "degenerate_scale"
+    # Final statistic
+    if not valid:
         stat_raw = 0.0
     else:
-        status = "ok"
         stat_raw = s * (w1 / (denom + eps))
 
     stat = support_weight * stat_raw
@@ -163,6 +179,7 @@ def sector_signed_stat(
         "nF": nF,
         "nB": nB,
         "status": status,
+        "valid": valid,
     }
 
 
@@ -302,17 +319,13 @@ def compute_rsp_radar(
             min_scale=config.min_scale,
             weight_mode=config.sector_weight_mode,
             weight_k=config.sector_weight_k,
+            config=config,
         )
 
         counts_fg[b] = res["nF"]
         counts_bg[b] = res["nB"]
 
-        if res["status"] == "empty_fg_or_bg":
-            if frozen_mask is not None:
-                rsp_values[b] = 0.0
-            continue
-
-        if res["nF"] < config.min_fg_sector or res["nB"] < config.min_bg_sector:
+        if not res["valid"]:
             if frozen_mask is not None:
                 rsp_values[b] = 0.0
             continue

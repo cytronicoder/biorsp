@@ -15,7 +15,12 @@ from biorsp.utils.constants import (
     B_DEFAULT,
     DELTA_DEG_DEFAULT,
     K_EXPLORATORY_DEFAULT,
+    MIN_BG_EFF_DEFAULT,
+    MIN_COVERAGE_DEFAULT,
+    MIN_FG_EFF_DEFAULT,
     MIN_STRATUM_SIZE_DEFAULT,
+    MIN_TOTAL_MF_DEFAULT,
+    MIN_VALID_SECTORS_DEFAULT,
     N_BG_MIN_DEFAULT,
     N_FG_MIN_DEFAULT,
     N_FG_TOT_MIN_DEFAULT,
@@ -48,10 +53,18 @@ class BioRSPConfig:
     foreground_threshold: Optional[float] = None
 
     # Adequacy thresholds
+    qc_mode: Literal["legacy", "principled"] = "principled"
     min_fg_sector: float = N_FG_MIN_DEFAULT
     min_bg_sector: float = N_BG_MIN_DEFAULT
     min_fg_total: float = N_FG_TOT_MIN_DEFAULT
     min_adequacy_fraction: float = ADEQUACY_FRACTION_DEFAULT
+
+    # Principled QC thresholds
+    min_fg_eff: float = MIN_FG_EFF_DEFAULT
+    min_bg_eff: float = MIN_BG_EFF_DEFAULT
+    min_total_mF: float = MIN_TOTAL_MF_DEFAULT
+    min_coverage: float = MIN_COVERAGE_DEFAULT
+    min_valid_sectors: int = MIN_VALID_SECTORS_DEFAULT
 
     # Permutation parameters
     perm_mode: Literal["radial", "joint", "rt_umi", "none"] = "radial"

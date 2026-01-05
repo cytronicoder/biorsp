@@ -82,13 +82,36 @@ class RunSummary:
         """Convert feature results to a pandas DataFrame."""
         rows = []
         for name, res in self.feature_results.items():
+            # Count sector failure reasons
+            fail_fg = 0
+            fail_bg = 0
+            fail_scale = 0
+            if res.adequacy.sector_reasons:
+                from biorsp.utils.constants import (
+                    REASON_SECTOR_BG_TOO_SMALL,
+                    REASON_SECTOR_DEGENERATE_SCALE,
+                    REASON_SECTOR_FG_TOO_SMALL,
+                )
+
+                fail_fg = res.adequacy.sector_reasons.count(REASON_SECTOR_FG_TOO_SMALL)
+                fail_bg = res.adequacy.sector_reasons.count(REASON_SECTOR_BG_TOO_SMALL)
+                fail_scale = res.adequacy.sector_reasons.count(REASON_SECTOR_DEGENERATE_SCALE)
+
             row = {
                 "feature": name,
                 "is_adequate": res.adequacy.is_adequate,
                 "abstain_reason": res.adequacy.reason,
+                "coverage": res.adequacy.adequacy_fraction,
+                "M_valid": int(np.sum(res.adequacy.sector_mask)),
+                "total_fg": res.adequacy.n_foreground,
+                "sector_fail_low_fg": fail_fg,
+                "sector_fail_low_bg": fail_bg,
+                "sector_fail_scale": fail_scale,
                 "anisotropy": res.summaries.anisotropy,
                 "p_value": res.p_value,
                 "q_value": res.q_value,
+                "K_eff": res.K_eff,
+                "empty_sector_count": res.empty_sector_count,
                 "feature_type": res.feature_type,
                 "peak_distal": res.summaries.peak_distal,
                 "peak_proximal": res.summaries.peak_proximal,
