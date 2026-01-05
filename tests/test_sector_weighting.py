@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from biorsp.core.engine import compute_rsp_radar, sector_signed_stat
+from biorsp.core.engine import compute_anisotropy, compute_rsp_radar, sector_signed_stat
 from biorsp.utils.config import BioRSPConfig
 from biorsp.utils.helpers import compute_sector_weight
 
@@ -97,22 +97,27 @@ def test_permutation_weight_reuse():
     assert result.observed_stat is not None
 
 
-def test_weighting_reduces_jaggedness():
-    # Create a profile with alternating high and low support but same effect
+def test_weighting_reduces_variance_of_low_support_sectors():
+    """
+    Test that weighting reduces the influence of low-support sectors on summary metrics.
+
+    Property being tested: When we perturb a low-support sector's value, the weighted
+    anisotropy should be more stable than the unweighted anisotropy. This tests that
+    weighting achieves its intended goal of down-weighting noisy low-support sectors.
+
+    This is a deterministic, non-flaky test of a fundamental weighting property.
+    """
     np.random.seed(42)
     B = 20
     centers = np.linspace(0, 2 * np.pi, B, endpoint=False)
 
+    # Create synthetic data with alternating high and low support
     rs = []
     thetas = []
     ys = []
 
     for i, center in enumerate(centers):
-        if i % 2 == 0:
-            n = 100  # High support
-        else:
-            n = 10  # Low support
-
+        n = 100 if i % 2 == 0 else 10  # High vs low support
         ri = np.random.uniform(0, 1, n)
         ti = np.random.normal(center, 0.05, n)
         # Effect: foreground at small radii
@@ -132,21 +137,62 @@ def test_weighting_reduces_jaggedness():
     config_none = BioRSPConfig(B=B, sector_weight_mode="none")
     config_weighted = BioRSPConfig(B=B, sector_weight_mode="effective_min", sector_weight_k=20)
 
+    # Compute baseline radar profiles
     radar_none = compute_rsp_radar(r, theta, y, config=config_none)
     radar_weighted = compute_rsp_radar(r, theta, y, config=config_weighted)
 
-    # Compute "jaggedness" as RMS of differences between adjacent sectors
-    def get_jaggedness(rsp):
-        valid = ~np.isnan(rsp)
-        if np.sum(valid) < 2:
-            return 0
-        # Circular diff
-        v_rsp = rsp[valid]
-        diffs = np.diff(v_rsp, append=v_rsp[0])
-        return np.sqrt(np.mean(diffs**2))
+    # Compute baseline anisotropies
+    valid_mask = ~np.isnan(radar_none.rsp)
+    A_none_baseline = compute_anisotropy(radar_none.rsp, valid_mask)
+    A_weighted_baseline = compute_anisotropy(radar_weighted.rsp, valid_mask)
 
-    j_none = get_jaggedness(radar_none.rsp)
-    j_weighted = get_jaggedness(radar_weighted.rsp)
+    # Now perturb a LOW-SUPPORT sector (odd indices have n=10)
+    # Find a low-support sector that is valid in both
+    low_support_idx = None
+    for i in range(1, B, 2):  # odd sectors have low support
+        if valid_mask[i]:
+            low_support_idx = i
+            break
 
-    # Weighted should be less jagged because low-support sectors (which are noisy) are shrunk towards 0
-    assert j_weighted < j_none
+    assert low_support_idx is not None, "Need at least one valid low-support sector"
+
+    # Add a small number of cells to this specific sector with extreme radii
+    # This simulates noise that should be down-weighted
+    perturbation_cells = 5
+    perturb_theta = centers[low_support_idx]
+    perturb_r = np.random.uniform(0.05, 0.15, perturbation_cells)  # Very small radii
+    perturb_y = np.ones(perturbation_cells)  # Foreground
+
+    r_perturbed = np.concatenate([r, perturb_r])
+    theta_perturbed = np.concatenate([theta, np.full(perturbation_cells, perturb_theta)])
+    y_perturbed = np.concatenate([y, perturb_y])
+
+    # Recompute with perturbation
+    radar_none_pert = compute_rsp_radar(
+        r_perturbed, theta_perturbed, y_perturbed, config=config_none
+    )
+    radar_weighted_pert = compute_rsp_radar(
+        r_perturbed, theta_perturbed, y_perturbed, config=config_weighted
+    )
+
+    valid_mask_pert = ~np.isnan(radar_none_pert.rsp)
+    A_none_pert = compute_anisotropy(radar_none_pert.rsp, valid_mask_pert)
+    A_weighted_pert = compute_anisotropy(radar_weighted_pert.rsp, valid_mask_pert)
+
+    # Compute absolute changes
+    delta_none = abs(A_none_pert - A_none_baseline)
+    delta_weighted = abs(A_weighted_pert - A_weighted_baseline)
+
+    # Key assertion: Weighting should make the anisotropy more robust to
+    # perturbations in low-support sectors
+    # The weighted change should be smaller than the unweighted change
+    assert delta_weighted < delta_none * 0.8, (
+        f"Weighting failed to reduce sensitivity: "
+        f"unweighted Δ={delta_none:.4f}, weighted Δ={delta_weighted:.4f}"
+    )
+
+    # Also verify both produce finite, non-negative anisotropies
+    assert np.isfinite(A_none_baseline) and A_none_baseline >= 0
+    assert np.isfinite(A_weighted_baseline) and A_weighted_baseline >= 0
+    assert np.isfinite(A_none_pert) and A_none_pert >= 0
+    assert np.isfinite(A_weighted_pert) and A_weighted_pert >= 0

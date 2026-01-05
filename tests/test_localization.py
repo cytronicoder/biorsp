@@ -10,7 +10,7 @@ def test_localization_uniform():
     R = np.ones(M)
     L, info = compute_localization(R)
     assert info["status"] == "ok"
-    assert L == pytest.approx(0.0, abs=1e-7)
+    assert pytest.approx(0.0, abs=1e-7) == L
     assert info["M"] == M
     assert info["sum_abs"] == M
 
@@ -22,7 +22,7 @@ def test_localization_single_peak():
     R[0] = 1.0
     L, info = compute_localization(R)
     assert info["status"] == "ok"
-    assert L == pytest.approx(1.0, abs=1e-7)
+    assert pytest.approx(1.0, abs=1e-7) == L
     assert info["M"] == M
     assert info["sum_abs"] == 1.0
 
@@ -38,7 +38,7 @@ def test_localization_two_peaks():
     # H = - (0.5 * log(0.5) + 0.5 * log(0.5)) = log(2)
     # L = 1 - log(2) / log(10)
     expected_L = 1.0 - np.log(2) / np.log(10)
-    assert L == pytest.approx(expected_L, abs=1e-7)
+    assert pytest.approx(expected_L, abs=1e-7) == L
 
 
 def test_localization_zero_profile():
@@ -61,7 +61,7 @@ def test_localization_missing_sectors():
     L, info = compute_localization(R, valid_mask=valid_mask)
     assert info["status"] == "ok"
     assert info["M"] == M_valid
-    assert L == pytest.approx(0.0, abs=1e-7)
+    assert pytest.approx(0.0, abs=1e-7) == L
 
 
 def test_localization_insufficient_sectors():
@@ -80,7 +80,7 @@ def test_localization_gini():
     L, info = compute_localization(R, method="gini")
     # For single peak: G = (M-1)/M
     expected_G = (M - 1) / M
-    assert L == pytest.approx(expected_G, abs=1e-7)
+    assert pytest.approx(expected_G, abs=1e-7) == L
     assert info["gini"] == pytest.approx(expected_G, abs=1e-7)
 
 
