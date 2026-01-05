@@ -4,9 +4,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from biorsp.geometry import angle_grid
-from biorsp.plotting import plot_radar, plot_radar_absolute
-from biorsp.typing import RadarResult
+from biorsp.core.typing import RadarResult
+from biorsp.plotting.radar import plot_radar, plot_radar_absolute
+from biorsp.preprocess.geometry import angle_grid
 
 
 def test_plot_radar_all_nan():

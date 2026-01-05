@@ -1,8 +1,8 @@
 import numpy as np
 
-from biorsp.adequacy import assess_adequacy
-from biorsp.constants import EPS
-from biorsp.core import compute_rsp_radar
+from biorsp.core.adequacy import assess_adequacy
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.utils.constants import EPS
 
 
 def naive_sector_counts(theta, y, n_sectors, delta_deg):

@@ -1,6 +1,6 @@
 import numpy as np
 
-from biorsp.geometry import geometric_median, wrapped_circular_distance
+from biorsp.preprocess.geometry import geometric_median, wrapped_circular_distance
 
 
 def test_geometric_median_simple():

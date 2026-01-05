@@ -1,10 +1,10 @@
 import numpy as np
 
-from biorsp.adequacy import assess_adequacy
-from biorsp.config import BioRSPConfig
-from biorsp.core import compute_rsp_radar
-from biorsp.inference import compute_p_value
-from biorsp.stratification import get_strata_indices
+from biorsp.core.adequacy import assess_adequacy
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.inference import compute_p_value
+from biorsp.preprocess.stratification import get_strata_indices
+from biorsp.utils.config import BioRSPConfig
 
 
 def test_strata_merging():

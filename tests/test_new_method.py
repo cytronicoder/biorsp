@@ -1,12 +1,12 @@
 import numpy as np
 
-from biorsp.adequacy import assess_adequacy
-from biorsp.constants import EPS
-from biorsp.core import compute_rsp_radar
-from biorsp.pairwise import compute_pairwise_relationships
-from biorsp.results import FeatureResult, assign_feature_types
-from biorsp.summaries import ScalarSummaries, compute_scalar_summaries
-from biorsp.typing import AdequacyReport, RadarResult
+from biorsp.core.adequacy import assess_adequacy
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.pairwise import compute_pairwise_relationships
+from biorsp.core.results import FeatureResult, assign_feature_types
+from biorsp.core.summaries import ScalarSummaries, compute_scalar_summaries
+from biorsp.core.typing import AdequacyReport, RadarResult
+from biorsp.utils.constants import EPS
 
 
 def test_adequacy_fraction_matches_manual():
@@ -103,6 +103,18 @@ def _make_feature(feature, coverage, anisotropy) -> FeatureResult:
         max_rsp=1.0,
         min_rsp=-1.0,
         integrated_rsp=0.0,
+        localization_entropy=0.0,
+        localization_gini=0.0,
+        m_valid_sectors=1,
+        sum_abs_rsp=1.0,
+        localization_status="ok",
+        r_mean=0.0,
+        r_median=0.0,
+        polarity=1.0,
+        a_signed=anisotropy,
+        frac_pos=0.5,
+        frac_neg=0.5,
+        signed_status="ok",
     )
     return FeatureResult(
         feature=feature,

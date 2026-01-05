@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from biorsp.plotting import plot_radar
-from biorsp.typing import RadarResult
+from biorsp.core.typing import RadarResult
+from biorsp.plotting.radar import plot_radar
 
 
 def test_nan_gaps_segments():

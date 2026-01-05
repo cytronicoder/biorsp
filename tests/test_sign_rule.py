@@ -1,6 +1,6 @@
 import numpy as np
 
-from biorsp.core import sector_signed_stat
+from biorsp.core.engine import sector_signed_stat
 
 
 def test_sign_rule_proximal():

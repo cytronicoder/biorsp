@@ -1,7 +1,7 @@
 import numpy as np
 
-from biorsp.adequacy import assess_adequacy
-from biorsp.core import compute_rsp_radar
+from biorsp.core.adequacy import assess_adequacy
+from biorsp.core.engine import compute_rsp_radar
 
 
 def test_compute_rsp_with_precomputed_indices_matches():

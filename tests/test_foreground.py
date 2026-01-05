@@ -1,6 +1,6 @@
 import numpy as np
 
-from biorsp.foreground import define_foreground
+from biorsp.preprocess.foreground import define_foreground
 
 
 def test_define_foreground_dense_quantile():

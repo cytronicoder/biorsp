@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
-from biorsp.config import BioRSPConfig
-from biorsp.core import compute_rsp_radar, sector_signed_stat
+from biorsp.core.engine import compute_rsp_radar, sector_signed_stat
+from biorsp.utils.config import BioRSPConfig
 
 
 def test_pooled_vs_bg_scale_stability():
@@ -73,7 +73,7 @@ def test_adequacy_scale_guard():
     theta = np.zeros(4)
     y = np.array([0, 0, 1, 1])
 
-    from biorsp.adequacy import assess_adequacy
+    from biorsp.core.adequacy import assess_adequacy
 
     # min_scale = 0.1 should make the sector inadequate
     report = assess_adequacy(

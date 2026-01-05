@@ -1,8 +1,8 @@
 import numpy as np
 
-from biorsp.core import compute_rsp_radar
-from biorsp.inference import compute_p_value
-from biorsp.typing import BioRSPConfig
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.inference import compute_p_value
+from biorsp.core.typing import BioRSPConfig
 
 
 def test_inference_result_contains_seeds():
@@ -63,7 +63,7 @@ def test_finite_permutation_correction():
 
 def test_weighted_quantile_binary_match():
     """Verify that weighted_quantile matches np.quantile for binary weights."""
-    from biorsp.utils import weighted_quantile
+    from biorsp.utils.helpers import weighted_quantile
 
     values = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     weights = np.array([1, 0, 1, 0, 1])  # Use 1, 3, 5

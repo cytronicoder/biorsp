@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
-from biorsp.adequacy import assess_adequacy
-from biorsp.core import compute_rsp_radar
-from biorsp.foreground import define_foreground_weights
-from biorsp.utils import weighted_wasserstein_1d
+from biorsp.core.adequacy import assess_adequacy
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.preprocess.foreground import define_foreground_weights
+from biorsp.utils.helpers import weighted_wasserstein_1d
 
 
 def test_weighted_wasserstein_1d_correctness():

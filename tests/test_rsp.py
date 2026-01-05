@@ -1,7 +1,7 @@
 import numpy as np
 
-from biorsp.core import compute_rsp_radar
-from biorsp.typing import BioRSPConfig
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.typing import BioRSPConfig
 
 
 def test_radar_simple():

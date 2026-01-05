@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from biorsp.preprocessing import normalize_radii
+from biorsp.preprocess import normalize_radii
 
 
 def test_normalize_radii_typical():
