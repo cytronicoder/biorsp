@@ -14,6 +14,7 @@ Generates publication-style figures:
 """
 
 import argparse
+import contextlib
 import importlib.util
 import os
 from typing import Optional, Tuple
@@ -474,10 +475,8 @@ def plot_embedding_with_rsp(indir: str, outdir: str, top_frac: float = 0.1):
         # keep radial tick labels simple, ensure no underscores
         ax2.set_rlabel_position(135)
         # enforce square aspect by setting box aspect where supported
-        try:
+        with contextlib.suppress(Exception):
             ax2.set_box_aspect(1)
-        except Exception:
-            pass
 
         plt.tight_layout()
         outpath = os.path.join(outdir, f"embed_rsp_{geom}.png")
@@ -633,7 +632,7 @@ def split_half_reproducibility(
 
         # now do splits
         As = []
-        for s in range(n_splits):
+        for _s in range(n_splits):
             idx = np.random.choice(len(z), size=len(z) // 2, replace=False)
             r = np.linalg.norm(z, axis=1)
             theta = np.arctan2(z[:, 1], z[:, 0])
@@ -737,10 +736,8 @@ def representative_rsp_curves(df: pd.DataFrame, indir: str, outpath: str, n_exam
             f"{prettify_name(row.get('geometry'))} — $A_g$={row.get('A_g'):.3f}", va="bottom"
         )
         ax.set_ylim(-1.0, 1.0)
-        try:
+        with contextlib.suppress(Exception):
             ax.set_box_aspect(1)
-        except Exception:
-            pass
     plt.tight_layout()
     plt.savefig(outpath)
     plt.close()

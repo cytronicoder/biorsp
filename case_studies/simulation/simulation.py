@@ -1,6 +1,7 @@
 import argparse
 import concurrent.futures
 import os
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -439,10 +440,7 @@ def analyze_gene(
     # 2. Define Foreground
     # Using quantile
     threshold = np.quantile(x, config.foreground_quantile)
-    if threshold == 0:
-        y = x > 0
-    else:
-        y = x >= threshold
+    y = x > 0 if threshold == 0 else x >= threshold
 
     n_fg = np.sum(y)
 
@@ -557,7 +555,7 @@ def worker_analyze_null(args: Dict) -> Dict:
         umis = args["umis"]
 
     # Attach donors if present
-    donors = args.get("donors", None)
+    donors = args.get("donors")
 
     config = args["config"]
     gene_id = args["gene_id"]
@@ -626,7 +624,7 @@ def worker_analyze_planted(args: Dict) -> Dict:
     variant = args.get("variant", "wedge")
     sigma_theta = args.get("sigma_theta", np.deg2rad(20))
     seed = args["seed"]
-    center = args.get("center", None)
+    center = args.get("center")
 
     # Generate expression
     x = generate_expression_alt(
@@ -655,7 +653,7 @@ def worker_analyze_planted(args: Dict) -> Dict:
 
         d = asdict(res)
         # Propagate meta inputs so plotting can group by them
-        d["sigma_deg"] = args.get("sigma_deg", None)
+        d["sigma_deg"] = args.get("sigma_deg")
         # Unique job key for checkpointing
         d["job_key"] = args.get(
             "job_key", f"{variant}_b{beta}_s{args.get('sigma_deg', '')}_g{gene_id}"
@@ -700,11 +698,9 @@ def _create_shared_arrays(z: np.ndarray, umis: np.ndarray) -> Dict:
 
 def _cleanup_shared(shm_objs: List):
     for s in shm_objs:
-        try:
+        with suppress(Exception):
             s.close()
             s.unlink()
-        except Exception:
-            pass
 
 
 # --- Checkpointing & robustness helpers ---
@@ -1098,21 +1094,64 @@ def run_family_2_planted_signal(
 
     df = pd.read_csv(outpath) if os.path.exists(outpath) else pd.DataFrame([])
 
-    # Plotting: Power vs Beta for each variant
-    if "variant" in df.columns:
+    # Plotting: Power vs Beta for each variant, with curves for each sigma
+    if "variant" in df.columns and "sigma_deg" in df.columns and not df.empty:
+        import matplotlib.pyplot as plt
+
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
         for i, variant in enumerate(variants):
+            ax = axes[i]
             sub = df[df["variant"] == variant]
             if sub.empty:
                 continue
 
-            # Group by beta and sigma
-            # We want curves for each sigma
-            # TODO: ensure 'sigma' is present in result CSV for per-sigma plotting
-            pass
+            # Group by sigma and compute mean/sem for each beta
+            unique_sigmas = sorted(sub["sigma_deg"].dropna().unique())
+            colors = plt.cm.viridis(np.linspace(0, 1, len(unique_sigmas)))
+
+            for sigma_val, color in zip(unique_sigmas, colors):
+                sigma_sub = sub[sub["sigma_deg"] == sigma_val]
+                if sigma_sub.empty:
+                    continue
+
+                # Group by beta and compute statistics
+                grouped = sigma_sub.groupby("beta")["A_bg"].agg(["mean", "sem", "count"])
+                betas_sorted = sorted(grouped.index)
+
+                means = [
+                    grouped.loc[b, "mean"] if b in grouped.index else np.nan for b in betas_sorted
+                ]
+                sems = [grouped.loc[b, "sem"] if b in grouped.index else 0 for b in betas_sorted]
+
+                # Plot mean with error bands
+                ax.plot(betas_sorted, means, marker="o", label=f"σ={sigma_val}°", color=color)
+                ax.fill_between(
+                    betas_sorted,
+                    np.array(means) - np.array(sems),
+                    np.array(means) + np.array(sems),
+                    alpha=0.2,
+                    color=color,
+                )
+
+            ax.set_xlabel("Effect Size (β)")
+            ax.set_ylabel("Anisotropy (A_bg)")
+            ax.set_title(f"Variant: {variant}")
+            ax.legend(title="Sector Width", fontsize=8)
+            ax.grid(alpha=0.3)
+
+        plt.tight_layout()
+        plot_path = os.path.join(outdir, "family_2_power_vs_beta.png")
+        plt.savefig(plot_path, dpi=150)
+        plt.close()
+        print(f"Saved power plot to {plot_path}")
     else:
-        print("Warning: 'variant' column not found in CSV, skipping plotting.")
+        if "variant" not in df.columns:
+            print("Warning: 'variant' column not found in CSV, skipping plotting.")
+        elif "sigma_deg" not in df.columns:
+            print("Warning: 'sigma_deg' column not found in CSV, skipping plotting.")
+        else:
+            print("Warning: Empty dataframe, skipping plotting.")
 
     print(f"Family 2 complete. Saved CSV to {outdir}")
     return df

@@ -24,10 +24,7 @@ if not data_mtx.exists():
 
 mat = scipy.io.mmread(str(data_mtx))
 # mat is genes x cells (from Seurat), convert to cells x genes
-if sp.issparse(mat):
-    X = mat.T.tocsr()
-else:
-    X = mat.T
+X = mat.T.tocsr() if sp.issparse(mat) else mat.T
 
 obs = pd.read_csv(obs_csv, index_col=0)
 var = pd.read_csv(var_csv, index_col=0)
@@ -44,10 +41,7 @@ adata = ad.AnnData(X=X, obs=obs, var=pd.DataFrame(index=var.index))
 
 if counts_mtx.exists():
     counts = scipy.io.mmread(str(counts_mtx))
-    if sp.issparse(counts):
-        layers_counts = counts.T.tocsr()
-    else:
-        layers_counts = counts.T
+    layers_counts = counts.T.tocsr() if sp.issparse(counts) else counts.T
     adata.layers["counts"] = layers_counts
 
 # Load embeddings

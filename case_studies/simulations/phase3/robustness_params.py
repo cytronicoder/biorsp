@@ -120,12 +120,13 @@ def run(outdir: Path, config: dict) -> dict:
 
     print("Running parameter sensitivity sweep...")
 
-    tasks = []
-    for shape in shapes:
-        for etype in types:
-            for n in n_regimes:
-                for i in range(n_reps):
-                    tasks.append((i, shape, etype, n))
+    tasks = [
+        (i, shape, etype, n)
+        for shape in shapes
+        for etype in types
+        for n in n_regimes
+        for i in range(n_reps)
+    ]
 
     results_nested = Parallel(n_jobs=n_workers)(
         delayed(simulate_robustness_rep)(

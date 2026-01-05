@@ -333,10 +333,7 @@ def plot_results(
     # Prepare data
     embedding = get_embedding(adata_tal)
     x = adata_tal[:, gene_name].X
-    if scipy.sparse.issparse(x):
-        x = x.toarray().flatten()
-    else:
-        x = x.flatten()
+    x = x.toarray().flatten() if scipy.sparse.issparse(x) else x.flatten()
 
     threshold = np.quantile(x, 0.90)
     fg_mask = x >= threshold if threshold > 0 else x > 0

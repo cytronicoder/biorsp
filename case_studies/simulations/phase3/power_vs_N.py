@@ -85,11 +85,7 @@ def run(outdir, config):
 
     print("Running Power vs N/q sweep...")
 
-    tasks = []
-    for N in N_grid:
-        for q in q_grid:
-            for rep in range(n_reps):
-                tasks.append((rep, N, q))
+    tasks = [(rep, N, q) for N in N_grid for q in q_grid for rep in range(n_reps)]
 
     results = Parallel(n_jobs=n_workers)(
         delayed(simulate_power_rep)(rep, N, q, seed, n_perm, alpha)

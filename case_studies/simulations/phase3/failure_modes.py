@@ -99,10 +99,7 @@ def run(outdir: Path, config: dict) -> dict:
 
     print("Running failure mode stress tests...")
 
-    tasks = []
-    for case in stress_cases:
-        for i in range(n_reps):
-            tasks.append((i, case))
+    tasks = [(i, case) for case in stress_cases for i in range(n_reps)]
 
     results = Parallel(n_jobs=n_workers)(
         delayed(simulate_failure_rep)(i, case, base_seed, outdir)

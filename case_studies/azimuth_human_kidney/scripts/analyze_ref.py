@@ -67,11 +67,10 @@ def is_tal_label(s: str) -> bool:
         return True
     import re
 
-    if re.search(r"\bcortical .*thick.*ascending\b", s) or re.search(
-        r"\bmedullary .*thick.*ascending\b", s
-    ):
-        return True
-    return False
+    return bool(
+        re.search(r"\bcortical .*thick.*ascending\b", s)
+        or re.search(r"\bmedullary .*thick.*ascending\b", s)
+    )
 
 
 candidate_keys = [
@@ -121,20 +120,14 @@ if mask is None or mask.sum() == 0:
         expr = {}
         for g in found:
             x = adata[:, g].X
-            if sp.issparse(x):
-                x = np.asarray(x.todense()).reshape(-1)
-            else:
-                x = np.asarray(x).reshape(-1)
+            x = np.asarray(x.todense()).reshape(-1) if sp.issparse(x) else np.asarray(x).reshape(-1)
             expr[g] = x
         # require at least one marker positive
         m_any = np.zeros(adata.n_obs, dtype=bool)
-        for g, x in expr.items():
+        for x in expr.values():
             m_any = m_any | (x > 0)
         # if too many cells match, use top percentile
-        if m_any.sum() == 0:
-            mask = np.zeros(adata.n_obs, dtype=bool)
-        else:
-            mask = m_any
+        mask = np.zeros(adata.n_obs, dtype=bool) if m_any.sum() == 0 else m_any
         print("Found TAL count by marker heuristic:", int(mask.sum()))
 
 if mask.sum() == 0:
@@ -162,7 +155,7 @@ else:
     try:
         # find embedding
         emb = None
-        for k in adata.obsm.keys():
+        for k in adata.obsm:
             if "umap" in k.lower():
                 emb = adata.obsm[k][:, :2]
                 break

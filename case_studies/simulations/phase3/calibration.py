@@ -81,12 +81,13 @@ def run(outdir: Path, config: dict) -> dict:
 
     print(f"Running calibration with {n_reps} replicates per condition...")
 
-    tasks = []
-    for shape in shapes:
-        for density in density_models:
-            for distortion in distortions:
-                for i in range(n_reps):
-                    tasks.append((i, shape, density, distortion))
+    tasks = [
+        (i, shape, density, distortion)
+        for shape in shapes
+        for density in density_models
+        for distortion in distortions
+        for i in range(n_reps)
+    ]
 
     results = Parallel(n_jobs=n_workers)(
         delayed(simulate_calibration_rep)(

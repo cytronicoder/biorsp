@@ -54,10 +54,7 @@ def run_null_calibration(
             # Save per-run raw RSP as CSV
             # Use radar centers from radar_res if available
             radar = rsp_res.get("radar_res", None)
-            if radar is not None:
-                centers_use = radar.centers
-            else:
-                centers_use = np.arange(len(rsp_res["raw_rsp"]))
+            centers_use = radar.centers if radar is not None else np.arange(len(rsp_res["raw_rsp"]))
             df_r = pd.DataFrame(
                 {
                     "center_rad": centers_use,
@@ -112,10 +109,7 @@ def run_power_analysis(n_sims=50, n_points=1000, output_dir="results/simulations
                 rsp_res = compute_rsp(data["coords"], data["labels"])
                 # Save raw radar
                 radar = rsp_res.get("radar_res", None)
-                if radar is not None:
-                    centers = radar.centers
-                else:
-                    centers = np.arange(len(rsp_res["raw_rsp"]))
+                centers = radar.centers if radar is not None else np.arange(len(rsp_res["raw_rsp"]))
                 df_r = pd.DataFrame(
                     {
                         "center_rad": centers,
@@ -190,10 +184,7 @@ def run_robustness_test(
                 rsp_res = compute_rsp(data["coords"], data["labels"])
                 # Save raw radar
                 radar = rsp_res.get("radar_res", None)
-                if radar is not None:
-                    centers = radar.centers
-                else:
-                    centers = np.arange(len(rsp_res["raw_rsp"]))
+                centers = radar.centers if radar is not None else np.arange(len(rsp_res["raw_rsp"]))
                 df_r = pd.DataFrame(
                     {
                         "center_rad": centers,

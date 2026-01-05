@@ -80,11 +80,12 @@ def run(outdir: Path, config: dict) -> dict:
 
     print("Running baseline comparisons...")
 
-    tasks = []
-    for shape in shapes:
-        for etype in types:
-            for i in range(n_reps):
-                tasks.append((i, shape, etype))
+    tasks = [
+        (i, shape, etype)
+        for shape in shapes
+        for etype in types
+        for i in range(n_reps)
+    ]
 
     results = Parallel(n_jobs=n_workers)(
         delayed(simulate_baseline_rep)(i, shape, etype, n_points, config)

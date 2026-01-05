@@ -73,10 +73,11 @@ def run(outdir, config):
 
     print("Running Separability Simulations...")
 
-    tasks = []
-    for case in cases:
-        for rep in range(n_reps):
-            tasks.append((rep, case))
+    tasks = [
+        (rep, case)
+        for case in cases
+        for rep in range(n_reps)
+    ]
 
     data = Parallel(n_jobs=n_workers)(
         delayed(simulate_separability_rep)(rep, case, seed)

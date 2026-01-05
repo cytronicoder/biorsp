@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Optional
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -26,7 +25,7 @@ def _save_fig(fig: plt.Figure, outpath: Path, dpi: int = 200):
     plt.close(fig)
 
 
-def _set_common_axes(ax: plt.Axes, xlabel: Optional[str] = None, ylabel: Optional[str] = None):
+def _set_common_axes(ax: plt.Axes, xlabel: str | None = None, ylabel: str | None = None):
     if xlabel:
         ax.set_xlabel(xlabel, fontsize=10)
     if ylabel:

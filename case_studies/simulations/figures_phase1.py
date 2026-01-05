@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import subprocess
@@ -33,7 +34,7 @@ def run_biorsp_on_sim(
     q is the fraction of points to label as foreground (e.g., 0.1 for top decile).
     """
     if biorsp_params is None:
-        biorsp_params = {"B": 120, "delta_deg": 40.0}
+        biorsp_params = {"B": 120, "delta_deg": 180.0}
 
     # Vantage point
     v = compute_vantage(coords)
@@ -292,16 +293,14 @@ N=2000 points, q=0.1 foreground threshold, noise_sigma=0.3.
 
     # 5. Write Metadata
     git_hash = "unknown"
-    try:
+    with contextlib.suppress(Exception):
         git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
-    except Exception:
-        pass
 
     metadata = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "git_commit": git_hash,
         "generator_params": {"n_points": 2000, "noise_sigma": 0.3, "quantile": 0.1},
-        "biorsp_params": {"B": 120, "delta_deg": 40.0, "vantage": "geometric_median"},
+        "biorsp_params": {"B": 120, "delta_deg": 180.0, "vantage": "geometric_median"},
         "seeds": {"examples": [c["seed"] for c in example_configs], "replicates": list(range(30))},
     }
     with open(os.path.join(RESULTS_DIR, "run_metadata.json"), "w") as f:

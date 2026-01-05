@@ -8,6 +8,15 @@ from typing import Any, Dict
 import pandas as pd
 
 
+def get_dep_version(dep: str) -> str:
+    """Get the version of a dependency or 'not installed'."""
+    try:
+        mod = __import__(dep)
+        return getattr(mod, "__version__", "unknown")
+    except ImportError:
+        return "not installed"
+
+
 def capture_environment() -> Dict[str, Any]:
     """Capture environment details for reproducibility."""
     env = {
@@ -20,12 +29,7 @@ def capture_environment() -> Dict[str, Any]:
 
     # Try to get versions of key dependencies
     deps = ["numpy", "scipy", "matplotlib", "pandas", "sklearn"]
-    for dep in deps:
-        try:
-            mod = __import__(dep)
-            env["dependencies"][dep] = getattr(mod, "__version__", "unknown")
-        except ImportError:
-            env["dependencies"][dep] = "not installed"
+    env["dependencies"] = {dep: get_dep_version(dep) for dep in deps}
 
     return env
 
