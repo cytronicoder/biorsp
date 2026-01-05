@@ -16,7 +16,7 @@ import numpy as np
 def geometric_median(
     points: np.ndarray, tol: float = 1e-5, max_iter: int = 100
 ) -> Tuple[np.ndarray, int, bool]:
-    """
+    r"""
     Compute the geometric median of a set of 2D points using Weiszfeld's algorithm.
 
     The geometric median v minimizes the sum of Euclidean distances to the points z_i:

@@ -2,7 +2,7 @@
 BioRSP Simulation Module.
 """
 
-from .generator import (
+from biorsp.simulations.generator import (
     generate_grid,
     ground_truth_summary,
     save_dataset,

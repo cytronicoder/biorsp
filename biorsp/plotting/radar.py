@@ -14,12 +14,9 @@ from typing import Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .summaries import ScalarSummaries
-from .typing import RadarResult
-
-
-def _as_1d(a) -> np.ndarray:
-    return np.asarray(a).reshape(-1)
+from biorsp.core.summaries import ScalarSummaries
+from biorsp.core.typing import RadarResult
+from biorsp.utils.helpers import _as_1d
 
 
 def _maybe_degrees_to_radians(theta: np.ndarray) -> np.ndarray:
@@ -706,143 +703,6 @@ def plot_radar_split(*args, **kwargs):
     return plot_radar_absolute(*args, **kwargs)
 
 
-def plot_embedding(
-    Z: np.ndarray,
-    c: Optional[np.ndarray] = None,
-    ax: Optional[plt.Axes] = None,
-    title: Optional[str] = None,
-    cmap: str = "viridis",
-    s: int = 4,
-    fg_color: str = "red",
-    bg_color: str = "grey",
-    show_vantage: bool = False,
-    vantage: Optional[np.ndarray] = None,
-    show_legend: bool = True,
-    legend_loc: str = "best",
-    **kwargs,
-) -> plt.Axes:
-    """
-    Scatter plot of embedding.
-
-    Special behavior:
-      - If `c` is a binary array (0/1 or booleans), the function will plot background
-        points in `bg_color` and foreground points in `fg_color` to enforce a consistent
-        visual convention across the codebase.
-      - If `show_vantage` is True, a large, prominent "X" marker is plotted at the
-        vantage point (geometric median by default) with a small "v" label.
-
-    Args:
-        Z: (N, 2) embedding coordinates.
-        c: (N,) color values (e.g. expression) or binary foreground mask.
-        ax: Matplotlib axes. If None, created.
-        title: Plot title.
-        cmap: Colormap (used when not plotting binary mask).
-        s: Base marker size for points (default 1 per request).
-        fg_color: Color string for foreground points (default: 'red').
-        bg_color: Color string for background points (default: 'grey').
-        show_vantage: Whether to mark the vantage point on the plot.
-        vantage: Optional (2,) vantage coordinates; if None and show_vantage True, computed.
-        **kwargs: Additional kwargs forwarded to `scatter`.
-
-    Returns:
-        ax: The axes object.
-    """
-    Z = np.asarray(Z)
-    if Z.ndim != 2 or Z.shape[1] != 2:
-        raise ValueError(f"Z must have shape (N, 2); got {Z.shape}")
-
-    if c is not None:
-        c = _as_1d(c)
-        if c.size != Z.shape[0]:
-            raise ValueError(f"c must have length N={Z.shape[0]}; got {c.size}")
-
-    if ax is None:
-        _, ax = plt.subplots()
-
-    # Special-case binary mask coloring for consistent fg/bg colors
-    plotted_sc = None
-    if c is not None:
-        uniq = np.unique(c)
-        try:
-            uniq_set = set(uniq.tolist())
-        except Exception:
-            uniq_set = set(uniq)
-        if uniq_set <= {0, 1}:
-            mask_fg = c.astype(bool)
-            mask_bg = ~mask_fg
-            if np.any(mask_bg):
-                ax.scatter(
-                    Z[mask_bg, 0],
-                    Z[mask_bg, 1],
-                    c=bg_color,
-                    s=s,
-                    alpha=0.8,
-                    edgecolors="none",
-                    label="Background",
-                    **kwargs,
-                )
-            if np.any(mask_fg):
-                ax.scatter(
-                    Z[mask_fg, 0],
-                    Z[mask_fg, 1],
-                    c=fg_color,
-                    s=s,
-                    alpha=0.95,
-                    edgecolors="none",
-                    label="Foreground",
-                    **kwargs,
-                )
-        else:
-            plotted_sc = ax.scatter(
-                Z[:, 0], Z[:, 1], c=c, s=s, cmap=cmap, edgecolors="none", **kwargs
-            )
-    else:
-        plotted_sc = ax.scatter(Z[:, 0], Z[:, 1], c=None, s=s, edgecolors="none", **kwargs)
-
-    # Colorbar only when a continuous color was used
-    if plotted_sc is not None and c is not None and not (set(np.unique(c).tolist()) <= {0, 1}):
-        plt.colorbar(plotted_sc, ax=ax)
-
-    if title:
-        ax.set_title(title)
-
-    # Vantage marker (prominent)
-    vp_h = None
-    if show_vantage:
-        if vantage is None:
-            try:
-                from .geometry import compute_vantage
-            except Exception:
-                from .geometry import compute_vantage
-            v = compute_vantage(Z)
-        else:
-            v = vantage
-        vp_h = ax.scatter(
-            v[0], v[1], marker="X", s=300, color="black", zorder=20, linewidths=1.5, label="Vantage"
-        )
-        ax.text(v[0], v[1], "v", fontsize=10, fontweight="bold", va="bottom", ha="left", zorder=21)
-
-    # Legend
-    if show_legend:
-        # If binary mask was plotted, legend entries were attached to those scatters via labels.
-        # For continuous color, only show vantage if present.
-        handles, labels = ax.get_legend_handles_labels()
-        if not handles:
-            if vp_h is not None:
-                ax.legend(handles=[vp_h], labels=["Vantage"], loc=legend_loc, frameon=False)
-        else:
-            # Ensure vantage appears in legend if present
-            if vp_h is not None and "Vantage" not in labels:
-                handles.append(vp_h)
-                labels.append("Vantage")
-            ax.legend(handles=handles, labels=labels, loc=legend_loc, frameon=False)
-
-    ax.set_xlabel("Dim 1")
-    ax.set_ylabel("Dim 2")
-
-    return ax
-
-
 def plot_summary(summary: ScalarSummaries, ax: Optional[plt.Axes] = None) -> plt.Axes:
     """
     Display scalar summaries as text.
@@ -873,4 +733,4 @@ def plot_summary(summary: ScalarSummaries, ax: Optional[plt.Axes] = None) -> plt
     return ax
 
 
-__all__ = ["plot_radar", "plot_radar_absolute", "plot_embedding", "plot_summary"]
+__all__ = ["plot_radar", "plot_radar_absolute", "plot_summary"]

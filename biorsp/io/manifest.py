@@ -10,6 +10,7 @@ Implements run manifest generation and validation:
 
 import json
 import platform
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from typing import Any, Dict, Optional
@@ -17,7 +18,15 @@ from typing import Any, Dict, Optional
 import numpy as np
 import scipy
 
-from ._version import __version__
+from biorsp._version import __version__
+
+
+def get_git_hash() -> str:
+    """Get the current git commit hash if available."""
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii").strip()
+    except Exception:
+        return "unknown"
 
 
 @dataclass
@@ -29,12 +38,16 @@ class BioRSPManifest:
     software_versions: Dict[str, str]
     parameters: Dict[str, Any]
     random_seed: int
+    dataset_summary: Dict[str, Any]
+    timings: Dict[str, float]
     metadata: Dict[str, Any]
 
 
 def create_manifest(
     parameters: Dict[str, Any],
     seed: int,
+    dataset_summary: Optional[Dict[str, Any]] = None,
+    timings: Optional[Dict[str, float]] = None,
     extra_metadata: Optional[Dict[str, Any]] = None,
 ) -> BioRSPManifest:
     """
@@ -43,6 +56,8 @@ def create_manifest(
     Args:
         parameters: Dictionary of run parameters (B, delta, thresholds, etc.).
         seed: Random seed used.
+        dataset_summary: Summary of the dataset (#cells, #genes, etc.).
+        timings: Execution timings.
         extra_metadata: Additional metadata (dataset ID, checksums).
 
     Returns:
@@ -54,12 +69,15 @@ def create_manifest(
         "numpy": np.__version__,
         "scipy": scipy.__version__,
         "platform": platform.platform(),
+        "git_hash": get_git_hash(),
     }
 
     return BioRSPManifest(
         software_versions=software,
         parameters=parameters,
         random_seed=seed,
+        dataset_summary=dataset_summary or {},
+        timings=timings or {},
         metadata=extra_metadata or {},
     )
 

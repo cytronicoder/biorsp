@@ -6,18 +6,19 @@ observed anisotropy, using geometry-aware stratification and finite-permutation
 corrected p-values.
 """
 
-import multiprocessing as mp
 import logging
+import multiprocessing as mp
 from functools import partial
 from typing import List, Optional, Tuple
 
 import numpy as np
 from tqdm import tqdm
 
-from .adequacy import assess_adequacy
-from .core import compute_anisotropy, compute_rsp_radar
-from .stratification import get_strata_indices
-from .typing import AdequacyReport, BioRSPConfig, InferenceResult
+from biorsp.core.adequacy import assess_adequacy
+from biorsp.core.engine import compute_anisotropy, compute_rsp_radar
+from biorsp.core.typing import AdequacyReport, InferenceResult
+from biorsp.preprocess.stratification import get_strata_indices
+from biorsp.utils.config import BioRSPConfig
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def compute_p_value(
     show_progress: bool = True,
     adequacy: Optional[AdequacyReport] = None,
 ) -> InferenceResult:
-    """
+    r"""
     Compute p-value for the observed anisotropy using a permutation test.
 
     The p-value is computed using the finite-permutation correction:

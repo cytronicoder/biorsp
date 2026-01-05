@@ -5,13 +5,18 @@ Utility functions for BioRSP.
 import numpy as np
 
 
+def _as_1d(a) -> np.ndarray:
+    """Ensure input is a 1D numpy array."""
+    return np.asarray(a).reshape(-1)
+
+
 def weighted_wasserstein_1d(
     values_a: np.ndarray,
     weights_a: np.ndarray,
     values_b: np.ndarray,
     weights_b: np.ndarray,
 ) -> float:
-    """
+    r"""
     Compute 1D Wasserstein-1 distance between two weighted samples.
 
     The 1D Wasserstein-1 distance (Earth Mover's Distance) is defined as:
@@ -100,7 +105,7 @@ def weighted_quantile(
 def weighted_quantile_sorted(
     values_sorted: np.ndarray, weights_sorted: np.ndarray, q: float
 ) -> float:
-    """
+    r"""
     Compute weighted quantile from pre-sorted values.
 
     Uses the definition:

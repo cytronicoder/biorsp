@@ -14,10 +14,10 @@ from typing import Optional
 import numpy as np
 from scipy.stats import pearsonr
 
-from .config import BioRSPConfig
-from .core import compute_rsp_radar
-from .foreground import define_foreground
-from .summaries import compute_scalar_summaries
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.summaries import compute_scalar_summaries
+from biorsp.preprocess.foreground import define_foreground
+from biorsp.utils.config import BioRSPConfig
 
 
 @dataclass

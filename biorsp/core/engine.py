@@ -9,8 +9,9 @@ from typing import List, Optional
 
 import numpy as np
 
-from .typing import BioRSPConfig, RadarResult
-from .utils import (
+from biorsp.core.typing import RadarResult
+from biorsp.utils.config import BioRSPConfig
+from biorsp.utils.helpers import (
     compute_sector_weight,
     weighted_quantile_sorted,
     weighted_wasserstein_1d,
@@ -256,7 +257,7 @@ def compute_rsp_radar(
 
     B = config.B
     if sector_indices is None:
-        from .geometry import get_sector_indices
+        from biorsp.preprocess.geometry import get_sector_indices
 
         sector_indices = get_sector_indices(theta, B, config.delta_deg)
 
@@ -327,7 +328,7 @@ def compute_rsp_radar(
         if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
 
-    from .geometry import angle_grid
+    from biorsp.preprocess.geometry import angle_grid
 
     return RadarResult(
         rsp=rsp_values,

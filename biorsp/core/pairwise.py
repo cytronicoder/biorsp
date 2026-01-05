@@ -8,10 +8,10 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from .geometry import wrapped_circular_distance
-from .results import PairwiseResult
-from .summaries import compute_scalar_summaries
-from .typing import RadarResult
+from biorsp.core.results import PairwiseResult
+from biorsp.core.summaries import compute_scalar_summaries
+from biorsp.core.typing import RadarResult
+from biorsp.preprocess.geometry import wrapped_circular_distance
 
 
 def _pearson_corr(a: np.ndarray, b: np.ndarray) -> float:

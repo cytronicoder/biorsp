@@ -5,13 +5,15 @@ Results data models for BioRSP.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
+import pandas as pd
 
-from .robustness import RobustnessResult
-from .summaries import ScalarSummaries
-from .typing import AdequacyReport, RadarResult
+from biorsp.core.robustness import RobustnessResult
+from biorsp.core.summaries import ScalarSummaries
+from biorsp.core.typing import AdequacyReport, RadarResult
+from biorsp.utils.config import BioRSPConfig
 
 
 @dataclass
@@ -70,8 +72,32 @@ class RunSummary:
     Global summary metadata for a BioRSP run.
     """
 
-    typing_thresholds: Optional[TypingThresholds]
+    feature_results: Dict[str, FeatureResult]
+    config: BioRSPConfig
+    metadata: Dict[str, Any]
+    typing_thresholds: Optional[TypingThresholds] = None
     pairwise: Optional[Dict[str, list]] = None
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert feature results to a pandas DataFrame."""
+        rows = []
+        for name, res in self.feature_results.items():
+            row = {
+                "feature": name,
+                "is_adequate": res.adequacy.is_adequate,
+                "abstain_reason": res.adequacy.reason,
+                "anisotropy": res.summaries.anisotropy,
+                "p_value": res.p_value,
+                "q_value": res.q_value,
+                "feature_type": res.feature_type,
+                "peak_distal": res.summaries.peak_distal,
+                "peak_proximal": res.summaries.peak_proximal,
+                "localization": res.summaries.localization_entropy,
+                "r_mean": res.summaries.r_mean,
+                "polarity": res.summaries.polarity,
+            }
+            rows.append(row)
+        return pd.DataFrame(rows)
 
 
 def assign_feature_types(

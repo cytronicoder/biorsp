@@ -17,8 +17,8 @@ from typing import Optional
 
 import numpy as np
 
-from .stats import compute_localization, compute_signed_summaries
-from .typing import RadarResult
+from biorsp.core.typing import RadarResult
+from biorsp.utils.stats import compute_localization, compute_signed_summaries
 
 
 @dataclass
@@ -78,7 +78,7 @@ class ScalarSummaries:
     def rms_anisotropy(self) -> float:
         """
         Backward compatible alias for anisotropy.
-        
+
         Note: Anisotropy (A_g) measures the magnitude of spatial patterning but
         can conflate global shifts (e.g., rim/core) with localized patterns (e.g., wedges).
         Use localization_entropy (L_g) to distinguish these phenotypes, and

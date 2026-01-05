@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from .config import BioRSPConfig
+from biorsp.utils.config import BioRSPConfig
 
 
 @dataclass

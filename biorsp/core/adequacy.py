@@ -9,16 +9,17 @@ from typing import Optional
 
 import numpy as np
 
-from .constants import (
+from biorsp.core.typing import AdequacyReport
+from biorsp.preprocess.geometry import get_sector_indices
+from biorsp.utils.config import BioRSPConfig
+from biorsp.utils.constants import (
     REASON_GENE_UNDERPOWERED,
     REASON_OK,
     REASON_SECTOR_BG_TOO_SMALL,
     REASON_SECTOR_FG_TOO_SMALL,
     REASON_SECTOR_MIXED_TOO_SMALL,
 )
-from .geometry import get_sector_indices
-from .typing import AdequacyReport, BioRSPConfig
-from .utils import weighted_quantile
+from biorsp.utils.helpers import weighted_quantile
 
 
 def assess_adequacy(

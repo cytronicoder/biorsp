@@ -6,11 +6,11 @@ Immutable configuration object that maps 1:1 to Methods parameters.
 """
 
 from dataclasses import asdict, dataclass
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 
-from .constants import (
+from biorsp.utils.constants import (
     ADEQUACY_FRACTION_DEFAULT,
     B_DEFAULT,
     DELTA_DEG_DEFAULT,
@@ -31,34 +31,52 @@ class BioRSPConfig:
     """
     Configuration for BioRSP analysis.
 
-    Maps directly to Methods parameters.
+    Centralizes all parameters for geometry, foreground definition,
+    adequacy thresholds, permutation tests, and normalization.
     """
 
+    # Geometry
     B: int = B_DEFAULT
     delta_deg: float = DELTA_DEG_DEFAULT
+    vantage: Literal["geometric_median", "mean", "user"] = "geometric_median"
+    geom_median_tol: float = 1e-5
+    geom_median_max_iter: int = 100
+
+    # Foreground definition
+    foreground_mode: Literal["quantile", "absolute", "auto", "weights"] = "quantile"
+    foreground_quantile: float = 0.90
+    foreground_threshold: Optional[float] = None
+
+    # Adequacy thresholds
     min_fg_sector: float = N_FG_MIN_DEFAULT
     min_bg_sector: float = N_BG_MIN_DEFAULT
     min_fg_total: float = N_FG_TOT_MIN_DEFAULT
     min_adequacy_fraction: float = ADEQUACY_FRACTION_DEFAULT
+
+    # Permutation parameters
+    perm_mode: Literal["radial", "joint", "rt_umi", "none"] = "radial"
+    n_permutations: int = K_EXPLORATORY_DEFAULT
     umi_bins: int = UMI_BINS_DEFAULT
     n_r_bins: int = N_R_BINS_DEFAULT
     n_theta_bins: int = N_THETA_BINS_DEFAULT
-    perm_mode: Literal["radial", "joint", "rt_umi", "none"] = "radial"
-    n_permutations: int = K_EXPLORATORY_DEFAULT
-    smoothing_deg: float = SMOOTH_DEG_DEFAULT
-    vantage: Literal["geometric_median", "mean", "user"] = "geometric_median"
-    geom_median_tol: float = 1e-5
-    geom_median_max_iter: int = 100
     seed: int = 0
     donor_stratify: bool = False
     min_stratum_size: int = MIN_STRATUM_SIZE_DEFAULT
-    foreground_quantile: float = 0.90
-    iqr_floor_pct: float = 0.1
-    sign_tol: float = 0.0
+
+    # Normalization and Scaling
     scale_mode: Literal["pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad"] = "pooled_iqr"
     min_scale: float = 1e-3
+    iqr_floor_pct: float = 0.1
+    smoothing_deg: float = SMOOTH_DEG_DEFAULT
+    sign_tol: float = 0.0
+
+    # Sector weighting
     sector_weight_mode: Literal["none", "sqrt_frac", "effective_min", "logistic_support"] = "none"
     sector_weight_k: float = 5.0
+
+    # Output options
+    save_profiles: bool = True
+    save_plots: bool = True
 
     @property
     def n_angles(self) -> int:
