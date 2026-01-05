@@ -128,7 +128,7 @@ def simulate_points(
     """
     Generate 2D point coordinates for a given footprint shape and density model.
     """
-    # 1. Sample base shape
+    # Sample base shape
     s = shape.lower()
     if s == "disk":
         coords = _sample_disk(n_points)
@@ -146,10 +146,10 @@ def simulate_points(
     else:
         raise ValueError(f"Unknown shape: {shape}")
 
-    # 2. Apply density model
+    # Apply density model
     coords = _apply_density(coords, model=density_model, strength=density_strength)
 
-    # 3. Apply rotation
+    # Apply rotation
     rot = kwargs.get("rotation_deg", 0.0)
     if rot != 0:
         rad = np.radians(rot)
@@ -157,10 +157,10 @@ def simulate_points(
         R = np.array(((c, -s), (s, c)))
         coords = coords @ R.T
 
-    # 4. Apply distortion
+    # Apply distortion
     coords = _apply_distortion(coords, dist_type=distortion, **kwargs)
 
-    # 5. Add jitter
+    # Add jitter
     jitter = kwargs.get("noise_sigma", kwargs.get("jitter", 0.02))
     if jitter > 0:
         coords += np.random.normal(0, jitter, coords.shape)

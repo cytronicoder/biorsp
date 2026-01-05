@@ -197,20 +197,20 @@ def get_sector_indices(
     delta_rad = np.deg2rad(delta_deg)
     half_width = delta_rad / 2.0
 
-    # 1. Normalize angles to [0, 2pi)
+    # Normalize angles to [0, 2pi)
     theta_mod = theta % two_pi
     order = np.argsort(theta_mod)
     theta_sorted = theta_mod[order]
 
-    # 2. Duplicate for wrap-around handling
+    # Duplicate for wrap-around handling
     theta2 = np.concatenate([theta_sorted, theta_sorted + two_pi])
     idx2 = np.concatenate([order, order])
 
-    # 3. Define grid centers in [0, 2pi)
+    # Define grid centers in [0, 2pi)
     centers = angle_grid(B)
     centers_mod = (centers + two_pi) % two_pi
 
-    # 4. Map centers to monotonic space for two-pointer
+    # Map centers to monotonic space for two-pointer
     # If (phi - half_width) < 0, we shift it to (2pi, 3pi)
     centers_use = np.where((centers_mod - half_width) < 0, centers_mod + two_pi, centers_mod)
     centers_order = np.argsort(centers_use)

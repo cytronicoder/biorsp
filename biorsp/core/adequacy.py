@@ -56,7 +56,6 @@ def assess_adequacy(
         Report on gene adequacy.
     """
     if config is None:
-        # Handle n_sectors alias for B
         if "n_sectors" in kwargs:
             kwargs["B"] = kwargs.pop("n_sectors")
         config = BioRSPConfig(**kwargs)
@@ -86,7 +85,6 @@ def assess_adequacy(
         counts_fg[b] = np.sum(y_s)
         counts_bg[b] = np.sum(1.0 - y_s)
 
-        # Compute scale for QC
         if config.scale_mode == "pooled_iqr":
             denom = np.percentile(r_s, 75) - np.percentile(r_s, 25)
         elif config.scale_mode == "bg_iqr":

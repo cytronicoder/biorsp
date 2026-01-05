@@ -5,8 +5,8 @@ Implements scalar statistics derived from the radar function:
 - Peak distal (rim) and peak proximal directions.
 - RMS anisotropy.
 - Extremal peak based on absolute magnitude.
-- Localization index (Fix 5.1).
-- Signed summaries (Fix 5.2):
+- Localization index.
+- Signed summaries:
     - R_mean indicates net radial bias (core vs rim).
     - Polarity indicates whether the pattern is globally one-signed or mixed.
     - These resolve ambiguity in A_g where rim and core patterns can have similar magnitude.
@@ -162,15 +162,11 @@ def compute_scalar_summaries(
     # Integrated (Sum)
     integrated_rsp = np.sum(valid_rsp)
 
-    # Localization
-    # Note: This is computed on the same profile version used for anisotropy (A_g).
-    # If support-weighting is enabled in the config, it is applied to the profile
-    # before this function is called, so localization reflects the final reported profile.
+    # Localization (computed on the final, possibly weighted profile)
     l_entropy, info = compute_localization(rsp, valid_mask=valid_mask, method="entropy")
     l_gini = info["gini"]
 
-    # Signed summaries
-    # Also computed on the final reported profile.
+    # Signed summaries (mean, median, polarity, anisotropy magnitude) on final profile
     signed = compute_signed_summaries(rsp, valid_mask=valid_mask)
 
     return ScalarSummaries(

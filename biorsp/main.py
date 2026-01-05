@@ -128,7 +128,7 @@ def run(
     start_time = time.time()
     config = config or BioRSPConfig()
 
-    # 1. Validation
+    # Validation
     validate_inputs(coords, expression, umi_counts)
 
     if isinstance(expression, pd.DataFrame):
@@ -142,13 +142,13 @@ def run(
     n_cells, n_features = x_mat.shape
     logger.info(f"Starting BioRSP run on {n_cells} cells and {n_features} features")
 
-    # 2. Geometry
+    # Geometry
     logger.info("Computing vantage point and polar coordinates")
     vantage = compute_vantage(coords, method=config.vantage)
     r, theta = polar_coordinates(coords, vantage)
     r_norm, norm_stats = normalize_radii(r)
 
-    # 3. Process features
+    # Process features
     feature_results = {}
     rng = np.random.default_rng(config.seed)
     seeds = rng.integers(0, 2**31 - 1, size=n_features)
@@ -217,7 +217,7 @@ def run(
             else:
                 abstention_reasons["unknown"] = abstention_reasons.get("unknown", 0) + 1
 
-    # 4. Typing
+    # Typing
     logger.info("Assigning feature types")
     feature_results, typing_thresholds = assign_feature_types(feature_results)
 
@@ -238,7 +238,7 @@ def run(
         typing_thresholds=typing_thresholds,
     )
 
-    # 5. Manifest and Output
+    # Manifest and Output
     if outdir:
         import os
 

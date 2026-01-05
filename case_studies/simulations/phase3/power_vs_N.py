@@ -99,8 +99,7 @@ def run(outdir, config):
     df = pd.DataFrame(results)
     df.to_csv(tables_dir / "power_vs_N.csv", index=False)
 
-    # Plotting
-    # 1. Power Curve (Detection Rate)
+    # Power Curve (Detection Rate)
     plt.figure(figsize=(10, 6))
     power_df = df.groupby(["N", "q"])["detected"].mean().reset_index()
     sns.lineplot(data=power_df, x="N", y="detected", hue="q", marker="o")
@@ -114,7 +113,7 @@ def run(outdir, config):
     plt.savefig(figs_dir / "figP1_power_curves.png")
     plt.close()
 
-    # 2. Abstention Rate Overlay
+    # Abstention Rate Overlay
     plt.figure(figsize=(10, 6))
     abstain_df = df.groupby(["N", "q"])["abstain"].mean().reset_index()
     sns.lineplot(data=abstain_df, x="N", y="abstain", hue="q", marker="s", ls="--")

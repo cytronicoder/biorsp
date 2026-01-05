@@ -105,27 +105,22 @@ def sector_signed_stat(
             "valid": False,
         }
 
-    # Sort once for all weighted stats in this sector
     sort_idx = np.argsort(r_s)
     r_sorted = r_s[sort_idx]
     w_fg_sorted = w_fg[sort_idx]
     w_bg_sorted = w_bg[sort_idx]
 
-    # Medians
     medF = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.5)
     medB = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.5)
 
-    # Sign: positive if foreground is proximal (smaller radii)
     diff = medB - medF
     if np.abs(diff) <= sign_tol:
         s = 0
     else:
         s = 1 if diff > 0 else -1
 
-    # Wasserstein-1 (unsigned)
     w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
 
-    # Scale
     if scale_mode == "pooled_iqr":
         q75 = np.percentile(r_s, 75)
         q25 = np.percentile(r_s, 25)
@@ -144,11 +139,9 @@ def sector_signed_stat(
     else:
         raise ValueError(f"Unknown scale_mode: {scale_mode}")
 
-    # QC Check
     if config is not None and config.qc_mode == "principled":
         valid, status, _ = compute_sector_qc(y_s, denom, config)
     else:
-        # Legacy/Basic check
         valid = (
             (nF >= (config.min_fg_sector if config else 0))
             and (nB >= (config.min_bg_sector if config else 0))
@@ -156,10 +149,8 @@ def sector_signed_stat(
         )
         status = REASON_OK if valid else "low_support_or_scale"
 
-    # Support weight
     support_weight = compute_sector_weight(nF, nB, mode=weight_mode, k=weight_k)
 
-    # Final statistic
     if not valid:
         stat_raw = 0.0
     else:
@@ -284,7 +275,6 @@ def compute_rsp_radar(
     iqr_floor_hits = np.zeros(B, dtype=bool)
     computed_weights = np.ones(B)
 
-    # 1. Global background IQR for stability floor
     y_bg_global = 1.0 - y
     global_sort_idx = np.argsort(r)
     r_global_sorted = r[global_sort_idx]
@@ -298,7 +288,6 @@ def compute_rsp_radar(
 
     iqr_floor = max(config.iqr_floor_pct * global_iqr, 1e-8)
 
-    # 2. Per-sector computation
     for b in range(B):
         if frozen_mask is not None and not frozen_mask[b]:
             continue
@@ -330,7 +319,6 @@ def compute_rsp_radar(
                 rsp_values[b] = 0.0
             continue
 
-        # If sector_weights provided, override the computed weight
         if sector_weights is not None:
             rsp_values[b] = sector_weights[b] * res["stat_raw"]
             computed_weights[b] = sector_weights[b]

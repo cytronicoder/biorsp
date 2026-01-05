@@ -60,10 +60,10 @@ def main():
     args = parser.parse_args()
     outdir = Path(args.outdir)
 
-    # 1. Setup
+    # Setup
     repro_harness.setup_phase3_outdir(outdir)
 
-    # 2. Run Modules
+    # Run Modules
     module_results = {}
     common_config = {"seed": args.seed, "n_workers": args.n_workers}
 
@@ -102,7 +102,7 @@ def main():
         outdir, {**common_config, "n_reps": args.n_reps_sep}
     )
 
-    # 3. Finalize
+    # Finalize
     print("\n--- Finalizing Phase 3 ---")
     repro_harness.save_master_manifest(outdir, module_results)
     generate_manuscript_snippets(outdir)

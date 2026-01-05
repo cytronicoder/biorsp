@@ -217,7 +217,7 @@ def main():
     os.makedirs(FIG_DIR, exist_ok=True)
     os.makedirs(TABLE_DIR, exist_ok=True)
 
-    # 1. Define examples for S1/S2
+    # Define examples for S1/S2
     # Row 1: Disk (Null, Rim, Wedge)
     # Row 2: Ellipse (Core, Rim+Wedge, Null)
     example_configs = [
@@ -263,13 +263,13 @@ def main():
         os.path.join(TABLE_DIR, "phase1_examples_table.csv"), index=False
     )
 
-    # 2. Generate FIG S1 and S2
+    # Generate FIG S1 and S2
     generate_fig_s1_s2(examples)
 
-    # 3. Generate FIG S3
+    # Generate FIG S3
     generate_fig_s3()
 
-    # 4. Write Captions
+    # Write Captions
     captions = """FIG S1: Simulation cartoons showing footprint shapes and foreground enrichment patterns.
 Top row shows disk footprints with Null, Rim, and Wedge enrichments.
 Bottom row shows ellipse footprints with Core, Rim+Wedge, and Null enrichments.

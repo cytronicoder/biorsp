@@ -34,7 +34,9 @@ def _maybe_degrees_to_radians(theta: np.ndarray) -> np.ndarray:
 def _prepare_polar(theta: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     Normalize angles to [0, 2pi), sort, and compute sector widths (one per theta).
-    Handles singleton theta and degenerate/duplicate angles robustly.
+
+    Handles edge cases: singleton arrays, degenerate/duplicate angles via fallback
+    to uniform widths when midpoint method produces non-positive or non-finite values.
     """
     theta = _maybe_degrees_to_radians(theta.astype(float, copy=False))
     theta = np.mod(theta, 2 * np.pi)
@@ -48,13 +50,11 @@ def _prepare_polar(theta: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     order = np.argsort(theta)
     theta = theta[order]
 
-    # Compute widths via midpoint method; fallback to uniform widths if degenerate
     theta_ext = np.concatenate([theta, [theta[0] + 2 * np.pi]])
     mid_right = 0.5 * (theta_ext[:-1] + theta_ext[1:])
     left_edges = np.concatenate([[mid_right[-1] - 2 * np.pi], mid_right[:-1]])
     widths = mid_right - left_edges
 
-    # Guard against duplicates / numerical pathologies
     if not np.all(np.isfinite(widths)) or np.any(widths <= 0):
         widths = np.full(theta.size, 2 * np.pi / theta.size, dtype=float)
 
@@ -72,10 +72,9 @@ def _ensure_polar_ax(ax: Optional[plt.Axes]) -> plt.Axes:
 
 
 def _set_default_polar_style(ax: plt.Axes) -> None:
-    # Reasonable defaults; do not enforce colors/styles beyond readability.
-    # Align visual orientation with internal math: 0° at +x (East) and angles increase CCW.
-    ax.set_theta_direction(1)  # counter-clockwise (mathematical convention)
-    ax.set_theta_zero_location("E")  # 0° at right (+x axis)
+    # Set mathematical convention: 0° at East, increasing counter-clockwise.
+    ax.set_theta_direction(1)
+    ax.set_theta_zero_location("E")
 
 
 def _draw_segmented_rsp(
@@ -90,6 +89,9 @@ def _draw_segmented_rsp(
 ) -> None:
     """
     Draw RSP outline and fill, handling NaN gaps and wrap-around.
+
+    Splits continuous segments at NaN boundaries. Merges segments across
+    the 0/2pi boundary if both ends are finite (polar wrap-around).
     """
     if th.size == 0:
         return
@@ -98,50 +100,40 @@ def _draw_segmented_rsp(
     if not np.any(mask):
         return
 
-    # Find contiguous segments of True in mask
     idx = np.where(mask)[0]
     if len(idx) == 0:
         return
 
-    # Split where indices are not consecutive
     splits = np.where(np.diff(idx) > 1)[0] + 1
     seg_indices = np.split(idx, splits)
     segments = [s.tolist() for s in seg_indices]
 
-    # Handle wrap-around: if first and last points are finite, they are contiguous
-    # across the 0/2pi boundary.
     if len(segments) > 1 and mask[0] and mask[-1]:
         last_seg = segments.pop(-1)
         first_seg = segments.pop(0)
-        # Merge them: last segment followed by first segment
         merged_seg = last_seg + first_seg
         segments.append(merged_seg)
     elif len(segments) == 1 and mask.all():
-        # All finite: close the loop by adding the first point to the end
         segments[0].append(segments[0][0])
 
     for seg in segments:
         th_seg = th[seg].astype(float, copy=True)
         v_seg = vals[seg].astype(float, copy=True)
 
-        # Ensure monotonicity for plotting across the 0/2pi boundary
         for i in range(1, len(th_seg)):
             if th_seg[i] < th_seg[i - 1]:
                 th_seg[i:] += 2 * np.pi
 
-        # Plot outline
         l_color = line_color if line_color is not None else color
         line_kw = kwargs.copy()
-        line_kw.pop("hatch", None)  # Line2D does not support hatching
+        line_kw.pop("hatch", None)
         ax.plot(th_seg, v_seg, color=l_color, **line_kw)
 
-        # Fill to center
         if fill:
             fill_kw = {"color": color, "alpha": alpha}
             if "hatch" in kwargs:
                 fill_kw["hatch"] = kwargs["hatch"]
 
-            # To fill to center, we add (th_seg[0], 0) and (th_seg[-1], 0)
             th_fill = np.concatenate([[th_seg[0]], th_seg, [th_seg[-1]]])
             v_fill = np.concatenate([[0], v_seg, [0]])
             ax.fill(th_fill, v_fill, edgecolor="none", **fill_kw)
@@ -206,12 +198,9 @@ def plot_localization_scatter(
     ax.set_title("Spatial Phenotype Landscape")
 
     if show_archetypes:
-        # Heuristic regions for archetypes
-        # These are illustrative and depend on the data scale
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
 
-        # Null: Low A
         ax.text(
             xlim[0] + 0.05 * (xlim[1] - xlim[0]),
             ylim[0] + 0.05 * (ylim[1] - ylim[0]),
@@ -220,7 +209,6 @@ def plot_localization_scatter(
             alpha=0.5,
         )
 
-        # Rim/Core: High A, Low L
         ax.text(
             xlim[1] - 0.2 * (xlim[1] - xlim[0]),
             ylim[0] + 0.05 * (ylim[1] - ylim[0]),
@@ -230,7 +218,6 @@ def plot_localization_scatter(
             alpha=0.5,
         )
 
-        # Wedge: High A, High L
         ax.text(
             xlim[1] - 0.2 * (xlim[1] - xlim[0]),
             ylim[1] - 0.15 * (ylim[1] - ylim[0]),
@@ -305,7 +292,6 @@ def plot_phenotype_map(
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
 
-        # Core: High A, Positive Y
         ax.text(
             xlim[1] - 0.05 * (xlim[1] - xlim[0]),
             ylim[1] - 0.1 * (ylim[1] - ylim[0]),
@@ -316,7 +302,6 @@ def plot_phenotype_map(
             color="firebrick",
         )
 
-        # Rim: High A, Negative Y
         ax.text(
             xlim[1] - 0.05 * (xlim[1] - xlim[0]),
             ylim[0] + 0.1 * (ylim[1] - ylim[0]),
@@ -327,7 +312,6 @@ def plot_phenotype_map(
             color="royalblue",
         )
 
-        # Mixed/Wedge: High A, Y near 0
         ax.text(
             xlim[1] - 0.05 * (xlim[1] - xlim[0]),
             0,
@@ -393,7 +377,6 @@ def plot_radar(
             f"radar.centers (n={theta_raw.size}) and radar.rsp (n={r_raw.size}) must have the same length."
         )
 
-    # Compute y-limit using finite values only
     finite_r = np.isfinite(r_raw)
     if not np.any(finite_r):
         msg = "No valid sectors (insufficient foreground/background counts)"
@@ -402,16 +385,14 @@ def plot_radar(
         return ax
 
     max_mag = float(np.nanmax(np.abs(r_raw[finite_r])))
-    # radial_max override: if provided, use directly (caller ensures sensible scaling)
     if radial_max is not None:
         y_top = float(radial_max)
     else:
         y_top = max(1e-6, max_mag * 1.05)
-    # Ensure positive ymax
+
     if y_top <= 0:
         y_top = 1e-6
 
-    # Normalize/sort theta and carry r accordingly
     theta_norm = _maybe_degrees_to_radians(theta_raw.astype(float, copy=False))
     theta_norm = np.mod(theta_norm, 2 * np.pi)
 
@@ -423,16 +404,9 @@ def plot_radar(
     theta = theta_norm[order]
     r = r_raw[order]
 
-    # Compute widths on the sorted theta
     theta_sorted, widths = _prepare_polar(theta)
-    # _prepare_polar returns theta already sorted; keep alignment
-    theta = theta_sorted  # clarity
+    theta = theta_sorted
 
-    # If _prepare_polar had to fall back or adjust sorting, keep r aligned with theta.
-    # (It only sorts theta; we already sorted theta and r together.)
-    # widths corresponds to current theta ordering.
-
-    # Mask invalid values consistently
     valid = np.isfinite(r)
     theta_v = theta[valid]
 
@@ -444,7 +418,7 @@ def plot_radar(
 
     lw = float(kwargs.pop("linewidth", 1.25))
 
-    # Render faint ticks for underpowered / missing sectors so users can see where data is absent
+    # Mark underpowered sectors with faint ticks.
     invalid_theta = theta[~valid]
     if invalid_theta.size:
         for t in invalid_theta:
@@ -453,14 +427,12 @@ def plot_radar(
     def _maybe_add_anchors(ax_obj: plt.Axes, summaries_obj: Optional[ScalarSummaries]):
         if not summaries_obj or not show_anchors:
             return
-        # Peak angles (radians) and visual markers
         p_prox = getattr(summaries_obj, "peak_proximal_angle", None)
         p_dist = getattr(summaries_obj, "peak_distal_angle", None)
         if p_prox is not None:
             ax_obj.plot(p_prox, y_top * 0.9, marker="^", color=color, markersize=8)
         if p_dist is not None:
             ax_obj.plot(p_dist, y_top * 0.9, marker="v", color="r", markersize=8)
-        # Annotation box with succinct stats
         lines = []
         anis = getattr(summaries_obj, "anisotropy", None)
         integ = getattr(summaries_obj, "integrated_rsp", None)
@@ -479,7 +451,6 @@ def plot_radar(
                 bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
             )
 
-    # Normalize mode aliases to semantic names
     mode = mode.lower().strip()
     mode_map = {
         "enrichment": "proximal",
@@ -492,7 +463,6 @@ def plot_radar(
         raise ValueError(f"Unknown mode: {mode}")
 
     if mode == "signed":
-        # proximal: solid fill; distal: hatched fill with red edge
         r_pos = np.where(r >= 0, np.abs(r), np.nan)
         r_neg = np.where(r < 0, np.abs(r), np.nan)
 
@@ -525,7 +495,6 @@ def plot_radar(
         if title:
             ax.set_title(title + " RSP (signed)" if "RSP" not in title else title, fontsize=20)
 
-        # Legend only if any sign exists
         try:
             import matplotlib.patches as mpatches
 
@@ -534,7 +503,6 @@ def plot_radar(
                 handles.append(mpatches.Patch(color=color, alpha=alpha))
                 labels.append("Proximal bias (R > 0)")
             if np.any(np.isfinite(r_neg)):
-                # hatched patch for distal
                 p = mpatches.Patch(facecolor="r", hatch="//", edgecolor="r", alpha=alpha)
                 handles.append(p)
                 labels.append("Distal bias (R < 0)")
@@ -597,9 +565,8 @@ def plot_radar(
 
         ax.set_ylim(0, y_top)
         if title:
-            ax.set_title(title + " RSP" if "RSP" not in title else title, fontsize=20)
+            ax.set_title(title + " RSP (combined)", fontsize=20)
 
-        # Legend if any plotted
         try:
             import matplotlib.patches as mpatches
 
@@ -651,7 +618,6 @@ def plot_radar_absolute(
     if fig is None:
         fig = plt.figure(figsize=(10, 5))
 
-    # Compute a shared radial max if not provided
     finite = np.isfinite(radar.rsp)
     if radial_max is None:
         if np.any(finite):
@@ -692,7 +658,6 @@ def plot_radar_absolute(
     if title:
         fig.suptitle(title + " RSP" if "RSP" not in title else title, fontsize=20)
 
-    # Tight layout without crushing suptitle
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     return fig
 

@@ -48,10 +48,7 @@ def weighted_wasserstein_1d(
     if sum_a <= 0 or sum_b <= 0:
         return np.nan
 
-    # Combine and sort all values
     all_values = np.concatenate([values_a, values_b])
-    # We can avoid creating large zero arrays by using searchsorted or just being careful
-    # but for now, let's keep it simple and correct.
     u = weights_a / sum_a
     v = weights_b / sum_b
 
@@ -63,11 +60,9 @@ def weighted_wasserstein_1d(
     all_weights_u = all_weights_u[sort_idx]
     all_weights_v = all_weights_v[sort_idx]
 
-    # Compute CDFs
     cdf_u = np.cumsum(all_weights_u)
     cdf_v = np.cumsum(all_weights_v)
 
-    # Compute integral |CDF_u - CDF_v| dt
     diff_values = np.diff(all_values)
     w1 = np.sum(np.abs(cdf_u[:-1] - cdf_v[:-1]) * diff_values)
 

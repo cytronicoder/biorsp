@@ -39,7 +39,7 @@ def compute_rsp(coords, labels):
 def run_null_calibration(
     n_sims=100, n_points=1000, output_dir="results/simulations_phase2/null_calibration"
 ):
-    """Module 1: Verify RSP is centered at 0 for null distributions across shapes."""
+    """Verify RSP is centered at 0 for null distributions across shapes."""
     os.makedirs(output_dir, exist_ok=True)
     shapes = ["disk", "ellipse", "annulus", "crescent", "two_lobe", "blob"]
     results = []
@@ -94,7 +94,7 @@ def run_null_calibration(
 
 
 def run_power_analysis(n_sims=50, n_points=1000, output_dir="results/simulations_phase2/power"):
-    """Module 2: Sensitivity to enrichment strength (noise_sigma)."""
+    """Sensitivity to enrichment strength (noise_sigma)."""
     os.makedirs(output_dir, exist_ok=True)
     noise_levels = [0.01, 0.05, 0.1, 0.2, 0.4, 0.8]
     enrichments = ["rim", "core", "wedge"]
@@ -166,7 +166,7 @@ def run_power_analysis(n_sims=50, n_points=1000, output_dir="results/simulations
 def run_robustness_test(
     n_sims=30, n_points=1000, output_dir="results/simulations_phase2/robustness"
 ):
-    """Module 3: Robustness to density gradients and distortions."""
+    """Robustness to density gradients and distortions."""
     os.makedirs(output_dir, exist_ok=True)
     models = ["uniform", "radial_center", "radial_rim", "angular_bias"]
     distortions = ["none", "swirl", "anisotropic"]
@@ -219,7 +219,6 @@ def run_robustness_test(
 
     df = pd.DataFrame(results)
 
-    # --- Five-number summary and outlier detection per (density, distortion) ---
     summary_rows = []
     outlier_rows = []
     grouped = df.groupby(["density", "distortion"])
@@ -283,7 +282,7 @@ def run_robustness_test(
 
 
 def run_failure_modes(output_dir="results/simulations_phase2/failure_modes"):
-    """Module 4: Visualizing failure modes in non-convex shapes."""
+    """Visualizing failure modes in non-convex shapes."""
     os.makedirs(output_dir, exist_ok=True)
 
     # Case 1: Two-lobe with enrichment in one lobe

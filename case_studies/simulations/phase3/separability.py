@@ -86,7 +86,7 @@ def run(outdir, config):
     df = pd.DataFrame(data)
     df.to_csv(tables_dir / "type_separability.csv", index=False)
 
-    # 1. ROC/AUC for Anisotropic vs Null
+    # ROC/AUC for Anisotropic vs Null
     plt.figure(figsize=(8, 6))
     y_true = df["is_anisotropic"]
     y_score = df["anisotropy"]
@@ -101,7 +101,7 @@ def run(outdir, config):
     plt.savefig(figs_dir / "figS1_roc_auc.png")
     plt.close()
 
-    # 2. Confusion Matrix for Type Classification
+    # Confusion Matrix for Type Classification
     X = df.drop(columns=["label", "is_anisotropic"])
     y = df["label"]
 

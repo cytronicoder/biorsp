@@ -246,7 +246,7 @@ def get_embedding(adata: anndata.AnnData) -> np.ndarray:
     that include 'umap' (case-insensitive), falls back to explicit obs
     columns, and finally uses any 2-col obsm entry as a last resort.
     """
-    # 1) obsm keys containing 'umap'
+    # obsm keys containing 'umap'
     for key in list(adata.obsm.keys()):
         if "umap" in key.lower():
             emb = adata.obsm[key]
@@ -254,12 +254,12 @@ def get_embedding(adata: anndata.AnnData) -> np.ndarray:
                 logger.info(f"Found embedding in obsm['{key}']")
                 return emb[:, :2]
 
-    # 2) commonly used obs columns
+    # commonly used obs columns
     if "UMAP_1" in adata.obs.columns and "UMAP_2" in adata.obs.columns:
         logger.info("Found embedding in obs columns UMAP_1, UMAP_2")
         return adata.obs[["UMAP_1", "UMAP_2"]].values
 
-    # 3) fallback: pick first 2 columns of any 2D obsm entry
+    # fallback: pick first 2 columns of any 2D obsm entry
     for key in list(adata.obsm.keys()):
         emb = adata.obsm[key]
         if getattr(emb, "ndim", 2) == 2 and emb.shape[1] >= 2:
@@ -358,7 +358,7 @@ def plot_results(
         ax1 = fig.add_subplot(gs[0, 0])
         ax2 = fig.add_subplot(gs[0, 1], projection="polar")
 
-    # 1. Embedding Plot
+    # Embedding Plot
     # Background
     ax1.scatter(
         embedding[~fg_mask, 0],
@@ -382,7 +382,7 @@ def plot_results(
     ax1.axis("off")
     ax1.legend(loc="lower left", fontsize=18)
 
-    # 2. Radar Plot
+    # Radar Plot
     # Recompute radar for plotting
     r, theta = polar_coordinates(embedding, center)
     radar_res = compute_rsp_radar(
@@ -498,14 +498,14 @@ def main():
         "timestamp": datetime.now().isoformat(),
     }
 
-    # 1. Load Data
-    logger.info("Stage 1: Loading reference dataset")
+    # Load Data
+    logger.info("Loading reference dataset")
     logger.info(f"Loading reference from {args.ref_data}...")
     adata = load_reference(args.ref_data)
     logger.info(f"Loaded data: {adata.shape}")
     logger.info(f"Available obs columns: {list(adata.obs.columns)}")
     logger.info(f"Available var columns: {list(adata.var.columns)}")
-    logger.info("Stage 1 complete")
+    logger.info("Data loading complete")
 
     # Create mapping from gene symbols to var_names
     var_to_symbol = {}
@@ -525,8 +525,8 @@ def main():
     symbol_to_var = {v: k for k, v in var_to_symbol.items()}
     logger.info(f"Symbol to var mapping created for {len(symbol_to_var)} genes")
 
-    # 2. Subset TAL
-    logger.info("Stage 2: Subsetting to TAL cells")
+    # Subset TAL
+    logger.info("Subsetting to TAL cells")
     logger.info(f"Subsetting to TAL cells (key='{args.celltype_key}', labels={args.tal_labels})...")
     if args.celltype_key not in adata.obs.columns:
         logger.info(f"Available obs columns: {list(adata.obs.columns)}")
@@ -566,18 +566,18 @@ def main():
         logger.warning("Very few TAL cells found. Results may be unstable.")
 
     run_meta["n_tal_cells"] = int(n_tal)
-    logger.info("Stage 2 complete")
+    logger.info("Subsetting complete")
 
-    # 3. Prepare Inputs
-    logger.info("Stage 3: Preparing inputs (embedding and UMIs)")
+    # Prepare Inputs
+    logger.info("Preparing inputs (embedding and UMIs)")
     embedding = get_embedding(adata_tal)
     logger.info(f"Embedding shape: {embedding.shape}")
     umis = get_umis(adata_tal)
     logger.info(f"UMIs shape: {umis.shape}")
-    logger.info("Stage 3 complete")
+    logger.info("Input preparation complete")
 
-    # 4. Select Genes
-    logger.info("Stage 4: Selecting genes for analysis")
+    # Select Genes
+    logger.info("Selecting genes for analysis")
     all_genes = adata_tal.var_names.tolist()
     genes_to_analyze = []
 
@@ -675,7 +675,6 @@ def main():
     logger.info(
         f"Total genes to analyze: {len(genes_to_analyze)} (controls: {len(controls) if args.controls else 0}, discovery: {len(discovery_genes)})"
     )
-    logger.info("Stage 4 complete")
     run_meta["n_genes_analyzed"] = len(genes_to_analyze)
 
     # Record dataset-level stats

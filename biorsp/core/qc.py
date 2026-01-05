@@ -77,7 +77,6 @@ def compute_sector_qc(
     w_fg = y_s
     w_bg = 1.0 - y_s
 
-    # 1. Support adequacy
     if config.foreground_mode == "weights":
         nF_eff = kish_effective_sample_size(w_fg)
         nB_eff = kish_effective_sample_size(w_bg)
@@ -89,10 +88,8 @@ def compute_sector_qc(
         support_ok = (nF >= config.min_fg_sector) and (nB >= config.min_bg_sector)
         metrics = {"nF": nF, "nB": nB}
 
-    # 2. Scale adequacy
     scale_ok = denom >= config.min_scale
 
-    # Decision
     if not support_ok:
         if config.foreground_mode == "weights":
             reason = (
@@ -149,7 +146,6 @@ def compute_gene_qc(
         "total_fg_support": total_fg_support,
     }
 
-    # 1. Total signal adequacy
     if config.foreground_mode == "weights":
         if total_fg_support < config.min_total_mF:
             return False, REASON_GENE_UNDERPOWERED, metrics
@@ -157,11 +153,9 @@ def compute_gene_qc(
         if total_fg_support < config.min_fg_total:
             return False, REASON_GENE_UNDERPOWERED, metrics
 
-    # 2. Coverage adequacy
     if coverage < config.min_coverage:
         return False, REASON_GENE_LOW_COVERAGE, metrics
 
-    # 3. Minimum valid sectors
     if M_valid < config.min_valid_sectors:
         return False, REASON_GENE_TOO_FEW_SECTORS, metrics
 
@@ -267,9 +261,6 @@ def summarize_qc_behavior(results: List["FeatureResult"]) -> Dict[str, Any]:
 
     m_valid_vals = [int(np.sum(r.adequacy.sector_mask)) for r in results]
     coverage_vals = [r.adequacy.adequacy_fraction for r in results]
-
-    # Note: RadarResult doesn't currently store per-sector denoms.
-    # If needed in future, extend RadarResult to include a per-sector 'denom' array.
 
     return {
         "n_total": n_total,

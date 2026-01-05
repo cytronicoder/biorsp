@@ -46,7 +46,7 @@ def simulate_perturbation_rep(rep, seed):
     radar_base = compute_rsp_radar(r_base, theta_base, y_base)
     summ_base = compute_scalar_summaries(radar_base)
 
-    # 1. Rotations
+    # Rotations
     for angle_deg in [0, 90, 180, 270]:
         angle_rad = np.deg2rad(angle_deg)
         c, s = np.cos(angle_rad), np.sin(angle_rad)
@@ -69,7 +69,7 @@ def simulate_perturbation_rep(rep, seed):
             }
         )
 
-    # 2. Scales
+    # Scales
     for scale in [0.5, 1.0, 2.0]:
         coords_scale = coords_base * scale
         r_scale = np.linalg.norm(coords_scale, axis=1)
@@ -89,7 +89,7 @@ def simulate_perturbation_rep(rep, seed):
             }
         )
 
-    # 3. Distortions (Warping)
+    # Distortions (Warping)
     for dist in ["none", "swirl", "anisotropic"]:
         data_dist = simulate_dataset(
             shape="disk",

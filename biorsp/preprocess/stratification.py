@@ -70,12 +70,9 @@ def get_strata_indices(
     if mode == "none" or n_cells == 0:
         return [np.arange(n_cells)]
 
-    # 1. Compute bin assignments for each factor
-    # Use ranks for robust quantile binning
     r_bins = (np.argsort(np.argsort(r)) * n_r_bins) // n_cells
 
     if mode in ["joint", "rt_umi"]:
-        # Normalize theta to [0, 2pi)
         theta_norm = theta % (2 * np.pi)
         theta_bins = (np.argsort(np.argsort(theta_norm)) * n_theta_bins) // n_cells
     else:
@@ -86,18 +83,11 @@ def get_strata_indices(
     else:
         umi_bins = np.zeros(n_cells, dtype=int)
 
-    # 2. Combine into a single stratum ID
-    # We use a large multiplier to ensure unique IDs for each combination
-    # ID = r_bin + n_r * (theta_bin + n_theta * umi_bin)
     strata_ids = r_bins + n_r_bins * (theta_bins + n_theta_bins * umi_bins)
 
-    # 3. Group indices by stratum ID
     unique_ids, counts = np.unique(strata_ids, return_counts=True)
     strata_map = {sid: np.where(strata_ids == sid)[0] for sid in unique_ids}
 
-    # 4. Merge small strata
-    # Deterministic merging: sort by ID, merge small ones into the next one
-    # If the last one is small, merge into the previous one.
     sorted_ids = np.sort(unique_ids)
     final_strata = []
     current_stratum = []
@@ -113,13 +103,10 @@ def get_strata_indices(
             final_strata.append(current_stratum)
             current_stratum = []
 
-    # Handle the last remaining stratum
     if len(current_stratum) > 0:
         if len(final_strata) > 0:
-            # Merge into the last completed stratum
             final_strata[-1] = np.concatenate([final_strata[-1], current_stratum])
         else:
-            # Only one stratum exists and it's smaller than min_stratum_size
             if len(current_stratum) > 0:
                 logger.warning(
                     f"Only one stratum found with size {len(current_stratum)}, "

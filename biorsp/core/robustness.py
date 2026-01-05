@@ -80,14 +80,12 @@ def compute_robustness_score(
     n_cells = len(x)
     n_keep = int(n_cells * subsample_frac)
 
-    # 1. Compute full profile
     y_full, _ = define_foreground(
         x, mode=fg_mode, q=config.foreground_quantile, abs_threshold=abs_threshold, rng=rng
     )
     if y_full is None:
         return RobustnessResult(mean_correlation=np.nan, cv_anisotropy=np.nan, n_subsamples=0)
 
-    # If full data is inadequate, robustness estimates may be unreliable
     radar_full = compute_rsp_radar(r, theta, y_full, config=config)
     rsp_full = radar_full.rsp
 
@@ -95,22 +93,18 @@ def compute_robustness_score(
     anisotropies = []
 
     for i in range(n_subsample):
-        # Subsample indices
         indices = rng.choice(n_cells, size=n_keep, replace=False)
 
         x_sub = x[indices]
         r_sub = r[indices]
         theta_sub = theta[indices]
 
-        # Recompute foreground on subsample
-        # Use the same rng to ensure deterministic but varied tie-breaking
         y_sub, _ = define_foreground(
             x_sub, mode=fg_mode, q=config.foreground_quantile, abs_threshold=abs_threshold, rng=rng
         )
         if y_sub is None:
             continue
 
-        # Compute RSP
         radar_sub = compute_rsp_radar(r_sub, theta_sub, y_sub, config=config)
         rsp_sub = radar_sub.rsp
 
@@ -124,7 +118,6 @@ def compute_robustness_score(
 
         correlations.append(corr)
 
-        # Compute anisotropy
         summ = compute_scalar_summaries(radar_sub)
         anisotropies.append(summ.anisotropy)
 

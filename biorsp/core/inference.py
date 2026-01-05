@@ -65,19 +65,14 @@ def _permutation_worker(
     """
     rng = np.random.default_rng(seed)
 
-    # 1. Shuffle labels within strata
     y_perm = y.copy()
     for idx in strata_indices:
         if len(idx) > 1:
             shuffled_idx = rng.permutation(idx)
             y_perm[idx] = y_perm[shuffled_idx]
 
-    # 2. Compute RSP with frozen mask and reused weights
-    # We use the frozen mask Theta_g computed from the observed data.
-    # If a sector in the frozen mask becomes invalid under permutation
-    # (e.g. zero foreground mass), compute_rsp_radar will set its
-    # contribution to 0.0. This is more defensible than resampling
-    # as it preserves the null distribution's variance properties.
+    # Use the observed valid mask to preserve null variance properties.
+    # If some sectors were degenerate in the observed data, they remain frozen in permutations.
     radar_perm = compute_rsp_radar(
         r,
         theta,
@@ -87,12 +82,8 @@ def _permutation_worker(
         frozen_mask=valid_mask,
         sector_weights=sector_weights,
     )
-
-    # 3. Count empty sectors (sectors in valid_mask that became empty under permutation)
-    # This is a diagnostic metric.
     empty_count = np.sum(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
 
-    # 4. Compute anisotropy
     return compute_anisotropy(radar_perm.rsp, valid_mask), int(empty_count)
 
 
@@ -149,7 +140,6 @@ def compute_p_value(
     if rng is None:
         rng = np.random.default_rng(seed)
 
-    # 1. Prepare stratification
     strata_indices = get_strata_indices(
         r=r,
         theta=theta,
@@ -161,7 +151,6 @@ def compute_p_value(
         mode=config.perm_mode,
     )
 
-    # 2. Observed statistic
     if adequacy is None:
         adequacy = assess_adequacy(r, theta, y, config=config)
 
@@ -189,7 +178,6 @@ def compute_p_value(
 
     observed_stat = compute_anisotropy(radar_obs.rsp, valid_mask)
 
-    # 3. Permutations
     seeds = rng.integers(0, 2**31 - 1, size=n_perm)
 
     if n_workers > 1:
@@ -224,7 +212,6 @@ def compute_p_value(
         null_stats = np.array([res[0] for res in results])
         empty_counts = np.array([res[1] for res in results])
     else:
-        # Serial execution
         null_stats = np.full(n_perm, np.nan)
         empty_counts = np.zeros(n_perm, dtype=int)
         for i in tqdm(range(n_perm), disable=not show_progress, desc="Permutations"):
@@ -240,9 +227,7 @@ def compute_p_value(
                 radar_obs.sector_weights,
             )
 
-    # 4. P-value calculation (finite-permutation correction)
-    # We treat NaNs in null_stats as 0.0 (no anisotropy) to be conservative,
-    # but they should be rare with the frozen mask logic.
+    # Finite-permutation correction: p = (1 + count(null >= obs)) / (K + 1)
     clean_nulls = np.nan_to_num(null_stats, nan=0.0)
     count_ge = np.sum(clean_nulls >= observed_stat)
     p_value = (count_ge + 1) / (n_perm + 1)
@@ -296,21 +281,16 @@ def compute_diagnostic_null(
     rng = np.random.default_rng(seed)
     null_stats = np.zeros(n_perm)
 
-    # 1. Observed adequacy
     adequacy = assess_adequacy(r, theta, y, config=config)
     valid_mask = adequacy.sector_mask
 
     if not np.any(valid_mask):
         return np.full(n_perm, np.nan)
 
-    # 2. Rotations
     for i in range(n_perm):
-        # Random rotation
         shift = rng.uniform(0, 2 * np.pi)
         theta_shifted = (theta + shift) % (2 * np.pi)
 
-        # Recompute RSP with shifted theta
-        # Note: sector_indices will be recomputed internally for theta_shifted
         radar_null = compute_rsp_radar(r, theta_shifted, y, config=config, frozen_mask=valid_mask)
         null_stats[i] = compute_anisotropy(radar_null.rsp, valid_mask)
 

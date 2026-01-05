@@ -17,8 +17,6 @@ from biorsp import (
 )
 from biorsp.preprocess.geometry import geometric_median
 
-# --- Configuration ---
-
 
 @dataclass
 class SimulationConfig:
@@ -48,9 +46,6 @@ class SimulationConfig:
             n_permutations=self.n_permutations,
             seed=self.seed,
         )
-
-
-# --- Geometry Generators ---
 
 
 def generate_geometry_elliptical(
@@ -143,9 +138,6 @@ def generate_geometry_peanut(n: int, separation: float = 1.5, seed: int = 0) -> 
     return z
 
 
-# --- Distortion Operators ---
-
-
 def apply_distortion_radial(z: np.ndarray, alpha: float = 0.25) -> np.ndarray:
     """z_i = z_i * (1 + alpha * ||z_i||)"""
     if alpha == 0:
@@ -188,9 +180,6 @@ def apply_donor_shifts(
     n_donors = donors.max() + 1
     shifts = rng.normal(0, shift_scale, (n_donors, 2))
     return z + shifts[donors]
-
-
-# --- Expression Generators ---
 
 
 def generate_umis(
@@ -1104,11 +1093,6 @@ def run_family_2_planted_signal(
         sub = df[df["variant"] == variant]
         if sub.empty:
             continue
-
-        # Group by beta and sigma
-        # We want curves for each sigma
-        # TODO: ensure 'sigma' is present in result CSV for per-sigma plotting
-        pass
 
     print(f"Family 2 complete. Saved CSV to {outdir}")
     return df

@@ -45,7 +45,7 @@ def run_calibration_test(
     """Run calibration test for a given shape and permutation mode."""
     np.random.seed(seed)
 
-    # 1. Generate geometry
+    # Generate geometry
     if shape == "disk":
         coords = _sample_disk(n_cells)
     elif shape == "annulus":
@@ -58,7 +58,7 @@ def run_calibration_test(
     v, _, _ = geometric_median(coords)
     r, theta = polar_coordinates(coords, v)
 
-    # 2. Configure BioRSP
+    # Configure BioRSP
     config = BioRSPConfig(
         perm_mode=perm_mode,
         n_permutations=n_perm,
