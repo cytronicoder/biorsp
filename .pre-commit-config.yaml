@@ -1,19 +1,34 @@
 repos:
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: stable
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --exit-non-zero-on-fix]
+
   - repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 25.1.0a1
     hooks:
       - id: black
         language_version: python3
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.10.1
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
     hooks:
       - id: isort
+
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.1
+    rev: v1.13.0
     hooks:
       - id: mypy
+        additional_dependencies: [types-all]
+        args: [--ignore-missing-imports]
+

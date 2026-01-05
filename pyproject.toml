@@ -49,13 +49,43 @@ addopts = "-ra -q"
 
 [tool.ruff]
 line-length = 100
-exclude = ["**/*.ipynb"]
+exclude = ["**/*.ipynb", "**/__pycache__", "**/build", "**/dist", "**/*.egg-info"]
+target-version = "py38"
 
 [tool.ruff.lint]
-extend-ignore = ["E203"]
+# E: pycodestyle errors
+# F: pyflakes
+# I: isort
+# UP: pyupgrade
+# B: flake8-bugbear
+# SIM: flake8-simplify
+# PERF: perflint
+select = ["E", "F", "I", "UP", "B", "SIM", "PERF"]
+# E203: whitespace before ':' (conflicts with black)
+# E501: line too long (black handles this)
+extend-ignore = ["E203", "E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["biorsp"]
+combine-as-imports = true
 
 [tool.black]
 line-length = 100
+target-version = ["py38", "py39", "py310", "py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | __pycache__
+)/
+'''
 
 [tool.isort]
 profile = "black"
@@ -65,4 +95,13 @@ combine_as_imports = true
 include_trailing_comma = true
 force_grid_wrap = 0
 use_parentheses = true
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+check_untyped_defs = false
+strict_optional = false
 
