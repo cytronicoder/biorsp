@@ -145,7 +145,7 @@ def sector_signed_stat(
         nF_min = config.min_fg_sector if config else 0
         nB_min = config.min_bg_sector if config else 0
         support_ok = (nF >= nF_min) and (nB >= nB_min)
-        scale_ok = (denom >= min_scale)
+        scale_ok = denom >= min_scale
         valid = support_ok and scale_ok
         if valid:
             status = REASON_OK
