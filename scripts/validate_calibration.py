@@ -185,11 +185,10 @@ def main():
 
     # Acceptance criteria check
     for _, row in df.iterrows():
-        if row["mode"] != "none":
-            if not (0.02 <= row["fpr_05"] <= 0.08):
-                print(
-                    f"WARNING: FPR@0.05 for {row['shape']}/{row['mode']} is {row['fpr_05']:.3f}, outside [0.02, 0.08]"
-                )
+        if row["mode"] != "none" and not (0.02 <= row["fpr_05"] <= 0.08):
+            print(
+                f"WARNING: FPR@0.05 for {row['shape']}/{row['mode']} is {row['fpr_05']:.3f}, outside [0.02, 0.08]"
+            )
 
 
 if __name__ == "__main__":

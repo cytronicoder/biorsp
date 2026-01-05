@@ -9,9 +9,10 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-import biorsp
-from biorsp.preprocess.geometry import compute_vantage, angle_grid, polar_coordinates
+
 from biorsp.plotting.workflow import make_end_to_end_figure
+from biorsp.preprocess.geometry import angle_grid, compute_vantage
+
 
 def setup_args():
     parser = argparse.ArgumentParser(description="Generate End-to-End Workflow Figure")
@@ -20,9 +21,10 @@ def setup_args():
     parser.add_argument("--q", type=float, default=0.9, help="Quantile for foreground")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--outdir", type=str, default="figures", help="Output directory")
-    parser.add_argument("--delta_deg", type=float, default=20.0, help="Sector width in degrees")
-    parser.add_argument("--B", type=int, default=36, help="Number of sectors")
+    parser.add_argument("--delta_deg", type=float, default=60.0, help="Sector width in degrees")
+    parser.add_argument("--B", type=int, default=72, help="Number of sectors")
     return parser.parse_args()
+
 
 def generate_demo_data(seed=42):
     rng = np.random.default_rng(seed)
@@ -34,6 +36,7 @@ def generate_demo_data(seed=42):
     expr = rng.binomial(1, prob).astype(float)
     return coords, expr
 
+
 def main():
     args = setup_args()
     np.random.seed(args.seed)
@@ -42,6 +45,7 @@ def main():
 
     if args.adata:
         import scanpy as sc
+
         adata = sc.read_h5ad(args.adata)
         coords = adata.obsm["X_umap"]
         expr = (
@@ -53,14 +57,14 @@ def main():
         coords, expr = generate_demo_data(args.seed)
 
     v = compute_vantage(coords)
-    
+
     thresh = np.quantile(expr, args.q)
     y = (expr >= thresh).astype(float) if thresh > 0 else (expr > 0).astype(float)
-    
+
     theta_grid = angle_grid(args.B)
-    
+
     outpath = str(outdir / f"end_to_end_{args.feature}.png")
-    
+
     make_end_to_end_figure(
         z=coords,
         y=y,
@@ -69,8 +73,9 @@ def main():
         delta_deg=args.delta_deg,
         outpath=outpath,
         feature_name=args.feature,
-        seed=args.seed
+        seed=args.seed,
     )
+
 
 if __name__ == "__main__":
     main()

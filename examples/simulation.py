@@ -428,10 +428,7 @@ def analyze_gene(
     # 2. Define Foreground
     # Using quantile
     threshold = np.quantile(x, config.foreground_quantile)
-    if threshold == 0:
-        y = x > 0
-    else:
-        y = x >= threshold
+    y = x > 0 if threshold == 0 else x >= threshold
 
     n_fg = np.sum(y)
 
@@ -545,7 +542,7 @@ def worker_analyze_null(args: Dict) -> Dict:
         umis = args["umis"]
 
     # Attach donors if present
-    donors = args.get("donors", None)
+    donors = args.get("donors")
 
     config = args["config"]
     gene_id = args["gene_id"]
@@ -614,7 +611,7 @@ def worker_analyze_planted(args: Dict) -> Dict:
     variant = args.get("variant", "wedge")
     sigma_theta = args.get("sigma_theta", np.deg2rad(20))
     seed = args["seed"]
-    center = args.get("center", None)
+    center = args.get("center")
 
     # Generate expression
     x = generate_expression_alt(
@@ -643,7 +640,7 @@ def worker_analyze_planted(args: Dict) -> Dict:
 
         d = asdict(res)
         # Propagate meta inputs so plotting can group by them
-        d["sigma_deg"] = args.get("sigma_deg", None)
+        d["sigma_deg"] = args.get("sigma_deg")
         # Unique job key for checkpointing
         d["job_key"] = args.get(
             "job_key", f"{variant}_b{beta}_s{args.get('sigma_deg', '')}_g{gene_id}"
@@ -691,7 +688,7 @@ def _cleanup_shared(shm_objs: List):
         try:
             s.close()
             s.unlink()
-        except Exception:
+        except Exception:  # noqa: PERF203
             pass
 
 
@@ -1089,7 +1086,7 @@ def run_family_2_planted_signal(
     # Plotting: Power vs Beta for each variant
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
-    for i, variant in enumerate(variants):
+    for _i, variant in enumerate(variants):
         sub = df[df["variant"] == variant]
         if sub.empty:
             continue
