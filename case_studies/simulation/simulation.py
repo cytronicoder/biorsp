@@ -9,11 +9,13 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from biorsp.config import BioRSPConfig
-from biorsp.geometry import geometric_median
-from biorsp.inference import compute_p_value
-from biorsp.radar import compute_rsp_radar
-from biorsp.summaries import compute_scalar_summaries
+from biorsp import (
+    BioRSPConfig,
+    compute_p_value,
+    compute_rsp_radar,
+    compute_scalar_summaries,
+    geometric_median,
+)
 
 # --- Configuration ---
 
@@ -38,8 +40,8 @@ class SimulationConfig:
 
     def to_biorsp_config(self) -> BioRSPConfig:
         return BioRSPConfig(
-            n_angles=self.B,
-            sector_width_deg=self.delta_deg,
+            B=self.B,
+            delta_deg=self.delta_deg,
             min_fg_sector=self.n_fg_min,
             min_bg_sector=self.n_bg_min,
             min_fg_total=self.n_fg_tot_min,

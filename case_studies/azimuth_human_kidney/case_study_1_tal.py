@@ -28,9 +28,7 @@ import faulthandler
 import json
 import logging
 import signal
-import sys
 import warnings
-from concurrent.futures import TimeoutError, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
@@ -41,27 +39,18 @@ import pandas as pd
 import scipy.sparse
 from tqdm import tqdm
 
+# BioRSP imports
+import biorsp
+from biorsp import (
+    BioRSPConfig,
+    compute_rsp_radar,
+    plot_radar,
+    polar_coordinates,
+)
+
 # Suppress known FutureWarning from legacy_api_wrap about dtype argument deprecation
 warnings.filterwarnings("ignore", message=".*dtype argument is deprecated.*")
 warnings.filterwarnings("ignore", category=FutureWarning, module="legacy_api_wrap")
-
-# BioRSP imports
-try:
-    from biorsp.config import BioRSPConfig
-    from biorsp.geometry import polar_coordinates
-    from biorsp.inference import compute_p_value
-    from biorsp.plotting import plot_radar
-    from biorsp.radar import compute_rsp_radar
-    from biorsp.summaries import compute_scalar_summaries
-except ImportError:
-    # Fallback for running from examples folder without install
-    sys.path.append(str(Path(__file__).parent.parent))
-    from biorsp.config import BioRSPConfig
-    from biorsp.geometry import polar_coordinates
-    from biorsp.inference import compute_p_value
-    from biorsp.plotting import plot_radar
-    from biorsp.radar import compute_rsp_radar
-    from biorsp.summaries import compute_scalar_summaries
 
 # Optional imports
 try:
@@ -327,176 +316,6 @@ def load_annoy_index(path: str, dim: int):
     t = AnnoyIndex(dim, metric="angular")
     t.load(path)
     return t
-
-
-def analyze_single_gene(
-    gene_name: str,
-    expression_vector: np.ndarray,
-    embedding: np.ndarray,
-    umis: np.ndarray,
-    config: BioRSPConfig,
-    n_perm: int,
-    seed: int,
-) -> Dict:
-    """
-    Run BioRSP pipeline for a single gene.
-    """
-    try:
-        logger.debug(f"Starting analysis for gene: {gene_name}")
-        # 1. Define Foreground (Top 10% quantile rule)
-        # Handle sparsity if passed as sparse matrix/array
-        if scipy.sparse.issparse(expression_vector):
-            x = expression_vector.toarray().flatten()
-        else:
-            x = np.array(expression_vector).flatten()
-
-        n_cells = len(x)
-        if n_cells == 0:
-            return {
-                "gene": gene_name,
-                "A_g": np.nan,
-                "P_g": np.nan,
-                "theta_g": np.nan,
-                "p_strat": np.nan,
-                "n_fg": 0,
-                "adequacy_fraction": 0.0,
-                "is_adequate": False,
-                "error": "No cells",
-            }
-
-        # Quantile threshold
-        threshold = np.quantile(x, 0.90)
-        # If many zero-expressed cells, threshold might be 0.
-        # We enforce strictly greater than threshold if threshold > 0,
-        # or just > 0 if threshold is 0 to avoid empty foreground?
-        # The prompt says "top 10%". If >90% are zero, top 10% are the highest zeros?
-        # Usually implies > 0. Let's use >= threshold but ensure we don't take all zeros.
-        # Better rule: mask = x >= threshold. If threshold == 0, take x > 0.
-
-        if threshold == 0:
-            fg_mask = x > 0
-        else:
-            fg_mask = x >= threshold
-
-        # If we still have too many (e.g. ties), or too few?
-        # Let's stick to the simple quantile rule as requested.
-
-        n_fg = int(np.sum(fg_mask))
-        min_fg_total = getattr(config, "min_fg_total", max(5, int(0.01 * n_cells)))
-        if n_fg < min_fg_total:
-            return {
-                "gene": gene_name,
-                "A_g": np.nan,
-                "P_g": np.nan,
-                "theta_g": np.nan,
-                "p_strat": np.nan,
-                "n_fg": int(n_fg),
-                "adequacy_fraction": 0.0,
-                "is_adequate": False,
-                "error": f"Insufficient foreground (n_fg={n_fg} < min_fg_total={min_fg_total})",
-            }
-
-        # 2. Compute Radar
-        center = np.median(embedding, axis=0)
-        r, theta = polar_coordinates(embedding, center)
-
-        radar_res = compute_rsp_radar(
-            r,
-            theta,
-            fg_mask,
-            B=config.n_angles,
-            delta_deg=config.sector_width_deg,
-            min_fg_sector=config.min_fg_sector,
-            min_bg_sector=config.min_bg_sector,
-        )
-
-        # Ensure rsp is a 1D numpy array
-        radar_res.rsp = np.asarray(radar_res.rsp).flatten()
-
-        # 3. Compute Summaries
-        summaries = compute_scalar_summaries(radar_res)
-        adequacy_fraction = float(np.mean(~np.isnan(radar_res.rsp)))
-        is_adequate = adequacy_fraction >= config.min_adequacy_fraction
-
-        # 4. Compute P-value (Depth-aware)
-        p_val = np.nan
-        if is_adequate:
-            try:
-                logger.debug(f"Computing p-value (n_perm={n_perm}) for gene {gene_name}")
-                p_val, _, _, _ = compute_p_value(
-                    r,
-                    theta,
-                    fg_mask,
-                    B=config.n_angles,
-                    delta_deg=config.sector_width_deg,
-                    n_perm=n_perm,
-                    umi_counts=umis,
-                    umi_bins=config.umi_bins,
-                    seed=seed,
-                    min_fg_sector=config.min_fg_sector,
-                    min_bg_sector=config.min_bg_sector,
-                )
-                logger.debug(f"Completed p-value for gene {gene_name}: p={p_val}")
-            except Exception as e:
-                logger.debug(f"Permutation p-value failed for gene {gene_name}: {e}")
-                p_val = np.nan
-
-        # Extract scalar values
-        def _to_scalar(val):
-            if np.isscalar(val):
-                return float(val)
-            elif hasattr(val, "__len__") and len(val) > 0:
-                return float(val[0])
-            else:
-                return np.nan
-
-        return {
-            "gene": gene_name,
-            "A_g": (
-                _to_scalar(summaries.rms_anisotropy)
-                if hasattr(summaries, "rms_anisotropy")
-                else np.nan
-            ),
-            "P_g": (
-                _to_scalar(summaries.peak_distal) if hasattr(summaries, "peak_distal") else np.nan
-            ),
-            "theta_g": (
-                _to_scalar(summaries.peak_distal_angle)
-                if hasattr(summaries, "peak_distal_angle")
-                else np.nan
-            ),
-            "p_strat": float(p_val) if not np.isnan(p_val) else np.nan,
-            "n_fg": int(n_fg),
-            "adequacy_fraction": float(adequacy_fraction),
-            "is_adequate": bool(is_adequate),
-            "error": None,
-        }
-
-    except Exception as e:
-        return {
-            "gene": gene_name,
-            "A_g": np.nan,
-            "P_g": np.nan,
-            "theta_g": np.nan,
-            "p_strat": np.nan,
-            "n_fg": 0,
-            "adequacy_fraction": 0.0,
-            "is_adequate": False,
-            "error": str(e),
-        }
-
-
-def _process_gene_for_executor(
-    gene_name: str,
-    expression_vector: np.ndarray,
-    embedding: np.ndarray,
-    umis: np.ndarray,
-    config: BioRSPConfig,
-    n_perm: int,
-    seed: int,
-):
-    """Top-level picklable wrapper for ProcessPoolExecutor submissions."""
-    return analyze_single_gene(gene_name, expression_vector, embedding, umis, config, n_perm, seed)
 
 
 def plot_results(
@@ -877,293 +696,59 @@ def main():
 
     # 5. Run BioRSP
     logger.info("Stage 5: Running BioRSP analysis on each gene")
-    config = BioRSPConfig(min_adequacy_fraction=args.min_adequacy_fraction)
+    config = BioRSPConfig(
+        min_adequacy_fraction=args.min_adequacy_fraction,
+        n_permutations=args.n_perm,
+        seed=args.seed,
+    )
+
+    # Extract expression matrix for selected genes
+    expr_df = adata_tal[:, genes_to_analyze].to_df()
+
+    summary = biorsp.run(
+        coords=embedding,
+        expression=expr_df,
+        umi_counts=umis,
+        config=config,
+        outdir=str(outdir),
+        n_workers=args.n_workers,
+    )
+
+    # Convert RunSummary to the format expected by the rest of the script
     results = []
-
-    logger.info(f"Starting analysis with {args.n_workers} workers...")
-
-    # Prepare dense vectors for thread-based parallel execution (safe pickling and low overhead)
-    def _process_gene_tuple(args_tuple):
-        g, vec = args_tuple
-        return analyze_single_gene(g, vec, embedding, umis, config, args.n_perm, args.seed)
-
-    # Build list of (gene, 1D-numpy-vector)
-    gene_vecs = []
-    skipped_genes = []
-    logger.info(
-        f"Building expression vectors for {len(genes_to_analyze)} genes from adata_tal with shape {adata_tal.shape}"
-    )
-    for g in tqdm(genes_to_analyze, desc="Building vectors"):
-        try:
-            raw = adata_tal[:, g].X
-        except KeyError:
-            logger.warning(f"Gene {g} not found in subsetted AnnData; skipping")
-            skipped_genes.append(g)
-            continue
-        if scipy.sparse.issparse(raw):
-            vec = np.asarray(raw.toarray()).reshape(-1)
-        else:
-            vec = np.asarray(raw).reshape(-1)
-        if vec.size == 0 or vec.shape[0] != adata_tal.n_obs:
-            logger.warning(
-                f"Gene {g} produced empty or mismatched expression vector (size={vec.size}, expected {adata_tal.n_obs}); skipping"
-            )
-            skipped_genes.append(g)
-            continue
-        gene_vecs.append((g, vec))
-    logger.info(
-        f"Successfully built vectors for {len(gene_vecs)} genes; skipped {len(skipped_genes)}"
-    )
-    if skipped_genes:
-        run_meta.setdefault("skipped_genes", {})
-        run_meta["skipped_genes"]["during_vector_build"] = skipped_genes
-
-    # Run (sliding-window executor to avoid large internal queues and make stuck tasks visible)
-    if args.n_workers > 1:
-        # Support for per-gene timeout and choosing executor type (auto => use process pool for parallel runs)
-        import time
-        from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-
-        executor_type = args.executor if hasattr(args, "executor") else "auto"
-        if executor_type == "auto":
-            # Default: prefer process executor when running >1 worker to avoid nested-thread starvation
-            chosen_executor = "process" if args.n_workers > 1 else "thread"
-        else:
-            chosen_executor = executor_type
-
-        logger.info(f"Using {chosen_executor} executor with {args.n_workers} workers")
-
-        ExecClass = ProcessPoolExecutor if chosen_executor == "process" else ThreadPoolExecutor
-
-        per_gene_timeout = getattr(args, "per_gene_timeout", None)
-        if per_gene_timeout is not None:
-            logger.info(f"Per-gene timeout enabled: {per_gene_timeout}s")
-
-        with ExecClass(max_workers=args.n_workers) as executor:
-            it = iter(gene_vecs)
-            running = {}  # future -> (gene_name, start_time)
-
-            # Submit initial batch
-            for _ in range(args.n_workers):
-                try:
-                    gv = next(it)
-                except StopIteration:
-                    break
-                # For process executor we need a picklable callable and explicit args
-                if chosen_executor == "process":
-                    fut = executor.submit(
-                        _process_gene_for_executor,
-                        gv[0],
-                        gv[1],
-                        embedding,
-                        umis,
-                        config,
-                        args.n_perm,
-                        args.seed,
-                    )
-                else:
-                    fut = executor.submit(_process_gene_tuple, gv)
-                running[fut] = (gv[0], time.monotonic())
-
-            # As futures finish, submit new ones to keep the pool busy
-            with tqdm(total=len(gene_vecs)) as pbar:
-                completed = 0
-                while running:
-                    try:
-                        for fut in as_completed(list(running.keys()), timeout=30):
-                            gene_name, _ = running.pop(fut, None)
-                            try:
-                                # Wait unconditionally for the future to complete (no per-gene cancellation)
-                                res = fut.result()
-                            except Exception as e:
-                                logger.exception(f"Gene processing failed for {gene_name}: {e}")
-                                res = {
-                                    "gene": gene_name,
-                                    "A_g": np.nan,
-                                    "P_g": np.nan,
-                                    "theta_g": np.nan,
-                                    "p_strat": np.nan,
-                                    "n_fg": 0,
-                                    "adequacy_fraction": 0.0,
-                                    "is_adequate": False,
-                                    "error": str(e),
-                                }
-
-                            results.append(res)
-                            completed += 1
-                            pbar.update(1)
-
-                            # Submit next job if available
-                            try:
-                                gv = next(it)
-                                if chosen_executor == "process":
-                                    nf = executor.submit(
-                                        _process_gene_for_executor,
-                                        gv[0],
-                                        gv[1],
-                                        embedding,
-                                        umis,
-                                        config,
-                                        args.n_perm,
-                                        args.seed,
-                                    )
-                                else:
-                                    nf = executor.submit(_process_gene_tuple, gv)
-                                running[nf] = (gv[0], time.monotonic())
-                            except StopIteration:
-                                pass
-                    except TimeoutError:
-                        # No future completed within 30s — tasks are still running; wait for completion
-                        now = time.monotonic()
-                        msg = "No gene finished within 30s — tasks still running; waiting for completion"
-                        logger.info(msg)
-
-                        # Log currently running tasks and their durations for diagnostics
-                        for f, (gname, start_t) in running.items():
-                            duration = now - start_t
-                            logger.debug(f"Running gene '{gname}' for {duration:.1f}s")
-
-                        # Continue and wait for tasks to finish naturally
-                        continue
-
-    else:
-        for g, vec in tqdm(gene_vecs):
-            res = analyze_single_gene(g, vec, embedding, umis, config, args.n_perm, args.seed)
-            results.append(res)
-    logger.info("Stage 5 complete")
-
-    # 5.5 Stability Diagnostics (Donor-aware)
-    logger.info("Stage 5.5: Stability Diagnostics (Donor-aware)")
-    stability_results = []
-    if args.donor_key in adata_tal.obs.columns:
-        valid_donors = run_meta.get("valid_donors", [])
-        if valid_donors:
-            # Pick top 5 genes by anisotropy for stability check
-            # (Need to create df_res first or just sort results list)
-            temp_df = pd.DataFrame([r for r in results if r.get("is_adequate")])
-            if not temp_df.empty:
-                top_genes_for_stability = (
-                    temp_df.sort_values("A_g", ascending=False).head(5)["gene"].tolist()
-                )
-                # Also include controls
-                if args.controls:
-                    controls = [g.strip() for g in args.controls.split(",")]
-                    control_vars = [symbol_to_var.get(c) for c in controls if c in symbol_to_var]
-                    top_genes_for_stability = list(set(top_genes_for_stability + control_vars))
-
-                logger.info(
-                    f"Running stability check for {len(top_genes_for_stability)} genes across {len(valid_donors)} donors..."
-                )
-                for g in tqdm(top_genes_for_stability, desc="Stability genes"):
-                    symbol = var_to_symbol.get(g, g)
-                    # Get expression vector for this gene
-                    raw = adata_tal[:, g].X
-                    vec = (
-                        np.asarray(raw.toarray()).reshape(-1)
-                        if scipy.sparse.issparse(raw)
-                        else np.asarray(raw).reshape(-1)
-                    )
-
-                    for donor in tqdm(valid_donors, desc=f"Donors for {symbol}", leave=False):
-                        donor_mask = (adata_tal.obs[args.donor_key] == donor).values
-                        if donor_mask.sum() < args.min_cells_per_donor:
-                            continue
-
-                        # Run BioRSP on donor subset
-                        d_emb = embedding[donor_mask]
-                        d_vec = vec[donor_mask]
-                        d_umis = umis[donor_mask]
-
-                        d_res = analyze_single_gene(
-                            g, d_vec, d_emb, d_umis, config, n_perm=0, seed=args.seed
-                        )
-                        d_res["donor"] = donor
-                        d_res["gene_symbol"] = symbol
-                        stability_results.append(d_res)
-
-            if stability_results:
-                df_stability = pd.DataFrame(stability_results)
-                stability_csv = outdir / "stability_diagnostics.csv"
-                df_stability.to_csv(stability_csv, index=False)
-                logger.info(
-                    f"Saved stability diagnostics to {stability_csv} ({len(stability_results)} donor-gene combinations)"
-                )
-                run_meta["stability_diagnostics"] = str(stability_csv)
-        else:
-            logger.info("No donors with sufficient cells for stability check.")
-    else:
-        logger.info("Skipping stability diagnostics (no donor key).")
-
-    # 6. Save Results
-    logger.info("Stage 6: Saving results")
-
-    # Sanitize and validate results list
-    csv_path = outdir / "tal_gene_results.csv"
-    expected_keys = [
-        "gene",
-        "A_g",
-        "P_g",
-        "theta_g",
-        "p_strat",
-        "n_fg",
-        "adequacy_fraction",
-        "is_adequate",
-        "error",
-    ]
-
-    sanitized = []
-    for r in results:
-        if not isinstance(r, dict):
-            logger.warning(f"Skipping non-dict result entry: {r}")
-            continue
-        gene = r.get("gene")
-        if gene is None:
-            logger.warning(f"Skipping result with missing gene key: {r}")
-            continue
-        sanitized.append(
+    for name, res in summary.feature_results.items():
+        results.append(
             {
-                "gene": gene,
-                "A_g": r.get("A_g", np.nan),
-                "P_g": r.get("P_g", np.nan),
-                "theta_g": r.get("theta_g", np.nan),
-                "p_strat": r.get("p_strat", np.nan),
-                "n_fg": int(r.get("n_fg", 0)),
-                "adequacy_fraction": float(r.get("adequacy_fraction", 0.0)),
-                "is_adequate": bool(r.get("is_adequate", False)),
-                "error": r.get("error", None),
+                "gene": name,
+                "A_g": res.summaries.anisotropy,
+                "P_g": res.summaries.p_value,
+                "theta_g": res.summaries.theta_max,
+                "p_strat": res.p_value,
+                "n_fg": res.foreground_info.get("n_fg", 0),
+                "adequacy_fraction": res.adequacy.adequacy_fraction,
+                "is_adequate": res.adequacy.is_adequate,
             }
         )
 
-    df_res = pd.DataFrame(sanitized, columns=expected_keys)
+    logger.info(f"BioRSP run complete. Produced {len(results)} results.")
+    run_meta["n_results"] = len(results)
+    logger.info("Stage 5 complete")
+
+    # 6. Save Results
+    logger.info("Stage 6: Saving results")
+    csv_path = outdir / "tal_gene_results.csv"
+    df_res = pd.DataFrame(results)
 
     if df_res.empty:
-        # Write empty CSV with header and exit gracefully
         df_res.to_csv(csv_path, index=False)
-        logger.warning("No valid results were produced; wrote empty results CSV and exiting.")
-        run_meta["n_results"] = 0
-        run_meta["end_time"] = datetime.now().isoformat()
-        run_meta["duration_seconds"] = (
-            datetime.fromisoformat(run_meta["end_time"])
-            - datetime.fromisoformat(run_meta["timestamp"])
-        ).total_seconds()
-        run_meta["output_files"] = {
-            "results_csv": str(csv_path),
-        }
-        with open(outdir / "run_metadata.json", "w", encoding="utf-8") as f:
-            json.dump(run_meta, f, indent=2)
-        logger.info("Analysis finished with no valid results.")
-        return
+        logger.warning("No valid results were produced.")
+    else:
+        df_res["gene_symbol"] = df_res["gene"].map(var_to_symbol)
+        if "A_g" in df_res.columns:
+            df_res = df_res.sort_values(["is_adequate", "A_g"], ascending=[False, False])
+        df_res.to_csv(csv_path, index=False)
+        logger.info(f"Saved ranked results to {csv_path} ({len(df_res)} genes)")
 
-    # Map gene symbols for readability
-    df_res["gene_symbol"] = df_res["gene"].map(var_to_symbol)
-
-    # Rank genes by anisotropy score (A_g)
-    # We only rank genes that meet adequacy criteria for the primary summary
-    if "A_g" in df_res.columns:
-        df_res = df_res.sort_values(["is_adequate", "A_g"], ascending=[False, False])
-
-    df_res.to_csv(csv_path, index=False)
-    logger.info(f"Saved ranked results to {csv_path} ({len(df_res)} genes)")
     logger.info("Stage 6 complete")
 
     # 7. Top Genes & Plots

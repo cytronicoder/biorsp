@@ -8,9 +8,11 @@ import seaborn as sns
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from biorsp.radar import compute_rsp_radar
-from biorsp.simulations.generator import simulate_dataset
-from biorsp.summaries import compute_scalar_summaries
+from biorsp import (
+    compute_rsp_radar,
+    compute_scalar_summaries,
+)
+from biorsp.simulations import simulate_dataset
 
 
 def align_profiles(p1, p2):

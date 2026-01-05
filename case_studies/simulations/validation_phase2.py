@@ -6,9 +6,13 @@ import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
 
-from biorsp.geometry import compute_vantage, polar_coordinates
-from biorsp.plotting import plot_embedding, plot_radar
-from biorsp.radar import compute_rsp_radar
+from biorsp import (
+    compute_rsp_radar,
+    compute_vantage,
+    plot_embedding,
+    plot_radar,
+    polar_coordinates,
+)
 from biorsp.simulations.generator import simulate_dataset
 
 # Set plotting defaults

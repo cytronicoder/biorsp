@@ -8,11 +8,8 @@ import seaborn as sns
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from biorsp.adequacy import gene_adequacy
-from biorsp.inference import compute_p_value
-from biorsp.radar import compute_rsp_radar
-from biorsp.simulations.generator import simulate_dataset
-from biorsp.summaries import compute_scalar_summaries
+import biorsp
+from biorsp.simulations import simulate_dataset
 
 
 def simulate_power_rep(rep, N, q, seed, n_perm, alpha):
@@ -31,10 +28,17 @@ def simulate_power_rep(rep, N, q, seed, n_perm, alpha):
     r = np.linalg.norm(coords, axis=1)
     theta = np.arctan2(coords[:, 1], coords[:, 0])
 
-    # Adequacy check - use permissive settings for power simulation to see where signal emerges
-    report = gene_adequacy(
-        y, theta, n_sectors=360, delta_deg=20, min_fg_total=10, min_adequacy_fraction=0.01
+    config = biorsp.BioRSPConfig(
+        B=360,
+        delta_deg=20,
+        min_fg_total=10,
+        min_adequacy_fraction=0.01,
+        n_permutations=n_perm,
+        seed=seed,
     )
+
+    # Adequacy check - use permissive settings for power simulation to see where signal emerges
+    report = biorsp.assess_adequacy(r, theta, y, config=config)
     abstain = not report.is_adequate
 
     anisotropy = np.nan
@@ -42,14 +46,12 @@ def simulate_power_rep(rep, N, q, seed, n_perm, alpha):
     detected = False
 
     if not abstain:
-        radar = compute_rsp_radar(r, theta, y, B=360, delta_deg=20, adequacy=report)
-        summ = compute_scalar_summaries(radar)
+        radar = biorsp.compute_rsp_radar(r, theta, y, config=config, adequacy=report)
+        summ = biorsp.compute_scalar_summaries(radar)
         anisotropy = summ.anisotropy
         # Fast p-value - pass the same adequacy report to ensure consistent masking
-        p_val_res = compute_p_value(
-            r, theta, y, n_perm=n_perm, B=360, delta_deg=20, adequacy=report
-        )
-        p_val = p_val_res[0]
+        p_val_res = biorsp.compute_p_value(r, theta, y, config=config, adequacy=report)
+        p_val = p_val_res.p_value
         detected = p_val <= alpha
 
     return {

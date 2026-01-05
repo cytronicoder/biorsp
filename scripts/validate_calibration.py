@@ -12,10 +12,13 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
-from biorsp.config import BioRSPConfig
-from biorsp.geometry import geometric_median, polar_coordinates
+from biorsp import (
+    BioRSPConfig,
+    compute_p_value,
+    geometric_median,
+    polar_coordinates,
+)
 from biorsp.simulations.generator import _sample_annulus, _sample_blob, _sample_disk
-from biorsp.stats import compute_p_value
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)

@@ -6,11 +6,13 @@ import pandas as pd
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from biorsp.geometry import compute_vantage
-from biorsp.inference import compute_p_value
-from biorsp.radar import compute_rsp_radar
-from biorsp.simulations.generator import simulate_dataset
-from biorsp.summaries import compute_scalar_summaries
+from biorsp import (
+    compute_p_value,
+    compute_rsp_radar,
+    compute_scalar_summaries,
+    compute_vantage,
+)
+from biorsp.simulations import simulate_dataset
 
 
 def simulate_calibration_rep(i, shape, density, distortion, n_points, q, n_perm, base_seed):

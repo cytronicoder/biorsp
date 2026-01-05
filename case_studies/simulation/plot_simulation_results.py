@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from biorsp.plotting import plot_embedding
+from biorsp import plot_embedding
 
 # seaborn is optional; fall back to matplotlib when unavailable
 try:

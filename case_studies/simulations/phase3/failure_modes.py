@@ -7,12 +7,12 @@ import seaborn as sns
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-from biorsp.adequacy import gene_adequacy
-from biorsp.geometry import compute_vantage
-from biorsp.plotting import plot_radar
-from biorsp.radar import compute_rsp_radar
-from biorsp.simulations.generator import simulate_dataset
-from biorsp.summaries import compute_scalar_summaries
+import biorsp
+from biorsp import (
+    compute_vantage,
+    plot_radar,
+)
+from biorsp.simulations import simulate_dataset
 
 
 def simulate_failure_rep(i, case, base_seed, outdir):
@@ -36,9 +36,10 @@ def simulate_failure_rep(i, case, base_seed, outdir):
     theta = np.arctan2(rel[:, 1], rel[:, 0])
 
     # Use formal adequacy check
-    report = gene_adequacy(y, theta, n_sectors=360, delta_deg=20)
-    radar = compute_rsp_radar(r, theta, y, adequacy=report)
-    summaries = compute_scalar_summaries(radar)
+    config = biorsp.BioRSPConfig(B=360, delta_deg=20)
+    report = biorsp.assess_adequacy(r, theta, y, config=config)
+    radar = biorsp.compute_rsp_radar(r, theta, y, config=config, adequacy=report)
+    summaries = biorsp.compute_scalar_summaries(radar)
 
     abstain = not report.is_adequate
 

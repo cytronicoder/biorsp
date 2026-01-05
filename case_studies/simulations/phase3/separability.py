@@ -11,9 +11,11 @@ from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from biorsp.radar import compute_rsp_radar
-from biorsp.simulations.generator import simulate_dataset
-from biorsp.summaries import compute_scalar_summaries
+from biorsp import (
+    compute_rsp_radar,
+    compute_scalar_summaries,
+)
+from biorsp.simulations import simulate_dataset
 
 
 def extract_features(radar, summ):
