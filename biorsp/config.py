@@ -57,6 +57,8 @@ class BioRSPConfig:
     sign_tol: float = 0.0
     scale_mode: Literal["pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad"] = "pooled_iqr"
     min_scale: float = 1e-3
+    sector_weight_mode: Literal["none", "sqrt_frac", "effective_min", "logistic_support"] = "none"
+    sector_weight_k: float = 5.0
 
     @property
     def n_angles(self) -> int:

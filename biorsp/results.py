@@ -34,6 +34,8 @@ class FeatureResult:
     perm_mode: Optional[str] = None
     K_eff: Optional[int] = None
     empty_sector_count: Optional[int] = None
+    sector_weight_mode: Optional[str] = None
+    sector_weight_k: Optional[float] = None
     robustness: Optional[RobustnessResult] = None
 
 

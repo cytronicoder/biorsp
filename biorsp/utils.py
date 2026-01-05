@@ -203,8 +203,64 @@ def bh_fdr(p_values: np.ndarray) -> np.ndarray:
     return q_values
 
 
+def compute_sector_weight(
+    nF: float,
+    nB: float,
+    mode: str = "none",
+    k: float = 5.0,
+) -> float:
+    """
+    Compute a support-based weight for a sector.
+
+    Parameters
+    ----------
+    nF : float
+        Foreground support (count or mass).
+    nB : float
+        Background support (count or mass).
+    mode : str, optional
+        Weighting mode: "none", "sqrt_frac", "effective_min", "logistic_support".
+        By default "none".
+    k : float, optional
+        Tunable parameter for "effective_min" or "logistic_support", by default 5.0.
+
+    Returns
+    -------
+    float
+        Weight in [0, 1].
+    """
+    if mode == "none":
+        return 1.0
+
+    if nF <= 0 or nB <= 0:
+        return 0.0
+
+    if mode == "sqrt_frac":
+        # w = sqrt(nF / (nF + nB))
+        return float(np.sqrt(nF / (nF + nB)))
+
+    if mode == "effective_min":
+        # w = min(nF, nB) / (min(nF, nB) + k)
+        m = min(nF, nB)
+        return float(m / (m + k))
+
+    if mode == "logistic_support":
+        # w = sigmoid((min(nF, nB) - k) / (k/2)) style
+        m = min(nF, nB)
+        # Avoid overflow in exp
+        z = (m - k) / (max(k, 1e-8) / 4.0)
+        if z > 100:
+            return 1.0
+        if z < -100:
+            return 0.0
+        return float(1.0 / (1.0 + np.exp(-z)))
+
+    return 1.0
+
+
 __all__ = [
     "weighted_wasserstein_1d",
     "weighted_quantile",
     "bh_fdr",
+    "compute_sector_weight",
 ]

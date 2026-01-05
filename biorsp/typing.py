@@ -31,6 +31,7 @@ class RadarResult:
     centers: np.ndarray
     iqr_floor: float
     iqr_floor_hits: np.ndarray
+    sector_weights: Optional[np.ndarray] = None
     normalization_stats: Dict = field(default_factory=dict)
 
 

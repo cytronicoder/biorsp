@@ -149,6 +149,8 @@ def run_analysis(args):
                     integrated_rsp=np.nan,
                 ),
                 foreground_info=fg_info,
+                sector_weight_mode=config.sector_weight_mode,
+                sector_weight_k=config.sector_weight_k,
             )
             continue
 
@@ -180,6 +182,8 @@ def run_analysis(args):
             summaries=summary,
             foreground_info=fg_info,
             radar=radar if args.store_rsp or args.pairwise else None,
+            sector_weight_mode=config.sector_weight_mode,
+            sector_weight_k=config.sector_weight_k,
         )
 
         if args.inference and adequacy.is_adequate:
@@ -289,6 +293,18 @@ def run_analysis(args):
                 "perm_mode": fr.perm_mode,
                 "K_eff": fr.K_eff,
                 "empty_sector_count": fr.empty_sector_count,
+                "sector_weight_mode": config.sector_weight_mode,
+                "sector_weight_k": config.sector_weight_k,
+                "mean_support_weight": (
+                    float(np.nanmean(fr.radar.sector_weights))
+                    if fr.radar is not None and fr.radar.sector_weights is not None
+                    else 1.0
+                ),
+                "min_support_weight": (
+                    float(np.nanmin(fr.radar.sector_weights))
+                    if fr.radar is not None and fr.radar.sector_weights is not None
+                    else 1.0
+                ),
                 "mean_profile_corr": fr.robustness.mean_correlation if fr.robustness else None,
                 "cv_anisotropy": fr.robustness.cv_anisotropy if fr.robustness else None,
                 "rsp_profile": (
@@ -421,6 +437,18 @@ def main(argv=None):
     )
     run_parser.add_argument("--c-hi", type=float, help="Coverage threshold for typing")
     run_parser.add_argument("--a-hi", type=float, help="Anisotropy threshold for typing")
+    run_parser.add_argument(
+        "--sector-weight-mode",
+        choices=["none", "sqrt_frac", "effective_min", "logistic_support"],
+        default="none",
+        help="Mode for support-based sector weighting",
+    )
+    run_parser.add_argument(
+        "--sector-weight-k",
+        type=float,
+        default=5.0,
+        help="Tunable parameter for sector weighting",
+    )
     run_parser.add_argument(
         "--pairwise",
         action="store_true",

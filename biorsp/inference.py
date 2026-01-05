@@ -7,6 +7,7 @@ corrected p-values.
 """
 
 import multiprocessing as mp
+import logging
 from functools import partial
 from typing import List, Optional, Tuple
 
@@ -18,6 +19,8 @@ from .core import compute_anisotropy, compute_rsp_radar
 from .stratification import get_strata_indices
 from .typing import AdequacyReport, BioRSPConfig, InferenceResult
 
+logger = logging.getLogger(__name__)
+
 
 def _permutation_worker(
     seed: int,
@@ -28,6 +31,7 @@ def _permutation_worker(
     config: BioRSPConfig,
     valid_mask: np.ndarray,
     sector_indices: List[np.ndarray],
+    sector_weights: Optional[np.ndarray] = None,
 ) -> Tuple[float, int]:
     """
     Worker function for parallel permutation testing.
@@ -50,6 +54,8 @@ def _permutation_worker(
         (B,) boolean mask of valid sectors.
     sector_indices : List[np.ndarray]
         Precomputed sector indices.
+    sector_weights : np.ndarray, optional
+        Precomputed sector weights to reuse.
 
     Returns
     -------
@@ -65,7 +71,7 @@ def _permutation_worker(
             shuffled_idx = rng.permutation(idx)
             y_perm[idx] = y_perm[shuffled_idx]
 
-    # 2. Compute RSP with frozen mask
+    # 2. Compute RSP with frozen mask and reused weights
     radar_perm = compute_rsp_radar(
         r,
         theta,
@@ -73,6 +79,7 @@ def _permutation_worker(
         config=config,
         sector_indices=sector_indices,
         frozen_mask=valid_mask,
+        sector_weights=sector_weights,
     )
 
     # 3. Count empty sectors (sectors in valid_mask that became empty under permutation)
@@ -157,6 +164,12 @@ def compute_p_value(
     )
     valid_mask = adequacy.sector_mask
 
+    if config.sector_weight_mode != "none":
+        logger.info(
+            f"Using sector weighting mode: {config.sector_weight_mode} (k={config.sector_weight_k})"
+        )
+        logger.info("Observed sector weights will be reused for all permutations.")
+
     if not np.any(valid_mask):
         return InferenceResult(
             p_value=np.nan,
@@ -183,6 +196,7 @@ def compute_p_value(
             config=config,
             valid_mask=valid_mask,
             sector_indices=adequacy.sector_indices,
+            sector_weights=radar_obs.sector_weights,
         )
 
         # Avoid BLAS oversubscription in workers
@@ -217,6 +231,7 @@ def compute_p_value(
                 config,
                 valid_mask,
                 adequacy.sector_indices,
+                radar_obs.sector_weights,
             )
 
     # 4. P-value calculation (finite-permutation correction)

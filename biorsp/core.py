@@ -11,6 +11,7 @@ import numpy as np
 
 from .typing import BioRSPConfig, RadarResult
 from .utils import (
+    compute_sector_weight,
     weighted_quantile_sorted,
     weighted_wasserstein_1d,
 )
@@ -25,6 +26,8 @@ def sector_signed_stat(
     sign_tol: float = 0.0,
     scale_mode: str = "pooled_iqr",
     min_scale: float = 0.0,
+    weight_mode: str = "none",
+    weight_k: float = 5.0,
 ) -> dict:
     """
     Compute the signed per-sector radar statistic R_g(theta).
@@ -46,6 +49,10 @@ def sector_signed_stat(
         Options: "pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad".
     min_scale : float, optional
         Minimum scale value to avoid degeneracy, by default 0.0.
+    weight_mode : str, optional
+        Weighting mode for support-based downweighting, by default "none".
+    weight_k : float, optional
+        Tunable parameter for weighting, by default 5.0.
 
     Returns
     -------
@@ -55,6 +62,8 @@ def sector_signed_stat(
     if in_sector_idx.size == 0:
         return {
             "stat": np.nan,
+            "stat_raw": np.nan,
+            "support_weight": 0.0,
             "sign": 0,
             "w1": np.nan,
             "denom": np.nan,
@@ -76,6 +85,8 @@ def sector_signed_stat(
     if nF <= 0 or nB <= 0:
         return {
             "stat": np.nan,
+            "stat_raw": np.nan,
+            "support_weight": 0.0,
             "sign": 0,
             "w1": np.nan,
             "denom": np.nan,
@@ -126,16 +137,23 @@ def sector_signed_stat(
     else:
         raise ValueError(f"Unknown scale_mode: {scale_mode}")
 
+    # Support weight
+    support_weight = compute_sector_weight(nF, nB, mode=weight_mode, k=weight_k)
+
     # Degeneracy guard
     if denom < min_scale:
         status = "degenerate_scale"
-        stat = 0.0
+        stat_raw = 0.0
     else:
         status = "ok"
-        stat = s * (w1 / (denom + eps))
+        stat_raw = s * (w1 / (denom + eps))
+
+    stat = support_weight * stat_raw
 
     return {
         "stat": stat,
+        "stat_raw": stat_raw,
+        "support_weight": support_weight,
         "sign": s,
         "w1": w1,
         "denom": denom,
@@ -184,6 +202,7 @@ def compute_rsp_radar(
     sector_indices: Optional[List[np.ndarray]] = None,
     frozen_mask: Optional[np.ndarray] = None,
     normalization_stats: Optional[dict] = None,
+    sector_weights: Optional[np.ndarray] = None,
     **kwargs,
 ) -> RadarResult:
     r"""
@@ -194,6 +213,10 @@ def compute_rsp_radar(
     where $s = \text{sign}(\text{median}(r_{bg}) - \text{median}(r_{fg}))$ is the robust sign,
     and $W_1$ is the Wasserstein-1 distance between foreground and background
     radial distributions in the angular window $[\phi_b - \delta/2, \phi_b + \delta/2]$.
+
+    We optionally apply a smooth support-based downweighting of sector statistics
+    to reduce variance from low-support sectors while preserving the sign and
+    overall enrichment morphology.
 
     Parameters
     ----------
@@ -211,6 +234,8 @@ def compute_rsp_radar(
         Fixed boolean mask of valid sectors to compute, by default None.
     normalization_stats : dict, optional
         Radial normalization metadata, by default None.
+    sector_weights : np.ndarray, optional
+        Precomputed sector weights to reuse (e.g. for permutations), by default None.
     **kwargs
         Overrides for config parameters.
 
@@ -239,6 +264,7 @@ def compute_rsp_radar(
     counts_fg = np.zeros(B)
     counts_bg = np.zeros(B)
     iqr_floor_hits = np.zeros(B, dtype=bool)
+    computed_weights = np.ones(B)
 
     # 1. Global background IQR for stability floor
     y_bg_global = 1.0 - y
@@ -273,6 +299,8 @@ def compute_rsp_radar(
             sign_tol=config.sign_tol,
             scale_mode=config.scale_mode,
             min_scale=config.min_scale,
+            weight_mode=config.sector_weight_mode,
+            weight_k=config.sector_weight_k,
         )
 
         counts_fg[b] = res["nF"]
@@ -288,7 +316,14 @@ def compute_rsp_radar(
                 rsp_values[b] = 0.0
             continue
 
-        rsp_values[b] = res["stat"]
+        # If sector_weights provided, override the computed weight
+        if sector_weights is not None:
+            rsp_values[b] = sector_weights[b] * res["stat_raw"]
+            computed_weights[b] = sector_weights[b]
+        else:
+            rsp_values[b] = res["stat"]
+            computed_weights[b] = res["support_weight"]
+
         if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
 
@@ -301,6 +336,7 @@ def compute_rsp_radar(
         centers=angle_grid(B),
         iqr_floor=iqr_floor,
         iqr_floor_hits=iqr_floor_hits,
+        sector_weights=computed_weights,
         normalization_stats=normalization_stats or {},
     )
 
@@ -308,4 +344,5 @@ def compute_rsp_radar(
 __all__ = [
     "compute_anisotropy",
     "compute_rsp_radar",
+    "sector_signed_stat",
 ]
