@@ -1,76 +1,42 @@
-"""biorsp package.
+"""BioRSP: Bayesian Inference and Robustness for RSP-style analyses."""
 
-Bayesian inference and robustness tools for RSP-style analyses.
-"""
-
-from . import constants
-from ._version import __version__
-from .adequacy import assess_adequacy
-from .config import BioRSPConfig
-from .core import (
-    compute_anisotropy,
-    compute_rsp_radar,
-)
-from .foreground import define_foreground, define_foreground_weights
-
-# Public API
-from .geometry import (
-    angle_grid,
-    compute_vantage,
-    geometric_median,
-    get_sector_indices,
-    polar_coordinates,
-    wrapped_circular_distance,
-)
-from .inference import compute_diagnostic_null, compute_p_value
-from .manifest import BioRSPManifest, create_manifest, save_manifest
-from .pairwise import compute_pairwise_relationships
-from .preprocessing import normalize_radii
-from .results import (
+from biorsp._version import __version__
+from biorsp.core import (
     FeatureResult,
     PairwiseResult,
     RunSummary,
-    TypingThresholds,
+    ScalarSummaries,
     assign_feature_types,
+    compute_p_value,
+    compute_rsp_radar,
+    compute_scalar_summaries,
 )
-from .robustness import RobustnessResult, compute_robustness_score
-from .stats import bh_fdr
-from .summaries import ScalarSummaries, compute_scalar_summaries
-from .typing import AdequacyReport, InferenceResult, RadarResult
+
+# Canonical entry point
+from biorsp.main import run
+from biorsp.preprocess import (
+    compute_vantage,
+    define_foreground,
+    normalize_radii,
+    polar_coordinates,
+)
+from biorsp.utils import BioRSPConfig, setup_logging
 
 __all__ = [
     "__version__",
     "BioRSPConfig",
-    "geometric_median",
-    "compute_vantage",
-    "polar_coordinates",
-    "wrapped_circular_distance",
-    "angle_grid",
-    "get_sector_indices",
-    "define_foreground",
-    "define_foreground_weights",
-    "normalize_radii",
+    "setup_logging",
+    "run",
     "compute_rsp_radar",
-    "compute_anisotropy",
-    "assess_adequacy",
-    "RadarResult",
-    "AdequacyReport",
-    "InferenceResult",
-    "compute_scalar_summaries",
-    "ScalarSummaries",
     "compute_p_value",
-    "compute_diagnostic_null",
-    "bh_fdr",
-    "compute_robustness_score",
-    "RobustnessResult",
-    "compute_pairwise_relationships",
+    "compute_scalar_summaries",
     "assign_feature_types",
     "FeatureResult",
     "PairwiseResult",
     "RunSummary",
-    "TypingThresholds",
-    "create_manifest",
-    "save_manifest",
-    "BioRSPManifest",
-    "constants",
+    "ScalarSummaries",
+    "compute_vantage",
+    "polar_coordinates",
+    "normalize_radii",
+    "define_foreground",
 ]
