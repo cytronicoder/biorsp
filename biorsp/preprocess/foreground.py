@@ -250,22 +250,13 @@ def define_foreground_weights(
     """
     N = len(x)
     if tau is None:
-        if abs_threshold is not None:
-            tau = abs_threshold
-        else:
-            tau = float(np.quantile(x, q))
+        tau = abs_threshold if abs_threshold is not None else float(np.quantile(x, q))
 
     if scale is None:
-        # Use a robust scale if not provided
         nz = x[x > 0]
-        if nz.size > 0:
-            scale = np.std(nz)
-        else:
-            scale = 1.0
+        scale = np.std(nz) if nz.size > 0 else 1.0
 
     if method == "logistic":
-        # w = 1 / (1 + exp(-sharpness * (x - tau) / scale))
-        # Use clip to avoid overflow
         z = sharpness * (x - tau) / (scale + 1e-8)
         w = 1.0 / (1.0 + np.exp(-np.clip(z, -20, 20)))
     elif method == "rank":

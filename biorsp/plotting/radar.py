@@ -9,8 +9,6 @@ Provides visualization functions:
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -31,7 +29,7 @@ def _maybe_degrees_to_radians(theta: np.ndarray) -> np.ndarray:
     return theta
 
 
-def _prepare_polar(theta: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def _prepare_polar(theta: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Normalize angles to [0, 2pi), sort, and compute sector widths (one per theta).
 
@@ -61,7 +59,7 @@ def _prepare_polar(theta: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return theta, widths
 
 
-def _ensure_polar_ax(ax: Optional[plt.Axes]) -> plt.Axes:
+def _ensure_polar_ax(ax: plt.Axes | None) -> plt.Axes:
     if ax is None:
         _, ax = plt.subplots(subplot_kw={"projection": "polar"})
         return ax
@@ -84,7 +82,7 @@ def _draw_segmented_rsp(
     fill: bool = True,
     color: str = "b",
     alpha: float = 0.5,
-    line_color: Optional[str] = None,
+    line_color: str | None = None,
     **kwargs,
 ) -> None:
     """
@@ -141,9 +139,10 @@ def _draw_segmented_rsp(
 
 def plot_localization_scatter(
     feature_results: dict,
-    ax: Optional[plt.Axes] = None,
+    ax: plt.Axes | None = None,
     show_archetypes: bool = True,
     color_by_sign: bool = True,
+    delta_deg: float | None = None,
     **kwargs,
 ) -> plt.Axes:
     """
@@ -159,6 +158,8 @@ def plot_localization_scatter(
         Whether to annotate archetypes (rim/core, wedge, null).
     color_by_sign : bool, optional
         Whether to color points by the sign of the extremal peak.
+    delta_deg : float, optional
+        The sector width used. If >= 90, "Wedge" labels are marked as potential artifacts.
     **kwargs
         Passed to ax.scatter.
 
@@ -218,10 +219,14 @@ def plot_localization_scatter(
             alpha=0.5,
         )
 
+        wedge_label = "Wedge\n(Localized)"
+        if delta_deg is not None and delta_deg >= 90:
+            wedge_label = "Wedge\n(Artifact?)"
+
         ax.text(
             xlim[1] - 0.2 * (xlim[1] - xlim[0]),
             ylim[1] - 0.15 * (ylim[1] - ylim[0]),
-            "Wedge\n(Localized)",
+            wedge_label,
             ha="center",
             fontstyle="italic",
             alpha=0.5,
@@ -232,10 +237,11 @@ def plot_localization_scatter(
 
 def plot_phenotype_map(
     feature_results: dict,
-    ax: Optional[plt.Axes] = None,
+    ax: plt.Axes | None = None,
     y_axis: str = "polarity",
     color_by: str = "localization_entropy",
     show_archetypes: bool = True,
+    delta_deg: float | None = None,
     **kwargs,
 ) -> plt.Axes:
     """
@@ -253,6 +259,8 @@ def plot_phenotype_map(
         Field to use for coloring points (e.g., 'localization_entropy').
     show_archetypes : bool, optional
         Whether to annotate archetypes (rim, core, wedge, null).
+    delta_deg : float, optional
+        The sector width used. If >= 90, "Wedge" labels are marked as potential artifacts.
     **kwargs
         Passed to ax.scatter.
 
@@ -312,10 +320,14 @@ def plot_phenotype_map(
             color="royalblue",
         )
 
+        wedge_label = "Mixed / Wedge"
+        if delta_deg is not None and delta_deg >= 90:
+            wedge_label = "Mixed / Wedge (Artifact?)"
+
         ax.text(
             xlim[1] - 0.05 * (xlim[1] - xlim[0]),
             0,
-            "Mixed / Wedge",
+            wedge_label,
             ha="right",
             va="center",
             fontstyle="italic",
@@ -327,13 +339,13 @@ def plot_phenotype_map(
 
 def plot_radar(
     radar: RadarResult,
-    ax: Optional[plt.Axes] = None,
-    title: Optional[str] = None,
+    ax: plt.Axes | None = None,
+    title: str | None = None,
     color: str = "b",
     alpha: float = 0.5,
     mode: str = "signed",
-    radial_max: Optional[float] = None,
-    summaries: Optional[ScalarSummaries] = None,
+    radial_max: float | None = None,
+    summaries: ScalarSummaries | None = None,
     show_anchors: bool = False,
     **kwargs,
 ) -> plt.Axes:
@@ -385,10 +397,7 @@ def plot_radar(
         return ax
 
     max_mag = float(np.nanmax(np.abs(r_raw[finite_r])))
-    if radial_max is not None:
-        y_top = float(radial_max)
-    else:
-        y_top = max(1e-6, max_mag * 1.05)
+    y_top = float(radial_max) if radial_max is not None else max(1e-06, max_mag * 1.05)
 
     if y_top <= 0:
         y_top = 1e-6
@@ -396,13 +405,11 @@ def plot_radar(
     theta_norm = _maybe_degrees_to_radians(theta_raw.astype(float, copy=False))
     theta_norm = np.mod(theta_norm, 2 * np.pi)
 
-    if theta_norm.size == 1:
-        order = np.array([0], dtype=int)
-    else:
-        order = np.argsort(theta_norm)
+    order = np.array([0], dtype=int) if theta_norm.size == 1 else np.argsort(theta_norm)
 
     theta = theta_norm[order]
     r = r_raw[order]
+    counts_fg = radar.counts_fg[order] if hasattr(radar, "counts_fg") else None
 
     theta_sorted, widths = _prepare_polar(theta)
     theta = theta_sorted
@@ -424,7 +431,24 @@ def plot_radar(
         for t in invalid_theta:
             ax.plot([t, t], [y_top * 0.95, y_top], color="gray", linewidth=1.0, alpha=0.6)
 
-    def _maybe_add_anchors(ax_obj: plt.Axes, summaries_obj: Optional[ScalarSummaries]):
+    # Mark zero-filled sectors (empty foreground) with distinct marker
+    if counts_fg is not None:
+        # Zero-filled sectors are valid (finite r), have r=0, and counts_fg=0
+        zero_filled_mask = valid & (r == 0) & (counts_fg == 0)
+        zero_filled_theta = theta[zero_filled_mask]
+        if zero_filled_theta.size:
+            # Plot a small circle at the rim to indicate "forced zero"
+            ax.scatter(
+                zero_filled_theta,
+                np.full_like(zero_filled_theta, y_top),
+                marker="o",
+                color="gray",
+                s=15,
+                alpha=0.5,
+                zorder=10,
+            )
+
+    def _maybe_add_anchors(ax_obj: plt.Axes, summaries_obj: ScalarSummaries | None):
         if not summaries_obj or not show_anchors:
             return
         p_prox = getattr(summaries_obj, "peak_proximal_angle", None)
@@ -589,12 +613,12 @@ def plot_radar(
 
 def plot_radar_absolute(
     radar: RadarResult,
-    fig: Optional[plt.Figure] = None,
-    title: Optional[str] = None,
+    fig: plt.Figure | None = None,
+    title: str | None = None,
     color: str = "b",
     alpha: float = 0.5,
-    radial_max: Optional[float] = None,
-    summaries: Optional[ScalarSummaries] = None,
+    radial_max: float | None = None,
+    summaries: ScalarSummaries | None = None,
     show_anchors: bool = False,
     **kwargs,
 ) -> plt.Figure:
@@ -668,7 +692,7 @@ def plot_radar_split(*args, **kwargs):
     return plot_radar_absolute(*args, **kwargs)
 
 
-def plot_summary(summary: ScalarSummaries, ax: Optional[plt.Axes] = None) -> plt.Axes:
+def plot_summary(summary: ScalarSummaries, ax: plt.Axes | None = None) -> plt.Axes:
     """
     Display scalar summaries as text.
 
@@ -689,6 +713,7 @@ def plot_summary(summary: ScalarSummaries, ax: Optional[plt.Axes] = None) -> plt
         f"Min RSP: {summary.min_rsp:.3f}\n"
         f"RMS Anisotropy: {summary.anisotropy:.3f}\n"
         f"Integrated RSP: {summary.integrated_rsp:.3f}\n"
+        f"Coverage (BG/FG): {summary.coverage_bg:.2f} / {summary.coverage_fg:.2f}\n"
         f"Peak Distal Angle: {np.degrees(summary.peak_distal_angle):.1f}°\n"
         f"Peak Proximal Angle: {np.degrees(summary.peak_proximal_angle):.1f}°\n"
         f"Peak Extremal Angle: {np.degrees(summary.peak_extremal_angle):.1f}°"

@@ -71,8 +71,8 @@ def _permutation_worker(
             shuffled_idx = rng.permutation(idx)
             y_perm[idx] = y_perm[shuffled_idx]
 
-    # Use the observed valid mask to preserve null variance properties.
-    # If some sectors were degenerate in the observed data, they remain frozen in permutations.
+    # Frozen mask preserves null variance: degenerate sectors in observed data
+    # remain frozen (0 or NaN) in permutations to reflect the observed geometry.
     radar_perm = compute_rsp_radar(
         r,
         theta,
@@ -91,7 +91,7 @@ def compute_p_value(
     r: np.ndarray,
     theta: np.ndarray,
     y: np.ndarray,
-    config: BioRSPConfig = BioRSPConfig(),
+    config: Optional[BioRSPConfig] = None,
     n_perm: int = 1000,
     umi_counts: Optional[np.ndarray] = None,
     rng: Optional[np.random.Generator] = None,
@@ -116,7 +116,7 @@ def compute_p_value(
     y : np.ndarray
         (N,) foreground weights or binary indicators.
     config : BioRSPConfig, optional
-        Configuration object, by default BioRSPConfig().
+        Configuration object, by default None (creates default config).
     n_perm : int, optional
         Number of permutations, by default 1000.
     umi_counts : np.ndarray, optional
@@ -137,6 +137,8 @@ def compute_p_value(
     InferenceResult
         The result of the permutation test.
     """
+    if config is None:
+        config = BioRSPConfig()
     if rng is None:
         rng = np.random.default_rng(seed)
 
@@ -193,7 +195,7 @@ def compute_p_value(
             sector_weights=radar_obs.sector_weights,
         )
 
-        # Avoid BLAS oversubscription in workers
+        # Avoid BLAS thread oversubscription in worker processes.
         import os
 
         os.environ["OMP_NUM_THREADS"] = "1"
@@ -248,7 +250,7 @@ def compute_diagnostic_null(
     r: np.ndarray,
     theta: np.ndarray,
     y: np.ndarray,
-    config: BioRSPConfig = BioRSPConfig(),
+    config: Optional[BioRSPConfig] = None,
     n_perm: int = 100,
     seed: int = 42,
 ) -> np.ndarray:
@@ -266,6 +268,8 @@ def compute_diagnostic_null(
         (N,) array of angles in radians.
     y : np.ndarray
         (N,) foreground weights.
+    config : BioRSPConfig, optional
+        Configuration object, by default None (creates default config).
     config : BioRSPConfig
         Configuration object.
     n_perm : int

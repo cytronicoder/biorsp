@@ -4,8 +4,6 @@ Pairwise synergy/complementarity computations for BioRSP.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Tuple
-
 import numpy as np
 
 from biorsp.core.results import PairwiseResult
@@ -25,16 +23,16 @@ def _pearson_corr(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.corrcoef(a_masked, b_masked)[0, 1])
 
 
-def _select_top_k(features: List[str], scores: Dict[str, float], top_k: Optional[int]) -> List[str]:
+def _select_top_k(features: list[str], scores: dict[str, float], top_k: int | None) -> list[str]:
     if top_k is None or top_k <= 0 or top_k >= len(features):
         return features
     return sorted(features, key=lambda f: scores.get(f, -np.inf), reverse=True)[:top_k]
 
 
 def compute_pairwise_relationships(
-    radar_by_feature: Dict[str, RadarResult],
-    top_k: Optional[int] = None,
-) -> Tuple[List[PairwiseResult], List[PairwiseResult]]:
+    radar_by_feature: dict[str, RadarResult],
+    top_k: int | None = None,
+) -> tuple[list[PairwiseResult], list[PairwiseResult]]:
     """
     Compute pairwise synergy and complementarity from radar profiles.
 
@@ -53,8 +51,8 @@ def compute_pairwise_relationships(
     anisotropy_scores = {f: summaries[f].anisotropy for f in features}
     selected = _select_top_k(features, anisotropy_scores, top_k)
 
-    synergy: List[PairwiseResult] = []
-    complementarity: List[PairwiseResult] = []
+    synergy: list[PairwiseResult] = []
+    complementarity: list[PairwiseResult] = []
 
     for i, f1 in enumerate(selected):
         r1 = radar_by_feature[f1].rsp

@@ -40,31 +40,26 @@ def geometric_median(
     converged : bool
         Boolean indicating if convergence was reached.
     """
-    # Initial guess: centroid (mean)
+    # Initial guess: centroid
     y = np.mean(points, axis=0)
     converged = False
     n_iter = 0
 
     for i in range(max_iter):
         n_iter = i + 1
-        # Calculate distances from current guess
         distances = np.linalg.norm(points - y, axis=1)
 
-        # Handle points coinciding with current guess to avoid division by zero
         non_zeros = distances > 1e-10
 
         if not np.any(non_zeros):
             converged = True
             return y, n_iter, converged
 
-        # Weights w_i = 1 / ||z_i - y||
         inv_distances = 1.0 / distances[non_zeros]
         weights = inv_distances / np.sum(inv_distances)
 
-        # Update y as weighted average: y_{k+1} = \sum w_i z_i
         y_next = np.sum(points[non_zeros] * weights[:, np.newaxis], axis=0)
 
-        # Check convergence
         if np.linalg.norm(y_next - y) < tol:
             converged = True
             return y_next, n_iter, converged
@@ -197,21 +192,16 @@ def get_sector_indices(
     delta_rad = np.deg2rad(delta_deg)
     half_width = delta_rad / 2.0
 
-    # Normalize angles to [0, 2pi)
     theta_mod = theta % two_pi
     order = np.argsort(theta_mod)
     theta_sorted = theta_mod[order]
 
-    # Duplicate for wrap-around handling
     theta2 = np.concatenate([theta_sorted, theta_sorted + two_pi])
     idx2 = np.concatenate([order, order])
 
-    # Define grid centers in [0, 2pi)
     centers = angle_grid(B)
     centers_mod = (centers + two_pi) % two_pi
 
-    # Map centers to monotonic space for two-pointer
-    # If (phi - half_width) < 0, we shift it to (2pi, 3pi)
     centers_use = np.where((centers_mod - half_width) < 0, centers_mod + two_pi, centers_mod)
     centers_order = np.argsort(centers_use)
 
@@ -233,8 +223,6 @@ def get_sector_indices(
             right += 1
 
         if right > left:
-            # Use unique to handle cases where delta > 360 (though unlikely)
-            # and to ensure indices are sorted for downstream efficiency
             window_idx = idx2[left:right]
             sector_indices[b_idx] = np.unique(window_idx)
 

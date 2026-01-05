@@ -5,7 +5,6 @@ This module implements defensible QC criteria for both binary and weighted
 foreground modes, ensuring consistent and reproducible adequacy assessment.
 """
 
-# Use TYPE_CHECKING to avoid import cycles at runtime
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
 
 import numpy as np

@@ -9,6 +9,14 @@ import argparse
 
 from biorsp import BioRSPConfig, run
 from biorsp.io.loaders import load_expression_matrix, load_spatial_coords, load_umi_counts
+from biorsp.utils.constants import (
+    B_DEFAULT,
+    DELTA_DEG_DEFAULT,
+    K_EXPLORATORY_DEFAULT,
+    N_BG_MIN_DEFAULT,
+    N_FG_MIN_DEFAULT,
+    N_FG_TOT_MIN_DEFAULT,
+)
 from biorsp.utils.logging import setup_logging
 
 
@@ -34,10 +42,10 @@ def run_analysis(args):
             print("Warning: Using expression row sums as UMI counts for stratified inference.")
             umi_counts = df_expr.sum(axis=1).values
 
-    # Config
     config = BioRSPConfig(
         B=args.B,
         delta_deg=args.delta,
+        foreground_quantile=args.q,
         n_permutations=args.n_perm,
         perm_mode=args.perm_mode,
         n_r_bins=args.n_r_bins,
@@ -53,7 +61,6 @@ def run_analysis(args):
         sector_weight_k=args.sector_weight_k,
     )
 
-    # Run pipeline
     summary = run(
         coords=coords,
         expression=df_expr,
@@ -62,7 +69,6 @@ def run_analysis(args):
         outdir=args.outdir if hasattr(args, "outdir") else None,
     )
 
-    # Save results table
     if args.output:
         results_df = summary.to_dataframe()
         results_df.to_csv(args.output)
@@ -79,7 +85,6 @@ def main(argv=None):
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
-    # Run command
     run_parser = subparsers.add_parser("run", help="Run RSP analysis")
     run_parser.add_argument("--expression", required=True, help="Expression matrix file")
     run_parser.add_argument("--coords", required=True, help="Spatial coordinates file")
@@ -91,17 +96,19 @@ def main(argv=None):
         help="Transpose expression matrix (cells x genes)",
     )
 
-    # Parameters
-    run_parser.add_argument("--B", type=int, default=360, help="Number of sectors")
-    run_parser.add_argument("--delta", type=float, default=180.0, help="Sector width (degrees)")
+    run_parser.add_argument("--B", type=int, default=B_DEFAULT, help="Number of sectors")
     run_parser.add_argument(
-        "--min-count", type=int, default=10, help="Min foreground cells per sector"
+        "--delta", type=float, default=DELTA_DEG_DEFAULT, help="Sector width (degrees)"
+    )
+    run_parser.add_argument("--q", type=float, default=0.90, help="Foreground quantile")
+    run_parser.add_argument(
+        "--min-count", type=int, default=N_FG_MIN_DEFAULT, help="Min foreground cells per sector"
     )
     run_parser.add_argument(
-        "--min-bg-count", type=int, default=50, help="Min background cells per sector"
+        "--min-bg-count", type=int, default=N_BG_MIN_DEFAULT, help="Min background cells per sector"
     )
     run_parser.add_argument(
-        "--min-fg-total", type=int, default=100, help="Min total foreground cells"
+        "--min-fg-total", type=int, default=N_FG_TOT_MIN_DEFAULT, help="Min total foreground cells"
     )
     run_parser.add_argument(
         "--min_adequacy_fraction",
@@ -118,7 +125,9 @@ def main(argv=None):
         help="Column name to read UMI counts from the UMI file (defaults to umi/umis)",
     )
     run_parser.add_argument("--inference", action="store_true", help="Run permutation test")
-    run_parser.add_argument("--n-perm", type=int, default=200, help="Number of permutations")
+    run_parser.add_argument(
+        "--n-perm", type=int, default=K_EXPLORATORY_DEFAULT, help="Number of permutations"
+    )
     run_parser.add_argument(
         "--perm-mode",
         choices=["radial", "joint", "rt_umi", "none"],

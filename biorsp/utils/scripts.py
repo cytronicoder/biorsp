@@ -8,6 +8,11 @@ from typing import Any, Dict, List, Optional, Union
 
 from biorsp.io.manifest import create_manifest, save_manifest
 from biorsp.utils.config import BioRSPConfig
+from biorsp.utils.constants import (
+    B_DEFAULT,
+    DELTA_DEG_DEFAULT,
+    K_EXPLORATORY_DEFAULT,
+)
 
 
 def add_common_args(parser: argparse.ArgumentParser):
@@ -16,8 +21,11 @@ def add_common_args(parser: argparse.ArgumentParser):
     parser.add_argument("--coords", type=str, help="Path to coords CSV (if not in adata)")
     parser.add_argument("--outdir", type=str, default="results", help="Output directory")
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
-    parser.add_argument("--B", type=int, default=36, help="Number of angles")
-    parser.add_argument("--delta_deg", type=float, default=10.0, help="Sector width in degrees")
+    parser.add_argument("--B", type=int, default=B_DEFAULT, help="Number of angles")
+    parser.add_argument(
+        "--delta_deg", type=float, default=DELTA_DEG_DEFAULT, help="Sector width in degrees"
+    )
+    parser.add_argument("--q", type=float, default=0.90, help="Foreground quantile")
     parser.add_argument(
         "--perm_mode",
         type=str,
@@ -25,7 +33,9 @@ def add_common_args(parser: argparse.ArgumentParser):
         choices=["radial", "joint", "rt_umi", "none"],
         help="Permutation mode",
     )
-    parser.add_argument("--n_permutations", type=int, default=100, help="Number of permutations")
+    parser.add_argument(
+        "--n_permutations", type=int, default=K_EXPLORATORY_DEFAULT, help="Number of permutations"
+    )
     parser.add_argument("--save_plots", action="store_true", default=True, help="Save plots")
     parser.add_argument("--no_plots", action="store_false", dest="save_plots", help="Disable plots")
     parser.add_argument("--save_profiles", action="store_true", default=True, help="Save profiles")
@@ -41,6 +51,7 @@ def config_from_args(args: argparse.Namespace) -> BioRSPConfig:
     return BioRSPConfig(
         B=args.B,
         delta_deg=args.delta_deg,
+        foreground_quantile=args.q,
         perm_mode=args.perm_mode,
         n_permutations=args.n_permutations,
         seed=args.seed,
@@ -61,7 +72,7 @@ def get_features_to_run(args: argparse.Namespace) -> Optional[List[str]]:
     if args.features:
         return [f.strip() for f in args.features.split(",")]
     if args.features_file:
-        with open(args.features_file, "r") as f:
+        with open(args.features_file) as f:
             return [line.strip() for line in f if line.strip()]
     return None
 

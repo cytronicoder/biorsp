@@ -6,26 +6,22 @@ Single source of truth for Methods defaults and numeric stabilizers.
 
 import numpy as np
 
-# Grid and Sector defaults
-B_DEFAULT = 360
-DELTA_DEG_DEFAULT = 180.0
+B_DEFAULT = 72
+DELTA_DEG_DEFAULT = 60.0
 DELTA_RAD_DEFAULT = np.deg2rad(DELTA_DEG_DEFAULT)
 SMOOTH_DEG_DEFAULT = 5.0  # Visualization only
 
-# Adequacy defaults
 N_FG_MIN_DEFAULT = 10
 N_BG_MIN_DEFAULT = 50
 N_FG_TOT_MIN_DEFAULT = 100
 ADEQUACY_FRACTION_DEFAULT = 0.9
 
-# Principled QC defaults
 MIN_FG_EFF_DEFAULT = 5.0
 MIN_BG_EFF_DEFAULT = 10.0
 MIN_TOTAL_MF_DEFAULT = 50.0
-MIN_COVERAGE_DEFAULT = 0.5
+MIN_COVERAGE_DEFAULT = 0.1
 MIN_VALID_SECTORS_DEFAULT = 3
 
-# Inference defaults
 UMI_BINS_DEFAULT = 10  # Q=10
 N_R_BINS_DEFAULT = 10
 N_THETA_BINS_DEFAULT = 4
@@ -34,10 +30,8 @@ K_EXPLORATORY_DEFAULT = 200
 K_FINAL_DEFAULT = 1000
 IQR_FLOOR_DEFAULT = 0.1
 
-# Numeric stabilizers
 EPS = 1e-8
 
-# Reason codes for adequacy
 REASON_SECTOR_FG_TOO_SMALL = "low_fg"
 REASON_SECTOR_BG_TOO_SMALL = "low_bg"
 REASON_SECTOR_MIXED_TOO_SMALL = "low_mixed"

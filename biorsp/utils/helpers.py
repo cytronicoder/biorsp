@@ -236,18 +236,14 @@ def compute_sector_weight(
         return 0.0
 
     if mode == "sqrt_frac":
-        # w = sqrt(nF / (nF + nB))
         return float(np.sqrt(nF / (nF + nB)))
 
     if mode == "effective_min":
-        # w = min(nF, nB) / (min(nF, nB) + k)
         m = min(nF, nB)
         return float(m / (m + k))
 
     if mode == "logistic_support":
-        # w = sigmoid((min(nF, nB) - k) / (k/2)) style
         m = min(nF, nB)
-        # Avoid overflow in exp
         z = (m - k) / (max(k, 1e-8) / 4.0)
         if z > 100:
             return 1.0

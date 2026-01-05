@@ -181,8 +181,6 @@ def run(
                     if res is not None:
                         feature_results[name] = res
                     else:
-                        # We don't have the reason here easily without changing _process_feature
-                        # but we can count it.
                         abstention_reasons["unknown_or_underpowered"] = (
                             abstention_reasons.get("unknown_or_underpowered", 0) + 1
                         )

@@ -56,9 +56,6 @@ def _sample_blob(
     return np.vstack([r * np.cos(theta), r * np.sin(theta)]).T
 
 
-# --- Density Models ---
-
-
 def _apply_density(coords: np.ndarray, model: str = "uniform", strength: float = 1.0) -> np.ndarray:
     if model == "uniform":
         return coords
@@ -69,16 +66,12 @@ def _apply_density(coords: np.ndarray, model: str = "uniform", strength: float =
 
     probs = np.ones(n)
     if model == "radial_center":
-        # Higher density at center: prob decreases with r
         probs = np.exp(-strength * r)
     elif model == "radial_rim":
-        # Higher density at rim: prob increases with r
         probs = np.exp(strength * (r - r.max()))
     elif model == "angular_bias":
-        # Higher density in one direction
         probs = np.exp(strength * np.cos(theta))
     elif model == "gmm":
-        # Clumping via a few Gaussians
         centers = [np.array([0.5, 0.5]), np.array([-0.5, -0.5])]
         for c in centers:
             dists = np.linalg.norm(coords - c, axis=1)
@@ -87,9 +80,6 @@ def _apply_density(coords: np.ndarray, model: str = "uniform", strength: float =
     probs /= probs.sum()
     idx = np.random.choice(n, size=n, replace=True, p=probs)
     return coords[idx]
-
-
-# --- Distortions ---
 
 
 def _apply_distortion(coords: np.ndarray, dist_type: str = "none", **kwargs) -> np.ndarray:
@@ -111,9 +101,6 @@ def _apply_distortion(coords: np.ndarray, dist_type: str = "none", **kwargs) -> 
         return np.vstack([x_new, y_new]).T
 
     return coords
-
-
-# --- Main Functions ---
 
 
 def simulate_points(
@@ -316,8 +303,8 @@ def save_dataset(data: Dict[str, Any], output_dir: str, prefix: str):
 
 
 def generate_grid(
-    shapes: List[str] = ["disk", "ellipse", "annulus", "crescent", "two_lobe", "blob"],
-    enrichments: List[str] = ["null", "rim", "core", "wedge", "rim+wedge", "two_sector", "patch"],
+    shapes: List[str] = None,
+    enrichments: List[str] = None,
     n_points: int = 2000,
     output_dir: str = "sim_results/inputs",
     seed: int = 42,
@@ -325,6 +312,10 @@ def generate_grid(
     """
     Generate a suite of simulations for benchmarking.
     """
+    if enrichments is None:
+        enrichments = ["null", "rim", "core", "wedge", "rim+wedge", "two_sector", "patch"]
+    if shapes is None:
+        shapes = ["disk", "ellipse", "annulus", "crescent", "two_lobe", "blob"]
     for shape in shapes:
         for enrichment in enrichments:
             prefix = f"{shape}_{enrichment}".replace("+", "_")

@@ -90,7 +90,7 @@ def save_manifest(manifest: BioRSPManifest, filepath: str) -> None:
 
 def load_manifest(filepath: str) -> BioRSPManifest:
     """Load manifest from JSON file (expects UTF-8 encoding)."""
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         data = json.load(f)
     return BioRSPManifest(**data)
 

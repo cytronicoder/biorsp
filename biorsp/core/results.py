@@ -5,7 +5,7 @@ Results data models for BioRSP.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -28,17 +28,17 @@ class FeatureResult:
     coverage_prevalence: float
     adequacy: AdequacyReport
     summaries: ScalarSummaries
-    foreground_info: Optional[dict] = None
-    radar: Optional[RadarResult] = None
-    feature_type: Optional[str] = None
-    p_value: Optional[float] = None
-    q_value: Optional[float] = None
-    perm_mode: Optional[str] = None
-    K_eff: Optional[int] = None
-    empty_sector_count: Optional[int] = None
-    sector_weight_mode: Optional[str] = None
-    sector_weight_k: Optional[float] = None
-    robustness: Optional[RobustnessResult] = None
+    foreground_info: dict | None = None
+    radar: RadarResult | None = None
+    feature_type: str | None = None
+    p_value: float | None = None
+    q_value: float | None = None
+    perm_mode: str | None = None
+    K_eff: int | None = None
+    empty_sector_count: int | None = None
+    sector_weight_mode: str | None = None
+    sector_weight_k: float | None = None
+    robustness: RobustnessResult | None = None
 
 
 @dataclass
@@ -72,17 +72,16 @@ class RunSummary:
     Global summary metadata for a BioRSP run.
     """
 
-    feature_results: Dict[str, FeatureResult]
+    feature_results: dict[str, FeatureResult]
     config: BioRSPConfig
-    metadata: Dict[str, Any]
-    typing_thresholds: Optional[TypingThresholds] = None
-    pairwise: Optional[Dict[str, list]] = None
+    metadata: dict[str, Any]
+    typing_thresholds: TypingThresholds | None = None
+    pairwise: dict[str, list] | None = None
 
     def to_dataframe(self) -> pd.DataFrame:
         """Convert feature results to a pandas DataFrame."""
         rows = []
         for name, res in self.feature_results.items():
-            # Count sector failure reasons
             fail_fg = 0
             fail_bg = 0
             fail_scale = 0
@@ -108,6 +107,8 @@ class RunSummary:
                 "sector_fail_low_bg": fail_bg,
                 "sector_fail_scale": fail_scale,
                 "anisotropy": res.summaries.anisotropy,
+                "coverage_bg": res.summaries.coverage_bg,
+                "coverage_fg": res.summaries.coverage_fg,
                 "p_value": res.p_value,
                 "q_value": res.q_value,
                 "K_eff": res.K_eff,
@@ -124,12 +125,12 @@ class RunSummary:
 
 
 def assign_feature_types(
-    feature_results: Dict[str, FeatureResult],
+    feature_results: dict[str, FeatureResult],
     coverage_field: str = "coverage_prevalence",
     method: str = "median",
-    c_hi: Optional[float] = None,
-    A_hi: Optional[float] = None,
-) -> Tuple[Dict[str, FeatureResult], TypingThresholds]:
+    c_hi: float | None = None,
+    A_hi: float | None = None,
+) -> tuple[dict[str, FeatureResult], TypingThresholds]:
     """
     Assign coverage × anisotropy types (I-IV) for adequate features.
 

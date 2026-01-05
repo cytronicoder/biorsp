@@ -100,15 +100,10 @@ def compute_localization(
 
     p = a / (sum_a + eps)
 
-    # Entropy-based localization
-    # H = -sum(p * log(p))
-    # L = 1 - H / log(M)
     h = -np.sum(p * np.log(p + eps))
     info["entropy"] = float(h)
     L_entropy = 1.0 - h / np.log(M)
 
-    # Gini-based localization (optional alternative)
-    # G = (sum_{i=1}^M sum_{j=1}^M |a_i - a_j|) / (2 * M^2 * mean(a))
     diff_matrix = np.abs(a[:, None] - a[None, :])
     gini = np.sum(diff_matrix) / (2 * M**2 * np.mean(a))
     info["gini"] = float(gini)

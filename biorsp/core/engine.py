@@ -90,13 +90,23 @@ def sector_signed_stat(
     nB = float(np.sum(w_bg))
 
     if nF <= 0 or nB <= 0:
+        denom = np.nan
+        if nB > 0 and scale_mode in ["pooled_iqr", "bg_iqr", "pooled_mad"]:
+            if scale_mode == "pooled_mad":
+                med = np.median(r_s)
+                denom = 1.4826 * np.median(np.abs(r_s - med))
+            else:
+                q75 = np.percentile(r_s, 75)
+                q25 = np.percentile(r_s, 25)
+                denom = q75 - q25
+
         return {
             "stat": np.nan,
             "stat_raw": np.nan,
             "support_weight": 0.0,
             "sign": 0,
             "w1": np.nan,
-            "denom": np.nan,
+            "denom": denom,
             "medF": np.nan,
             "medB": np.nan,
             "nF": nF,
@@ -114,10 +124,7 @@ def sector_signed_stat(
     medB = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.5)
 
     diff = medB - medF
-    if np.abs(diff) <= sign_tol:
-        s = 0
-    else:
-        s = 1 if diff > 0 else -1
+    s = 0 if np.abs(diff) <= sign_tol else 1 if diff > 0 else -1
 
     w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
 
@@ -156,10 +163,7 @@ def sector_signed_stat(
 
     support_weight = compute_sector_weight(nF, nB, mode=weight_mode, k=weight_k)
 
-    if not valid:
-        stat_raw = 0.0
-    else:
-        stat_raw = s * (w1 / (denom + eps))
+    stat_raw = 0.0 if not valid else s * (w1 / (denom + eps))
 
     stat = support_weight * stat_raw
 
@@ -203,7 +207,6 @@ def compute_anisotropy(rsp: np.ndarray, valid_mask: np.ndarray) -> float:
     if masked_rsp.size == 0:
         return np.nan
 
-    # Treat NaNs in valid sectors as zero (missing data in a valid window)
     clean_rsp = np.nan_to_num(masked_rsp, nan=0.0)
     return float(np.sqrt(np.mean(clean_rsp**2)))
 
@@ -217,6 +220,7 @@ def compute_rsp_radar(
     frozen_mask: Optional[np.ndarray] = None,
     normalization_stats: Optional[dict] = None,
     sector_weights: Optional[np.ndarray] = None,
+    debug: bool = False,
     **kwargs,
 ) -> RadarResult:
     r"""
@@ -250,6 +254,8 @@ def compute_rsp_radar(
         Radial normalization metadata, by default None.
     sector_weights : np.ndarray, optional
         Precomputed sector weights to reuse (e.g. for permutations), by default None.
+    debug : bool, optional
+        If True, print per-sector debug info to stdout, by default False.
     **kwargs
         Overrides for config parameters.
 
@@ -267,6 +273,16 @@ def compute_rsp_radar(
         config_overrides = {k: v for k, v in kwargs.items() if k in config_fields}
         if config_overrides:
             config = replace(config, **config_overrides)
+
+    if config.delta_deg >= 90:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"Wide angular window (delta={config.delta_deg} deg) detected. "
+            "Directional localization is not identifiable for wide delta; "
+            "interpretation will be limited to global/localized shift via coverage."
+        )
 
     B = config.B
     if sector_indices is None:
@@ -293,14 +309,31 @@ def compute_rsp_radar(
 
     iqr_floor = max(config.iqr_floor_pct * global_iqr, 1e-8)
 
+    if debug:
+        print(
+            f"{'Theta':>6} | {'nF':>6} | {'nB':>6} | {'Valid':>5} | {'Status':>15} | {'Raw':>8} | {'RSP':>8}"
+        )
+
     for b in range(B):
         if frozen_mask is not None and not frozen_mask[b]:
+            if debug:
+                theta_rad = -np.pi + b * (2 * np.pi / B)
+                theta_deg = np.degrees(theta_rad)
+                print(
+                    f"{theta_deg:6.1f} | {'-':>6} | {'-':>6} | {'False':>5} | {'frozen_skip':>15} | {'-':>8} | {0.0:8.3f}"
+                )
             continue
 
         idx = sector_indices[b]
         if idx.size == 0:
             if frozen_mask is not None:
                 rsp_values[b] = 0.0
+            if debug:
+                theta_rad = -np.pi + b * (2 * np.pi / B)
+                theta_deg = np.degrees(theta_rad)
+                print(
+                    f"{theta_deg:6.1f} | {0:6.1f} | {0:6.1f} | {'False':>5} | {'empty_idx':>15} | {'-':>8} | {rsp_values[b]:8.3f}"
+                )
             continue
 
         res = sector_signed_stat(
@@ -323,8 +356,29 @@ def compute_rsp_radar(
             iqr_floor_hits[b] = True
 
         if not res["valid"]:
-            if frozen_mask is not None:
+            is_empty_fg = res["nF"] == 0
+            nB_ok = res["nB"] >= config.min_bg_sector
+            scale_ok = res["denom"] >= config.min_scale
+
+            if is_empty_fg and nB_ok and scale_ok and config.empty_fg_policy == "zero":
                 rsp_values[b] = 0.0
+                if debug:
+                    print(f"DEBUG: Zero-filling sector {b} (nF={res['nF']}, nB={res['nB']})")
+            else:
+                if frozen_mask is not None:
+                    rsp_values[b] = 0.0
+                if debug and is_empty_fg and config.empty_fg_policy == "zero":
+                    print(
+                        f"DEBUG: NOT zero-filling sector {b}. nB_ok={nB_ok}, scale_ok={scale_ok} (denom={res['denom']:.4f}), policy={config.empty_fg_policy}"
+                    )
+
+            if debug:
+                theta_rad = -np.pi + b * (2 * np.pi / B)
+                theta_deg = np.degrees(theta_rad)
+                val_str = f"{rsp_values[b]:8.3f}"
+                print(
+                    f"{theta_deg:6.1f} | {res['nF']:6.1f} | {res['nB']:6.1f} | {str(res['valid']):>5} | {res['status']:>15} | {res.get('stat_raw', np.nan):8.3f} | {val_str}"
+                )
             continue
 
         if sector_weights is not None:
@@ -333,6 +387,13 @@ def compute_rsp_radar(
         else:
             rsp_values[b] = res["stat"]
             computed_weights[b] = res["support_weight"]
+
+        if debug:
+            theta_rad = -np.pi + b * (2 * np.pi / B)
+            theta_deg = np.degrees(theta_rad)
+            print(
+                f"{theta_deg:6.1f} | {res['nF']:6.1f} | {res['nB']:6.1f} | {str(res['valid']):>5} | {res['status']:>15} | {res.get('stat_raw', np.nan):8.3f} | {rsp_values[b]:8.3f}"
+            )
 
     from biorsp.preprocess.geometry import angle_grid
 

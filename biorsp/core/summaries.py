@@ -73,6 +73,8 @@ class ScalarSummaries:
     frac_pos: float
     frac_neg: float
     signed_status: str
+    coverage_bg: float = 0.0
+    coverage_fg: float = 0.0
 
     @property
     def rms_anisotropy(self) -> float:
@@ -92,7 +94,11 @@ def compute_scalar_summaries(
 ) -> ScalarSummaries:
     """
     Compute scalar summaries from radar result.
-    Ignores NaN values (underpowered sectors) unless a mask is provided.
+
+    Derives all scalar statistics from the RSP profile, ignoring NaN values
+    (underpowered sectors) unless a mask is provided. Coverage metrics are
+    computed as the fraction of sectors where background or foreground counts
+    are positive (indicator of sufficient support).
 
     Args:
         radar: RadarResult object containing rsp values and centers.
@@ -104,13 +110,10 @@ def compute_scalar_summaries(
     rsp = radar.rsp
     centers = radar.centers
 
-    # Filter NaNs
     if valid_mask is None:
         valid_mask = ~np.isnan(rsp)
 
     if not np.any(valid_mask):
-        # Handle case with no valid sectors
-        # Return NaNs instead of zeros to avoid bias
         return ScalarSummaries(
             peak_distal=np.nan,
             peak_distal_angle=np.nan,
@@ -134,13 +137,13 @@ def compute_scalar_summaries(
             frac_pos=0.0,
             frac_neg=0.0,
             signed_status="no_valid_sectors",
+            coverage_bg=0.0,
+            coverage_fg=0.0,
         )
 
     valid_rsp = rsp[valid_mask]
     valid_centers = centers[valid_mask]
 
-    # Min/Max
-    # P_g = min(R_g)
     min_idx = np.argmin(valid_rsp)
     max_idx = np.argmax(valid_rsp)
 
@@ -156,18 +159,23 @@ def compute_scalar_summaries(
     peak_extremal = valid_rsp[extremal_idx]
     peak_extremal_angle = valid_centers[extremal_idx]
 
-    # A_g = RMS
     anisotropy = np.sqrt(np.mean(valid_rsp**2))
-
-    # Integrated (Sum)
     integrated_rsp = np.sum(valid_rsp)
 
-    # Localization (computed on the final, possibly weighted profile)
     l_entropy, info = compute_localization(rsp, valid_mask=valid_mask, method="entropy")
     l_gini = info["gini"]
 
-    # Signed summaries (mean, median, polarity, anisotropy magnitude) on final profile
     signed = compute_signed_summaries(rsp, valid_mask=valid_mask)
+
+    B = len(rsp)
+    counts_bg = getattr(radar, "counts_bg", np.zeros(B))
+    counts_fg = getattr(radar, "counts_fg", np.zeros(B))
+
+    bg_supported = counts_bg > 0
+    coverage_bg = np.mean(bg_supported)
+
+    fg_present = (counts_fg > 0) & bg_supported
+    coverage_fg = np.mean(fg_present)
 
     return ScalarSummaries(
         peak_distal=float(peak_distal),
@@ -192,6 +200,8 @@ def compute_scalar_summaries(
         frac_pos=float(signed["frac_pos"]),
         frac_neg=float(signed["frac_neg"]),
         signed_status=str(signed["status"]),
+        coverage_bg=float(coverage_bg),
+        coverage_fg=float(coverage_fg),
     )
 
 

@@ -40,7 +40,7 @@ def compute_robustness_score(
     x: np.ndarray,
     r: np.ndarray,
     theta: np.ndarray,
-    config: BioRSPConfig = BioRSPConfig(),
+    config: Optional[BioRSPConfig] = None,
     n_subsample: int = 20,
     subsample_frac: float = 0.8,
     seed: int = 42,
@@ -59,7 +59,7 @@ def compute_robustness_score(
     theta : np.ndarray
         (N,) angles.
     config : BioRSPConfig, optional
-        Configuration object, by default BioRSPConfig().
+        Configuration object, by default None (creates default config).
     n_subsample : int, optional
         Number of iterations, by default 20.
     subsample_frac : float, optional
@@ -76,6 +76,8 @@ def compute_robustness_score(
     RobustnessResult
         The result of the robustness analysis.
     """
+    if config is None:
+        config = BioRSPConfig()
     rng = np.random.default_rng(seed)
     n_cells = len(x)
     n_keep = int(n_cells * subsample_frac)
@@ -92,7 +94,7 @@ def compute_robustness_score(
     correlations = []
     anisotropies = []
 
-    for i in range(n_subsample):
+    for _i in range(n_subsample):
         indices = rng.choice(n_cells, size=n_keep, replace=False)
 
         x_sub = x[indices]

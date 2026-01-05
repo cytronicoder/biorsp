@@ -104,7 +104,6 @@ def assess_adequacy(
             sector_mask[b] = valid
             sector_reasons[b] = reason
         else:
-            # Legacy mode
             fg_ok = counts_fg[b] >= config.min_fg_sector
             bg_ok = counts_bg[b] >= config.min_bg_sector
             scale_ok = denom >= config.min_scale
@@ -123,7 +122,6 @@ def assess_adequacy(
         )
         adequacy_fraction = metrics["coverage"]
     else:
-        # Legacy gene QC
         adequacy_fraction = np.mean(sector_mask)
         is_adequate = (total_fg >= config.min_fg_total) and (
             adequacy_fraction >= config.min_adequacy_fraction

@@ -10,11 +10,10 @@ from biorsp.core import (
     assess_adequacy,
     assign_feature_types,
     compute_p_value,
+    compute_pairwise_relationships,
     compute_rsp_radar,
     compute_scalar_summaries,
 )
-
-# Canonical entry point
 from biorsp.main import run
 from biorsp.plotting import (
     plot_embedding,
@@ -53,6 +52,7 @@ __all__ = [
     "compute_scalar_summaries",
     "assign_feature_types",
     "assess_adequacy",
+    "compute_pairwise_relationships",
     "FeatureResult",
     "PairwiseResult",
     "RunSummary",

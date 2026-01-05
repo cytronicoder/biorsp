@@ -41,7 +41,6 @@ def normalize_radii(
     median_r = np.median(r)
     iqr_r = iqr(r)
 
-    # Fallback if IQR is too small
     if iqr_r < eps:
         mad = np.median(np.abs(r - median_r))
         iqr_r = 1.4826 * mad
