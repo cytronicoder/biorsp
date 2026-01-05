@@ -5,6 +5,11 @@ Implements scalar statistics derived from the radar function:
 - Peak distal (rim) and peak proximal directions.
 - RMS anisotropy.
 - Extremal peak based on absolute magnitude.
+- Localization index (Fix 5.1).
+- Signed summaries (Fix 5.2):
+    - R_mean indicates net radial bias (core vs rim).
+    - Polarity indicates whether the pattern is globally one-signed or mixed.
+    - These resolve ambiguity in A_g where rim and core patterns can have similar magnitude.
 """
 
 from dataclasses import dataclass
@@ -12,7 +17,7 @@ from typing import Optional
 
 import numpy as np
 
-from .stats import compute_localization
+from .stats import compute_localization, compute_signed_summaries
 from .typing import RadarResult
 
 
@@ -37,6 +42,13 @@ class ScalarSummaries:
         m_valid_sectors: Number of valid sectors used for computation.
         sum_abs_rsp: Sum of absolute RSP values.
         localization_status: Status of localization computation (e.g., 'ok', 'no_signal').
+        r_mean: Mean signed shift (net radial bias).
+        r_median: Median signed shift.
+        polarity: Signed energy ratio (one-signed vs mixed).
+        a_signed: Signed anisotropy (sign(r_mean) * anisotropy).
+        frac_pos: Fraction of sectors with positive RSP.
+        frac_neg: Fraction of sectors with negative RSP.
+        signed_status: Status of signed summary computation.
     """
 
     peak_distal: float
@@ -54,6 +66,13 @@ class ScalarSummaries:
     m_valid_sectors: int
     sum_abs_rsp: float
     localization_status: str
+    r_mean: float
+    r_median: float
+    polarity: float
+    a_signed: float
+    frac_pos: float
+    frac_neg: float
+    signed_status: str
 
     @property
     def rms_anisotropy(self) -> float:
@@ -62,7 +81,8 @@ class ScalarSummaries:
         
         Note: Anisotropy (A_g) measures the magnitude of spatial patterning but
         can conflate global shifts (e.g., rim/core) with localized patterns (e.g., wedges).
-        Use localization_entropy (L_g) to distinguish these phenotypes.
+        Use localization_entropy (L_g) to distinguish these phenotypes, and
+        r_mean or polarity to distinguish core vs rim bias.
         """
         return self.anisotropy
 
@@ -107,6 +127,13 @@ def compute_scalar_summaries(
             m_valid_sectors=0,
             sum_abs_rsp=0.0,
             localization_status="no_valid_sectors",
+            r_mean=np.nan,
+            r_median=np.nan,
+            polarity=np.nan,
+            a_signed=np.nan,
+            frac_pos=0.0,
+            frac_neg=0.0,
+            signed_status="no_valid_sectors",
         )
 
     valid_rsp = rsp[valid_mask]
@@ -142,6 +169,10 @@ def compute_scalar_summaries(
     l_entropy, info = compute_localization(rsp, valid_mask=valid_mask, method="entropy")
     l_gini = info["gini"]
 
+    # Signed summaries
+    # Also computed on the final reported profile.
+    signed = compute_signed_summaries(rsp, valid_mask=valid_mask)
+
     return ScalarSummaries(
         peak_distal=float(peak_distal),
         peak_distal_angle=float(peak_distal_angle),
@@ -158,6 +189,13 @@ def compute_scalar_summaries(
         m_valid_sectors=int(info["M"]),
         sum_abs_rsp=float(info["sum_abs"]),
         localization_status=str(info["status"]),
+        r_mean=float(signed["R_mean"]),
+        r_median=float(signed["R_median"]),
+        polarity=float(signed["polarity"]),
+        a_signed=float(signed["A_signed"]),
+        frac_pos=float(signed["frac_pos"]),
+        frac_neg=float(signed["frac_neg"]),
+        signed_status=str(signed["status"]),
     )
 
 

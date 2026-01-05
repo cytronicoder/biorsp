@@ -119,7 +119,93 @@ def compute_localization(
     return float(L_entropy), info
 
 
+def compute_signed_summaries(
+    R: np.ndarray,
+    valid_mask: Optional[np.ndarray] = None,
+    eps: float = 1e-12,
+) -> dict:
+    """
+    Compute signed summary statistics for a radar profile.
+
+    Distinguishes between core (proximal) and rim (distal) patterns.
+    R_mean > 0: overall core bias.
+    R_mean < 0: overall rim bias.
+    Polarity near +/- 1: consistently one-signed.
+    Polarity near 0: mixed or localized.
+
+    Parameters
+    ----------
+    R : np.ndarray
+        Radar profile (sector statistics).
+    valid_mask : np.ndarray, optional
+        Boolean mask of valid sectors. If None, uses non-NaN values.
+    eps : float, optional
+        Small constant for numerical stability.
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - R_mean: Mean signed shift.
+        - R_median: Median signed shift.
+        - polarity: Signed energy ratio.
+        - A_signed: Signed anisotropy (sign(R_mean) * RMS).
+        - frac_pos: Fraction of positive sectors.
+        - frac_neg: Fraction of negative sectors.
+        - M_valid: Number of valid sectors.
+        - status: Status of computation.
+    """
+    R = np.asarray(R)
+    if valid_mask is None:
+        valid_mask = np.isfinite(R)
+
+    R_valid = R[valid_mask]
+    M = len(R_valid)
+
+    res = {
+        "R_mean": np.nan,
+        "R_median": np.nan,
+        "polarity": np.nan,
+        "A_signed": np.nan,
+        "frac_pos": 0.0,
+        "frac_neg": 0.0,
+        "M_valid": M,
+        "status": "ok",
+    }
+
+    if M < 1:
+        res["status"] = "no_valid_sectors"
+        return res
+
+    if M < 2:
+        # Some metrics like polarity are less meaningful but we can compute mean
+        res["status"] = "insufficient_sectors"
+        # Fall through to compute what we can
+
+    r_mean = np.mean(R_valid)
+    r_median = np.median(R_valid)
+    sum_r = np.sum(R_valid)
+    sum_abs_r = np.sum(np.abs(R_valid))
+    rms = np.sqrt(np.mean(R_valid**2))
+
+    res["R_mean"] = float(r_mean)
+    res["R_median"] = float(r_median)
+    res["A_signed"] = float(np.sign(r_mean) * rms)
+
+    if sum_abs_r < eps:
+        res["polarity"] = 0.0
+        res["status"] = "no_signal"
+    else:
+        res["polarity"] = float(sum_r / (sum_abs_r + eps))
+
+    res["frac_pos"] = float(np.sum(R_valid > 0) / M)
+    res["frac_neg"] = float(np.sum(R_valid < 0) / M)
+
+    return res
+
+
 __all__ = [
     "bh_fdr",
     "compute_localization",
+    "compute_signed_summaries",
 ]

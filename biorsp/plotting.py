@@ -246,6 +246,104 @@ def plot_localization_scatter(
     return ax
 
 
+def plot_phenotype_map(
+    feature_results: dict,
+    ax: Optional[plt.Axes] = None,
+    y_axis: str = "polarity",
+    color_by: str = "localization_entropy",
+    show_archetypes: bool = True,
+    **kwargs,
+) -> plt.Axes:
+    """
+    Plot magnitude (A_g) vs directionality (polarity/R_mean) to distinguish core vs rim.
+
+    Parameters
+    ----------
+    feature_results : dict
+        Mapping of feature name to FeatureResult.
+    ax : plt.Axes, optional
+        Axes to plot on.
+    y_axis : str, optional
+        Field to use for y-axis ('polarity' or 'r_mean').
+    color_by : str, optional
+        Field to use for coloring points (e.g., 'localization_entropy').
+    show_archetypes : bool, optional
+        Whether to annotate archetypes (rim, core, wedge, null).
+    **kwargs
+        Passed to ax.scatter.
+
+    Returns
+    -------
+    plt.Axes
+    """
+    if ax is None:
+        _, ax = plt.subplots(figsize=(7, 6))
+
+    anisotropy = []
+    y_vals = []
+    c_vals = []
+
+    for fr in feature_results.values():
+        if fr.adequacy.is_adequate and np.isfinite(fr.summaries.anisotropy):
+            anisotropy.append(fr.summaries.anisotropy)
+            y_vals.append(getattr(fr.summaries, y_axis))
+            c_vals.append(getattr(fr.summaries, color_by))
+
+    anisotropy = np.array(anisotropy)
+    y_vals = np.array(y_vals)
+    c_vals = np.array(c_vals)
+
+    if len(anisotropy) == 0:
+        ax.text(0.5, 0.5, "No adequate features", ha="center", va="center")
+        return ax
+
+    scatter = ax.scatter(anisotropy, y_vals, c=c_vals, cmap="viridis", alpha=0.7, **kwargs)
+    plt.colorbar(scatter, ax=ax, label=color_by.replace("_", " ").title())
+
+    ax.set_xlabel("Anisotropy ($A_g$)")
+    ax.set_ylabel(y_axis.replace("_", " ").title())
+    ax.set_title(f"Phenotype Map: Magnitude vs {y_axis.title()}")
+
+    if show_archetypes:
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        # Core: High A, Positive Y
+        ax.text(
+            xlim[1] - 0.05 * (xlim[1] - xlim[0]),
+            ylim[1] - 0.1 * (ylim[1] - ylim[0]),
+            "Core-enriched",
+            ha="right",
+            fontstyle="italic",
+            alpha=0.6,
+            color="firebrick",
+        )
+
+        # Rim: High A, Negative Y
+        ax.text(
+            xlim[1] - 0.05 * (xlim[1] - xlim[0]),
+            ylim[0] + 0.1 * (ylim[1] - ylim[0]),
+            "Rim-enriched",
+            ha="right",
+            fontstyle="italic",
+            alpha=0.6,
+            color="royalblue",
+        )
+
+        # Mixed/Wedge: High A, Y near 0
+        ax.text(
+            xlim[1] - 0.05 * (xlim[1] - xlim[0]),
+            0,
+            "Mixed / Wedge",
+            ha="right",
+            va="center",
+            fontstyle="italic",
+            alpha=0.6,
+        )
+
+    return ax
+
+
 def plot_radar(
     radar: RadarResult,
     ax: Optional[plt.Axes] = None,
