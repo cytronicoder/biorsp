@@ -28,6 +28,7 @@ pip install biorsp
 ```
 
 For development:
+
 ```bash
 git clone https://github.com/cytronicoder/biorsp.git
 cd biorsp
