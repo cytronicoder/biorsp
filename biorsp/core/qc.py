@@ -156,7 +156,7 @@ def compute_gene_qc(
     if coverage < config.min_coverage:
         return False, REASON_GENE_LOW_COVERAGE, metrics
 
-    if M_valid < config.min_valid_sectors:
+    if M_valid < min(config.min_valid_sectors, B):
         return False, REASON_GENE_TOO_FEW_SECTORS, metrics
 
     return True, REASON_OK, metrics

@@ -142,12 +142,17 @@ def sector_signed_stat(
     if config is not None and config.qc_mode == "principled":
         valid, status, _ = compute_sector_qc(y_s, denom, config)
     else:
-        valid = (
-            (nF >= (config.min_fg_sector if config else 0))
-            and (nB >= (config.min_bg_sector if config else 0))
-            and (denom >= min_scale)
-        )
-        status = REASON_OK if valid else "low_support_or_scale"
+        nF_min = config.min_fg_sector if config else 0
+        nB_min = config.min_bg_sector if config else 0
+        support_ok = (nF >= nF_min) and (nB >= nB_min)
+        scale_ok = (denom >= min_scale)
+        valid = support_ok and scale_ok
+        if valid:
+            status = REASON_OK
+        elif not support_ok:
+            status = "low_support"
+        else:
+            status = "degenerate_scale"
 
     support_weight = compute_sector_weight(nF, nB, mode=weight_mode, k=weight_k)
 
@@ -314,6 +319,9 @@ def compute_rsp_radar(
         counts_fg[b] = res["nF"]
         counts_bg[b] = res["nB"]
 
+        if res["status"] == "degenerate_scale":
+            iqr_floor_hits[b] = True
+
         if not res["valid"]:
             if frozen_mask is not None:
                 rsp_values[b] = 0.0
@@ -325,9 +333,6 @@ def compute_rsp_radar(
         else:
             rsp_values[b] = res["stat"]
             computed_weights[b] = res["support_weight"]
-
-        if res["status"] == "degenerate_scale":
-            iqr_floor_hits[b] = True
 
     from biorsp.preprocess.geometry import angle_grid
 
