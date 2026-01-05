@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from biorsp.core.adequacy import assess_adequacy
 from biorsp.core.engine import compute_rsp_radar
@@ -22,6 +23,74 @@ from biorsp.utils.validation import validate_inputs
 logger = get_logger("main")
 
 
+def _process_feature(
+    name: str,
+    x: np.ndarray,
+    r_norm: np.ndarray,
+    theta: np.ndarray,
+    umi_counts: Optional[np.ndarray],
+    config: BioRSPConfig,
+    seed: int,
+) -> Optional[FeatureResult]:
+    """Process a single feature."""
+    rng = np.random.default_rng(seed)
+
+    # Define foreground
+    y, fg_info = define_foreground(
+        x,
+        mode=config.foreground_mode,
+        q=config.foreground_quantile,
+        abs_threshold=config.foreground_threshold,
+        min_fg=config.min_fg_total,
+        rng=rng,
+    )
+
+    if y is None:
+        logger.warning(
+            f"Feature '{name}' is underpowered (status: {fg_info.get('status')}). Skipping."
+        )
+        return None
+
+    # Compute RSP
+    adequacy = assess_adequacy(r_norm, theta, y, config=config)
+    if not adequacy.is_adequate:
+        logger.warning(f"Feature '{name}' is inadequate (reason: {adequacy.reason}). Skipping.")
+        return None
+
+    radar = compute_rsp_radar(
+        r_norm,
+        theta,
+        y,
+        config=config,
+        sector_indices=adequacy.sector_indices,
+        frozen_mask=adequacy.sector_mask,
+    )
+
+    # Inference
+    inference = compute_p_value(
+        r_norm, theta, y, config=config, umi_counts=umi_counts, adequacy=adequacy, rng=rng
+    )
+
+    # Summaries
+    summaries = compute_scalar_summaries(radar)
+    return FeatureResult(
+        feature=name,
+        threshold_quantile=config.foreground_quantile,
+        coverage_quantile=fg_info.get("q", 0.0),
+        coverage_prevalence=fg_info.get("target_frac", 0.0),
+        adequacy=adequacy,
+        summaries=summaries,
+        foreground_info=fg_info,
+        radar=radar,
+        p_value=inference.p_value,
+        perm_mode=inference.perm_mode,
+        K_eff=inference.K_eff,
+        empty_sector_count=inference.empty_sector_count,
+        sector_weight_mode=config.sector_weight_mode,
+        sector_weight_k=config.sector_weight_k,
+    )
+
+
 def run(
     coords: np.ndarray,
     expression: Union[pd.DataFrame, np.ndarray],
@@ -29,6 +98,7 @@ def run(
     umi_counts: Optional[np.ndarray] = None,
     config: Optional[BioRSPConfig] = None,
     outdir: Optional[str] = None,
+    n_workers: int = 1,
 ) -> RunSummary:
     """
     Run the full BioRSP pipeline on a dataset.
@@ -47,6 +117,8 @@ def run(
         Configuration object. If None, defaults are used.
     outdir : Optional[str]
         Directory to save results and manifest.
+    n_workers : int
+        Number of workers for parallel processing of features.
 
     Returns
     -------
@@ -79,68 +151,47 @@ def run(
     # 3. Process features
     feature_results = {}
     rng = np.random.default_rng(config.seed)
+    seeds = rng.integers(0, 2**31 - 1, size=n_features)
 
     abstention_counts = 0
 
-    for i, name in enumerate(feature_names):
-        x = x_mat[:, i]
+    if n_workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
 
-        # Define foreground
-        y, fg_info = define_foreground(
-            x,
-            mode=config.foreground_mode,
-            q=config.foreground_quantile,
-            abs_threshold=config.foreground_threshold,
-            min_fg=config.min_fg_total,
-            rng=rng,
-        )
+        logger.info(f"Processing features in parallel with {n_workers} workers")
+        with ProcessPoolExecutor(max_workers=n_workers) as executor:
+            futures = {
+                executor.submit(
+                    _process_feature,
+                    name,
+                    x_mat[:, i],
+                    r_norm,
+                    theta,
+                    umi_counts,
+                    config,
+                    seeds[i],
+                ): name
+                for i, name in enumerate(feature_names)
+            }
 
-        if y is None:
-            logger.warning(
-                f"Feature '{name}' is underpowered (status: {fg_info.get('status')}). Skipping."
-            )
-            abstention_counts += 1
-            continue
-
-        # Compute RSP
-        adequacy = assess_adequacy(r_norm, theta, y, config=config)
-        if not adequacy.is_adequate:
-            logger.warning(f"Feature '{name}' is inadequate (reason: {adequacy.reason}). Skipping.")
-            abstention_counts += 1
-            continue
-
-        radar = compute_rsp_radar(
-            r_norm,
-            theta,
-            y,
-            config=config,
-            sector_indices=adequacy.sector_indices,
-            frozen_mask=adequacy.sector_mask,
-        )
-
-        # Inference
-        inference = compute_p_value(
-            r_norm, theta, y, config=config, umi_counts=umi_counts, adequacy=adequacy, rng=rng
-        )
-
-        # Summaries
-        summaries = compute_scalar_summaries(radar)
-        feature_results[name] = FeatureResult(
-            feature=name,
-            threshold_quantile=config.foreground_quantile,
-            coverage_quantile=fg_info.get("q", 0.0),
-            coverage_prevalence=fg_info.get("target_frac", 0.0),
-            adequacy=adequacy,
-            summaries=summaries,
-            foreground_info=fg_info,
-            radar=radar,
-            p_value=inference.p_value,
-            perm_mode=inference.perm_mode,
-            K_eff=inference.K_eff,
-            empty_sector_count=inference.empty_sector_count,
-            sector_weight_mode=config.sector_weight_mode,
-            sector_weight_k=config.sector_weight_k,
-        )
+            for future in tqdm(futures, desc="BioRSP Features"):
+                name = futures[future]
+                try:
+                    res = future.result()
+                    if res is not None:
+                        feature_results[name] = res
+                    else:
+                        abstention_counts += 1
+                except Exception as e:
+                    logger.error(f"Error processing feature '{name}': {e}")
+                    abstention_counts += 1
+    else:
+        for i, name in enumerate(tqdm(feature_names, desc="BioRSP Features")):
+            res = _process_feature(name, x_mat[:, i], r_norm, theta, umi_counts, config, seeds[i])
+            if res is not None:
+                feature_results[name] = res
+            else:
+                abstention_counts += 1
 
     # 4. Typing
     logger.info("Assigning feature types")
