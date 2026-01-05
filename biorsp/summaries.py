@@ -12,6 +12,7 @@ from typing import Optional
 
 import numpy as np
 
+from .stats import compute_localization
 from .typing import RadarResult
 
 
@@ -31,6 +32,11 @@ class ScalarSummaries:
         max_rsp: Maximum RSP value (for diagnostics).
         min_rsp: Minimum RSP value (same as peak_distal).
         integrated_rsp: Sum of RSP values (net directionality).
+        localization_entropy: Shannon entropy-based localization index (L_g).
+        localization_gini: Gini-based localization index.
+        m_valid_sectors: Number of valid sectors used for computation.
+        sum_abs_rsp: Sum of absolute RSP values.
+        localization_status: Status of localization computation (e.g., 'ok', 'no_signal').
     """
 
     peak_distal: float
@@ -43,10 +49,21 @@ class ScalarSummaries:
     max_rsp: float
     min_rsp: float
     integrated_rsp: float
+    localization_entropy: float
+    localization_gini: float
+    m_valid_sectors: int
+    sum_abs_rsp: float
+    localization_status: str
 
     @property
     def rms_anisotropy(self) -> float:
-        """Backward compatible alias for anisotropy."""
+        """
+        Backward compatible alias for anisotropy.
+        
+        Note: Anisotropy (A_g) measures the magnitude of spatial patterning but
+        can conflate global shifts (e.g., rim/core) with localized patterns (e.g., wedges).
+        Use localization_entropy (L_g) to distinguish these phenotypes.
+        """
         return self.anisotropy
 
 
@@ -85,6 +102,11 @@ def compute_scalar_summaries(
             max_rsp=np.nan,
             min_rsp=np.nan,
             integrated_rsp=np.nan,
+            localization_entropy=np.nan,
+            localization_gini=np.nan,
+            m_valid_sectors=0,
+            sum_abs_rsp=0.0,
+            localization_status="no_valid_sectors",
         )
 
     valid_rsp = rsp[valid_mask]
@@ -113,6 +135,13 @@ def compute_scalar_summaries(
     # Integrated (Sum)
     integrated_rsp = np.sum(valid_rsp)
 
+    # Localization
+    # Note: This is computed on the same profile version used for anisotropy (A_g).
+    # If support-weighting is enabled in the config, it is applied to the profile
+    # before this function is called, so localization reflects the final reported profile.
+    l_entropy, info = compute_localization(rsp, valid_mask=valid_mask, method="entropy")
+    l_gini = info["gini"]
+
     return ScalarSummaries(
         peak_distal=float(peak_distal),
         peak_distal_angle=float(peak_distal_angle),
@@ -124,6 +153,11 @@ def compute_scalar_summaries(
         max_rsp=float(max_rsp),
         min_rsp=float(min_rsp),
         integrated_rsp=float(integrated_rsp),
+        localization_entropy=float(l_entropy),
+        localization_gini=float(l_gini),
+        m_valid_sectors=int(info["M"]),
+        sum_abs_rsp=float(info["sum_abs"]),
+        localization_status=str(info["status"]),
     )
 
 

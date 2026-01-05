@@ -150,6 +150,102 @@ def _draw_segmented_rsp(
             ax.fill(th_fill, v_fill, edgecolor="none", **fill_kw)
 
 
+def plot_localization_scatter(
+    feature_results: dict,
+    ax: Optional[plt.Axes] = None,
+    show_archetypes: bool = True,
+    color_by_sign: bool = True,
+    **kwargs,
+) -> plt.Axes:
+    """
+    Plot anisotropy (A_g) vs localization (L_g) to distinguish spatial phenotypes.
+
+    Parameters
+    ----------
+    feature_results : dict
+        Mapping of feature name to FeatureResult.
+    ax : plt.Axes, optional
+        Axes to plot on.
+    show_archetypes : bool, optional
+        Whether to annotate archetypes (rim/core, wedge, null).
+    color_by_sign : bool, optional
+        Whether to color points by the sign of the extremal peak.
+    **kwargs
+        Passed to ax.scatter.
+
+    Returns
+    -------
+    plt.Axes
+    """
+    if ax is None:
+        _, ax = plt.subplots(figsize=(6, 5))
+
+    anisotropy = []
+    localization = []
+    signs = []
+
+    for fr in feature_results.values():
+        if fr.adequacy.is_adequate and np.isfinite(fr.summaries.anisotropy):
+            anisotropy.append(fr.summaries.anisotropy)
+            localization.append(fr.summaries.localization_entropy)
+            signs.append(np.sign(fr.summaries.peak_extremal))
+
+    anisotropy = np.array(anisotropy)
+    localization = np.array(localization)
+    signs = np.array(signs)
+
+    if len(anisotropy) == 0:
+        ax.text(0.5, 0.5, "No adequate features", ha="center", va="center")
+        return ax
+
+    if color_by_sign:
+        colors = np.where(signs > 0, "firebrick", "royalblue")
+        ax.scatter(anisotropy, localization, c=colors, alpha=0.6, **kwargs)
+    else:
+        ax.scatter(anisotropy, localization, alpha=0.6, **kwargs)
+
+    ax.set_xlabel("Anisotropy ($A_g$)")
+    ax.set_ylabel("Localization ($L_g$)")
+    ax.set_title("Spatial Phenotype Landscape")
+
+    if show_archetypes:
+        # Heuristic regions for archetypes
+        # These are illustrative and depend on the data scale
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        # Null: Low A
+        ax.text(
+            xlim[0] + 0.05 * (xlim[1] - xlim[0]),
+            ylim[0] + 0.05 * (ylim[1] - ylim[0]),
+            "Null",
+            fontstyle="italic",
+            alpha=0.5,
+        )
+
+        # Rim/Core: High A, Low L
+        ax.text(
+            xlim[1] - 0.2 * (xlim[1] - xlim[0]),
+            ylim[0] + 0.05 * (ylim[1] - ylim[0]),
+            "Rim/Core\n(Global)",
+            ha="center",
+            fontstyle="italic",
+            alpha=0.5,
+        )
+
+        # Wedge: High A, High L
+        ax.text(
+            xlim[1] - 0.2 * (xlim[1] - xlim[0]),
+            ylim[1] - 0.15 * (ylim[1] - ylim[0]),
+            "Wedge\n(Localized)",
+            ha="center",
+            fontstyle="italic",
+            alpha=0.5,
+        )
+
+    return ax
+
+
 def plot_radar(
     radar: RadarResult,
     ax: Optional[plt.Axes] = None,
