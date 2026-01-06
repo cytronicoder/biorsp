@@ -16,7 +16,7 @@ class RadarResult:
     Result of the R(theta) radar function computation.
 
     Attributes:
-        rsp: (B,) array of signed RSP values. NaNs indicate underpowered sectors.
+        rsp: (B,) array of signed RSP values. NaNs indicate sectors with insufficient background support.
         counts_fg: (B,) array of foreground mass per sector.
         counts_bg: (B,) array of background mass per sector.
         centers: (B,) array of sector center angles in radians.

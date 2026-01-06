@@ -13,7 +13,9 @@ def test_mask_stability_across_permutations():
     theta = rng.uniform(-np.pi, np.pi, n)
     y = rng.choice([0, 1], n)
 
-    config = BioRSPConfig(B=10, delta_deg=45.0, min_fg_sector=5, min_bg_sector=5)
+    config = BioRSPConfig(
+        B=10, delta_deg=45.0, min_fg_sector=5, min_bg_sector=5, empty_fg_policy="nan"
+    )
 
     # Run inference
     res = compute_p_value(r, theta, y, n_perm=5, seed=42, config=config)

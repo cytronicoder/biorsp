@@ -4,6 +4,8 @@ BioRSP Quickstart Example
 Demonstrates the new score_genes workflow for biomarker discovery.
 """
 
+import argparse
+
 import anndata
 import numpy as np
 
@@ -11,6 +13,9 @@ from biorsp import BioRSPConfig, classify_genes, score_genes
 
 
 def main():
+    parser = argparse.ArgumentParser(description="BioRSP Quickstart Example")
+    parser.parse_args()
+
     # 1. Setup Synthetic Data
     print("Generating synthetic data...")
     n_cells = 1000
