@@ -106,37 +106,25 @@ def compute_vantage(
     # method == "geometric_median"
     v, _, _ = geometric_median(coords, tol=tol, max_iter=max_iter)
 
-    # Task 5: Medoid-snapping for low-density regions (e.g. donuts)
-    # 1. Compute distances from center to all points
+    # Use medoid-snapping if the geometric median falls into a low-density region (e.g. donuts).
     dists_from_center = np.linalg.norm(coords - v, axis=1)
-    # 2. Estimate density at center using distance to k-th nearest neighbor
     k = min(knn_k, len(coords) - 1)
     if k <= 0:
         return v
 
-    # Distance to k-th neighbor of the center v
     v_knn_dist = np.partition(dists_from_center, k)[k]
 
-    # 3. Estimate density at all actual points to set a threshold
-    # For performance, we can sample if coords is very large
     sample_size = min(1000, len(coords))
     sample_indices = np.random.choice(len(coords), sample_size, replace=False)
 
-    # We need kNN distances for these samples
-    # Simple approach: compute full distance matrix for the sample
-    # (actually just distances to all points)
     sample_knn_dists = []
     for i in sample_indices:
         dists = np.linalg.norm(coords - coords[i], axis=1)
-        # partition to find k-th neighbor (0-th is self)
         sample_knn_dists.append(np.partition(dists, k)[k])
 
     threshold = np.percentile(sample_knn_dists, 100 - density_percentile)
 
-    # If v_knn_dist > threshold, the center is in a lower density region than
-    # (density_percentile)% of points.
     if v_knn_dist > threshold:
-        # Snap to medoid (nearest actual point to v)
         v = coords[np.argmin(dists_from_center)]
 
     return v

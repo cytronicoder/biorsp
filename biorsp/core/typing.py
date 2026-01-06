@@ -23,6 +23,10 @@ class RadarResult:
         iqr_floor: The stability floor used for IQR normalization.
         iqr_floor_hits: (B,) boolean array indicating where the floor was applied.
         normalization_stats: Metadata from radial normalization.
+        n_fg_per_sector: (B,) array of literal foreground cell counts.
+        n_bg_per_sector: (B,) array of literal background cell counts.
+        denom_scale_per_sector: (B,) array of robust scale denominators used.
+        bg_supported_mask: (B,) boolean array indicating background-supported sectors.
     """
 
     rsp: np.ndarray
@@ -33,6 +37,10 @@ class RadarResult:
     iqr_floor_hits: np.ndarray
     sector_weights: Optional[np.ndarray] = None
     normalization_stats: Dict = field(default_factory=dict)
+    n_fg_per_sector: Optional[np.ndarray] = None
+    n_bg_per_sector: Optional[np.ndarray] = None
+    denom_scale_per_sector: Optional[np.ndarray] = None
+    bg_supported_mask: Optional[np.ndarray] = None
 
 
 @dataclass

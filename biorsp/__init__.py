@@ -2,6 +2,7 @@
 
 from biorsp import simulations
 from biorsp._version import __version__
+from biorsp.api import classify_genes, score_gene_pairs, score_genes
 from biorsp.core import (
     FeatureResult,
     PairwiseResult,
@@ -46,6 +47,9 @@ __all__ = [
     "BioRSPConfig",
     "setup_logging",
     "run",
+    "score_genes",
+    "score_gene_pairs",
+    "classify_genes",
     "simulations",
     "compute_rsp_radar",
     "compute_p_value",

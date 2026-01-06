@@ -126,10 +126,10 @@ def sector_signed_stat(
     diff = medB - medF
     s = 0 if np.abs(diff) <= sign_tol else 1 if diff > 0 else -1
 
-    # Task 3: u-space transform via background empirical CDF
     r_bg_only = r_s[w_bg > 0]
 
     if scale_mode == "u_space":
+        # Transform to U-space using background CDF to ensure scale-neutrality.
         if r_bg_only.size > 0:
             r_bg_sorted_local = np.sort(r_bg_only)
             n_bg_points = len(r_bg_sorted_local)
@@ -140,12 +140,12 @@ def sector_signed_stat(
             ) / (2.0 * n_bg_points)
             u_sorted = u_s[sort_idx]
             w1 = weighted_wasserstein_1d(u_sorted, w_fg_sorted, u_sorted, w_bg_sorted)
-            denom = 1.0  # Scale-normalized by construction
+            denom = 1.0
         else:
             w1 = np.nan
             denom = np.nan
     else:
-        # Legacy raw-distance based W1
+        # Compute Wasserstein distance and robust scale on raw radial distances.
         w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
         if scale_mode == "bg_iqr":
             denom = weighted_quantile_sorted(
@@ -157,13 +157,12 @@ def sector_signed_stat(
             ) - weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.25)
         elif scale_mode == "pooled_mad":
             med = weighted_quantile_sorted(r_sorted, np.ones_like(r_sorted), 0.5)
-            # Must sort absolute deviations for quantile computation
             abs_diff = np.abs(r_sorted - med)
             abs_diff_sorted = np.sort(abs_diff)
             denom = 1.4826 * weighted_quantile_sorted(
                 abs_diff_sorted, np.ones_like(abs_diff_sorted), 0.5
             )
-        else:  # pooled_iqr
+        else:
             denom = weighted_quantile_sorted(
                 r_sorted, np.ones_like(r_sorted), 0.75
             ) - weighted_quantile_sorted(r_sorted, np.ones_like(r_sorted), 0.25)
@@ -347,6 +346,19 @@ def compute_rsp_radar(
             continue
 
         idx = sector_indices[b]
+
+        # Define support by total cells in sector and IQR of all radii in sector.
+        n_total_sector = idx.size
+        if n_total_sector > 0:
+            r_s_all = r[idx]
+            q75_all = np.percentile(r_s_all, 75)
+            q25_all = np.percentile(r_s_all, 25)
+            denom_all = q75_all - q25_all
+        else:
+            denom_all = 0.0
+
+        bg_supp = (n_total_sector >= config.min_bg_sector) and (denom_all >= config.min_scale)
+
         if idx.size == 0:
             if frozen_mask is not None:
                 rsp_values[b] = 0.0
@@ -377,22 +389,24 @@ def compute_rsp_radar(
         if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
 
+        # Enforce background support mask strictly.
+        if not bg_supp:
+            rsp_values[b] = np.nan
+            if debug:
+                print(
+                    f"DEBUG: Sector {b} NOT bg_supported (n_total={n_total_sector}, denom={denom_all:.4f})"
+                )
+            continue
+
         if not res["valid"]:
             is_empty_fg = res["nF"] == 0
-            nB_ok = res["nB"] >= config.min_bg_sector
-            scale_ok = res["denom"] >= config.min_scale
-
-            if is_empty_fg and nB_ok and scale_ok and config.empty_fg_policy == "zero":
+            # Since bg_supp is true, we check empty_fg_policy
+            if is_empty_fg and config.empty_fg_policy == "zero":
                 rsp_values[b] = 0.0
                 if debug:
                     print(f"DEBUG: Zero-filling sector {b} (nF={res['nF']}, nB={res['nB']})")
             else:
-                if frozen_mask is not None:
-                    rsp_values[b] = 0.0
-                if debug and is_empty_fg and config.empty_fg_policy == "zero":
-                    print(
-                        f"DEBUG: NOT zero-filling sector {b}. nB_ok={nB_ok}, scale_ok={scale_ok} (denom={res['denom']:.4f}), policy={config.empty_fg_policy}"
-                    )
+                rsp_values[b] = np.nan
 
             if debug:
                 theta_rad = -np.pi + b * (2 * np.pi / B)
@@ -419,6 +433,28 @@ def compute_rsp_radar(
 
     from biorsp.preprocess.geometry import angle_grid
 
+    # Determine background-supported sectors (Option A: Label-free support)
+    bg_supported_mask = np.zeros(B, dtype=bool)
+    denom_scales = np.zeros(B)
+    for b in range(B):
+        idx = sector_indices[b]
+        # Supported if total cells >= min_bg_sector AND radial scale > 0
+        if idx.size >= config.min_bg_sector:
+            # We check the scale of the background in this sector
+            # (which is the same fixed global background distribution)
+            s_idx = idx
+            r_s = r[s_idx]
+            if len(r_s) > 0 and (np.max(r_s) - np.min(r_s) > 1e-9):
+                bg_supported_mask[b] = True
+                denom_scales[b] = np.std(r_s)  # example proxy for scale
+
+    # Final RSP values: if bg is supported but no FG, set to 0 (if policy is zero)
+    # The loop already filled rsp_values with 0.0 or NaN.
+    # We update NaN to 0.0 if supported.
+    if config.empty_fg_policy == "zero":
+        nan_mask = np.isnan(rsp_values)
+        rsp_values[nan_mask & bg_supported_mask] = 0.0
+
     return RadarResult(
         rsp=rsp_values,
         counts_fg=counts_fg,
@@ -428,6 +464,10 @@ def compute_rsp_radar(
         iqr_floor_hits=iqr_floor_hits,
         sector_weights=computed_weights,
         normalization_stats=normalization_stats or {},
+        n_fg_per_sector=counts_fg,  # For non-weighted, mass=count
+        n_bg_per_sector=counts_bg,
+        denom_scale_per_sector=denom_scales,
+        bg_supported_mask=bg_supported_mask,
     )
 
 

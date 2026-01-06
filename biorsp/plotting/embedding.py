@@ -173,14 +173,12 @@ def plot_embedding(
     else:
         plotted_sc = ax.scatter(Z[:, 0], Z[:, 1], c=None, s=s, edgecolors="none", **kwargs)
 
-    # Colorbar only when a continuous color was used
     if plotted_sc is not None and c is not None and not (set(np.unique(c).tolist()) <= {0, 1}):
         plt.colorbar(plotted_sc, ax=ax)
 
     if title:
         ax.set_title(title)
 
-    # Vantage marker (prominent)
     if show_vantage:
         if vantage is None:
             from biorsp.preprocess.geometry import compute_vantage
