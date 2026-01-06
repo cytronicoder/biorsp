@@ -14,6 +14,7 @@ from biorsp.core.typing import AdequacyReport
 from biorsp.preprocess.geometry import get_sector_indices
 from biorsp.utils.config import BioRSPConfig
 from biorsp.utils.constants import (
+    REASON_FOREGROUND_TIE_UNSTABLE,
     REASON_GENE_UNDERPOWERED,
     REASON_OK,
     REASON_SECTOR_BG_TOO_SMALL,
@@ -21,7 +22,6 @@ from biorsp.utils.constants import (
     REASON_SECTOR_FG_TOO_SMALL,
     REASON_SECTOR_MIXED_TOO_SMALL,
 )
-from biorsp.utils.helpers import weighted_quantile
 
 
 def assess_adequacy(
@@ -29,6 +29,7 @@ def assess_adequacy(
     theta: np.ndarray,
     y: np.ndarray,
     config: Optional[BioRSPConfig] = None,
+    x: Optional[np.ndarray] = None,
     **kwargs,
 ) -> AdequacyReport:
     r"""
@@ -47,6 +48,8 @@ def assess_adequacy(
         (N,) foreground weights or binary indicators.
     config : BioRSPConfig, optional
         Configuration object, by default BioRSPConfig().
+    x : np.ndarray, optional
+        (N,) original expression values to check for tie-instability.
     **kwargs
         Overrides for config parameters.
 
@@ -69,6 +72,25 @@ def assess_adequacy(
     B = config.B
     sector_indices = get_sector_indices(theta, B, config.delta_deg)
 
+    # Identifiability gate for sparse/tied features
+    # Check unique values in the foreground cells
+    if x is not None:
+        fg_vals = x[y > 0]
+        n_unique_fg = len(np.unique(fg_vals))
+        if n_unique_fg < config.min_unique_foreground_values:
+            return AdequacyReport(
+                is_adequate=False,
+                reason=REASON_FOREGROUND_TIE_UNSTABLE,
+                counts_fg=np.zeros(B),
+                counts_bg=np.zeros(B),
+                sector_mask=np.zeros(B, dtype=bool),
+                n_foreground=float(np.sum(y)),
+                n_background=float(np.sum(1.0 - y)),
+                adequacy_fraction=0.0,
+                sector_indices=sector_indices,
+                sector_reasons=[REASON_FOREGROUND_TIE_UNSTABLE] * B,
+            )
+
     counts_fg = np.zeros(B)
     counts_bg = np.zeros(B)
     sector_mask = np.zeros(B, dtype=bool)
@@ -81,23 +103,18 @@ def assess_adequacy(
             continue
 
         y_s = y[idx]
-        r_s = r[idx]
         counts_fg[b] = np.sum(y_s)
         counts_bg[b] = np.sum(1.0 - y_s)
 
-        if config.scale_mode == "pooled_iqr":
-            denom = np.percentile(r_s, 75) - np.percentile(r_s, 25)
-        elif config.scale_mode == "bg_iqr":
-            w_bg = 1.0 - y_s
-            denom = weighted_quantile(r_s, w_bg, 0.75) - weighted_quantile(r_s, w_bg, 0.25)
-        elif config.scale_mode == "fg_iqr":
-            w_fg = y_s
-            denom = weighted_quantile(r_s, w_fg, 0.75) - weighted_quantile(r_s, w_fg, 0.25)
-        elif config.scale_mode == "pooled_mad":
-            med = np.median(r_s)
-            denom = 1.4826 * np.median(np.abs(r_s - med))
+        # Task 3: Scale-neutrality via CDF-normalization
+        if config.scale_mode == "u_space":
+            denom = 1.0 if counts_bg[b] > 0 else 0.0
         else:
-            denom = 1.0
+            # Legacy scale computation
+            from biorsp.core.engine import sector_signed_stat
+
+            res = sector_signed_stat(r, y, idx, config=config)
+            denom = res["denom"]
 
         if config.qc_mode == "principled":
             valid, reason, _ = compute_sector_qc(y_s, denom, config)

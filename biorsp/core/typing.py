@@ -85,6 +85,7 @@ class InferenceResult:
     q_value: Optional[float] = None
     perm_mode: Optional[str] = None
     K_eff: Optional[int] = None
+    rejection_count: int = 0
     empty_sector_count: Optional[int] = None
 
 

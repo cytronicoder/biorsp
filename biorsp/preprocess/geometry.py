@@ -74,6 +74,8 @@ def compute_vantage(
     method: Literal["geometric_median", "mean"] = "geometric_median",
     tol: float = 1e-5,
     max_iter: int = 100,
+    knn_k: int = 15,
+    density_percentile: float = 5.0,
 ) -> np.ndarray:
     """
     Compute the vantage point for polar transformation.
@@ -88,18 +90,56 @@ def compute_vantage(
         Convergence tolerance for geometric median, by default 1e-5.
     max_iter : int, optional
         Maximum iterations for geometric median, by default 100.
+    knn_k : int, optional
+        k for kNN density check, by default 15.
+    density_percentile : float, optional
+        Percentile threshold for density check, by default 5.0.
 
     Returns
     -------
     np.ndarray
         (2,) array of vantage coordinates.
     """
-    if method == "geometric_median":
-        v, _, _ = geometric_median(coords, tol=tol, max_iter=max_iter)
-        return v
     if method == "mean":
         return np.mean(coords, axis=0)
-    raise ValueError(f"Unknown vantage method: {method}")
+
+    # method == "geometric_median"
+    v, _, _ = geometric_median(coords, tol=tol, max_iter=max_iter)
+
+    # Task 5: Medoid-snapping for low-density regions (e.g. donuts)
+    # 1. Compute distances from center to all points
+    dists_from_center = np.linalg.norm(coords - v, axis=1)
+    # 2. Estimate density at center using distance to k-th nearest neighbor
+    k = min(knn_k, len(coords) - 1)
+    if k <= 0:
+        return v
+
+    # Distance to k-th neighbor of the center v
+    v_knn_dist = np.partition(dists_from_center, k)[k]
+
+    # 3. Estimate density at all actual points to set a threshold
+    # For performance, we can sample if coords is very large
+    sample_size = min(1000, len(coords))
+    sample_indices = np.random.choice(len(coords), sample_size, replace=False)
+
+    # We need kNN distances for these samples
+    # Simple approach: compute full distance matrix for the sample
+    # (actually just distances to all points)
+    sample_knn_dists = []
+    for i in sample_indices:
+        dists = np.linalg.norm(coords - coords[i], axis=1)
+        # partition to find k-th neighbor (0-th is self)
+        sample_knn_dists.append(np.partition(dists, k)[k])
+
+    threshold = np.percentile(sample_knn_dists, 100 - density_percentile)
+
+    # If v_knn_dist > threshold, the center is in a lower density region than
+    # (density_percentile)% of points.
+    if v_knn_dist > threshold:
+        # Snap to medoid (nearest actual point to v)
+        v = coords[np.argmin(dists_from_center)]
+
+    return v
 
 
 def polar_coordinates(z: np.ndarray, v: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

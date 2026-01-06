@@ -2,7 +2,6 @@ import numpy as np
 
 from biorsp.core.adequacy import assess_adequacy
 from biorsp.core.engine import compute_rsp_radar
-from biorsp.utils.constants import EPS
 
 
 def naive_sector_counts(theta, y, n_sectors, delta_deg):
@@ -35,29 +34,30 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
         r_bg = r[mask_all & ~np.asarray(y).astype(bool)]
         if len(r_fg) < min_fg_sector or len(r_bg) < min_bg_sector:
             continue
+
+        r_bg_sorted = np.sort(r_bg)
+        n_bg = len(r_bg_sorted)
+        u_f = (
+            np.searchsorted(r_bg_sorted, r_fg, side="left")
+            + np.searchsorted(r_bg_sorted, r_fg, side="right")
+        ) / (2.0 * n_bg)
+        u_b = (
+            np.searchsorted(r_bg_sorted, r_bg, side="left")
+            + np.searchsorted(r_bg_sorted, r_bg, side="right")
+        ) / (2.0 * n_bg)
+
         from scipy.stats import iqr, wasserstein_distance
 
-        w1 = wasserstein_distance(r_fg, r_bg)
-        global_iqr = (
-            iqr(r[~np.asarray(y).astype(bool)])
-            if len(r[~np.asarray(y).astype(bool)]) > 0
-            else np.nan
-        )
-        if not np.isfinite(global_iqr) or global_iqr < 0:
-            global_iqr = 0.0
-        iqr_floor = max(0.1 * global_iqr, EPS)
-        iqr_bg = iqr(r_bg)
-        if not np.isfinite(iqr_bg):
-            iqr_bg = 0.0
-        denom = iqr_bg + iqr_floor
-        diff_median = np.median(r_bg) - np.median(r_fg)
-        if diff_median > 0:
-            sign = 1.0
-        elif diff_median < 0:
-            sign = -1.0
-        else:
-            sign = 0.0
-        rsp[b] = sign * (w1 / denom)
+        w1 = wasserstein_distance(u_f, u_b)
+        medF = np.median(r_fg)
+        medB = np.median(r_bg)
+        sign = 1.0 if medB > medF else -1.0
+
+        # Consistent with engine.py: stat = w1 / (1.0 + iqr_floor)
+        global_iqr = iqr(r[~np.asarray(y).astype(bool)])  # Global background
+        iqr_floor = max(0.1 * global_iqr, 1e-8)
+
+        rsp[b] = sign * w1 / (1.0 + iqr_floor)
     return rsp
 
 
@@ -89,7 +89,6 @@ def test_compute_rsp_radar_matches_naive():
         delta_deg=20.0,
         min_fg_sector=5,
         min_bg_sector=20,
-        scale_mode="bg_iqr",
     )
     rsp_naive = naive_rsp(r, theta, y, B=180, delta_deg=20.0, min_fg_sector=5, min_bg_sector=20)
     # Compare where neither is NaN

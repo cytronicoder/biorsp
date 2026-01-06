@@ -33,7 +33,7 @@ def _permutation_worker(
     valid_mask: np.ndarray,
     sector_indices: List[np.ndarray],
     sector_weights: Optional[np.ndarray] = None,
-) -> Tuple[float, int]:
+) -> Tuple[float, int, bool]:
     """
     Worker function for parallel permutation testing.
 
@@ -60,8 +60,8 @@ def _permutation_worker(
 
     Returns
     -------
-    Tuple[float, int]
-        (null_anisotropy, empty_sector_count)
+    Tuple[float, int, bool]
+        (null_anisotropy, empty_sector_count, is_valid)
     """
     rng = np.random.default_rng(seed)
 
@@ -82,9 +82,11 @@ def _permutation_worker(
         frozen_mask=valid_mask,
         sector_weights=sector_weights,
     )
+    # A permutation is invalid if any sector in the valid_mask loses its support
+    is_valid = not np.any(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
     empty_count = np.sum(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
 
-    return compute_anisotropy(radar_perm.rsp, valid_mask), int(empty_count)
+    return compute_anisotropy(radar_perm.rsp, valid_mask), int(empty_count), bool(is_valid)
 
 
 def compute_p_value(
@@ -94,6 +96,7 @@ def compute_p_value(
     config: Optional[BioRSPConfig] = None,
     n_perm: int = 1000,
     umi_counts: Optional[np.ndarray] = None,
+    donor_labels: Optional[np.ndarray] = None,
     rng: Optional[np.random.Generator] = None,
     seed: Optional[int] = 42,
     n_workers: int = 1,
@@ -121,6 +124,8 @@ def compute_p_value(
         Number of permutations, by default 1000.
     umi_counts : np.ndarray, optional
         (N,) array of UMI counts for stratification, by default None.
+    donor_labels : np.ndarray, optional
+        (N,) array of donor labels for mandatory stratification, by default None.
     rng : np.random.Generator, optional
         Random generator, by default None.
     seed : int, optional
@@ -146,6 +151,7 @@ def compute_p_value(
         r=r,
         theta=theta,
         umi_counts=umi_counts,
+        donor_labels=donor_labels if config.donor_stratify else None,
         n_r_bins=config.n_r_bins,
         n_theta_bins=config.n_theta_bins,
         n_umi_bins=config.umi_bins,
@@ -175,12 +181,19 @@ def compute_p_value(
             valid_mask=valid_mask,
             perm_mode=config.perm_mode,
             K_eff=0,
+            rejection_count=0,
             empty_sector_count=0,
         )
 
     observed_stat = compute_anisotropy(radar_obs.rsp, valid_mask)
 
-    seeds = rng.integers(0, 2**31 - 1, size=n_perm)
+    # Task 1: Rejection-resampling loop
+    null_stats = []
+    all_seeds = []
+    rejection_count = 0
+    empty_sector_sum = 0
+    total_attempts = 0
+    max_total_attempts = n_perm * config.rejection_max_retries
 
     if n_workers > 1:
         worker_func = partial(
@@ -203,22 +216,34 @@ def compute_p_value(
         os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
         with mp.Pool(processes=n_workers) as pool:
-            results = list(
-                tqdm(
-                    pool.imap(worker_func, seeds),
-                    total=n_perm,
-                    disable=not show_progress,
-                    desc="Permutations",
-                )
+            pbar = tqdm(
+                total=n_perm, disable=not show_progress, desc="Permutations (Rejection-Resampling)"
             )
-        null_stats = np.array([res[0] for res in results])
-        empty_counts = np.array([res[1] for res in results])
+            while len(null_stats) < n_perm and total_attempts < max_total_attempts:
+                batch_size = n_perm - len(null_stats)
+                seeds = rng.integers(0, 2**31 - 1, size=batch_size)
+                results = pool.map(worker_func, seeds)
+                for i, (stat, empty_count, is_valid) in enumerate(results):
+                    total_attempts += 1
+                    if is_valid:
+                        null_stats.append(stat)
+                        all_seeds.append(seeds[i])
+                        empty_sector_sum += empty_count
+                        pbar.update(1)
+                    else:
+                        rejection_count += 1
+                    if len(null_stats) >= n_perm:
+                        break
+            pbar.close()
     else:
-        null_stats = np.full(n_perm, np.nan)
-        empty_counts = np.zeros(n_perm, dtype=int)
-        for i in tqdm(range(n_perm), disable=not show_progress, desc="Permutations"):
-            null_stats[i], empty_counts[i] = _permutation_worker(
-                seeds[i],
+        pbar = tqdm(
+            total=n_perm, disable=not show_progress, desc="Permutations (Rejection-Resampling)"
+        )
+        while len(null_stats) < n_perm and total_attempts < max_total_attempts:
+            total_attempts += 1
+            seed_k = int(rng.integers(0, 2**31 - 1))
+            stat, empty_count, is_valid = _permutation_worker(
+                seed_k,
                 r,
                 theta,
                 y,
@@ -228,10 +253,34 @@ def compute_p_value(
                 adequacy.sector_indices,
                 radar_obs.sector_weights,
             )
+            if is_valid:
+                null_stats.append(stat)
+                all_seeds.append(seed_k)
+                empty_sector_sum += empty_count
+                pbar.update(1)
+            else:
+                rejection_count += 1
+        pbar.close()
 
-    # Finite-permutation correction: p = (1 + count(null >= obs)) / (K + 1)
-    clean_nulls = np.nan_to_num(null_stats, nan=0.0)
-    count_ge = np.sum(clean_nulls >= observed_stat)
+    if len(null_stats) < n_perm:
+        logger.warning(
+            f"Failed to collect {n_perm} valid permutations after {max_total_attempts} attempts. "
+            f"Collected {len(null_stats)}. Returning NaN p-value."
+        )
+        return InferenceResult(
+            p_value=np.nan,
+            observed_stat=observed_stat,
+            null_stats=np.array(null_stats),
+            valid_mask=valid_mask,
+            seeds=np.array(all_seeds) if all_seeds else None,
+            perm_mode=config.perm_mode,
+            K_eff=len(null_stats),
+            rejection_count=rejection_count,
+            empty_sector_count=int(empty_sector_sum),
+        )
+
+    null_stats = np.array(null_stats)
+    count_ge = np.sum(null_stats >= observed_stat)
     p_value = (count_ge + 1) / (n_perm + 1)
 
     return InferenceResult(
@@ -239,10 +288,11 @@ def compute_p_value(
         observed_stat=observed_stat,
         null_stats=null_stats,
         valid_mask=valid_mask,
-        seeds=seeds,
+        seeds=np.array(all_seeds),
         perm_mode=config.perm_mode,
         K_eff=n_perm,
-        empty_sector_count=int(np.sum(empty_counts)),
+        rejection_count=rejection_count,
+        empty_sector_count=int(empty_sector_sum),
     )
 
 

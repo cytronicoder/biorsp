@@ -126,25 +126,47 @@ def sector_signed_stat(
     diff = medB - medF
     s = 0 if np.abs(diff) <= sign_tol else 1 if diff > 0 else -1
 
-    w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
+    # Task 3: u-space transform via background empirical CDF
+    r_bg_only = r_s[w_bg > 0]
 
-    if scale_mode == "pooled_iqr":
-        q75 = np.percentile(r_s, 75)
-        q25 = np.percentile(r_s, 25)
-        denom = q75 - q25
-    elif scale_mode == "bg_iqr":
-        q75 = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.75)
-        q25 = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.25)
-        denom = q75 - q25
-    elif scale_mode == "fg_iqr":
-        q75 = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.75)
-        q25 = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.25)
-        denom = q75 - q25
-    elif scale_mode == "pooled_mad":
-        med = np.median(r_s)
-        denom = 1.4826 * np.median(np.abs(r_s - med))
+    if scale_mode == "u_space":
+        if r_bg_only.size > 0:
+            r_bg_sorted_local = np.sort(r_bg_only)
+            n_bg_points = len(r_bg_sorted_local)
+            # Use average of searchsorted to handle ties and stay strictly in (0, 1)
+            u_s = (
+                np.searchsorted(r_bg_sorted_local, r_s, side="left")
+                + np.searchsorted(r_bg_sorted_local, r_s, side="right")
+            ) / (2.0 * n_bg_points)
+            u_sorted = u_s[sort_idx]
+            w1 = weighted_wasserstein_1d(u_sorted, w_fg_sorted, u_sorted, w_bg_sorted)
+            denom = 1.0  # Scale-normalized by construction
+        else:
+            w1 = np.nan
+            denom = np.nan
     else:
-        raise ValueError(f"Unknown scale_mode: {scale_mode}")
+        # Legacy raw-distance based W1
+        w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
+        if scale_mode == "bg_iqr":
+            denom = weighted_quantile_sorted(
+                r_sorted, w_bg_sorted, 0.75
+            ) - weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.25)
+        elif scale_mode == "fg_iqr":
+            denom = weighted_quantile_sorted(
+                r_sorted, w_fg_sorted, 0.75
+            ) - weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.25)
+        elif scale_mode == "pooled_mad":
+            med = weighted_quantile_sorted(r_sorted, np.ones_like(r_sorted), 0.5)
+            # Must sort absolute deviations for quantile computation
+            abs_diff = np.abs(r_sorted - med)
+            abs_diff_sorted = np.sort(abs_diff)
+            denom = 1.4826 * weighted_quantile_sorted(
+                abs_diff_sorted, np.ones_like(abs_diff_sorted), 0.5
+            )
+        else:  # pooled_iqr
+            denom = weighted_quantile_sorted(
+                r_sorted, np.ones_like(r_sorted), 0.75
+            ) - weighted_quantile_sorted(r_sorted, np.ones_like(r_sorted), 0.25)
 
     if config is not None and config.qc_mode == "principled":
         valid, status, _ = compute_sector_qc(y_s, denom, config)

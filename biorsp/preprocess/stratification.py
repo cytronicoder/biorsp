@@ -33,6 +33,7 @@ def get_strata_indices(
     r: np.ndarray,
     theta: np.ndarray,
     umi_counts: Optional[np.ndarray] = None,
+    donor_labels: Optional[np.ndarray] = None,
     n_r_bins: int = 10,
     n_theta_bins: int = 4,
     n_umi_bins: int = 10,
@@ -50,6 +51,8 @@ def get_strata_indices(
         (N,) array of angles in radians.
     umi_counts : np.ndarray, optional
         (N,) array of UMI counts.
+    donor_labels : np.ndarray, optional
+        (N,) array of donor labels for mandatory stratification.
     n_r_bins : int
         Number of radial bins.
     n_theta_bins : int
@@ -69,6 +72,32 @@ def get_strata_indices(
     n_cells = len(r)
     if mode == "none" or n_cells == 0:
         return [np.arange(n_cells)]
+
+    # If donor labels are provided, partition by donor first
+    if donor_labels is not None:
+        unique_donors = np.unique(donor_labels)
+        all_strata = []
+        for donor in unique_donors:
+            donor_mask = donor_labels == donor
+            donor_idx = np.where(donor_mask)[0]
+            if donor_idx.size == 0:
+                continue
+
+            # Recursive call or sub-logic for this donor
+            donor_strata = get_strata_indices(
+                r=r[donor_idx],
+                theta=theta[donor_idx],
+                umi_counts=umi_counts[donor_idx] if umi_counts is not None else None,
+                donor_labels=None,  # Already partitioned
+                n_r_bins=n_r_bins,
+                n_theta_bins=n_theta_bins,
+                n_umi_bins=n_umi_bins,
+                min_stratum_size=min_stratum_size,
+                mode=mode,
+            )
+            # Map back to global indices
+            all_strata.extend(donor_idx[s] for s in donor_strata)
+        return all_strata
 
     r_bins = (np.argsort(np.argsort(r)) * n_r_bins) // n_cells
 

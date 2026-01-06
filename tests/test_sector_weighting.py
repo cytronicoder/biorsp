@@ -134,8 +134,10 @@ def test_weighting_reduces_variance_of_low_support_sectors():
     theta = np.concatenate(thetas) % (2 * np.pi)
     y = np.concatenate(ys)
 
-    config_none = BioRSPConfig(B=B, sector_weight_mode="none")
-    config_weighted = BioRSPConfig(B=B, sector_weight_mode="effective_min", sector_weight_k=20)
+    config_none = BioRSPConfig(B=B, sector_weight_mode="none", scale_mode="pooled_iqr")
+    config_weighted = BioRSPConfig(
+        B=B, sector_weight_mode="effective_min", sector_weight_k=20, scale_mode="pooled_iqr"
+    )
 
     # Compute baseline radar profiles
     radar_none = compute_rsp_radar(r, theta, y, config=config_none)

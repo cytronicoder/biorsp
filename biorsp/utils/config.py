@@ -13,6 +13,8 @@ import numpy as np
 from biorsp.utils.constants import (
     ADEQUACY_FRACTION_DEFAULT,
     B_DEFAULT,
+    CENTER_DENSITY_PERCENTILE_DEFAULT,
+    CENTER_KNN_K_DEFAULT,
     DELTA_DEG_DEFAULT,
     K_EXPLORATORY_DEFAULT,
     MIN_BG_EFF_DEFAULT,
@@ -20,12 +22,14 @@ from biorsp.utils.constants import (
     MIN_FG_EFF_DEFAULT,
     MIN_STRATUM_SIZE_DEFAULT,
     MIN_TOTAL_MF_DEFAULT,
+    MIN_UNIQUE_FG_DEFAULT,
     MIN_VALID_SECTORS_DEFAULT,
     N_BG_MIN_DEFAULT,
     N_FG_MIN_DEFAULT,
     N_FG_TOT_MIN_DEFAULT,
     N_R_BINS_DEFAULT,
     N_THETA_BINS_DEFAULT,
+    REJECTION_MAX_RETRIES_DEFAULT,
     SMOOTH_DEG_DEFAULT,
     UMI_BINS_DEFAULT,
 )
@@ -45,10 +49,13 @@ class BioRSPConfig:
     vantage: Literal["geometric_median", "mean", "user"] = "geometric_median"
     geom_median_tol: float = 1e-5
     geom_median_max_iter: int = 100
+    center_knn_k: int = CENTER_KNN_K_DEFAULT
+    center_density_percentile: float = CENTER_DENSITY_PERCENTILE_DEFAULT
 
     foreground_mode: Literal["quantile", "absolute", "auto", "weights"] = "quantile"
     foreground_quantile: float = 0.90
     foreground_threshold: Optional[float] = None
+    min_unique_foreground_values: int = MIN_UNIQUE_FG_DEFAULT
 
     qc_mode: Literal["legacy", "principled"] = "principled"
     min_fg_sector: float = N_FG_MIN_DEFAULT
@@ -64,6 +71,7 @@ class BioRSPConfig:
 
     perm_mode: Literal["radial", "joint", "rt_umi", "none"] = "radial"
     n_permutations: int = K_EXPLORATORY_DEFAULT
+    rejection_max_retries: int = REJECTION_MAX_RETRIES_DEFAULT
     umi_bins: int = UMI_BINS_DEFAULT
     n_r_bins: int = N_R_BINS_DEFAULT
     n_theta_bins: int = N_THETA_BINS_DEFAULT
@@ -71,7 +79,7 @@ class BioRSPConfig:
     donor_stratify: bool = False
     min_stratum_size: int = MIN_STRATUM_SIZE_DEFAULT
 
-    scale_mode: Literal["pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad"] = "pooled_iqr"
+    scale_mode: Literal["u_space", "pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad"] = "u_space"
     min_scale: float = 1e-3
     iqr_floor_pct: float = 0.1
     smoothing_deg: float = SMOOTH_DEG_DEFAULT

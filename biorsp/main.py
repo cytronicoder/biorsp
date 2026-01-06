@@ -52,7 +52,7 @@ def _process_feature(
         return None
 
     # Compute RSP
-    adequacy = assess_adequacy(r_norm, theta, y, config=config)
+    adequacy = assess_adequacy(r_norm, theta, y, config=config, x=x)
     if not adequacy.is_adequate:
         logger.warning(f"Feature '{name}' is inadequate (reason: {adequacy.reason}). Skipping.")
         return None
@@ -144,7 +144,14 @@ def run(
 
     # Geometry
     logger.info("Computing vantage point and polar coordinates")
-    vantage = compute_vantage(coords, method=config.vantage)
+    vantage = compute_vantage(
+        coords,
+        method=config.vantage,
+        tol=config.geom_median_tol,
+        max_iter=config.geom_median_max_iter,
+        knn_k=config.center_knn_k,
+        density_percentile=config.center_density_percentile,
+    )
     r, theta = polar_coordinates(coords, vantage)
     r_norm, norm_stats = normalize_radii(r)
 
@@ -203,7 +210,7 @@ def run(
                 abstention_reasons[reason] = abstention_reasons.get(reason, 0) + 1
                 continue
 
-            adequacy = assess_adequacy(r_norm, theta, y, config=config)
+            adequacy = assess_adequacy(r_norm, theta, y, config=config, x=x_mat[:, i])
             if not adequacy.is_adequate:
                 reason = adequacy.reason
                 abstention_reasons[reason] = abstention_reasons.get(reason, 0) + 1
