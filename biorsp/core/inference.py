@@ -71,8 +71,7 @@ def _permutation_worker(
             shuffled_idx = rng.permutation(idx)
             y_perm[idx] = y_perm[shuffled_idx]
 
-    # Frozen mask preserves null variance: degenerate sectors in observed data
-    # remain frozen (0 or NaN) in permutations to reflect the observed geometry.
+    # Valid sectors are frozen in permutations to reflect the observed geometry.
     radar_perm = compute_rsp_radar(
         r,
         theta,
@@ -82,7 +81,7 @@ def _permutation_worker(
         frozen_mask=valid_mask,
         sector_weights=sector_weights,
     )
-    # A permutation is invalid if any sector in the valid_mask loses its support
+    # A permutation is invalid if any sector in the valid_mask loses its support.
     is_valid = not np.any(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
     empty_count = np.sum(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
 
@@ -187,7 +186,6 @@ def compute_p_value(
 
     observed_stat = compute_anisotropy(radar_obs.rsp, valid_mask)
 
-    # Task 1: Rejection-resampling loop
     null_stats = []
     all_seeds = []
     rejection_count = 0

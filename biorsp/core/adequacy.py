@@ -72,8 +72,7 @@ def assess_adequacy(
     B = config.B
     sector_indices = get_sector_indices(theta, B, config.delta_deg)
 
-    # Identifiability gate for sparse/tied features
-    # Check unique values in the foreground cells
+    # Ensure identifiability for sparse or tied features by checking unique foreground values.
     if x is not None:
         fg_vals = x[y > 0]
         n_unique_fg = len(np.unique(fg_vals))
@@ -106,11 +105,10 @@ def assess_adequacy(
         counts_fg[b] = np.sum(y_s)
         counts_bg[b] = np.sum(1.0 - y_s)
 
-        # Task 3: Scale-neutrality via CDF-normalization
+        # Normalize scale by CDF (U-space) or legacy denominator to ensure comparability across sectors.
         if config.scale_mode == "u_space":
             denom = 1.0 if counts_bg[b] > 0 else 0.0
         else:
-            # Legacy scale computation
             from biorsp.core.engine import sector_signed_stat
 
             res = sector_signed_stat(r, y, idx, config=config)

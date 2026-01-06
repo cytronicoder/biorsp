@@ -52,6 +52,12 @@ class BioRSPConfig:
     center_knn_k: int = CENTER_KNN_K_DEFAULT
     center_density_percentile: float = CENTER_DENSITY_PERCENTILE_DEFAULT
 
+    # Expression thresholding for coverage computation
+    expr_threshold_mode: Literal["detect", "fixed", "nonzero_quantile"] = "detect"
+    expr_threshold_value: Optional[float] = None
+    nonzero_quantile: float = 0.25
+    coverage_use_raw: bool = False
+
     foreground_mode: Literal["quantile", "absolute", "auto", "weights"] = "quantile"
     foreground_quantile: float = 0.90
     foreground_threshold: Optional[float] = None
@@ -77,6 +83,8 @@ class BioRSPConfig:
     n_theta_bins: int = N_THETA_BINS_DEFAULT
     seed: int = 0
     donor_stratify: bool = False
+    stratify_key: Optional[str] = None
+    n_strata: int = 10
     min_stratum_size: int = MIN_STRATUM_SIZE_DEFAULT
 
     scale_mode: Literal["u_space", "pooled_iqr", "bg_iqr", "fg_iqr", "pooled_mad"] = "u_space"
@@ -84,10 +92,12 @@ class BioRSPConfig:
     iqr_floor_pct: float = 0.1
     smoothing_deg: float = SMOOTH_DEG_DEFAULT
     sign_tol: float = 0.0
+    effect_floor: float = 0.05
 
     sector_weight_mode: Literal["none", "sqrt_frac", "effective_min", "logistic_support"] = "none"
     sector_weight_k: float = 5.0
 
+    min_shared_mask_fraction: float = 0.6
     empty_fg_policy: Literal["nan", "zero"] = "zero"
 
     save_profiles: bool = True
