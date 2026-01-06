@@ -14,10 +14,10 @@ These two scores enable a simple 2×2 archetype view:
 
 | Score profile  | Archetype              | Interpretation in embedding space                                                                                                    |
 | -------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| High C, Low S  | `housekeeping_uniform` | Broadly expressed with weak spatial organization (often housekeeping, though QC/technical effects can modulate apparent uniformity). |
-| Low C, High S  | `niche_biomarker`      | Restricted to a subset of cells and spatially concentrated within the embedding (e.g., a substate or subdomain).                     |
-| High C, High S | `localized_program`    | Broadly expressed but structured across embedding regions (e.g., gradients or state programs).                                       |
-| Low C, Low S   | `sparse_presence`      | Rare/low signal with weak organization (often indistinguishable from noise).                                                         |
+| High C, Low S  | housekeeping uniform   | Broadly expressed with weak spatial organization (often housekeeping, though QC/technical effects can modulate apparent uniformity). |
+| Low C, High S  | niche biomarker        | Restricted to a subset of cells and spatially concentrated within the embedding (e.g., a substate or subdomain).                     |
+| High C, High S | localized program      | Broadly expressed but structured across embedding regions (e.g., gradients or state programs).                                       |
+| Low C, Low S   | sparse presence        | Rare/low signal with weak organization (often indistinguishable from noise).                                                         |
 
 > [!NOTE]
 >
