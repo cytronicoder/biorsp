@@ -22,7 +22,7 @@ These two scores enable a simple 2×2 archetype view:
 > [!NOTE]
 >
 > - "Spatial" here refers to structure in the provided coordinate system. In embeddings, this reflects organization in the learned manifold, not necessarily physical tissue space.
-> - $$S$$ is an effect size. If you enable permutations, BioRSP can additionally report p-values/FDR to support "non-random" claims.
+> - $S$ is an effect size. If you enable permutations, BioRSP can additionally report p-values/FDR to support "non-random" claims.
 
 #### Quickstart
 
@@ -64,7 +64,7 @@ print(df[["gene", "coverage_expr", "spatial_score", "archetype"]])
 
 #### Gene-Gene Spatial Relationships
 
-BioRSP supports gene-gene similarity analysis by comparing radar profiles $$R_g(\theta)$$ on a shared, background-supported angular grid.
+BioRSP supports gene-gene similarity analysis by comparing radar profiles $R_g(\theta)$ on a shared, background-supported angular grid.
 
 ```python
 df_pairs = biorsp.score_gene_pairs(
@@ -97,4 +97,4 @@ pip install -e .
 
 #### What BioRSP is designed to capture
 
-BioRSP is most directly sensitive to radial organization (core vs rim bias) and localized vs global support across angles, summarized in $$S$$ and coverage diagnostics. It is not, by itself, a general angular density-enrichment detector unless you explicitly add an angular concentration metric.
+BioRSP is most directly sensitive to radial organization (core vs rim bias) and localized vs global support across angles, summarized in $S$ and coverage diagnostics. It is not, by itself, a general angular density-enrichment detector unless you explicitly add an angular concentration metric.

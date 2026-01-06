@@ -151,6 +151,7 @@ def run(
         max_iter=config.geom_median_max_iter,
         knn_k=config.center_knn_k,
         density_percentile=config.center_density_percentile,
+        seed=config.seed,
     )
     r, theta = polar_coordinates(coords, vantage)
     r_norm, norm_stats = normalize_radii(r)

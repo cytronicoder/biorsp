@@ -305,10 +305,10 @@ def compute_rsp_radar(
             "interpretation will be limited to global/localized shift via coverage."
         )
 
+    from biorsp.preprocess.geometry import angle_grid, get_sector_indices
+
     B = config.B
     if sector_indices is None:
-        from biorsp.preprocess.geometry import get_sector_indices
-
         sector_indices = get_sector_indices(theta, B, config.delta_deg)
 
     rsp_values = np.full(B, np.nan)
@@ -316,6 +316,20 @@ def compute_rsp_radar(
     counts_bg = np.zeros(B)
     iqr_floor_hits = np.zeros(B, dtype=bool)
     computed_weights = np.ones(B)
+
+    # Pre-determine background support mask and scale logic for all sectors.
+    # We use the same IQR-based criteria as the primary scoring.
+    bg_supported_mask = np.zeros(B, dtype=bool)
+    denom_scales = np.zeros(B)
+    for b in range(B):
+        idx = sector_indices[b]
+        n_total = idx.size
+        if n_total >= config.min_bg_sector and n_total > 0:
+            r_s = r[idx]
+            iqr = np.percentile(r_s, 75) - np.percentile(r_s, 25)
+            denom_scales[b] = iqr
+            if iqr >= config.min_scale:
+                bg_supported_mask[b] = True
 
     y_bg_global = 1.0 - y
     global_sort_idx = np.argsort(r)
@@ -348,16 +362,8 @@ def compute_rsp_radar(
         idx = sector_indices[b]
 
         # Define support by total cells in sector and IQR of all radii in sector.
-        n_total_sector = idx.size
-        if n_total_sector > 0:
-            r_s_all = r[idx]
-            q75_all = np.percentile(r_s_all, 75)
-            q25_all = np.percentile(r_s_all, 25)
-            denom_all = q75_all - q25_all
-        else:
-            denom_all = 0.0
-
-        bg_supp = (n_total_sector >= config.min_bg_sector) and (denom_all >= config.min_scale)
+        bg_supp = bg_supported_mask[b]
+        denom_all = denom_scales[b]
 
         if idx.size == 0:
             if frozen_mask is not None:
@@ -394,7 +400,7 @@ def compute_rsp_radar(
             rsp_values[b] = np.nan
             if debug:
                 print(
-                    f"DEBUG: Sector {b} NOT bg_supported (n_total={n_total_sector}, denom={denom_all:.4f})"
+                    f"DEBUG: Sector {b} NOT bg_supported (n_total={idx.size}, denom={denom_all:.4f})"
                 )
             continue
 
@@ -430,23 +436,6 @@ def compute_rsp_radar(
             print(
                 f"{theta_deg:6.1f} | {res['nF']:6.1f} | {res['nB']:6.1f} | {str(res['valid']):>5} | {res['status']:>15} | {res.get('stat_raw', np.nan):8.3f} | {rsp_values[b]:8.3f}"
             )
-
-    from biorsp.preprocess.geometry import angle_grid
-
-    # Determine background-supported sectors (Option A: Label-free support)
-    bg_supported_mask = np.zeros(B, dtype=bool)
-    denom_scales = np.zeros(B)
-    for b in range(B):
-        idx = sector_indices[b]
-        # Supported if total cells >= min_bg_sector AND radial scale > 0
-        if idx.size >= config.min_bg_sector:
-            # We check the scale of the background in this sector
-            # (which is the same fixed global background distribution)
-            s_idx = idx
-            r_s = r[s_idx]
-            if len(r_s) > 0 and (np.max(r_s) - np.min(r_s) > 1e-9):
-                bg_supported_mask[b] = True
-                denom_scales[b] = np.std(r_s)  # example proxy for scale
 
     # Final RSP values: if bg is supported but no FG, set to 0 (if policy is zero)
     # The loop already filled rsp_values with 0.0 or NaN.

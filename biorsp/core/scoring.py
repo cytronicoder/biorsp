@@ -14,11 +14,7 @@ from tqdm import tqdm
 
 from biorsp.core.engine import compute_rsp_radar
 from biorsp.preprocess.foreground import define_foreground
-from biorsp.preprocess.geometry import (
-    compute_vantage,
-    get_sector_indices,
-    polar_coordinates,
-)
+from biorsp.preprocess.geometry import compute_vantage, get_sector_indices, polar_coordinates
 from biorsp.preprocess.normalization import normalize_radii
 from biorsp.utils.config import BioRSPConfig
 
@@ -99,6 +95,7 @@ def _prepare_embedding(
         density_percentile=config.center_density_percentile,
         tol=config.geom_median_tol,
         max_iter=config.geom_median_max_iter,
+        seed=config.seed,
     )
 
     r, theta = polar_coordinates(coords, center)
@@ -188,7 +185,7 @@ def score_genes_impl(
     )
 
     stratify_labels = None
-    if config.stratify_key in adata_sub.obs:
+    if config.stratify_key is not None and config.stratify_key in adata_sub.obs:
         vals = adata_sub.obs[config.stratify_key].values
         if np.issubdtype(vals.dtype, np.number):
             stratify_labels = pd.qcut(vals, config.n_strata, labels=False, duplicates="drop")
@@ -348,7 +345,7 @@ def score_gene_pairs_impl(
             shared_mask = dA["mask"] & dB["mask"]
             shared_frac = float(np.mean(shared_mask))
 
-            if shared_frac < 0.1:
+            if shared_frac < config.min_shared_mask_fraction:
                 pairs.append(
                     {
                         "gene_a": gA,
@@ -374,10 +371,6 @@ def score_gene_pairs_impl(
             sim_sign = 1 if np.sign(dA["r_mean"]) == np.sign(dB["r_mean"]) else -1
             copattern = corr * sim_sign * np.sqrt(shared_frac)
 
-            warnings = []
-            if shared_frac < config.min_shared_mask_fraction:
-                warnings.append("low_shared_mask")
-
             pairs.append(
                 {
                     "gene_a": gA,
@@ -386,7 +379,7 @@ def score_gene_pairs_impl(
                     "similarity_sign": sim_sign,
                     "copattern_score": copattern,
                     "shared_mask_fraction": shared_frac,
-                    "warnings": ";".join(warnings),
+                    "warnings": "",
                 }
             )
 
@@ -406,8 +399,9 @@ def classify_genes_impl(
     if s_cut is None:
         if "q_value" in df.columns and not df["q_value"].dropna().empty:
             method = "fdr"
-            # s_cut is individual for fdr, but we store the effect_floor as a threshold
-            # we will use the logic inside the classify function
+            # For FDR-based classification, store a defensible effect threshold in metadata.
+            # Use the default `effect_floor` from `BioRSPConfig` to indicate a minimal effect size.
+            s_cut = BioRSPConfig().effect_floor
         else:
             # Empirical: Median + 2*MAD
             method = "empirical_mad"

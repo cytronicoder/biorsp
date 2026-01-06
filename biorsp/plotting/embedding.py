@@ -93,6 +93,7 @@ def plot_embedding(
     vantage: Optional[np.ndarray] = None,
     show_legend: bool = True,
     legend_loc: str = "best",
+    vantage_seed: Optional[int] = None,
     **kwargs,
 ) -> plt.Axes:
     """
@@ -102,12 +103,24 @@ def plot_embedding(
       - If `c` is a binary array (0/1 or booleans), the function will plot background
         points in `bg_color` and foreground points in `fg_color` to enforce a consistent
         visual convention across the codebase.
-      - If `show_vantage` is True, a large, prominent \"X\" marker is plotted at the
-        vantage point (geometric median by default) with a small \"v\" label.
+      - If `show_vantage` is True, a large, prominent "X" marker is plotted at the
+        vantage point (geometric median by default) with a small "v" label.
 
     Args:
         Z: (N, 2) embedding coordinates.
         c: (N,) color values (e.g. expression) or binary foreground mask.
+        ax: Axes to plot on (creates new if None).
+        title: Optional plot title.
+        cmap: Colormap for continuous values.
+        s: Point size.
+        fg_color: Color for binary foreground.
+        bg_color: Color for binary background.
+        show_vantage: Whether to marker the spatial vantage point.
+        vantage: Option to provide precomputed vantage point.
+        show_legend: Whether to show legend for binary mask.
+        legend_loc: Legend position.
+        vantage_seed: Random seed for vantage computation sampling.
+        **kwargs: Passed to scatter plot.
         ax: Matplotlib axes. If None, created.
         title: Plot title.
         cmap: Colormap (used when not plotting binary mask).
@@ -183,7 +196,7 @@ def plot_embedding(
         if vantage is None:
             from biorsp.preprocess.geometry import compute_vantage
 
-            v = compute_vantage(Z)
+            v = compute_vantage(Z, seed=vantage_seed)
         else:
             v = vantage
         ax.scatter(

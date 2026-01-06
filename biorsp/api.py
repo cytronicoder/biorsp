@@ -80,6 +80,8 @@ def score_gene_pairs(
         Subset of cells to analyze, by default None.
     config : Optional[BioRSPConfig], optional
         BioRSP configuration, by default None.
+    **kwargs
+        Additional configuration parameters to override defaults.
 
     Returns
     -------

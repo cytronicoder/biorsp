@@ -8,7 +8,7 @@ Implements geometric definitions and coordinate transformations:
 - Efficient sliding window angular indexing
 """
 
-from typing import List, Literal, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 
@@ -76,6 +76,7 @@ def compute_vantage(
     max_iter: int = 100,
     knn_k: int = 15,
     density_percentile: float = 5.0,
+    seed: Optional[int] = None,
 ) -> np.ndarray:
     """
     Compute the vantage point for polar transformation.
@@ -94,6 +95,8 @@ def compute_vantage(
         k for kNN density check, by default 15.
     density_percentile : float, optional
         Percentile threshold for density check, by default 5.0.
+    seed : int, optional
+        Seed for the random sampling during density check, by default None.
 
     Returns
     -------
@@ -114,8 +117,9 @@ def compute_vantage(
 
     v_knn_dist = np.partition(dists_from_center, k)[k]
 
+    rng = np.random.default_rng(seed)
     sample_size = min(1000, len(coords))
-    sample_indices = np.random.choice(len(coords), sample_size, replace=False)
+    sample_indices = rng.choice(len(coords), sample_size, replace=False)
 
     sample_knn_dists = []
     for i in sample_indices:
