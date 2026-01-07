@@ -40,12 +40,12 @@ import scipy.sparse
 from tqdm import tqdm
 
 # BioRSP imports
-import biorsp
 from biorsp import (
     BioRSPConfig,
     compute_rsp_radar,
     plot_radar,
     polar_coordinates,
+    run,
 )
 
 # Suppress known FutureWarning from legacy_api_wrap about dtype argument deprecation
@@ -701,7 +701,7 @@ def main():
     # Extract expression matrix for selected genes
     expr_df = adata_tal[:, genes_to_analyze].to_df()
 
-    summary = biorsp.run(
+    summary = run(
         coords=embedding,
         expression=expr_df,
         umi_counts=umis,
@@ -717,8 +717,8 @@ def main():
             {
                 "gene": name,
                 "A_g": res.summaries.anisotropy,
-                "P_g": res.summaries.p_value,
-                "theta_g": res.summaries.theta_max,
+                "P_g": res.summaries.peak_extremal,
+                "theta_g": res.summaries.peak_extremal_angle,
                 "p_strat": res.p_value,
                 "n_fg": res.foreground_info.get("n_fg", 0),
                 "adequacy_fraction": res.adequacy.adequacy_fraction,
