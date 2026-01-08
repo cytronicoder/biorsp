@@ -133,11 +133,11 @@ def sector_signed_stat(
     r_bg_only = r_s[w_bg > 0]
 
     if scale_mode == "u_space":
-        # U-space transformation via background CDF for scale-invariance.
+
         if r_bg_only.size > 0:
             r_bg_sorted_local = np.sort(r_bg_only)
             n_bg_points = len(r_bg_sorted_local)
-            # Average left/right searchsorted to handle ties and stay strictly in (0, 1).
+
             u_s = (
                 np.searchsorted(r_bg_sorted_local, r_s, side="left")
                 + np.searchsorted(r_bg_sorted_local, r_s, side="right")
@@ -149,7 +149,7 @@ def sector_signed_stat(
             w1 = np.nan
             denom = np.nan
     else:
-        # Wasserstein distance on raw radii.
+
         w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
         if scale_mode == "bg_iqr":
             denom = weighted_quantile_sorted(
@@ -160,11 +160,11 @@ def sector_signed_stat(
                 r_sorted, w_fg_sorted, 0.75
             ) - weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.25)
         elif scale_mode == "pooled_mad":
-            # Median and MAD for the entire sector pool
+
             med = np.median(r_sorted)
             denom = 1.4826 * np.median(np.abs(r_sorted - med))
         else:
-            # Default: Pooled IQR
+
             denom = np.percentile(r_sorted, 75) - np.percentile(r_sorted, 25)
 
     if config is not None and config.qc_mode == "principled":
@@ -320,7 +320,6 @@ def compute_rsp_radar(
     iqr_floor_hits = np.zeros(n_sectors, dtype=bool)
     computed_weights = np.ones(n_sectors)
 
-    # Pre-compute background support mask using IQR thresholds.
     bg_supported_mask = np.zeros(n_sectors, dtype=bool)
     denom_scales = np.zeros(n_sectors)
     for b in range(n_sectors):
@@ -441,7 +440,6 @@ def compute_rsp_radar(
                 f"{res.get('stat_raw', np.nan):8.3f} | {rsp_values[b]:8.3f}"
             )
 
-    # If bg supported but no FG and policy is "zero", set NaN sectors to 0.
     if config.empty_fg_policy == "zero":
         nan_mask = np.isnan(rsp_values)
         rsp_values[nan_mask & bg_supported_mask] = 0.0
@@ -455,7 +453,7 @@ def compute_rsp_radar(
         iqr_floor_hits=iqr_floor_hits,
         sector_weights=computed_weights,
         normalization_stats=normalization_stats or {},
-        n_fg_per_sector=counts_fg,  # For non-weighted, mass=count
+        n_fg_per_sector=counts_fg,
         n_bg_per_sector=counts_bg,
         denom_scale_per_sector=denom_scales,
         bg_supported_mask=bg_supported_mask,

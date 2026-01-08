@@ -70,7 +70,6 @@ def _permutation_worker(
             shuffled_idx = rng.permutation(idx)
             y_perm[idx] = y_perm[shuffled_idx]
 
-    # Valid sectors are frozen in permutations to reflect the observed geometry.
     radar_perm = compute_rsp_radar(
         r,
         theta,
@@ -80,7 +79,7 @@ def _permutation_worker(
         frozen_mask=valid_mask,
         sector_weights=sector_weights,
     )
-    # A permutation is invalid if any sector in the valid_mask loses its support.
+
     is_valid = not np.any(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
     empty_count = np.sum(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
 
@@ -205,7 +204,6 @@ def compute_p_value(
             sector_weights=radar_obs.sector_weights,
         )
 
-        # Avoid BLAS thread oversubscription in worker processes.
         import os
 
         os.environ["OMP_NUM_THREADS"] = "1"

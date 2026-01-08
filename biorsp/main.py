@@ -35,7 +35,6 @@ def _process_feature(
     """Process a single feature."""
     rng = np.random.default_rng(seed)
 
-    # Define foreground
     y, fg_info = define_foreground(
         x,
         mode=config.foreground_mode,
@@ -51,7 +50,6 @@ def _process_feature(
         )
         return None
 
-    # Compute RSP
     adequacy = assess_adequacy(r_norm, theta, y, config=config, x=x)
     if not adequacy.is_adequate:
         logger.warning(f"Feature '{name}' is inadequate (reason: {adequacy.reason}). Skipping.")
@@ -66,12 +64,10 @@ def _process_feature(
         frozen_mask=adequacy.sector_mask,
     )
 
-    # Inference
     inference = compute_p_value(
         r_norm, theta, y, config=config, umi_counts=umi_counts, adequacy=adequacy, rng=rng
     )
 
-    # Summaries
     summaries = compute_scalar_summaries(radar)
     return FeatureResult(
         feature=name,
@@ -128,7 +124,6 @@ def run(
     start_time = time.time()
     config = config or BioRSPConfig()
 
-    # Validation
     validate_inputs(coords, expression, umi_counts)
 
     if isinstance(expression, pd.DataFrame):
@@ -142,7 +137,6 @@ def run(
     n_cells, n_features = x_mat.shape
     logger.info(f"Starting BioRSP run on {n_cells} cells and {n_features} features")
 
-    # Geometry
     logger.info("Computing vantage point and polar coordinates")
     vantage = compute_vantage(
         coords,
@@ -156,7 +150,6 @@ def run(
     r, theta = polar_coordinates(coords, vantage)
     r_norm, norm_stats = normalize_radii(r)
 
-    # Process features
     feature_results = {}
     rng = np.random.default_rng(config.seed)
     seeds = rng.integers(0, 2**31 - 1, size=n_features)
@@ -197,7 +190,7 @@ def run(
                     abstention_reasons["error"] = abstention_reasons.get("error", 0) + 1
     else:
         for i, name in enumerate(tqdm(feature_names, desc="BioRSP Features")):
-            # Define foreground to get reason if it fails there
+
             y, fg_info = define_foreground(
                 x_mat[:, i],
                 mode=config.foreground_mode,
@@ -223,7 +216,6 @@ def run(
             else:
                 abstention_reasons["unknown"] = abstention_reasons.get("unknown", 0) + 1
 
-    # Typing
     logger.info("Assigning feature types")
     feature_results, typing_thresholds = assign_feature_types(feature_results)
 
@@ -244,13 +236,11 @@ def run(
         typing_thresholds=typing_thresholds,
     )
 
-    # Manifest and Output
     if outdir:
         import os
 
         os.makedirs(outdir, exist_ok=True)
 
-        # Calculate coverage distribution
         coverages = [res.adequacy.adequacy_fraction for res in feature_results.values()]
         coverage_dist = {
             "mean": float(np.mean(coverages)) if coverages else 0.0,

@@ -39,7 +39,7 @@ def geometric_median(
         Boolean indicating if convergence was reached.
 
     """
-    # Initial guess: centroid
+
     y = np.mean(points, axis=0)
     converged = False
     n_iter = 0
@@ -105,10 +105,8 @@ def compute_vantage(
     if method == "mean":
         return np.mean(coords, axis=0)
 
-    # method == "geometric_median"
     v, _, _ = geometric_median(coords, tol=tol, max_iter=max_iter)
 
-    # Use medoid-snapping if the geometric median falls into a low-density region (e.g. donuts).
     dists_from_center = np.linalg.norm(coords - v, axis=1)
     k = min(knn_k, len(coords) - 1)
     if k <= 0:

@@ -12,19 +12,16 @@ def debug_polar_sanity(z, v):
     print("--- Debug Polar Sanity ---")
     print(f"Vantage point v: {v}")
 
-    # Point to the right
     p_right = v + np.array([1.0, 0.0])
     r, theta = polar_coordinates(np.array([p_right]), v)
     print(f"Right point {p_right}: r={r[0]:.4f}, theta={theta[0]:.4f} (expected ~0)")
     assert np.isclose(theta[0], 0, atol=1e-5), f"Right point theta {theta[0]} != 0"
 
-    # Point above
     p_above = v + np.array([0.0, 1.0])
     r, theta = polar_coordinates(np.array([p_above]), v)
     print(f"Above point {p_above}: r={r[0]:.4f}, theta={theta[0]:.4f} (expected ~pi/2)")
     assert np.isclose(theta[0], np.pi / 2, atol=1e-5), f"Above point theta {theta[0]} != pi/2"
 
-    # Check wrapping
     p_left_up = v + np.array([-1.0, 0.0001])
     p_left_down = v + np.array([-1.0, -0.0001])
     _, theta_up = polar_coordinates(np.array([p_left_up]), v)
@@ -44,7 +41,6 @@ def debug_sector_membership(z, v, theta_grid, delta_deg, theta_star_idx):
     r, theta = polar_coordinates(z, v)
     B = len(theta_grid)
 
-    # Use the library function
     sector_indices_list = get_sector_indices(theta, B, delta_deg)
     indices_in_sector = sector_indices_list[theta_star_idx]
 
@@ -53,14 +49,12 @@ def debug_sector_membership(z, v, theta_grid, delta_deg, theta_star_idx):
 
     print(f"Theta* index: {theta_star_idx}, Theta*: {theta_star:.4f} rad, Delta: {delta_deg} deg")
 
-    # Manual check
     dists = wrapped_circular_distance(theta, theta_star)
-    expected_mask = dists <= (delta_rad / 2.0 + 1e-9)  # Add epsilon for float issues
+    expected_mask = dists <= (delta_rad / 2.0 + 1e-9)
 
     actual_mask = np.zeros(len(z), dtype=bool)
     actual_mask[indices_in_sector] = True
 
-    # Check for discrepancies
     discrepancies = np.sum(expected_mask != actual_mask)
     print(f"Discrepancies between manual distance check and get_sector_indices: {discrepancies}")
 
@@ -68,11 +62,6 @@ def debug_sector_membership(z, v, theta_grid, delta_deg, theta_star_idx):
         print("Indices in manual but not in library:", np.where(expected_mask & ~actual_mask)[0])
         print("Indices in library but not in manual:", np.where(~expected_mask & actual_mask)[0])
 
-    # Check symmetry around theta_star
-    # Points at theta_star + epsilon should be included
-    # Points at theta_star + pi should be excluded (if delta < 2pi)
-
-    # Create synthetic test points for symmetry
     test_angles = [
         theta_star,
         theta_star + delta_rad / 4,

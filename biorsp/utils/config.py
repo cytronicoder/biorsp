@@ -50,7 +50,6 @@ class BioRSPConfig:
     center_knn_k: int = CENTER_KNN_K_DEFAULT
     center_density_percentile: float = CENTER_DENSITY_PERCENTILE_DEFAULT
 
-    # Expression thresholding for coverage computation
     expr_threshold_mode: Literal["detect", "fixed", "nonzero_quantile"] = "detect"
     expr_threshold_value: Optional[float] = None
     nonzero_quantile: float = 0.25

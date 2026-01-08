@@ -43,7 +43,7 @@ def _detect_threshold(x: np.ndarray, config: BioRSPConfig) -> Tuple[float, str]:
     if mode == "fixed":
         if val is not None:
             return float(val), "fixed"
-        # Intelligently infer threshold for count vs normalized data.
+
         is_integers = np.allclose(x, np.round(x))
         return (1.0 if is_integers else 0.1), "fixed_inferred"
 
@@ -53,7 +53,6 @@ def _detect_threshold(x: np.ndarray, config: BioRSPConfig) -> Tuple[float, str]:
             return 0.0, "nonzero_quantile_empty"
         return float(np.percentile(nonzero, nonzero_q * 100)), "nonzero_quantile"
 
-    # Detect threshold: count data use 1, normalized data use small epsilon.
     is_integers = (x.dtype.kind in "iu") or (np.allclose(x, np.round(x)) and np.max(x) > 1.0)
     if is_integers:
         return 1.0, "detect_count"
@@ -108,8 +107,6 @@ def _compute_spatial_score_from_radar(radar) -> Tuple[float, float]:
     if mask is None or not np.any(mask):
         return 0.0, 0.0
 
-    # Values might be NaN even if mask is True (if nF=0 and policy="nan")
-    # But we expect R=0 if supported and nF=0.
     valid_rsp = np.nan_to_num(radar.rsp[mask], nan=0.0)
     w = radar.sector_weights[mask]
 
@@ -146,7 +143,6 @@ def _permute_p_value(
     else:
         strata_indices = [np.arange(n_cells)]
 
-    # Pre-sort sector indices once to avoid repeated sorting in permutations.
     sector_sort_indices = []
     for idx_s in sector_indices:
         if idx_s.size > 0:
@@ -202,7 +198,7 @@ def score_genes_impl(
             stratify_labels = vals
 
     results = []
-    # Only show progress if multiple genes and not explicitly disabled
+
     show_progress = len(genes) > 1 and config.n_permutations > 0
     for gene in tqdm(genes, desc="Scoring genes", disable=not show_progress):
         try:
@@ -250,13 +246,11 @@ def score_genes_impl(
         radar = compute_rsp_radar(r_norm, theta, y, config=config, sector_indices=sector_indices)
         s_g, r_mean = _compute_spatial_score_from_radar(radar)
 
-        # QC Metrics
         bg_mask = radar.bg_supported_mask
         cov_bg = float(np.mean(bg_mask)) if bg_mask is not None else 0.0
         if cov_bg < 0.8:
             warnings.append("low_coverage_bg")
 
-        # coverage_fg is the fraction of background-supported sectors with sufficient foreground support.
         if bg_mask is not None and np.any(bg_mask):
             n_fg_sector = radar.n_fg_per_sector[bg_mask]
             cov_fg = float(np.mean(n_fg_sector >= config.min_fg_sector))
@@ -316,7 +310,6 @@ def score_gene_pairs_impl(
         adata, embedding_key, subset, config
     )
 
-    # 1. Compute profiles for all genes.
     gene_data = {}
     for gene in tqdm(genes, desc="Computing profiles"):
         try:
@@ -344,7 +337,6 @@ def score_gene_pairs_impl(
         except Exception as e:
             logger.warning(f"Error profiling {gene}: {e}")
 
-    # 2. Pairwise comparison.
     pairs = []
     valid_genes = list(gene_data.keys())
     n = len(valid_genes)
@@ -370,7 +362,6 @@ def score_gene_pairs_impl(
                 )
                 continue
 
-            # Pearson corr on shared mask
             profA = np.nan_to_num(dA["rsp"][shared_mask], nan=0.0)
             profB = np.nan_to_num(dB["rsp"][shared_mask], nan=0.0)
 
@@ -405,16 +396,14 @@ def classify_genes_impl(
     if c_cut is None:
         c_cut = 0.10
 
-    # Defensible s_cut
     method = "manual"
     if s_cut is None:
         if "q_value" in df.columns and not df["q_value"].dropna().empty:
             method = "fdr"
-            # For FDR-based classification, store a defensible effect threshold in metadata.
-            # Use the default `effect_floor` from `BioRSPConfig` to indicate a minimal effect size.
+
             s_cut = BioRSPConfig().effect_floor
         else:
-            # Empirical: Median + 2*MAD
+
             method = "empirical_mad"
             scores = df["spatial_score"].values
             med = np.median(scores)
@@ -440,7 +429,6 @@ def classify_genes_impl(
 
     df["archetype"] = df.apply(classify, axis=1)
 
-    # Store metadata if possible (df.attrs in pandas >= 1.0)
     df.attrs["c_cut"] = c_cut
     df.attrs["s_cut"] = s_cut
     df.attrs["s_cut_method"] = method

@@ -18,7 +18,6 @@ def set_publication_style():
     """Sets matplotlib rcParams for Cell Press Patterns standards."""
     plt.rcParams.update(
         {
-            # Font sizes
             "font.size": 9,
             "axes.titlesize": 11,
             "axes.labelsize": 10,
@@ -26,16 +25,13 @@ def set_publication_style():
             "ytick.labelsize": 9,
             "legend.fontsize": 8,
             "figure.titlesize": 12,
-            # Font family
             "font.family": "sans-serif",
             "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-            "pdf.fonttype": 42,  # Embed fonts
+            "pdf.fonttype": 42,
             "ps.fonttype": 42,
-            # Lines and Markers
             "lines.linewidth": 1.5,
             "lines.markersize": 4,
             "axes.linewidth": 0.8,
-            # Layout
             "figure.constrained_layout.use": True,
             "savefig.bbox": "tight",
             "savefig.dpi": 600,

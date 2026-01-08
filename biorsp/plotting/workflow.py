@@ -66,7 +66,7 @@ def make_end_to_end_figure(
     if delta_deg > 180:
         raise ValueError(f"Delta {delta_deg} > 180 degrees is forbidden.")
     if delta_deg >= 180:
-        # Exact 180 is allowed per request but loses directionality (covers half-circle)
+
         print(
             f"WARNING: Delta {delta_deg} >= 180 degrees. Directionality is lost (sector covers half-circle)."
         )
@@ -82,15 +82,12 @@ def make_end_to_end_figure(
         print("No valid sectors. Cannot generate figure.")
         return
 
-    # Use argmax of absolute value
     peak_idx = np.nanargmax(np.abs(res.rsp))
     theta_star = res.centers[peak_idx]
     R_star = res.rsp[peak_idx]
 
-    # 3. Compute Summaries
     summaries = compute_scalar_summaries(res, valid_mask=valid_mask)
 
-    # 4. Plotting
     set_publication_style()
     fig = plt.figure(figsize=(get_column_width("double"), 7), constrained_layout=True)
     gs = GridSpec(2, 2, figure=fig)
@@ -100,8 +97,6 @@ def make_end_to_end_figure(
     ax_c = fig.add_subplot(gs[1, 0], projection="polar")
     ax_d = fig.add_subplot(gs[1, 1])
 
-    # --- Panel A: Embedding ---
-    # Scatter points
     ax_a.scatter(
         z[y == 0, 0], z[y == 0, 1], c=COLORS["bg_cells"], s=1, alpha=0.2, label="Background"
     )
@@ -110,7 +105,6 @@ def make_end_to_end_figure(
     )
     ax_a.scatter(v[0], v[1], c="black", marker="x", s=50, label="Vantage")
 
-    # Draw all sector rays
     max_r = np.max(r)
     for phi in res.centers:
         ax_a.plot(
@@ -121,14 +115,12 @@ def make_end_to_end_figure(
             lw=0.5,
         )
 
-    # Draw theta* ray
     ray_x = v[0] + 1.2 * max_r * np.cos(theta_star)
     ray_y = v[1] + 1.2 * max_r * np.sin(theta_star)
     ax_a.plot(
         [v[0], ray_x], [v[1], ray_y], color=COLORS["highlight"], lw=1.5, label=r"Peak $\theta^*$"
     )
 
-    # Draw sector wedge
     delta_rad = np.deg2rad(delta_deg)
     wedge_theta = np.linspace(theta_star - delta_rad / 2, theta_star + delta_rad / 2, 20)
     wedge_x = np.concatenate([[v[0]], v[0] + 1.2 * max_r * np.cos(wedge_theta), [v[0]]])
@@ -140,8 +132,6 @@ def make_end_to_end_figure(
     ax_a.legend(loc="upper right", fontsize=8)
     add_panel_label(ax_a, "A")
 
-    # --- Panel B: Radial ECDFs ---
-    # Task 2 & 3: Verify sector membership is correct and matches theta*
     sector_indices_list = get_sector_indices(theta, len(theta_grid), delta_deg)
     indices_star = sector_indices_list[peak_idx]
 
@@ -155,7 +145,7 @@ def make_end_to_end_figure(
     n_bg = len(r_bg)
 
     if n_fg > 0 and n_bg > 0:
-        # Normalize r for display
+
         r_med = np.median(r)
         r_iqr = np.percentile(r, 75) - np.percentile(r, 25)
         scale_denom = r_iqr if r_iqr > 1e-8 else 1.0
@@ -163,7 +153,6 @@ def make_end_to_end_figure(
         r_fg_hat = (r_fg - r_med) / scale_denom
         r_bg_hat = (r_bg - r_med) / scale_denom
 
-        # Sort for ECDF
         r_fg_sorted = np.sort(r_fg_hat)
         r_bg_sorted = np.sort(r_bg_hat)
         y_fg = np.linspace(0, 1, n_fg)
@@ -172,13 +161,11 @@ def make_end_to_end_figure(
         ax_b.step(r_bg_sorted, y_bg, color=COLORS["ref_line"], label=r"$P_{\mathrm{bg}}$")
         ax_b.step(r_fg_sorted, y_fg, color=COLORS["fg_cells"], label=r"$P_{\mathrm{fg}}$")
 
-        # Medians
         med_fg = np.median(r_fg_hat)
         med_bg = np.median(r_bg_hat)
         ax_b.axvline(med_bg, color=COLORS["ref_line"], ls="--", lw=1)
         ax_b.axvline(med_fg, color=COLORS["fg_cells"], ls="--", lw=1)
 
-        # Task 4: Fix sign convention
         diff = med_bg - med_fg
         sign_val = np.sign(diff)
         sign_str = "Core (+)" if sign_val > 0 else "Rim (-)"
@@ -205,8 +192,6 @@ def make_end_to_end_figure(
     ax_b.legend(loc="lower right", fontsize=8)
     add_panel_label(ax_b, "B")
 
-    # --- Panel C: Radar Plot ---
-    # Plot R(theta)
     theta_plot = np.concatenate([res.centers, [res.centers[0]]])
     rsp_plot = np.concatenate([res.rsp, [res.rsp[0]]])
 
@@ -228,8 +213,6 @@ def make_end_to_end_figure(
     ax_c.set_theta_direction(1)
     add_panel_label(ax_c, "C")
 
-    # --- Panel D: Summary ---
-    # Task 6: Localization metric L and interpretation
     L = summaries.localization_entropy
     R_bar = summaries.r_mean
     A = summaries.anisotropy
@@ -285,7 +268,6 @@ def make_end_to_end_figure(
     ax_d.set_title("Parameters & Summary Statistics")
     add_panel_label(ax_d, "D")
 
-    # Save
     save_figure(
         fig, f"end_to_end_{feature_name}", outpath.split("/")[0] if "/" in outpath else "figures"
     )

@@ -72,7 +72,6 @@ def get_strata_indices(
     if mode == "none" or n_cells == 0:
         return [np.arange(n_cells)]
 
-    # If donor labels are provided, partition by donor first
     if donor_labels is not None:
         unique_donors = np.unique(donor_labels)
         all_strata = []
@@ -82,19 +81,18 @@ def get_strata_indices(
             if donor_idx.size == 0:
                 continue
 
-            # Recursive call or sub-logic for this donor
             donor_strata = get_strata_indices(
                 r=r[donor_idx],
                 theta=theta[donor_idx],
                 umi_counts=umi_counts[donor_idx] if umi_counts is not None else None,
-                donor_labels=None,  # Already partitioned
+                donor_labels=None,
                 n_r_bins=n_r_bins,
                 n_theta_bins=n_theta_bins,
                 n_umi_bins=n_umi_bins,
                 min_stratum_size=min_stratum_size,
                 mode=mode,
             )
-            # Map back to global indices
+
             all_strata.extend(donor_idx[s] for s in donor_strata)
         return all_strata
 

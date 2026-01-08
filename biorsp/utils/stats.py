@@ -171,7 +171,7 @@ def compute_signed_summaries(
         return res
 
     if M < 2:
-        # M < 2: metrics like polarity are less meaningful, but report available statistics
+
         res["status"] = "insufficient_sectors"
 
     r_mean = np.mean(R_valid)

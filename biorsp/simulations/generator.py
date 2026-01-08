@@ -4,8 +4,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-# --- Shape Samplers ---
-
 
 def _sample_disk(n: int, r_max: float = 1.0) -> np.ndarray:
     r = np.sqrt(np.random.uniform(0, r_max**2, n))
@@ -20,13 +18,13 @@ def _sample_annulus(n: int, r_in: float = 0.5, r_out: float = 1.0) -> np.ndarray
 
 
 def _sample_crescent(n: int, R: float = 1.0, r: float = 0.7, d: float = 0.4) -> np.ndarray:
-    # Rejection sampling for crescent (Disk R minus Disk r offset by d)
+
     coords = []
     while len(coords) < n:
         batch_size = max(n - len(coords), 100)
-        # Sample from outer disk
+
         cand = _sample_disk(batch_size * 2, r_max=R)
-        # Check if NOT in inner disk (centered at d, 0)
+
         dist_inner = np.sqrt((cand[:, 0] - d) ** 2 + cand[:, 1] ** 2)
         mask = dist_inner > r
         coords.extend(cand[mask][: n - len(coords)])
@@ -113,7 +111,7 @@ def simulate_points(
     **kwargs,
 ) -> np.ndarray:
     """Generate 2D point coordinates for a given footprint shape and density model."""
-    # Sample base shape
+
     s = shape.lower()
     if s == "disk":
         coords = _sample_disk(n_points)
@@ -131,10 +129,8 @@ def simulate_points(
     else:
         raise ValueError(f"Unknown shape: {shape}")
 
-    # Apply density model
     coords = _apply_density(coords, model=density_model, strength=density_strength)
 
-    # Apply rotation
     rot = kwargs.get("rotation_deg", 0.0)
     if rot != 0:
         rad = np.radians(rot)
@@ -142,10 +138,8 @@ def simulate_points(
         R = np.array(((c, -s), (s, c)))
         coords = coords @ R.T
 
-    # Apply distortion
     coords = _apply_distortion(coords, dist_type=distortion, **kwargs)
 
-    # Add jitter
     jitter = kwargs.get("noise_sigma", kwargs.get("jitter", 0.02))
     if jitter > 0:
         coords += np.random.normal(0, jitter, coords.shape)
@@ -166,7 +160,6 @@ def simulate_foreground(
     r = np.sqrt(np.sum(coords**2, axis=1))
     theta = np.arctan2(coords[:, 1], coords[:, 0])
 
-    # Normalize r to [0, 1] for scoring
     r_norm = (r - r.min()) / (r.max() - r.min() + 1e-9)
 
     scores = np.zeros(n_points)
@@ -209,16 +202,8 @@ def simulate_foreground(
         dists = np.linalg.norm(coords - center, axis=1)
         scores = np.exp(-(dists**2) / (2 * radius**2)) + np.random.normal(0, noise_sigma, n_points)
 
-    elif e == "boundary":
-        # Approximate boundary distance via r_max(theta)
-        # For simplicity, we'll use r_norm as a proxy for most shapes,
-        # but for crescent/annulus it's more complex.
-        # Let's just use r_norm for now as it's "distance from center".
-        scores = r_norm + np.random.normal(0, noise_sigma, n_points)
+    elif e == "boundary" or e == "confounded":
 
-    elif e == "confounded":
-        # Correlated with density (proxy: local point count or just the density model)
-        # Here we'll just use a simple radial bias as a proxy for "density" if model was radial
         scores = r_norm + np.random.normal(0, noise_sigma, n_points)
 
     else:
@@ -246,7 +231,7 @@ def simulate_dataset(
     coords = simulate_points(
         n_points=n_points,
         shape=shape,
-        seed=None,  # Seed already set
+        seed=None,
         noise_sigma=noise_sigma,
         **kwargs,
     )
@@ -254,7 +239,7 @@ def simulate_dataset(
         coords,
         enrichment_type=enrichment_type,
         quantile=quantile,
-        seed=None,  # Seed already set
+        seed=None,
         noise_sigma=noise_sigma,
         **kwargs,
     )
@@ -287,7 +272,6 @@ def save_dataset(data: Dict[str, Any], output_dir: str, prefix: str):
     meta_df = pd.DataFrame([data["metadata"]])
     meta_df.to_csv(os.path.join(output_dir, f"{prefix}_metadata.csv"), index=False)
 
-    # Also save a combined CSV for easy inspection / downstream analysis
     coords = np.asarray(data["coords"])
     scores = np.asarray(data["scores"])
     labels = np.asarray(data["labels"])

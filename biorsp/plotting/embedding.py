@@ -145,7 +145,6 @@ def plot_embedding(
     if ax is None:
         _, ax = plt.subplots()
 
-    # Special-case binary mask coloring for consistent fg/bg colors
     plotted_sc = None
     if c is not None:
         uniq = np.unique(c)

@@ -22,7 +22,7 @@ def _maybe_degrees_to_radians(theta: np.ndarray) -> np.ndarray:
     if not np.any(finite):
         return theta
     tmax = float(np.nanmax(theta[finite]))
-    # If values exceed ~2.4*pi (~432 deg), they are almost surely degrees
+
     if tmax > (2.0 * np.pi * 1.2):
         return np.deg2rad(theta)
     return theta
@@ -61,14 +61,14 @@ def _ensure_polar_ax(ax: plt.Axes | None) -> plt.Axes:
     if ax is None:
         _, ax = plt.subplots(subplot_kw={"projection": "polar"})
         return ax
-    # If a non-polar axis is passed, fail early with a clear message.
+
     if getattr(ax, "name", "") != "polar":
         raise ValueError("plot_radar requires a polar axis (projection='polar').")
     return ax
 
 
 def _set_default_polar_style(ax: plt.Axes) -> None:
-    # Set mathematical convention: 0° at East, increasing counter-clockwise.
+
     ax.set_theta_direction(1)
     ax.set_theta_zero_location("E")
 
@@ -422,19 +422,17 @@ def plot_radar(
 
     lw = float(kwargs.pop("linewidth", 1.25))
 
-    # Mark underpowered sectors with faint ticks.
     invalid_theta = theta[~valid]
     if invalid_theta.size:
         for t in invalid_theta:
             ax.plot([t, t], [y_top * 0.95, y_top], color="gray", linewidth=1.0, alpha=0.6)
 
-    # Mark zero-filled sectors (empty foreground) with distinct marker
     if counts_fg is not None:
-        # Zero-filled sectors are valid (finite r), have r=0, and counts_fg=0
+
         zero_filled_mask = valid & (r == 0) & (counts_fg == 0)
         zero_filled_theta = theta[zero_filled_mask]
         if zero_filled_theta.size:
-            # Plot a small circle at the rim to indicate "forced zero"
+
             ax.scatter(
                 zero_filled_theta,
                 np.full_like(zero_filled_theta, y_top),
@@ -683,7 +681,6 @@ def plot_radar_absolute(
     return fig
 
 
-# Alias with clearer name
 def plot_radar_split(*args, **kwargs):
     """Alias for `plot_radar_absolute` to emphasize split/proximal-vs-distal layout."""
     return plot_radar_absolute(*args, **kwargs)

@@ -40,7 +40,6 @@ def weighted_wasserstein_1d(
     if values_a.size == 0 or values_b.size == 0:
         return np.nan
 
-    # Normalize weights
     sum_a = np.sum(weights_a)
     sum_b = np.sum(weights_b)
     if sum_a <= 0 or sum_b <= 0:
@@ -127,8 +126,6 @@ def weighted_quantile_sorted(
     if sum_w <= 0:
         return np.nan
 
-    # If weights are binary, use standard quantile for exact match with scipy/numpy
-    # This is faster and more robust for the common binary case.
     if np.all((weights_sorted == 0) | (weights_sorted == 1)):
         target_values = values_sorted[weights_sorted == 1]
         if target_values.size == 0:
