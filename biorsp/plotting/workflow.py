@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
@@ -300,7 +302,21 @@ def make_end_to_end_figure(
     ax_d.set_title("BioRSP Summary: Coverage & Spatial Organization")
     add_panel_label(ax_d, "D")
 
-    save_figure(
-        fig, f"end_to_end_{feature_name}", outpath.split("/")[0] if "/" in outpath else "figures"
-    )
+    outpath_obj = Path(outpath)
+    if outpath_obj.suffix:
+        outdir = str(outpath_obj.parent) if outpath_obj.parent != Path(".") else "figures"
+        filename = outpath_obj.stem
+    else:
+        outdir = outpath
+        filename = f"end_to_end_{feature_name}"
+
+    save_figure(fig, filename, outdir)
+
+    if outpath_obj.suffix:
+        import shutil
+
+        src_png = Path(outdir) / f"{filename}.png"
+        if src_png.exists() and src_png != outpath_obj:
+            shutil.copy(src_png, outpath_obj)
+
     plt.close()

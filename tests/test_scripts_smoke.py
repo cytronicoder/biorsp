@@ -28,8 +28,6 @@ EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
         SCRIPTS_DIR / "make_end_to_end_workflow.py",
         SCRIPTS_DIR / "make_polar_embedding_figure.py",
         SCRIPTS_DIR / "make_schematic_diagram.py",
-        SCRIPTS_DIR / "debug_end_to_end.py",
-        SCRIPTS_DIR / "debug_selection_bias.py",
     ],
 )
 def test_script_help(script_path):
@@ -98,7 +96,7 @@ def test_make_end_to_end_workflow_demo():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outpath = Path("test_end_to_end_demo.png")
+    outpath = Path("test_end_to_end_demo.png").resolve()
 
     try:
         result = subprocess.run(
@@ -137,7 +135,7 @@ def test_make_polar_embedding_figure_demo():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outpath = Path("test_polar_demo.png")
+    outpath = Path("test_polar_demo.png").resolve()
 
     try:
         result = subprocess.run(
@@ -165,3 +163,49 @@ def test_make_polar_embedding_figure_demo():
     finally:
         outpath.unlink(missing_ok=True)
         outpath.with_suffix(".pdf").unlink(missing_ok=True)
+
+
+def test_debug_end_to_end_runs():
+    """Test that debug_end_to_end.py runs without crashing (no --help, just execute)."""
+    script = SCRIPTS_DIR / "debug_end_to_end.py"
+    if not script.exists():
+        pytest.skip(f"Script not found: {script}")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+        assert (
+            result.returncode == 0
+        ), f"Script failed\\nStdout: {result.stdout}\\nStderr: {result.stderr}"
+        # Just verify it runs, don't check specific outputs since it's a debug script
+    finally:
+        # Clean up any generated figures
+        figures_dir = Path("figures")
+        if figures_dir.exists():
+            for pattern in ["debug_*.png", "debug_*.pdf", "end_to_end_*.png", "end_to_end_*.pdf"]:
+                for fpath in figures_dir.glob(pattern):
+                    fpath.unlink(missing_ok=True)
+
+
+def test_debug_selection_bias_runs():
+    """Test that debug_selection_bias.py runs without crashing (no --help, just execute)."""
+    script = SCRIPTS_DIR / "debug_selection_bias.py"
+    if not script.exists():
+        pytest.skip(f"Script not found: {script}")
+
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert (
+        result.returncode == 0
+    ), f"Script failed\\nStdout: {result.stdout}\\nStderr: {result.stderr}"
+    # Just verify it runs, don't check specific outputs since it's a debug script
