@@ -57,12 +57,11 @@ def setup_args():
 def generate_demo_data(seed=42):
     rng = np.random.default_rng(seed)
     n_cells = 3000
-    # Create a disk
+
     r_true = np.sqrt(rng.random(n_cells))
     theta_true = 2 * np.pi * rng.random(n_cells) - np.pi
     coords = np.column_stack([r_true * np.cos(theta_true), r_true * np.sin(theta_true)])
 
-    # Core-wedge pattern at theta=0
     dist_to_v = np.linalg.norm(coords, axis=1)
     prob = 0.05 + 0.8 * np.exp(-0.5 * (theta_true / 0.3) ** 2) * np.exp(
         -0.5 * (dist_to_v / 0.2) ** 2
@@ -77,7 +76,6 @@ def main():
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Load or generate data
     if args.adata:
         import scanpy as sc
 
@@ -94,16 +92,13 @@ def main():
     else:
         coords, expr = generate_demo_data(args.seed)
 
-    # Compute vantage point and polar coordinates
     v = compute_vantage(coords, method="geometric_median")
     r, theta = polar_coordinates(coords, v)
 
-    # Robust standardization
     r_med = np.median(r)
     r_iqr = np.percentile(r, 75) - np.percentile(r, 25)
     r_hat = (r - r_med) / (r_iqr + 1e-8)
 
-    # Define foreground
     if args.abs_threshold is not None:
         y = (expr >= args.abs_threshold).astype(float)
     else:
@@ -111,10 +106,8 @@ def main():
         y = (expr >= thresh).astype(float) if thresh > 0 else (expr > 0).astype(float)
     fg_mask = y > 0
 
-    # Setup figure (Double column width, 2x2)
     fig, axes = plt.subplots(2, 2, figsize=(get_column_width("double"), 7))
 
-    # Panel A: Original Embedding
     ax = axes[0, 0]
     ax.scatter(coords[~fg_mask, 0], coords[~fg_mask, 1], c=COLORS["bg_cells"], s=1, alpha=0.2)
     ax.scatter(
@@ -143,7 +136,6 @@ def main():
     ax.set_aspect("equal")
     add_panel_label(ax, "A")
 
-    # Panel B: Polar Embedding (theta, r-hat)
     ax = axes[0, 1]
     ax.scatter(theta[~fg_mask], r_hat[~fg_mask], c=COLORS["bg_cells"], s=1, alpha=0.2)
     ax.scatter(theta[fg_mask], r_hat[fg_mask], c=COLORS["fg_cells"], s=2, alpha=0.5)
@@ -158,7 +150,6 @@ def main():
     ax.set_xticklabels([r"$-\pi$", r"$-\pi/2$", "0", r"$\pi/2$", r"$\pi$"])
     add_panel_label(ax, "B")
 
-    # Panel C: Polar-reembedded
     ax = axes[1, 0]
     u = r_hat * np.cos(theta)
     vv = r_hat * np.sin(theta)
@@ -170,7 +161,6 @@ def main():
     ax.set_aspect("equal")
     add_panel_label(ax, "C")
 
-    # Panel D: Radial Distributions (ECDF)
     ax = axes[1, 1]
     B = 36
     delta_deg = 360 / B

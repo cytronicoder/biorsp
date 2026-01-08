@@ -17,18 +17,16 @@ def time_trial(n_cells, B, reps=5):
     theta = rng.uniform(-np.pi, np.pi, size=n_cells)
     y = rng.choice([0, 1], size=n_cells, p=[0.85, 0.15])
 
-    # Warm up
     adequacy = gene_adequacy(y, theta, n_sectors=B, delta_deg=180.0)
 
     t_a = []
     t_b = []
     for _ in range(reps):
         t0 = time.perf_counter()
-        # Flow A: recompute windows inside radar
+
         _ = compute_rsp_radar(r, theta, y, B=B, delta_deg=180.0)
         t_a.append(time.perf_counter() - t0)
 
-        # Flow B: reuse sector indices
         t0 = time.perf_counter()
         _ = compute_rsp_radar(
             r, theta, y, B=B, delta_deg=180.0, sector_indices=adequacy.sector_indices

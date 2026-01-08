@@ -95,13 +95,11 @@ def main():
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Double column width for schematic
     fig, ax = plt.subplots(figsize=(get_column_width("double"), 4))
     ax.set_xlim(0, 12)
     ax.set_ylim(0, 6)
     ax.axis("off")
 
-    # 1. Input
     draw_box(
         ax,
         0.5,
@@ -114,7 +112,6 @@ def main():
     )
     draw_arrow(ax, 2.5, 3.25, 3.5, 3.25)
 
-    # 2. Vantage & Transform
     draw_box(
         ax,
         3.5,
@@ -123,11 +120,10 @@ def main():
         1.5,
         "$v = \\mathrm{geom\\_median}(X)$\n$(r, \\theta) = \\mathrm{Polar}(X, v)$",
         "2. Vantage &\nTransform",
-        color="#FFF2CC",  # Soft Gold
+        color="#FFF2CC",
     )
     draw_arrow(ax, 5.5, 3.25, 6.5, 3.25)
 
-    # 3. Sector Scanning
     draw_box(
         ax,
         6.5,
@@ -136,11 +132,10 @@ def main():
         1.5,
         "Define $\\theta$ grid\nWindows $W(\\theta)$",
         "3. Sector Scanning",
-        color="#D9EAD3",  # Soft Green
+        color="#D9EAD3",
     )
     draw_arrow(ax, 8.5, 3.25, 9.5, 3.25)
 
-    # 4. RSP Calculation
     draw_box(
         ax,
         9.5,
@@ -149,12 +144,11 @@ def main():
         1.5,
         "$R_g(\\theta) = s \\cdot \\frac{W_1(P_{\\mathrm{fg}}, P_{\\mathrm{bg}})}{\\mathrm{scale}}$\n$s = \\mathrm{sign}(\\Delta \\mathrm{median})$",
         "4. RSP Calculation",
-        color="#F4CCCC",  # Soft Red
+        color="#F4CCCC",
     )
 
     draw_arrow(ax, 10.5, 2.5, 10.5, 1.5)
 
-    # 5. Summaries
     draw_box(
         ax,
         9.5,
@@ -163,12 +157,11 @@ def main():
         1,
         "$A_g$ (RMS magnitude)\nPeak angle & strength",
         "5. Summaries",
-        color="#EAD1DC",  # Soft Purple
+        color="#EAD1DC",
     )
 
     draw_arrow(ax, 9.5, 1.0, 8.5, 1.0)
 
-    # 6. Inference & QC
     draw_box(
         ax,
         6.5,
@@ -177,10 +170,9 @@ def main():
         1,
         "Adequacy mask $\\Theta_g$\nPermutation $p$-value",
         "6. Inference & QC",
-        color="#CFE2F3",  # Soft Blue
+        color="#CFE2F3",
     )
 
-    # Annotations
     ax.text(
         10.5,
         4.8,

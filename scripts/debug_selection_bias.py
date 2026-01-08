@@ -4,7 +4,6 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Add repo root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from biorsp.core.engine import compute_rsp_radar
@@ -18,26 +17,23 @@ def make_synthetic_data(scenario="wedge"):
     n_bg = 2000
     n_fg = 500
 
-    # Background: Uniform disk
     r_bg = np.sqrt(np.random.uniform(0, 1, n_bg))
     theta_bg = np.random.uniform(-np.pi, np.pi, n_bg)
     bg_x = r_bg * np.cos(theta_bg)
     bg_y = r_bg * np.sin(theta_bg)
 
     if scenario == "wedge_rim":
-        # Wedge at theta=pi/2, concentrated near edge (Rim)
-        # Localized Rim
+
         r_fg = np.sqrt(np.random.uniform(0.8, 1.0, n_fg))
         theta_fg = np.random.normal(np.pi / 2, 0.2, n_fg)
 
     elif scenario == "global_rim":
-        # Ring at edge, all angles
-        # Global Rim
+
         r_fg = np.sqrt(np.random.uniform(0.8, 1.0, n_fg))
         theta_fg = np.random.uniform(-np.pi, np.pi, n_fg)
 
     elif scenario == "null":
-        # Null case
+
         r_fg = np.sqrt(np.random.uniform(0, 1, n_fg))
         theta_fg = np.random.uniform(-np.pi, np.pi, n_fg)
 
@@ -66,18 +62,14 @@ def run_debug_session():
         z, y = make_synthetic_data(sc)
         v = np.array([0.0, 0.0])
 
-        # Compute polar coordinates
         r_raw, theta = polar_coordinates(z, v)
 
-        # Normalize r (Robust Scale)
-        # In real pipeline, this happens before compute_rsp_radar
         r_med = np.median(r_raw)
         r_iqr = np.percentile(r_raw, 75) - np.percentile(r_raw, 25)
         if r_iqr < 1e-8:
             r_iqr = 1.0
         r = (r_raw - r_med) / r_iqr
 
-        # Config
         B = 36
         delta_deg = 180.0
 
@@ -85,7 +77,6 @@ def run_debug_session():
             print(f"  Policy: {policy}")
             config = BioRSPConfig(B=B, delta_deg=delta_deg, empty_fg_policy=policy)
 
-            # Call with debug=True to see the table
             res = compute_rsp_radar(r, theta, y, config=config, debug=True)
             summ = compute_scalar_summaries(res)
 
@@ -101,21 +92,18 @@ def run_debug_session():
                 }
             )
 
-            # Plotting Coverage vs Theta (only for zero policy to see effect)
             if policy == "zero":
                 centers_deg = np.degrees(res.centers)
 
                 fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
 
-                # Plot 1: RSP
                 ax = axes[0]
-                # Plot NaNs as gaps
+
                 ax.plot(centers_deg, res.rsp, "o-", label="RSP")
                 ax.set_ylabel("RSP")
                 ax.set_title(f"RSP Profile ({sc}, policy={policy})")
                 ax.grid(True)
 
-                # Plot 2: Counts (nF, nB)
                 ax = axes[1]
                 ax.plot(centers_deg, res.counts_fg, "g.-", label="nF (Foreground)")
                 ax.plot(centers_deg, res.counts_bg, "k--", label="nB (Background)")
@@ -124,7 +112,6 @@ def run_debug_session():
                 ax.legend()
                 ax.grid(True)
 
-                # Plot 3: Validity
                 ax = axes[2]
                 valid_mask = ~np.isnan(res.rsp)
                 ax.plot(

@@ -3,7 +3,6 @@ import sys
 
 import numpy as np
 
-# Add repo root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from biorsp.plotting.workflow import make_end_to_end_figure
@@ -16,30 +15,28 @@ def make_synthetic_data(scenario="wedge"):
     n_bg = 2000
     n_fg = 500
 
-    # Background: Uniform disk
     r_bg = np.sqrt(np.random.uniform(0, 1, n_bg))
     theta_bg = np.random.uniform(-np.pi, np.pi, n_bg)
     bg_x = r_bg * np.cos(theta_bg)
     bg_y = r_bg * np.sin(theta_bg)
 
     if scenario == "wedge_core":
-        # Wedge at theta=0, concentrated near center (Core)
-        # Core means r is smaller than background.
-        r_fg = np.sqrt(np.random.uniform(0, 0.2, n_fg))  # Core
-        theta_fg = np.random.normal(0, 0.2, n_fg)  # Wedge at 0
+
+        r_fg = np.sqrt(np.random.uniform(0, 0.2, n_fg))
+        theta_fg = np.random.normal(0, 0.2, n_fg)
 
     elif scenario == "wedge_rim":
-        # Wedge at theta=pi/2, concentrated near edge (Rim)
-        r_fg = np.sqrt(np.random.uniform(0.8, 1.0, n_fg))  # Rim
-        theta_fg = np.random.normal(np.pi / 2, 0.2, n_fg)  # Wedge at pi/2
+
+        r_fg = np.sqrt(np.random.uniform(0.8, 1.0, n_fg))
+        theta_fg = np.random.normal(np.pi / 2, 0.2, n_fg)
 
     elif scenario == "global_rim":
-        # Ring at edge, all angles
+
         r_fg = np.sqrt(np.random.uniform(0.8, 1.0, n_fg))
         theta_fg = np.random.uniform(-np.pi, np.pi, n_fg)
 
     elif scenario == "null":
-        # Same as background
+
         r_fg = np.sqrt(np.random.uniform(0, 1, n_fg))
         theta_fg = np.random.uniform(-np.pi, np.pi, n_fg)
 
@@ -58,7 +55,6 @@ def make_synthetic_data(scenario="wedge"):
 def run_debug_session():
     print("Running Debug Session...")
 
-    # Task 1: Sanity Check
     z_dummy = np.random.rand(10, 2)
     v_dummy = np.array([0.0, 0.0])
     debug_polar_sanity(z_dummy, v_dummy)
