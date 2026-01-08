@@ -1,5 +1,4 @@
-"""
-Embedding module for BioRSP.
+"""Embedding module for BioRSP.
 
 Provides wrappers for common dimensionality reduction methods:
 - PCA (via sklearn)
@@ -26,8 +25,7 @@ def compute_embedding(
     z_custom: Optional[np.ndarray] = None,
     **kwargs,
 ) -> np.ndarray:
-    """
-    Compute a low-dimensional embedding of high-dimensional data.
+    """Compute a low-dimensional embedding of high-dimensional data.
 
     Notes:
     - Supported methods: 'pca', 'umap', 'tsne', 'phate', 'custom'.
@@ -44,6 +42,7 @@ def compute_embedding(
 
     Returns:
         z: (N, n_components) embedding array.
+
     """
     if method == "custom":
         if z_custom is None:
@@ -96,8 +95,7 @@ def plot_embedding(
     vantage_seed: Optional[int] = None,
     **kwargs,
 ) -> plt.Axes:
-    """
-    Scatter plot of embedding.
+    """Scatter plot of embedding.
 
     Special behavior:
       - If `c` is a binary array (0/1 or booleans), the function will plot background
@@ -133,6 +131,7 @@ def plot_embedding(
 
     Returns:
         ax: The axes object.
+
     """
     Z = np.asarray(Z)
     if Z.ndim != 2 or Z.shape[1] != 2:

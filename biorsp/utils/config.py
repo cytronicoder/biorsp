@@ -1,5 +1,4 @@
-"""
-Configuration module for BioRSP.
+"""Configuration module for BioRSP.
 
 Immutable configuration object that maps 1:1 to Methods parameters.
     It is stored in the run manifest.
@@ -37,8 +36,7 @@ from biorsp.utils.constants import (
 
 @dataclass(frozen=True)
 class BioRSPConfig:
-    """
-    Configuration for BioRSP analysis.
+    """Configuration for BioRSP analysis.
 
     Centralizes all parameters for geometry, foreground definition,
     adequacy thresholds, permutation tests, and normalization.

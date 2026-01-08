@@ -1,5 +1,4 @@
-"""
-Command-line interface for BioRSP.
+"""Command-line interface for BioRSP.
 
 Commands:
 - run: Compute RSP for a dataset.

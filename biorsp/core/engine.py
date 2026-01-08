@@ -1,5 +1,4 @@
-"""
-Core BioRSP algorithms.
+"""Core BioRSP algorithms.
 
 Implements the radar radius function R_g(theta) and anisotropy A_g.
 Optimized for performance via precomputed indices and vectorized stats.
@@ -32,9 +31,9 @@ def sector_signed_stat(
     weight_mode: str = "none",
     weight_k: float = 5.0,
     config: Optional[BioRSPConfig] = None,
+    sort_idx: Optional[np.ndarray] = None,
 ) -> dict:
-    """
-    Compute the signed per-sector radar statistic R_g(theta).
+    """Compute the signed per-sector radar statistic R_g(theta).
 
     Parameters
     ----------
@@ -59,11 +58,14 @@ def sector_signed_stat(
         Tunable parameter for weighting, by default 5.0.
     config : BioRSPConfig, optional
         Configuration object for principled QC.
+    sort_idx : np.ndarray, optional
+        Precomputed sorting indices for r[in_sector_idx], by default None.
 
     Returns
     -------
     dict
         Dictionary containing the statistic and metadata.
+
     """
     if in_sector_idx.size == 0:
         return {
@@ -86,12 +88,12 @@ def sector_signed_stat(
     w_fg = y_s
     w_bg = 1.0 - y_s
 
-    nF = float(np.sum(w_fg))
-    nB = float(np.sum(w_bg))
+    n_fg = float(np.sum(w_fg))
+    n_bg = float(np.sum(w_bg))
 
-    if nF <= 0 or nB <= 0:
+    if n_fg <= 0 or n_bg <= 0:
         denom = np.nan
-        if nB > 0 and scale_mode in ["pooled_iqr", "bg_iqr", "pooled_mad"]:
+        if n_bg > 0 and scale_mode in ["pooled_iqr", "bg_iqr", "pooled_mad"]:
             if scale_mode == "pooled_mad":
                 med = np.median(r_s)
                 denom = 1.4826 * np.median(np.abs(r_s - med))
@@ -109,31 +111,33 @@ def sector_signed_stat(
             "denom": denom,
             "medF": np.nan,
             "medB": np.nan,
-            "nF": nF,
-            "nB": nB,
+            "nF": n_fg,
+            "nB": n_bg,
             "status": "empty_fg_or_bg",
             "valid": False,
         }
 
-    sort_idx = np.argsort(r_s)
+    if sort_idx is None:
+        sort_idx = np.argsort(r_s)
+
     r_sorted = r_s[sort_idx]
     w_fg_sorted = w_fg[sort_idx]
     w_bg_sorted = w_bg[sort_idx]
 
-    medF = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.5)
-    medB = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.5)
+    med_fg = weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.5)
+    med_bg = weighted_quantile_sorted(r_sorted, w_bg_sorted, 0.5)
 
-    diff = medB - medF
+    diff = med_bg - med_fg
     s = 0 if np.abs(diff) <= sign_tol else 1 if diff > 0 else -1
 
     r_bg_only = r_s[w_bg > 0]
 
     if scale_mode == "u_space":
-        # Transform to U-space using background CDF to ensure scale-neutrality.
+        # U-space transformation via background CDF for scale-invariance.
         if r_bg_only.size > 0:
             r_bg_sorted_local = np.sort(r_bg_only)
             n_bg_points = len(r_bg_sorted_local)
-            # Use average of searchsorted to handle ties and stay strictly in (0, 1)
+            # Average left/right searchsorted to handle ties and stay strictly in (0, 1).
             u_s = (
                 np.searchsorted(r_bg_sorted_local, r_s, side="left")
                 + np.searchsorted(r_bg_sorted_local, r_s, side="right")
@@ -145,7 +149,7 @@ def sector_signed_stat(
             w1 = np.nan
             denom = np.nan
     else:
-        # Compute Wasserstein distance and robust scale on raw radial distances.
+        # Wasserstein distance on raw radii.
         w1 = weighted_wasserstein_1d(r_sorted, w_fg_sorted, r_sorted, w_bg_sorted)
         if scale_mode == "bg_iqr":
             denom = weighted_quantile_sorted(
@@ -156,23 +160,19 @@ def sector_signed_stat(
                 r_sorted, w_fg_sorted, 0.75
             ) - weighted_quantile_sorted(r_sorted, w_fg_sorted, 0.25)
         elif scale_mode == "pooled_mad":
-            med = weighted_quantile_sorted(r_sorted, np.ones_like(r_sorted), 0.5)
-            abs_diff = np.abs(r_sorted - med)
-            abs_diff_sorted = np.sort(abs_diff)
-            denom = 1.4826 * weighted_quantile_sorted(
-                abs_diff_sorted, np.ones_like(abs_diff_sorted), 0.5
-            )
+            # Median and MAD for the entire sector pool
+            med = np.median(r_sorted)
+            denom = 1.4826 * np.median(np.abs(r_sorted - med))
         else:
-            denom = weighted_quantile_sorted(
-                r_sorted, np.ones_like(r_sorted), 0.75
-            ) - weighted_quantile_sorted(r_sorted, np.ones_like(r_sorted), 0.25)
+            # Default: Pooled IQR
+            denom = np.percentile(r_sorted, 75) - np.percentile(r_sorted, 25)
 
     if config is not None and config.qc_mode == "principled":
         valid, status, _ = compute_sector_qc(y_s, denom, config)
     else:
-        nF_min = config.min_fg_sector if config else 0
-        nB_min = config.min_bg_sector if config else 0
-        support_ok = (nF >= nF_min) and (nB >= nB_min)
+        min_nf = config.min_fg_sector if config else 0
+        min_nb = config.min_bg_sector if config else 0
+        support_ok = (n_fg >= min_nf) and (n_bg >= min_nb)
         scale_ok = denom >= min_scale
         valid = support_ok and scale_ok
         if valid:
@@ -182,7 +182,7 @@ def sector_signed_stat(
         else:
             status = "degenerate_scale"
 
-    support_weight = compute_sector_weight(nF, nB, mode=weight_mode, k=weight_k)
+    support_weight = compute_sector_weight(n_fg, n_bg, mode=weight_mode, k=weight_k)
 
     stat_raw = 0.0 if not valid else s * (w1 / (denom + eps))
 
@@ -195,18 +195,17 @@ def sector_signed_stat(
         "sign": s,
         "w1": w1,
         "denom": denom,
-        "medF": medF,
-        "medB": medB,
-        "nF": nF,
-        "nB": nB,
+        "medF": med_fg,
+        "medB": med_bg,
+        "nF": n_fg,
+        "nB": n_bg,
         "status": status,
         "valid": valid,
     }
 
 
 def compute_anisotropy(rsp: np.ndarray, valid_mask: np.ndarray) -> float:
-    r"""
-    Compute RMS anisotropy $A_g$ using a fixed sector mask.
+    r"""Compute RMS anisotropy $A_g$ using a fixed sector mask.
 
     The anisotropy is defined as the root-mean-square of the RSP values
     across all valid sectors:
@@ -223,6 +222,7 @@ def compute_anisotropy(rsp: np.ndarray, valid_mask: np.ndarray) -> float:
     -------
     float
         RMS anisotropy value $A_g$. Returns NaN if no valid sectors exist.
+
     """
     masked_rsp = rsp[valid_mask]
     if masked_rsp.size == 0:
@@ -238,14 +238,14 @@ def compute_rsp_radar(
     y: np.ndarray,
     config: Optional[BioRSPConfig] = None,
     sector_indices: Optional[List[np.ndarray]] = None,
+    sector_sort_indices: Optional[List[np.ndarray]] = None,
     frozen_mask: Optional[np.ndarray] = None,
     normalization_stats: Optional[dict] = None,
     sector_weights: Optional[np.ndarray] = None,
     debug: bool = False,
     **kwargs,
 ) -> RadarResult:
-    r"""
-    Compute the signed RSP radar function $R_g(\theta)$.
+    r"""Compute the signed RSP radar function $R_g(\theta)$.
 
     For each sector $b$ with center $\phi_b$, the radar function is defined as:
     $$R_g(\phi_b) = s \cdot \frac{W_1(P_{fg}, P_{bg})}{\text{scale}}$$
@@ -269,6 +269,8 @@ def compute_rsp_radar(
         Configuration object, by default BioRSPConfig().
     sector_indices : List[np.ndarray], optional
         Precomputed per-sector cell indices, by default None.
+    sector_sort_indices : List[np.ndarray], optional
+        Precomputed per-sector sorting indices for radii, by default None.
     frozen_mask : np.ndarray, optional
         Fixed boolean mask of valid sectors to compute, by default None.
     normalization_stats : dict, optional
@@ -284,6 +286,7 @@ def compute_rsp_radar(
     -------
     RadarResult
         The computed radar function and metadata.
+
     """
     if config is None:
         config = BioRSPConfig(**kwargs)
@@ -307,21 +310,20 @@ def compute_rsp_radar(
 
     from biorsp.preprocess.geometry import angle_grid, get_sector_indices
 
-    B = config.B
+    n_sectors = config.B
     if sector_indices is None:
-        sector_indices = get_sector_indices(theta, B, config.delta_deg)
+        sector_indices = get_sector_indices(theta, n_sectors, config.delta_deg)
 
-    rsp_values = np.full(B, np.nan)
-    counts_fg = np.zeros(B)
-    counts_bg = np.zeros(B)
-    iqr_floor_hits = np.zeros(B, dtype=bool)
-    computed_weights = np.ones(B)
+    rsp_values = np.full(n_sectors, np.nan)
+    counts_fg = np.zeros(n_sectors)
+    counts_bg = np.zeros(n_sectors)
+    iqr_floor_hits = np.zeros(n_sectors, dtype=bool)
+    computed_weights = np.ones(n_sectors)
 
-    # Pre-determine background support mask and scale logic for all sectors.
-    # We use the same IQR-based criteria as the primary scoring.
-    bg_supported_mask = np.zeros(B, dtype=bool)
-    denom_scales = np.zeros(B)
-    for b in range(B):
+    # Pre-compute background support mask using IQR thresholds.
+    bg_supported_mask = np.zeros(n_sectors, dtype=bool)
+    denom_scales = np.zeros(n_sectors)
+    for b in range(n_sectors):
         idx = sector_indices[b]
         n_total = idx.size
         if n_total >= config.min_bg_sector and n_total > 0:
@@ -345,23 +347,21 @@ def compute_rsp_radar(
     iqr_floor = max(config.iqr_floor_pct * global_iqr, 1e-8)
 
     if debug:
-        print(
-            f"{'Theta':>6} | {'nF':>6} | {'nB':>6} | {'Valid':>5} | {'Status':>15} | {'Raw':>8} | {'RSP':>8}"
-        )
+        header = f"{'Theta':>6} | {'nF':>6} | {'nB':>6} | {'Valid':>5} | {'Status':>15} | {'Raw':>8} | {'RSP':>8}"
+        print(header)
 
-    for b in range(B):
+    for b in range(n_sectors):
         if frozen_mask is not None and not frozen_mask[b]:
             if debug:
-                theta_rad = -np.pi + b * (2 * np.pi / B)
+                theta_rad = -np.pi + b * (2 * np.pi / n_sectors)
                 theta_deg = np.degrees(theta_rad)
                 print(
-                    f"{theta_deg:6.1f} | {'-':>6} | {'-':>6} | {'False':>5} | {'frozen_skip':>15} | {'-':>8} | {0.0:8.3f}"
+                    f"{theta_deg:6.1f} | {'-':>6} | {'-':>6} | {'False':>5} | "
+                    f"{'frozen_skip':>15} | {'-':>8} | {0.0:8.3f}"
                 )
             continue
 
         idx = sector_indices[b]
-
-        # Define support by total cells in sector and IQR of all radii in sector.
         bg_supp = bg_supported_mask[b]
         denom_all = denom_scales[b]
 
@@ -369,10 +369,11 @@ def compute_rsp_radar(
             if frozen_mask is not None:
                 rsp_values[b] = 0.0
             if debug:
-                theta_rad = -np.pi + b * (2 * np.pi / B)
+                theta_rad = -np.pi + b * (2 * np.pi / n_sectors)
                 theta_deg = np.degrees(theta_rad)
                 print(
-                    f"{theta_deg:6.1f} | {0:6.1f} | {0:6.1f} | {'False':>5} | {'empty_idx':>15} | {'-':>8} | {rsp_values[b]:8.3f}"
+                    f"{theta_deg:6.1f} | {0:6.1f} | {0:6.1f} | {'False':>5} | "
+                    f"{'empty_idx':>15} | {'-':>8} | {rsp_values[b]:8.3f}"
                 )
             continue
 
@@ -387,6 +388,7 @@ def compute_rsp_radar(
             weight_mode=config.sector_weight_mode,
             weight_k=config.sector_weight_k,
             config=config,
+            sort_idx=sector_sort_indices[b] if sector_sort_indices else None,
         )
 
         counts_fg[b] = res["nF"]
@@ -395,7 +397,6 @@ def compute_rsp_radar(
         if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
 
-        # Enforce background support mask strictly.
         if not bg_supp:
             rsp_values[b] = np.nan
             if debug:
@@ -406,7 +407,6 @@ def compute_rsp_radar(
 
         if not res["valid"]:
             is_empty_fg = res["nF"] == 0
-            # Since bg_supp is true, we check empty_fg_policy
             if is_empty_fg and config.empty_fg_policy == "zero":
                 rsp_values[b] = 0.0
                 if debug:
@@ -415,11 +415,13 @@ def compute_rsp_radar(
                 rsp_values[b] = np.nan
 
             if debug:
-                theta_rad = -np.pi + b * (2 * np.pi / B)
+                theta_rad = -np.pi + b * (2 * np.pi / n_sectors)
                 theta_deg = np.degrees(theta_rad)
                 val_str = f"{rsp_values[b]:8.3f}"
                 print(
-                    f"{theta_deg:6.1f} | {res['nF']:6.1f} | {res['nB']:6.1f} | {str(res['valid']):>5} | {res['status']:>15} | {res.get('stat_raw', np.nan):8.3f} | {val_str}"
+                    f"{theta_deg:6.1f} | {res['nF']:6.1f} | {res['nB']:6.1f} | "
+                    f"{str(res['valid']):>5} | {res['status']:>15} | "
+                    f"{res.get('stat_raw', np.nan):8.3f} | {val_str}"
                 )
             continue
 
@@ -431,15 +433,15 @@ def compute_rsp_radar(
             computed_weights[b] = res["support_weight"]
 
         if debug:
-            theta_rad = -np.pi + b * (2 * np.pi / B)
+            theta_rad = -np.pi + b * (2 * np.pi / n_sectors)
             theta_deg = np.degrees(theta_rad)
             print(
-                f"{theta_deg:6.1f} | {res['nF']:6.1f} | {res['nB']:6.1f} | {str(res['valid']):>5} | {res['status']:>15} | {res.get('stat_raw', np.nan):8.3f} | {rsp_values[b]:8.3f}"
+                f"{theta_deg:6.1f} | {res['nF']:6.1f} | {res['nB']:6.1f} | "
+                f"{str(res['valid']):>5} | {res['status']:>15} | "
+                f"{res.get('stat_raw', np.nan):8.3f} | {rsp_values[b]:8.3f}"
             )
 
-    # Final RSP values: if bg is supported but no FG, set to 0 (if policy is zero)
-    # The loop already filled rsp_values with 0.0 or NaN.
-    # We update NaN to 0.0 if supported.
+    # If bg supported but no FG and policy is "zero", set NaN sectors to 0.
     if config.empty_fg_policy == "zero":
         nan_mask = np.isnan(rsp_values)
         rsp_values[nan_mask & bg_supported_mask] = 0.0
@@ -448,7 +450,7 @@ def compute_rsp_radar(
         rsp=rsp_values,
         counts_fg=counts_fg,
         counts_bg=counts_bg,
-        centers=angle_grid(B),
+        centers=angle_grid(n_sectors),
         iqr_floor=iqr_floor,
         iqr_floor_hits=iqr_floor_hits,
         sector_weights=computed_weights,

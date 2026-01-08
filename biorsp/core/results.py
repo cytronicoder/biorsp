@@ -1,6 +1,4 @@
-"""
-Results data models for BioRSP.
-"""
+"""Results data models for BioRSP."""
 
 from __future__ import annotations
 
@@ -18,9 +16,7 @@ from biorsp.utils.config import BioRSPConfig
 
 @dataclass
 class FeatureResult:
-    """
-    Container for per-feature outputs.
-    """
+    """Container for per-feature outputs."""
 
     feature: str
     threshold_quantile: float
@@ -43,9 +39,7 @@ class FeatureResult:
 
 @dataclass
 class PairwiseResult:
-    """
-    Pairwise relationship metrics between two features.
-    """
+    """Pairwise relationship metrics between two features."""
 
     feature_a: str
     feature_b: str
@@ -56,9 +50,7 @@ class PairwiseResult:
 
 @dataclass
 class TypingThresholds:
-    """
-    Thresholds used for coverage × anisotropy typing.
-    """
+    """Thresholds used for coverage × anisotropy typing."""
 
     coverage_field: str
     method: str
@@ -68,9 +60,7 @@ class TypingThresholds:
 
 @dataclass
 class RunSummary:
-    """
-    Global summary metadata for a BioRSP run.
-    """
+    """Global summary metadata for a BioRSP run."""
 
     feature_results: dict[str, FeatureResult]
     config: BioRSPConfig
@@ -131,8 +121,7 @@ def assign_feature_types(
     c_hi: float | None = None,
     A_hi: float | None = None,
 ) -> tuple[dict[str, FeatureResult], TypingThresholds]:
-    """
-    Assign coverage × anisotropy types (I-IV) for adequate features.
+    """Assign coverage × anisotropy types (I-IV) for adequate features.
 
     Args:
         feature_results: Mapping of feature name to FeatureResult.
@@ -143,6 +132,7 @@ def assign_feature_types(
 
     Returns:
         Updated feature_results and TypingThresholds.
+
     """
     adequate = [
         fr

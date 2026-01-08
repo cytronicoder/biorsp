@@ -1,5 +1,4 @@
-"""
-Principled Quality Control (QC) for BioRSP.
+"""Principled Quality Control (QC) for BioRSP.
 
 This module implements defensible QC criteria for both binary and weighted
 foreground modes, ensuring consistent and reproducible adequacy assessment.
@@ -27,8 +26,7 @@ if TYPE_CHECKING:
 
 
 def kish_effective_sample_size(w: np.ndarray, eps: float = EPS) -> float:
-    """
-    Compute Kish's effective sample size for a set of weights.
+    """Compute Kish's effective sample size for a set of weights.
 
     n_eff = (sum(w)^2) / (sum(w^2))
 
@@ -43,6 +41,7 @@ def kish_effective_sample_size(w: np.ndarray, eps: float = EPS) -> float:
     -------
     float
         Effective sample size.
+
     """
     sum_w = np.sum(w)
     sum_w2 = np.sum(w**2)
@@ -56,8 +55,7 @@ def compute_sector_qc(
     denom: float,
     config: BioRSPConfig,
 ) -> Tuple[bool, str, Dict[str, float]]:
-    """
-    Compute QC status for a single sector.
+    """Compute QC status for a single sector.
 
     Parameters
     ----------
@@ -72,20 +70,21 @@ def compute_sector_qc(
     -------
     Tuple[bool, str, Dict[str, float]]
         (is_valid, reason, metrics)
+
     """
     w_fg = y_s
     w_bg = 1.0 - y_s
 
     if config.foreground_mode == "weights":
-        nF_eff = kish_effective_sample_size(w_fg)
-        nB_eff = kish_effective_sample_size(w_bg)
-        support_ok = (nF_eff >= config.min_fg_eff) and (nB_eff >= config.min_bg_eff)
-        metrics = {"nF_eff": nF_eff, "nB_eff": nB_eff}
+        nf_eff = kish_effective_sample_size(w_fg)
+        nb_eff = kish_effective_sample_size(w_bg)
+        support_ok = (nf_eff >= config.min_fg_eff) and (nb_eff >= config.min_bg_eff)
+        metrics = {"nF_eff": nf_eff, "nB_eff": nb_eff}
     else:
-        nF = np.sum(w_fg)
-        nB = np.sum(w_bg)
-        support_ok = (nF >= config.min_fg_sector) and (nB >= config.min_bg_sector)
-        metrics = {"nF": nF, "nB": nB}
+        nf = np.sum(w_fg)
+        nb = np.sum(w_bg)
+        support_ok = (nf >= config.min_fg_sector) and (nb >= config.min_bg_sector)
+        metrics = {"nF": nf, "nB": nb}
 
     scale_ok = denom >= config.min_scale
 
@@ -116,8 +115,7 @@ def compute_gene_qc(
     total_fg_support: float,
     config: BioRSPConfig,
 ) -> Tuple[bool, str, Dict[str, Union[float, int]]]:
-    """
-    Compute QC status for a gene based on sector-level results.
+    """Compute QC status for a gene based on sector-level results.
 
     Parameters
     ----------
@@ -134,13 +132,14 @@ def compute_gene_qc(
     -------
     Tuple[bool, str, Dict[str, Union[float, int]]]
         (is_adequate, reason, metrics)
+
     """
-    B = len(sector_valid_mask)
-    M_valid = int(np.sum(sector_valid_mask))
-    coverage = M_valid / B
+    n_sectors = len(sector_valid_mask)
+    n_valid = int(np.sum(sector_valid_mask))
+    coverage = n_valid / n_sectors
 
     metrics = {
-        "M_valid": M_valid,
+        "M_valid": n_valid,
         "coverage": coverage,
         "total_fg_support": total_fg_support,
     }
@@ -155,21 +154,21 @@ def compute_gene_qc(
     if coverage < config.min_coverage:
         return False, REASON_GENE_LOW_COVERAGE, metrics
 
-    if M_valid < min(config.min_valid_sectors, B):
+    if n_valid < min(config.min_valid_sectors, n_sectors):
         return False, REASON_GENE_TOO_FEW_SECTORS, metrics
 
     return True, REASON_OK, metrics
 
 
 def generate_default_qc_table() -> "pd.DataFrame":
-    """
-    Generate a table of default QC thresholds and their rationales.
+    """Generate a table of default QC thresholds and their rationales.
     Requires pandas.
 
     Returns
     -------
     pd.DataFrame
         Table of defaults.
+
     """
     import pandas as pd
 
@@ -238,8 +237,7 @@ def generate_default_qc_table() -> "pd.DataFrame":
 
 
 def summarize_qc_behavior(results: List["FeatureResult"]) -> Dict[str, Any]:
-    """
-    Summarize QC behavior across a set of feature results.
+    """Summarize QC behavior across a set of feature results.
 
     Parameters
     ----------
@@ -250,6 +248,7 @@ def summarize_qc_behavior(results: List["FeatureResult"]) -> Dict[str, Any]:
     -------
     Dict[str, Any]
         Summary statistics.
+
     """
     if not results:
         return {}

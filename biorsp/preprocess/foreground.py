@@ -1,5 +1,4 @@
-"""
-Foreground definition for BioRSP.
+"""Foreground definition for BioRSP.
 
 This module provides logic to define foreground cells (binary or weighted)
 based on expression values, with robust handling of ties and zero-inflation.
@@ -24,8 +23,7 @@ def define_foreground(
     sharpness: float = 10.0,
     min_effective_fg: float = 10.0,
 ) -> Tuple[Optional[np.ndarray], dict]:
-    """
-    Define foreground indicator (binary or weighted) with robust tie-handling.
+    """Define foreground indicator (binary or weighted) with robust tie-handling.
 
     Parameters
     ----------
@@ -60,6 +58,7 @@ def define_foreground(
         (N,) boolean mask, float weights, or None if underpowered.
     info : dict
         Dictionary with detailed decision metadata.
+
     """
     N = len(x)
     if rng is None:
@@ -219,8 +218,7 @@ def define_foreground_weights(
     sharpness: float = 10.0,
     min_effective_fg: float = 10.0,
 ) -> Tuple[np.ndarray, dict]:
-    """
-    Define continuous foreground weights w in [0, 1] based on expression.
+    """Define continuous foreground weights w in [0, 1] based on expression.
 
     Parameters
     ----------
@@ -247,6 +245,7 @@ def define_foreground_weights(
         (N,) array of weights in [0, 1].
     info : dict
         Dictionary with detailed decision metadata.
+
     """
     N = len(x)
     if tau is None:

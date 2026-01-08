@@ -1,6 +1,4 @@
-"""
-General statistical utilities for BioRSP.
-"""
+"""General statistical utilities for BioRSP."""
 
 from typing import Optional, Tuple
 
@@ -8,8 +6,7 @@ import numpy as np
 
 
 def bh_fdr(p_values: np.ndarray) -> np.ndarray:
-    """
-    Benjamini-Hochberg FDR correction.
+    """Benjamini-Hochberg FDR correction.
 
     Parameters
     ----------
@@ -20,6 +17,7 @@ def bh_fdr(p_values: np.ndarray) -> np.ndarray:
     -------
     np.ndarray
         Array of q-values with NaNs preserved.
+
     """
     p_values = np.asarray(p_values, dtype=float)
     q_values = np.full_like(p_values, np.nan, dtype=float)
@@ -46,8 +44,7 @@ def compute_localization(
     eps: float = 1e-12,
     method: str = "entropy",
 ) -> Tuple[float, dict]:
-    """
-    Compute localization index for a radar profile.
+    """Compute localization index for a radar profile.
 
     Quantifies how concentrated the absolute radar energy is in a small subset of angles.
     L near 0: diffuse/global structure.
@@ -70,6 +67,7 @@ def compute_localization(
         Localization index L.
     dict
         Diagnostic information (M, sum_abs, entropy, status, etc.).
+
     """
     R = np.asarray(R)
     if valid_mask is None:
@@ -119,8 +117,7 @@ def compute_signed_summaries(
     valid_mask: Optional[np.ndarray] = None,
     eps: float = 1e-12,
 ) -> dict:
-    """
-    Compute signed summary statistics for a radar profile.
+    """Compute signed summary statistics for a radar profile.
 
     Distinguishes between core (proximal) and rim (distal) patterns.
     R_mean > 0: overall core bias.
@@ -149,6 +146,7 @@ def compute_signed_summaries(
         - frac_neg: Fraction of negative sectors.
         - M_valid: Number of valid sectors.
         - status: Status of computation.
+
     """
     R = np.asarray(R)
     if valid_mask is None:

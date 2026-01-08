@@ -1,6 +1,4 @@
-"""
-Pairwise synergy/complementarity computations for BioRSP.
-"""
+"""Pairwise synergy/complementarity computations for BioRSP."""
 
 from __future__ import annotations
 
@@ -33,8 +31,7 @@ def compute_pairwise_relationships(
     radar_by_feature: dict[str, RadarResult],
     top_k: int | None = None,
 ) -> tuple[list[PairwiseResult], list[PairwiseResult]]:
-    """
-    Compute pairwise synergy and complementarity from radar profiles.
+    """Compute pairwise synergy and complementarity from radar profiles.
 
     Args:
         radar_by_feature: Mapping of feature name to RadarResult.
@@ -42,6 +39,7 @@ def compute_pairwise_relationships(
 
     Returns:
         (synergy, complementarity) lists sorted by their respective scores.
+
     """
     if not radar_by_feature:
         return [], []

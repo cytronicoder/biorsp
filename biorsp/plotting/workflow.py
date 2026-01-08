@@ -16,9 +16,7 @@ from biorsp.utils.config import BioRSPConfig
 
 
 def interpret_pattern(A: float, L: float, R_mean: float, polarity: float) -> str:
-    """
-    Deterministic interpretation of the pattern.
-    """
+    """Deterministic interpretation of the pattern."""
     if L < 0.1:
         if abs(R_mean) < 0.2:
             return "Diffuse / Uniform"
@@ -47,8 +45,7 @@ def make_end_to_end_figure(
     feature_name: str = "Feature",
     seed: int = 42,
 ):
-    """
-    Generate the end-to-end workflow figure.
+    """Generate the end-to-end workflow figure.
 
     Parameters
     ----------
@@ -64,6 +61,7 @@ def make_end_to_end_figure(
         Sector width in degrees.
     outpath : str
         Path to save the figure.
+
     """
     if delta_deg > 180:
         raise ValueError(f"Delta {delta_deg} > 180 degrees is forbidden.")

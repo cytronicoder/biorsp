@@ -1,5 +1,4 @@
-"""
-Public API for BioRSP.
+"""Public API for BioRSP.
 
 This module provides the primary entry points for gene scoring and gene-pair analysis.
 """
@@ -21,8 +20,7 @@ def score_genes(
     config: Optional[BioRSPConfig] = None,
     **kwargs,
 ) -> pd.DataFrame:
-    """
-    Score genes for coverage and spatial organization.
+    """Score genes for coverage and spatial organization.
 
     Parameters
     ----------
@@ -43,6 +41,7 @@ def score_genes(
     -------
     pd.DataFrame
         GeneScoreTable with coverage and spatial scores.
+
     """
     if config is None:
         config = BioRSPConfig(**kwargs)
@@ -65,8 +64,7 @@ def score_gene_pairs(
     config: Optional[BioRSPConfig] = None,
     **kwargs,
 ) -> pd.DataFrame:
-    """
-    Score gene pairs for spatial relationship/copatterning.
+    """Score gene pairs for spatial relationship/copatterning.
 
     Parameters
     ----------
@@ -87,6 +85,7 @@ def score_gene_pairs(
     -------
     pd.DataFrame
         GenePairTable with pairwise similarity metrics.
+
     """
     if config is None:
         config = BioRSPConfig(**kwargs)
@@ -107,8 +106,7 @@ def classify_genes(
     s_cut: Optional[float] = None,
     fdr_cut: float = 0.05,
 ) -> pd.DataFrame:
-    """
-    Classify genes into archetypes based on coverage and spatial scores.
+    """Classify genes into archetypes based on coverage and spatial scores.
 
     Parameters
     ----------
@@ -125,5 +123,6 @@ def classify_genes(
     -------
     pd.DataFrame
         Gene table with added 'archetype' column.
+
     """
     return classify_genes_impl(gene_table, c_cut, s_cut, fdr_cut)

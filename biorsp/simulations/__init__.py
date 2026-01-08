@@ -1,6 +1,4 @@
-"""
-BioRSP Simulation Module.
-"""
+"""BioRSP Simulation Module."""
 
 from biorsp.simulations.generator import (
     generate_grid,

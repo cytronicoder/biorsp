@@ -1,6 +1,4 @@
-"""
-Core data models for BioRSP.
-"""
+"""Core data models for BioRSP."""
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -12,8 +10,7 @@ from biorsp.utils.config import BioRSPConfig
 
 @dataclass
 class RadarResult:
-    """
-    Result of the R(theta) radar function computation.
+    """Result of the R(theta) radar function computation.
 
     Attributes:
         rsp: (B,) array of signed RSP values. NaNs indicate sectors with insufficient background support.
@@ -27,6 +24,7 @@ class RadarResult:
         n_bg_per_sector: (B,) array of literal background cell counts.
         denom_scale_per_sector: (B,) array of robust scale denominators used.
         bg_supported_mask: (B,) boolean array indicating background-supported sectors.
+
     """
 
     rsp: np.ndarray
@@ -45,8 +43,7 @@ class RadarResult:
 
 @dataclass
 class AdequacyReport:
-    """
-    Report on gene adequacy for BioRSP computation.
+    """Report on gene adequacy for BioRSP computation.
 
     Attributes:
         is_adequate: Whether the gene meets all adequacy criteria.
@@ -58,6 +55,7 @@ class AdequacyReport:
         n_background: Total background mass.
         adequacy_fraction: Fraction of sectors that are adequate.
         sector_indices: List of arrays containing cell indices for each sector window.
+
     """
 
     is_adequate: bool
@@ -74,8 +72,7 @@ class AdequacyReport:
 
 @dataclass
 class InferenceResult:
-    """
-    Result of statistical inference (permutation test).
+    """Result of statistical inference (permutation test).
 
     Attributes:
         p_value: Finite-permutation corrected p-value.
@@ -83,6 +80,7 @@ class InferenceResult:
         null_stats: (n_perm,) array of null statistics.
         valid_mask: (B,) boolean mask of sectors used for anisotropy.
         q_value: FDR-corrected p-value (if computed).
+
     """
 
     p_value: float

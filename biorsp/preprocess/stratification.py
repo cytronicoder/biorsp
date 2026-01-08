@@ -1,5 +1,4 @@
-"""
-Stratification logic for geometry-aware permutations in BioRSP.
+"""Stratification logic for geometry-aware permutations in BioRSP.
 
 Statistical Justification:
 -------------------------
@@ -40,8 +39,7 @@ def get_strata_indices(
     min_stratum_size: int = 50,
     mode: Literal["radial", "joint", "rt_umi", "none"] = "radial",
 ) -> List[np.ndarray]:
-    """
-    Compute strata indices for permutations.
+    """Compute strata indices for permutations.
 
     Parameters
     ----------
@@ -68,6 +66,7 @@ def get_strata_indices(
     -------
     List[np.ndarray]
         List of arrays, each containing indices for one stratum.
+
     """
     n_cells = len(r)
     if mode == "none" or n_cells == 0:

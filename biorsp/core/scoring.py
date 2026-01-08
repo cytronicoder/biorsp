@@ -1,6 +1,4 @@
-"""
-Implementation of BioRSP scoring logic.
-"""
+"""Implementation of BioRSP scoring logic."""
 
 import logging
 from typing import Dict, List, Optional, Tuple, Union
@@ -45,7 +43,7 @@ def _detect_threshold(x: np.ndarray, config: BioRSPConfig) -> Tuple[float, str]:
     if mode == "fixed":
         if val is not None:
             return float(val), "fixed"
-        # Intelligent fallback for fixed
+        # Intelligently infer threshold for count vs normalized data.
         is_integers = np.allclose(x, np.round(x))
         return (1.0 if is_integers else 0.1), "fixed_inferred"
 
@@ -55,9 +53,7 @@ def _detect_threshold(x: np.ndarray, config: BioRSPConfig) -> Tuple[float, str]:
             return 0.0, "nonzero_quantile_empty"
         return float(np.percentile(nonzero, nonzero_q * 100)), "nonzero_quantile"
 
-    # Mode "detect"
-    # Rule: if integers and max > 1 (counts), threshold = 1
-    # else if max <= 1 or non-integers (normalized), threshold = small epsilon
+    # Detect threshold: count data use 1, normalized data use small epsilon.
     is_integers = (x.dtype.kind in "iu") or (np.allclose(x, np.round(x)) and np.max(x) > 1.0)
     if is_integers:
         return 1.0, "detect_count"
@@ -150,6 +146,14 @@ def _permute_p_value(
     else:
         strata_indices = [np.arange(n_cells)]
 
+    # Pre-sort sector indices once to avoid repeated sorting in permutations.
+    sector_sort_indices = []
+    for idx_s in sector_indices:
+        if idx_s.size > 0:
+            sector_sort_indices.append(np.argsort(r_norm[idx_s]))
+        else:
+            sector_sort_indices.append(None)
+
     null_scores = []
     for _ in range(n_perm):
         y_perm = np.copy(y_observed)
@@ -158,7 +162,12 @@ def _permute_p_value(
             y_perm[idxs] = y_perm[perm_idxs]
 
         radar_null = compute_rsp_radar(
-            r_norm, theta, y_perm, config=config, sector_indices=sector_indices
+            r_norm,
+            theta,
+            y_perm,
+            config=config,
+            sector_indices=sector_indices,
+            sector_sort_indices=sector_sort_indices,
         )
         s_null, _ = _compute_spatial_score_from_radar(radar_null)
         null_scores.append(s_null)
@@ -193,7 +202,9 @@ def score_genes_impl(
             stratify_labels = vals
 
     results = []
-    for gene in tqdm(genes, desc="Scoring genes"):
+    # Only show progress if multiple genes and not explicitly disabled
+    show_progress = len(genes) > 1 and config.n_permutations > 0
+    for gene in tqdm(genes, desc="Scoring genes", disable=not show_progress):
         try:
             x = _get_expression(adata_sub, gene, use_raw=config.coverage_use_raw)
         except ValueError as e:
@@ -305,7 +316,7 @@ def score_gene_pairs_impl(
         adata, embedding_key, subset, config
     )
 
-    # 1. Compute profiles for all genes
+    # 1. Compute profiles for all genes.
     gene_data = {}
     for gene in tqdm(genes, desc="Computing profiles"):
         try:
@@ -333,7 +344,7 @@ def score_gene_pairs_impl(
         except Exception as e:
             logger.warning(f"Error profiling {gene}: {e}")
 
-    # 2. Pairwise cross
+    # 2. Pairwise comparison.
     pairs = []
     valid_genes = list(gene_data.keys())
     n = len(valid_genes)

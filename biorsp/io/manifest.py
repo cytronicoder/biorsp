@@ -1,5 +1,4 @@
-"""
-Reproducibility manifest module for BioRSP.
+"""Reproducibility manifest module for BioRSP.
 
 Implements run manifest generation and validation:
 - Software versions
@@ -31,9 +30,7 @@ def get_git_hash() -> str:
 
 @dataclass
 class BioRSPManifest:
-    """
-    Reproducibility manifest for a BioRSP run.
-    """
+    """Reproducibility manifest for a BioRSP run."""
 
     software_versions: Dict[str, str]
     parameters: Dict[str, Any]
@@ -50,8 +47,7 @@ def create_manifest(
     timings: Optional[Dict[str, float]] = None,
     extra_metadata: Optional[Dict[str, Any]] = None,
 ) -> BioRSPManifest:
-    """
-    Create a reproducibility manifest.
+    """Create a reproducibility manifest.
 
     Args:
         parameters: Dictionary of run parameters (B, delta, thresholds, etc.).
@@ -62,6 +58,7 @@ def create_manifest(
 
     Returns:
         BioRSPManifest object.
+
     """
     software = {
         "biorsp": __version__,

@@ -8,9 +8,7 @@ from biorsp.preprocess.geometry import (
 
 
 def debug_polar_sanity(z, v):
-    """
-    Task 1: Geometric sanity checks.
-    """
+    """Task 1: Geometric sanity checks."""
     print("--- Debug Polar Sanity ---")
     print(f"Vantage point v: {v}")
 
@@ -41,9 +39,7 @@ def debug_polar_sanity(z, v):
 
 
 def debug_sector_membership(z, v, theta_grid, delta_deg, theta_star_idx):
-    """
-    Task 2: Verify sector membership.
-    """
+    """Task 2: Verify sector membership."""
     print("\n--- Debug Sector Membership ---")
     r, theta = polar_coordinates(z, v)
     B = len(theta_grid)

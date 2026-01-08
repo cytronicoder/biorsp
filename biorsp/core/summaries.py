@@ -1,5 +1,4 @@
-"""
-Scalar summaries module for BioRSP.
+"""Scalar summaries module for BioRSP.
 
 Implements scalar statistics derived from the radar function:
 - Peak distal (rim) and peak proximal directions.
@@ -23,8 +22,7 @@ from biorsp.utils.stats import compute_localization, compute_signed_summaries
 
 @dataclass
 class ScalarSummaries:
-    """
-    Scalar summary statistics for a gene's RSP.
+    """Scalar summary statistics for a gene's RSP.
 
     Attributes:
         peak_distal: Minimum RSP value (rim-enriched).
@@ -49,6 +47,7 @@ class ScalarSummaries:
         frac_pos: Fraction of sectors with positive RSP.
         frac_neg: Fraction of sectors with negative RSP.
         signed_status: Status of signed summary computation.
+
     """
 
     peak_distal: float
@@ -78,8 +77,7 @@ class ScalarSummaries:
 
     @property
     def rms_anisotropy(self) -> float:
-        """
-        Backward compatible alias for anisotropy.
+        """Backward compatible alias for anisotropy.
 
         Note: Anisotropy (A_g) measures the magnitude of spatial patterning but
         can conflate global shifts (e.g., rim/core) with localized patterns (e.g., wedges).
@@ -92,8 +90,7 @@ class ScalarSummaries:
 def compute_scalar_summaries(
     radar: RadarResult, valid_mask: Optional[np.ndarray] = None
 ) -> ScalarSummaries:
-    """
-    Compute scalar summaries from radar result.
+    """Compute scalar summaries from radar result.
 
     Derives all scalar statistics from the RSP profile, ignoring NaN values
     (underpowered sectors) unless a mask is provided. Coverage metrics are
@@ -106,6 +103,7 @@ def compute_scalar_summaries(
 
     Returns:
         ScalarSummaries object.
+
     """
     rsp = radar.rsp
     centers = radar.centers

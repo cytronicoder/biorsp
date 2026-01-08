@@ -1,6 +1,4 @@
-"""
-Shared utilities for BioRSP CLI scripts.
-"""
+"""Shared utilities for BioRSP CLI scripts."""
 
 import argparse
 from pathlib import Path

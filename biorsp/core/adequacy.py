@@ -1,5 +1,4 @@
-"""
-Adequacy assessment for BioRSP.
+"""Adequacy assessment for BioRSP.
 
 This module provides logic to determine if a gene or feature has sufficient
 spatial coverage and signal to be reliably analyzed by BioRSP.
@@ -32,8 +31,7 @@ def assess_adequacy(
     x: Optional[np.ndarray] = None,
     **kwargs,
 ) -> AdequacyReport:
-    r"""
-    Assess gene adequacy for BioRSP.
+    r"""Assess gene adequacy for BioRSP.
 
     In 'principled' mode (default), uses effective sample sizes and coverage.
     In 'legacy' mode, uses hard count thresholds.
@@ -57,6 +55,7 @@ def assess_adequacy(
     -------
     AdequacyReport
         Report on gene adequacy.
+
     """
     if config is None:
         if "n_sectors" in kwargs:

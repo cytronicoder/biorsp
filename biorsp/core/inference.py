@@ -1,5 +1,4 @@
-"""
-Statistical inference for BioRSP.
+"""Statistical inference for BioRSP.
 
 This module implements permutation testing to assess the significance of
 observed anisotropy, using geometry-aware stratification and finite-permutation
@@ -34,8 +33,7 @@ def _permutation_worker(
     sector_indices: List[np.ndarray],
     sector_weights: Optional[np.ndarray] = None,
 ) -> Tuple[float, int, bool]:
-    """
-    Worker function for parallel permutation testing.
+    """Worker function for parallel permutation testing.
 
     Parameters
     ----------
@@ -62,6 +60,7 @@ def _permutation_worker(
     -------
     Tuple[float, int, bool]
         (null_anisotropy, empty_sector_count, is_valid)
+
     """
     rng = np.random.default_rng(seed)
 
@@ -102,8 +101,7 @@ def compute_p_value(
     show_progress: bool = True,
     adequacy: Optional[AdequacyReport] = None,
 ) -> InferenceResult:
-    r"""
-    Compute p-value for the observed anisotropy using a permutation test.
+    r"""Compute p-value for the observed anisotropy using a permutation test.
 
     The p-value is computed using the finite-permutation correction:
     $$p = \frac{1 + \sum_{k=1}^K I(A_k \geq A_{obs})}{K + 1}$$
@@ -140,6 +138,7 @@ def compute_p_value(
     -------
     InferenceResult
         The result of the permutation test.
+
     """
     if config is None:
         config = BioRSPConfig()
@@ -302,8 +301,7 @@ def compute_diagnostic_null(
     n_perm: int = 100,
     seed: int = 42,
 ) -> np.ndarray:
-    """
-    Compute diagnostic null by rotating embedding (shifting theta).
+    """Compute diagnostic null by rotating embedding (shifting theta).
 
     This preserves the radial distribution but scrambles angular structure.
     Used to detect embedding-induced artifacts.
@@ -329,6 +327,7 @@ def compute_diagnostic_null(
     -------
     np.ndarray
         (n_perm,) array of null statistics.
+
     """
     rng = np.random.default_rng(seed)
     null_stats = np.zeros(n_perm)

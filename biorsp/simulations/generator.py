@@ -112,9 +112,7 @@ def simulate_points(
     seed: Optional[int] = None,
     **kwargs,
 ) -> np.ndarray:
-    """
-    Generate 2D point coordinates for a given footprint shape and density model.
-    """
+    """Generate 2D point coordinates for a given footprint shape and density model."""
     # Sample base shape
     s = shape.lower()
     if s == "disk":
@@ -163,9 +161,7 @@ def simulate_foreground(
     noise_sigma: float = 0.1,
     **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Assign scores and binary labels based on enrichment geometry.
-    """
+    """Assign scores and binary labels based on enrichment geometry."""
     n_points = coords.shape[0]
     r = np.sqrt(np.sum(coords**2, axis=1))
     theta = np.arctan2(coords[:, 1], coords[:, 0])
@@ -243,9 +239,7 @@ def simulate_dataset(
     noise_sigma: float = 0.1,
     **kwargs,
 ) -> Dict[str, Any]:
-    """
-    Generate a complete simulation dataset.
-    """
+    """Generate a complete simulation dataset."""
     if seed is not None:
         np.random.seed(seed)
 
@@ -282,8 +276,7 @@ def simulate_dataset(
 
 
 def save_dataset(data: Dict[str, Any], output_dir: str, prefix: str):
-    """
-    Save simulation data to disk.
+    """Save simulation data to disk.
 
     Saves both binary numpy files and a human-readable CSV containing x,y,score,label.
     """
@@ -309,9 +302,7 @@ def generate_grid(
     output_dir: str = "sim_results/inputs",
     seed: int = 42,
 ):
-    """
-    Generate a suite of simulations for benchmarking.
-    """
+    """Generate a suite of simulations for benchmarking."""
     if enrichments is None:
         enrichments = ["null", "rim", "core", "wedge", "rim+wedge", "two_sector", "patch"]
     if shapes is None:
@@ -327,9 +318,7 @@ def generate_grid(
 
 
 def ground_truth_summary(enrichment_type: str) -> Dict[str, Any]:
-    """
-    Returns expected RSP properties for validation.
-    """
+    """Returns expected RSP properties for validation."""
     mapping = {
         "null": {"expected_sign": 0, "anisotropy": "low"},
         "rim": {"expected_sign": 1, "anisotropy": "low"},

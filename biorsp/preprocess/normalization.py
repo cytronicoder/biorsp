@@ -1,5 +1,4 @@
-"""
-Preprocessing module for BioRSP.
+"""Preprocessing module for BioRSP.
 
 Implements radial normalization and other data preparation steps.
 """
@@ -13,8 +12,7 @@ from scipy.stats import iqr
 def normalize_radii(
     r: np.ndarray, eps: float = 1e-8, method: str = "robust_iqr"
 ) -> Tuple[np.ndarray, dict]:
-    """
-    Perform within-set robust radial normalization.
+    """Perform within-set robust radial normalization.
 
     r_hat_i = (r_i - median(r)) / (IQR(r) + eps)
 
@@ -33,6 +31,7 @@ def normalize_radii(
         (N,) array of normalized radii.
     stats : dict
         Dictionary containing 'median_r', 'iqr_r', 'eps', and 'n_non_finite'.
+
     """
     if not np.all(np.isfinite(r)):
         n_non_finite = int(np.sum(~np.isfinite(r)))

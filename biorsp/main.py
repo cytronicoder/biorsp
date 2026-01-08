@@ -100,8 +100,7 @@ def run(
     outdir: Optional[str] = None,
     n_workers: int = 1,
 ) -> RunSummary:
-    """
-    Run the full BioRSP pipeline on a dataset.
+    """Run the full BioRSP pipeline on a dataset.
 
     Parameters
     ----------
@@ -124,6 +123,7 @@ def run(
     -------
     RunSummary
         Object containing per-feature results and metadata.
+
     """
     start_time = time.time()
     config = config or BioRSPConfig()

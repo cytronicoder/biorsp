@@ -1,5 +1,4 @@
-"""
-Project constants for BioRSP.
+"""Project constants for BioRSP.
 
 Single source of truth for Methods defaults and numeric stabilizers.
 """

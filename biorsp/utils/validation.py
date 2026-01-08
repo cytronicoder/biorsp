@@ -11,8 +11,7 @@ def validate_inputs(
     expression: Union[np.ndarray, pd.Series, pd.DataFrame],
     umi_counts: Optional[np.ndarray] = None,
 ):
-    """
-    Validate coordinate and expression arrays.
+    """Validate coordinate and expression arrays.
 
     Parameters
     ----------
@@ -27,6 +26,7 @@ def validate_inputs(
     ------
     ValueError
         If shapes or types are invalid.
+
     """
     if not isinstance(coords, np.ndarray):
         raise ValueError(f"coords must be a numpy array, got {type(coords)}")

@@ -1,5 +1,4 @@
-"""
-Plotting module for BioRSP.
+"""Plotting module for BioRSP.
 
 Provides visualization functions:
 - Radar plots for RSP profiles
@@ -30,8 +29,7 @@ def _maybe_degrees_to_radians(theta: np.ndarray) -> np.ndarray:
 
 
 def _prepare_polar(theta: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Normalize angles to [0, 2pi), sort, and compute sector widths (one per theta).
+    """Normalize angles to [0, 2pi), sort, and compute sector widths (one per theta).
 
     Handles edge cases: singleton arrays, degenerate/duplicate angles via fallback
     to uniform widths when midpoint method produces non-positive or non-finite values.
@@ -85,8 +83,7 @@ def _draw_segmented_rsp(
     line_color: str | None = None,
     **kwargs,
 ) -> None:
-    """
-    Draw RSP outline and fill, handling NaN gaps and wrap-around.
+    """Draw RSP outline and fill, handling NaN gaps and wrap-around.
 
     Splits continuous segments at NaN boundaries. Merges segments across
     the 0/2pi boundary if both ends are finite (polar wrap-around).
@@ -145,8 +142,7 @@ def plot_localization_scatter(
     delta_deg: float | None = None,
     **kwargs,
 ) -> plt.Axes:
-    """
-    Plot anisotropy (A_g) vs localization (L_g) to distinguish spatial phenotypes.
+    """Plot anisotropy (A_g) vs localization (L_g) to distinguish spatial phenotypes.
 
     Parameters
     ----------
@@ -166,6 +162,7 @@ def plot_localization_scatter(
     Returns
     -------
     plt.Axes
+
     """
     if ax is None:
         _, ax = plt.subplots(figsize=(6, 5))
@@ -244,8 +241,7 @@ def plot_phenotype_map(
     delta_deg: float | None = None,
     **kwargs,
 ) -> plt.Axes:
-    """
-    Plot magnitude (A_g) vs directionality (polarity/R_mean) to distinguish core vs rim.
+    """Plot magnitude (A_g) vs directionality (polarity/R_mean) to distinguish core vs rim.
 
     Parameters
     ----------
@@ -267,6 +263,7 @@ def plot_phenotype_map(
     Returns
     -------
     plt.Axes
+
     """
     if ax is None:
         _, ax = plt.subplots(figsize=(7, 6))
@@ -349,8 +346,7 @@ def plot_radar(
     show_anchors: bool = False,
     **kwargs,
 ) -> plt.Axes:
-    """
-    Plot RSP radar profile.
+    """Plot RSP radar profile.
 
     Args:
         radar: RadarResult object.
@@ -371,6 +367,7 @@ def plot_radar(
 
     Returns:
         ax: The axes object.
+
     """
     ax = _ensure_polar_ax(ax)
     _set_default_polar_style(ax)
@@ -622,8 +619,7 @@ def plot_radar_absolute(
     show_anchors: bool = False,
     **kwargs,
 ) -> plt.Figure:
-    """
-    Generate both proximal and distal radar plots side-by-side with shared radial scale.
+    """Generate both proximal and distal radar plots side-by-side with shared radial scale.
 
     Args:
         radar: RadarResult object.
@@ -638,6 +634,7 @@ def plot_radar_absolute(
 
     Returns:
         fig: The figure object.
+
     """
     if fig is None:
         fig = plt.figure(figsize=(10, 5))
@@ -693,8 +690,7 @@ def plot_radar_split(*args, **kwargs):
 
 
 def plot_summary(summary: ScalarSummaries, ax: plt.Axes | None = None) -> plt.Axes:
-    """
-    Display scalar summaries as text.
+    """Display scalar summaries as text.
 
     Args:
         summary: ScalarSummaries object.
@@ -702,6 +698,7 @@ def plot_summary(summary: ScalarSummaries, ax: plt.Axes | None = None) -> plt.Ax
 
     Returns:
         ax: The axes object.
+
     """
     if ax is None:
         _, ax = plt.subplots()

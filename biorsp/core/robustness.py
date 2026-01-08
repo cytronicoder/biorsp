@@ -1,5 +1,4 @@
-"""
-Robustness diagnostics module for BioRSP.
+"""Robustness diagnostics module for BioRSP.
 
 Implements stability checks via subsampling:
 - Subsample cells (e.g. 80%)
@@ -22,13 +21,13 @@ from biorsp.utils.config import BioRSPConfig
 
 @dataclass
 class RobustnessResult:
-    """
-    Results of robustness analysis.
+    """Results of robustness analysis.
 
     Attributes:
         mean_correlation: Mean Pearson correlation of subsampled RSP profiles with full profile.
         cv_anisotropy: Coefficient of variation of anisotropy across subsamples.
         n_subsamples: Number of subsamples performed.
+
     """
 
     mean_correlation: float
@@ -47,8 +46,7 @@ def compute_robustness_score(
     fg_mode: str = "quantile",
     abs_threshold: Optional[float] = None,
 ) -> RobustnessResult:
-    """
-    Compute robustness metrics via subsampling.
+    """Compute robustness metrics via subsampling.
 
     Parameters
     ----------
@@ -75,6 +73,7 @@ def compute_robustness_score(
     -------
     RobustnessResult
         The result of the robustness analysis.
+
     """
     if config is None:
         config = BioRSPConfig()

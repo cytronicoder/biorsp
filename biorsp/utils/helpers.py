@@ -1,6 +1,4 @@
-"""
-Utility functions for BioRSP.
-"""
+"""Utility functions for BioRSP."""
 
 import numpy as np
 
@@ -16,8 +14,7 @@ def weighted_wasserstein_1d(
     values_b: np.ndarray,
     weights_b: np.ndarray,
 ) -> float:
-    r"""
-    Compute 1D Wasserstein-1 distance between two weighted samples.
+    r"""Compute 1D Wasserstein-1 distance between two weighted samples.
 
     The 1D Wasserstein-1 distance (Earth Mover's Distance) is defined as:
     $$W_1(P, Q) = \int_{-\infty}^{\infty} |F_P(t) - F_Q(t)| dt$$
@@ -38,6 +35,7 @@ def weighted_wasserstein_1d(
     -------
     float
         The Wasserstein-1 distance. Returns NaN if either input is empty or has zero total weight.
+
     """
     if values_a.size == 0 or values_b.size == 0:
         return np.nan
@@ -74,8 +72,7 @@ def weighted_quantile(
     weights: np.ndarray,
     q: float,
 ) -> float:
-    """
-    Compute weighted quantile with deterministic tie-handling.
+    """Compute weighted quantile with deterministic tie-handling.
 
     Parameters
     ----------
@@ -90,6 +87,7 @@ def weighted_quantile(
     -------
     float
         The weighted quantile. Returns NaN if input is empty or has zero total weight.
+
     """
     if values.size == 0:
         return np.nan
@@ -100,8 +98,7 @@ def weighted_quantile(
 def weighted_quantile_sorted(
     values_sorted: np.ndarray, weights_sorted: np.ndarray, q: float
 ) -> float:
-    r"""
-    Compute weighted quantile from pre-sorted values.
+    r"""Compute weighted quantile from pre-sorted values.
 
     Uses the definition:
     $$Q(q) = \inf \{x : F(x) \geq q\}$$
@@ -122,6 +119,7 @@ def weighted_quantile_sorted(
     -------
     float
         The weighted quantile. Returns NaN if input is empty or has zero total weight.
+
     """
     if values_sorted.size == 0:
         return np.nan
@@ -153,8 +151,7 @@ def weighted_quantile_sorted(
 
 
 def weighted_mad(values: np.ndarray, weights: np.ndarray, scale_factor: float = 1.4826) -> float:
-    """
-    Compute weighted Median Absolute Deviation (MAD).
+    """Compute weighted Median Absolute Deviation (MAD).
 
     Args:
         values: (N,) array of values.
@@ -163,6 +160,7 @@ def weighted_mad(values: np.ndarray, weights: np.ndarray, scale_factor: float = 
 
     Returns:
         The weighted MAD.
+
     """
     if values.size == 0:
         return np.nan
@@ -175,14 +173,14 @@ def weighted_mad(values: np.ndarray, weights: np.ndarray, scale_factor: float = 
 
 
 def bh_fdr(p_values: np.ndarray) -> np.ndarray:
-    """
-    Benjamini-Hochberg FDR correction.
+    """Benjamini-Hochberg FDR correction.
 
     Args:
         p_values: Array of p-values (NaNs allowed).
 
     Returns:
         Array of q-values with NaNs preserved.
+
     """
     p_values = np.asarray(p_values, dtype=float)
     q_values = np.full_like(p_values, np.nan, dtype=float)
@@ -209,8 +207,7 @@ def compute_sector_weight(
     mode: str = "none",
     k: float = 5.0,
 ) -> float:
-    """
-    Compute a support-based weight for a sector.
+    """Compute a support-based weight for a sector.
 
     Parameters
     ----------
@@ -228,6 +225,7 @@ def compute_sector_weight(
     -------
     float
         Weight in [0, 1].
+
     """
     if mode == "none":
         return 1.0
