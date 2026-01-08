@@ -226,6 +226,10 @@ __marimo__/
 **/data/
 **/sim_results/
 **/plots/
+**/outputs/
+**/test_outputs/
+debug_calib_out/
+case_studies/simulations/figs/
 
 # macOS
 .DS_Store
