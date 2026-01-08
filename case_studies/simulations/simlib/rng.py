@@ -29,11 +29,10 @@ def make_rng(seed: int, *tags: str) -> Generator:
     Generator
         Numpy random generator with deterministic stream
     """
-    # Hash tags into entropy for reproducibility
+
     tag_str = "_".join(str(t) for t in tags)
     tag_hash = int(hashlib.sha256(tag_str.encode()).hexdigest()[:16], 16)
 
-    # Create child SeedSequence
     ss = SeedSequence(seed, spawn_key=(tag_hash,))
     return np.random.default_rng(ss)
 

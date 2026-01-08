@@ -23,8 +23,7 @@ import pandas as pd
 
 from biorsp import BioRSPConfig
 
-# Path bootstrap: ensure simlib package is importable
-ROOT = Path(__file__).resolve().parents[1]  # case_studies/simulations
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -127,35 +126,32 @@ def main():
     )
     args = parser.parse_args()
 
-    # Mode overrides
     if args.mode == "quick":
-        # Quick: Debug/development only
+
         args.n_reps = 10
-        args.N = [1000]  # Single N for speed
-        args.shape = ["disk"]  # Single shape
-        args.null_type = ["iid"]  # Single null
-        args.n_permutations = 100  # Minimal
-        args.permutation_scope = "none"  # No p-values needed
+        args.N = [1000]
+        args.shape = ["disk"]
+        args.null_type = ["iid"]
+        args.n_permutations = 100
+        args.permutation_scope = "none"
     elif args.mode == "publication":
-        # Publication: Three-tier framework
-        # Validation tier triggered by --n_reps 50 (preliminary results)
-        # Publication tier is default (peer-review ready)
+
         if args.n_reps == 50:
-            # Validation tier: Preliminary assessment
-            args.n_reps = 50  # Keep explicit
-            args.N = [500, 2000]  # Key N values only
-            args.shape = ["disk", "annulus"]  # Representative shapes
-            args.null_type = ["iid", "depth_confounded", "mask_stress"]  # All nulls
+
+            args.n_reps = 50
+            args.N = [500, 2000]
+            args.shape = ["disk", "annulus"]
+            args.null_type = ["iid", "depth_confounded", "mask_stress"]
             args.n_permutations = 500
-            args.permutation_scope = "topk"  # Moderate rigor
+            args.permutation_scope = "topk"
         else:
-            # Publication tier: Full peer-review rigor (default)
-            args.n_reps = max(args.n_reps, 100)  # 100 reps for stable FPR estimates
-            # Full N range: test small to large sample sizes
+
+            args.n_reps = max(args.n_reps, 100)
+
             args.N = [500, 1000, 2000, 5000]
-            # All three main shapes
+
             args.shape = ["disk", "annulus", "peanut"]
-            # All null hypotheses
+
             args.null_type = ["iid", "depth_confounded", "mask_stress"]
             args.n_permutations = 1000
             args.permutation_scope = "all"
@@ -243,14 +239,12 @@ def main():
     summary_df = pd.DataFrame(summary_rows)
     io.write_summary_csv(summary_df, output_dir, benchmark="calibration")
 
-    # Generate plots
     print("Generating plots...")
     figs_dir = ROOT / "figs"
     figs_dir.mkdir(exist_ok=True)
 
     from simlib import validation
 
-    # QQ plot for each null type
     for null_type in args.null_type:
         subset = runs_df[runs_df["null_type"] == null_type]
         p_values = subset["p_value"].dropna().values
@@ -289,7 +283,6 @@ def main():
         interpretation=interpretation,
     )
 
-    # Write manifest with full BioRSPConfig
     io.write_manifest(
         output_dir,
         benchmark_name="calibration",

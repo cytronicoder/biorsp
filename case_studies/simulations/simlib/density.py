@@ -31,7 +31,6 @@ def kde_density(coords: np.ndarray, bandwidth: float = 0.3) -> np.ndarray:
         kernel = np.exp(-0.5 * (dists / bandwidth) ** 2)
         density[i] = np.sum(kernel)
 
-    # Normalize
     density = density / density.mean()
     return density
 
@@ -61,7 +60,7 @@ def knn_density(coords: np.ndarray, k: int = 20) -> np.ndarray:
         density = 1.0 / (np.mean(dists, axis=1) + 1e-6)
         return density / density.mean()
     except ImportError:
-        # Fallback: use simple distance to centroid
+
         center = np.median(coords, axis=0)
         r = np.linalg.norm(coords - center, axis=1)
         density = 1.0 / (r + 1.0)

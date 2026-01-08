@@ -10,15 +10,14 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-# Path bootstrap
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# Standard colors (preserved for compatibility)
-COLOR_BG = "#e0e0e0"  # Light gray for background
-COLOR_FG = "#d62728"  # Red for foreground
-COLOR_RSP = "#1f77b4"  # Blue for RSP profile
+
+COLOR_BG = "#e0e0e0"
+COLOR_FG = "#d62728"
+COLOR_RSP = "#1f77b4"
 
 
 def setup_style():

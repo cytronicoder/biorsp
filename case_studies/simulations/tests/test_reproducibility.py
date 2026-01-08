@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-# Setup path
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -18,7 +17,6 @@ def test_rng_reproducibility():
     """Test that same seed produces identical RNG streams."""
     from simlib import rng
 
-    # Same seed + tags should produce identical results
     gen1 = rng.make_rng(42, "test", "condition")
     gen2 = rng.make_rng(42, "test", "condition")
 
@@ -27,7 +25,6 @@ def test_rng_reproducibility():
 
     assert (vals1 == vals2).all(), "Same seed should produce identical results"
 
-    # Different tags should produce different results
     gen3 = rng.make_rng(42, "test", "other_condition")
     vals3 = gen3.random(100)
 
@@ -60,7 +57,6 @@ def test_schema_version_in_outputs():
     with tempfile.TemporaryDirectory() as tmpdir:
         output_dir = Path(tmpdir)
 
-        # Create test dataframe
         df = pd.DataFrame(
             {
                 "shape": ["disk"],
@@ -77,10 +73,9 @@ def test_schema_version_in_outputs():
 
         io.write_runs_csv(df, output_dir, benchmark="calibration")
 
-        # Read back and check
         df_read = pd.read_csv(output_dir / "runs.csv")
         assert "schema_version" in df_read.columns
-        # Compare as strings (CSV reads numeric-looking strings as floats)
+
         assert str(df_read["schema_version"].iloc[0]) == io.SCHEMA_VERSION
 
 
@@ -120,7 +115,7 @@ def test_schema_validation_catches_missing_columns():
     import pandas as pd
     from simlib import io
 
-    df = pd.DataFrame({"shape": ["disk"], "N": [1000]})  # Missing required columns
+    df = pd.DataFrame({"shape": ["disk"], "N": [1000]})
 
     with pytest.raises(ValueError, match="Schema validation failed"):
         io.validate_output_schema(df, "calibration", "runs")

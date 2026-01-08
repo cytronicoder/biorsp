@@ -83,13 +83,13 @@ def _crescent(n: int, rng: Generator, params: Dict) -> Tuple[np.ndarray, Dict]:
 
     coords = []
     count = 0
-    batch_size = n * 2  # oversample
+    batch_size = n * 2
 
     while count < n:
         batch = rng.uniform(-R_outer, R_outer, (batch_size, 2))
-        # In outer circle
+
         mask_outer = (batch[:, 0] ** 2 + batch[:, 1] ** 2) <= R_outer**2
-        # Not in inner circle (offset)
+
         mask_inner = ((batch[:, 0] - offset) ** 2 + batch[:, 1] ** 2) <= R_inner**2
         valid = batch[mask_outer & ~mask_inner]
         coords.append(valid)
@@ -121,13 +121,11 @@ def _peanut(n: int, rng: Generator, params: Dict) -> Tuple[np.ndarray, Dict]:
     n1 = n // 2
     n2 = n - n1
 
-    # Lobe 1
     r1 = np.sqrt(rng.uniform(0, 1, n1)) * lobe_radius
     t1 = rng.uniform(0, 2 * np.pi, n1)
     x1 = r1 * np.cos(t1) - separation / 2
     y1 = r1 * np.sin(t1)
 
-    # Lobe 2
     r2 = np.sqrt(rng.uniform(0, 1, n2)) * lobe_radius
     t2 = rng.uniform(0, 2 * np.pi, n2)
     x2 = r2 * np.cos(t2) + separation / 2
@@ -150,11 +148,9 @@ def _disconnected_blobs(n: int, rng: Generator, params: Dict) -> Tuple[np.ndarra
     n1 = n // 2
     n2 = n - n1
 
-    # Blob 1
     x1 = rng.normal(-separation / 2, sigma, n1)
     y1 = rng.normal(0, sigma, n1)
 
-    # Blob 2
     x2 = rng.normal(separation / 2, sigma, n2)
     y2 = rng.normal(0, sigma, n2)
 

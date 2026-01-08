@@ -20,15 +20,14 @@ import sys
 import time
 from pathlib import Path
 
-# Find project root
 ROOT = Path(__file__).resolve().parents[0]
 METHODS_PAPER = ROOT / "methods_paper"
 
-# Benchmark scripts (permutation_scope now enforced internally by mode)
+
 BENCHMARKS = [
     ("calibration", "run_calibration.py", {}),
     ("archetypes", "run_archetypes.py", {}),
-    ("genegene", "run_genegene.py", {"topk_perm": 100}),  # topk_perm used in validation mode
+    ("genegene", "run_genegene.py", {"topk_perm": 100}),
     ("robustness", "run_robustness.py", {}),
 ]
 
@@ -44,7 +43,6 @@ def run_benchmark(name: str, script: str, extra_flags: dict) -> tuple[bool, floa
         "4",
     ]
 
-    # Add extra flags
     for key, val in extra_flags.items():
         cmd.extend([f"--{key}", str(val)])
 
@@ -60,7 +58,7 @@ def run_benchmark(name: str, script: str, extra_flags: dict) -> tuple[bool, floa
             cwd=ROOT,
             capture_output=True,
             text=True,
-            timeout=300,  # 5 minute timeout per benchmark
+            timeout=300,
         )
         elapsed = time.time() - start
 
@@ -116,18 +114,15 @@ def test_imports():
 
     print("✅ All modules import successfully")
 
-    # Test cache
     c = cache.GeometryCache()
     stats = c.get_stats()
     print(f"  Cache initialized: {stats}")
 
-    # Test checkpoint key generation
     key = checkpoint.make_checkpoint_key(
         {"shape": "disk", "N": 1000, "pattern": "wedge"}, replicate=42
     )
     print(f"  Checkpoint key: {key[:16]}...")
 
-    # Test validation
     import pandas as pd
 
     df = pd.DataFrame({"x": [1, 2, 3], "y": [4, 5, 6]})
@@ -146,14 +141,12 @@ def main():
 """
     )
 
-    # Test imports first
     try:
         test_imports()
     except Exception as e:
         print(f"\n❌ Import test failed: {e}. Aborting.")
         sys.exit(1)
 
-    # Run benchmarks
     results = []
     total_time = 0
 
@@ -165,7 +158,6 @@ def main():
         if success:
             check_outputs(name)
 
-    # Summary
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)

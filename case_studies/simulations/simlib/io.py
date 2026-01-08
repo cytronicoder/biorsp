@@ -25,10 +25,9 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
-# Schema version for all outputs
 SCHEMA_VERSION = "1.0"
 
-# Required columns per benchmark type (core columns only - additional columns allowed)
+
 REQUIRED_COLUMNS = {
     "calibration": {
         "runs": [
@@ -115,7 +114,7 @@ def validate_output_schema(df: pd.DataFrame, benchmark: str, output_type: str) -
         If required columns are missing
     """
     if benchmark not in REQUIRED_COLUMNS:
-        return  # Unknown benchmark, skip validation
+        return
 
     required = REQUIRED_COLUMNS[benchmark].get(output_type, [])
     missing = [col for col in required if col not in df.columns]
@@ -170,11 +169,10 @@ def write_runs_csv(
     benchmark : str, optional
         Benchmark name for schema validation
     """
-    # Add schema version
+
     runs_df = runs_df.copy()
     runs_df["schema_version"] = SCHEMA_VERSION
 
-    # Validate if benchmark specified
     if benchmark:
         validate_output_schema(runs_df, benchmark, "runs")
 
@@ -203,11 +201,10 @@ def write_summary_csv(
     benchmark : str, optional
         Benchmark name for schema validation
     """
-    # Add schema version
+
     summary_df = summary_df.copy()
     summary_df["schema_version"] = SCHEMA_VERSION
 
-    # Validate if benchmark specified
     if benchmark:
         validate_output_schema(summary_df, benchmark, "summary")
 
@@ -245,10 +242,9 @@ def write_manifest(
     filename : str, optional
         Filename
     """
-    # Get git commit hash
+
     git_commit = get_git_commit()
 
-    # Serialize BioRSPConfig if provided
     config_dict = None
     if biorsp_config is not None:
         config_dict = serialize_biorsp_config(biorsp_config)
@@ -284,7 +280,7 @@ def serialize_biorsp_config(config: Any) -> Dict[str, Any]:
     config_dict : Dict
         Serializable dictionary
     """
-    # Extract all config attributes
+
     return {
         "B": getattr(config, "B", None),
         "delta_deg": getattr(config, "delta_deg", None),

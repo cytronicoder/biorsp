@@ -39,29 +39,23 @@ def write_report(
     """
     lines = []
 
-    # Header
     lines.append(f"# {benchmark_name.title()} Benchmark Report")
     lines.append(f"\n**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"\n**Directory:** `{output_dir}`\n")
 
-    # Parameters
     lines.append("## Parameters\n")
     for key, value in params.items():
         lines.append(f"- **{key}:** {value}")
 
-    # Summary table
     lines.append("\n## Summary Statistics\n")
     lines.append(summary_df.to_markdown(index=False))
 
-    # Interpretation
     lines.append("\n## Interpretation\n")
     lines.append(interpretation)
 
-    # Footer
     lines.append("\n---\n")
     lines.append("*This report was generated automatically by the BioRSP simulation framework.*")
 
-    # Write
     filepath = output_dir / filename
     with open(filepath, "w") as f:
         f.write("\n".join(lines))
@@ -92,7 +86,6 @@ def interpret_calibration(summary_df: pd.DataFrame, alpha: float = 0.05) -> str:
         "We test this across different spatial shapes, distortions, and null models.\n"
     )
 
-    # FPR analysis - support both old (fpr_mean) and new (fpr_0p05) schema
     fpr_col = "fpr_0p05" if "fpr_0p05" in summary_df.columns else "fpr_mean"
     fpr_values = summary_df[fpr_col].dropna()
 
@@ -117,13 +110,11 @@ def interpret_calibration(summary_df: pd.DataFrame, alpha: float = 0.05) -> str:
             f"\n⚠️ Some conditions show FPR up to {fpr_max:.3f}, indicating potential miscalibration."
         )
 
-    # Include multi-alpha info if available
     if "fpr_0p01" in summary_df.columns:
         fpr_01_values = summary_df["fpr_0p01"].dropna()
         if len(fpr_01_values) > 0:
             lines.append(f"\n📊 **At α=0.01:** Mean FPR = {fpr_01_values.mean():.3f}")
 
-    # KS test - check for different column name variants
     ks_col = None
     for col_name in ["ks_pval_mean", "ks_pval"]:
         if col_name in summary_df.columns:
@@ -179,7 +170,6 @@ def interpret_power(summary_df: pd.DataFrame, target_power: float = 0.8) -> str:
         "Results show how power varies with effect size, sample size, and spatial pattern.\n"
     )
 
-    # Power analysis
     power_mean = summary_df["power_mean"].mean()
     power_min = summary_df["power_mean"].min()
 
@@ -231,7 +221,6 @@ def interpret_archetypes(summary_df: pd.DataFrame) -> str:
         "We test whether BioRSP's Coverage (C) and Spatial Score (S) can distinguish these patterns.\n"
     )
 
-    # F1 analysis
     macro_f1 = summary_df["macro_f1"].mean() if "macro_f1" in summary_df.columns else None
     if macro_f1 is not None:
         if macro_f1 > 0.7:
@@ -274,7 +263,6 @@ def interpret_genegene(summary_df: pd.DataFrame) -> str:
         "AUPRC (Area Under Precision-Recall Curve) measures retrieval quality: 1.0 = perfect, 0.5 = random.\n"
     )
 
-    # AUPRC analysis
     auprc_mean = summary_df["auprc_mean"].mean() if "auprc_mean" in summary_df.columns else None
     if auprc_mean is not None:
         if auprc_mean > 0.8:
@@ -318,7 +306,6 @@ def interpret_robustness(summary_df: pd.DataFrame) -> str:
         "(rotation, scaling, jitter). Low delta = stable, high delta = sensitive.\n"
     )
 
-    # Delta analysis
     delta_mean = (
         summary_df["median_abs_delta_mean"].mean()
         if "median_abs_delta_mean" in summary_df.columns

@@ -36,7 +36,7 @@ def compute_polar(
     elif center == "mean":
         vantage = np.mean(coords, axis=0)
     elif center == "centroid":
-        vantage = np.median(coords, axis=0)  # Alias for median
+        vantage = np.median(coords, axis=0)
     else:
         raise ValueError(f"Unknown center method: {center}")
 
@@ -61,7 +61,7 @@ def radial_density_proxy(r: np.ndarray) -> np.ndarray:
     density : np.ndarray
         Density proxy (high values = dense regions)
     """
-    # Rank-based: cells at similar radius have similar density
+
     r_rank = np.argsort(np.argsort(r))
     density = 1.0 / (r_rank + 1.0)
     return density / density.mean()

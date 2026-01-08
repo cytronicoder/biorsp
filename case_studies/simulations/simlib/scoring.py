@@ -15,7 +15,6 @@ import pandas as pd
 from biorsp import score_gene_pairs, score_genes
 from biorsp.utils.config import BioRSPConfig
 
-# Import cache module
 try:
     from . import cache
 
@@ -62,22 +61,20 @@ def score_dataset(
     cached geometry (coords, sector_indices) to avoid recomputation. Cache hits
     can provide 2-5x speedup for multi-gene panels on the same dataset.
     """
-    # Check cache if available (future enhancement: actual integration with BioRSP internals)
+
     # For now, cache infrastructure exists but BioRSP API doesn't expose geometry directly
-    # This is a placeholder for future deep integration
+
     if _CACHE_AVAILABLE and cache_key is not None:
         cached = cache.get_cached_geometry(**cache_key)
         if cached is not None:
-            # Log cache hit (could be used for debugging)
+
             pass
 
     # Call BioRSP public API
     results = score_genes(adata, genes, embedding_key=embedding_key, config=config)
 
-    # Standardize output columns
     df = pd.DataFrame()
 
-    # Required columns
     df["gene"] = results.get("gene", genes)
     df["coverage_expr"] = results.get("coverage_expr", results.get("coverage", np.nan))
     df["spatial_score"] = results.get("spatial_score", results.get("anisotropy", np.nan))
@@ -87,11 +84,9 @@ def score_dataset(
     df["p_value"] = results.get("p_value", np.nan)
     df["q_value"] = results.get("q_value", np.nan)
 
-    # Optional columns
     if "archetype" in results.columns:
         df["archetype_pred"] = results["archetype"]
 
-    # Synthesize abstain flag if not present
     if "abstain" not in results.columns:
         df["abstain_flag"] = pd.isna(df["spatial_score"]) | (df["coverage_bg"] < 0.1)
         df["abstain_reason"] = "ok"
@@ -138,17 +133,16 @@ def score_pairs(
     beneficial for large gene panels where sector statistics are computed once
     and reused across all pairwise comparisons.
     """
-    # Check cache if available (placeholder for future integration)
+
     if _CACHE_AVAILABLE and cache_key is not None:
         cached = cache.get_cached_geometry(**cache_key)
         if cached is not None:
-            # Log cache hit
+
             pass
 
     # Call BioRSP public API
     results = score_gene_pairs(adata, genes, embedding_key=embedding_key, config=config)
 
-    # Standardize output columns
     df = pd.DataFrame()
 
     df["gene_a"] = results.get("gene_a", results.get("feature_a"))

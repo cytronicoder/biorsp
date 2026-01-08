@@ -12,13 +12,12 @@ from pathlib import Path
 
 
 def main():
-    # Setup paths
+
     script_dir = Path(__file__).resolve().parent
     sim_root = script_dir.parent
     methods_dir = sim_root / "methods_paper"
     output_dir = sim_root / "smoke_outputs"
 
-    # Clean prev outputs
     if output_dir.exists():
         print(f"Cleaning {output_dir}...")
         shutil.rmtree(output_dir)
@@ -27,7 +26,6 @@ def main():
     scripts = [
         ("run_calibration.py", ["--null_type", "iid"]),
         ("run_archetypes.py", ["--shape", "disk", "--pattern", "niche_core"]),
-        # ("run_genegene.py", []), # Often slower
         ("run_robustness.py", ["--parameter", "dropout"]),
     ]
 

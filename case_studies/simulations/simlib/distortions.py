@@ -79,7 +79,7 @@ def _rotate(coords: np.ndarray, strength: float, params: Dict) -> Tuple[np.ndarr
 
 def _aniso_scale(coords: np.ndarray, strength: float, params: Dict) -> Tuple[np.ndarray, Dict]:
     """Anisotropic scaling (stretch one axis)."""
-    axis = params.get("axis", 0)  # 0=x, 1=y
+    axis = params.get("axis", 0)
     coords_scaled = coords.copy()
     coords_scaled[:, axis] *= strength
     meta = {"distortion": "aniso_scale", "strength": strength, "axis": axis}
@@ -102,7 +102,7 @@ def _radial_warp(coords: np.ndarray, strength: float, params: Dict) -> Tuple[np.
     """Radial warping: r' = r^strength."""
     r = np.linalg.norm(coords, axis=1)
     theta = np.arctan2(coords[:, 1], coords[:, 0])
-    r_new = np.power(r + 1e-9, strength)  # avoid zero
+    r_new = np.power(r + 1e-9, strength)
     coords_warp = np.column_stack([r_new * np.cos(theta), r_new * np.sin(theta)])
     meta = {"distortion": "radial_warp", "exponent": strength}
     return coords_warp, meta
@@ -125,7 +125,7 @@ def _subsample(
     if strength >= 1.0:
         return coords.copy(), {"distortion": "subsample", "frac": 1.0, "n": len(coords)}
 
-    n_keep = max(int(len(coords) * strength), 10)  # Keep at least 10 cells
+    n_keep = max(int(len(coords) * strength), 10)
     idx = rng.choice(len(coords), n_keep, replace=False)
     coords_sub = coords[idx]
     meta = {"distortion": "subsample", "frac": strength, "n": n_keep, "indices": idx}

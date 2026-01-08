@@ -53,14 +53,11 @@ def plot_qq(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Plot diagonal
     ax.plot([0, 1], [0, 1], "k--", alpha=0.5, label="Perfect calibration")
 
-    # Plot alpha threshold
     ax.axvline(alpha, color="red", linestyle=":", alpha=0.3, label=f"α={alpha}")
     ax.axhline(alpha, color="red", linestyle=":", alpha=0.3)
 
-    # Plot observed vs expected
     ax.scatter(expected, observed, s=10, alpha=0.6)
 
     ax.set_xlabel("Expected (Uniform)")
@@ -117,13 +114,11 @@ def plot_fpr_grid(
     fig, ax = plt.subplots(figsize=figsize)
     im = ax.imshow(pivot, cmap="RdYlGn_r", aspect="auto", vmin=0, vmax=0.15)
 
-    # Set ticks
     ax.set_xticks(np.arange(len(pivot.columns)))
     ax.set_yticks(np.arange(len(pivot.index)))
     ax.set_xticklabels(pivot.columns)
     ax.set_yticklabels(pivot.index)
 
-    # Annotate cells
     for i in range(len(pivot.index)):
         for j in range(len(pivot.columns)):
             val = pivot.iloc[i, j]
@@ -251,13 +246,11 @@ def plot_confusion_matrix(
     fig, ax = plt.subplots(figsize=figsize)
     im = ax.imshow(cm_plot, cmap=cmap, aspect="auto")
 
-    # Set ticks
     ax.set_xticks(np.arange(len(cm_plot.columns)))
     ax.set_yticks(np.arange(len(cm_plot.index)))
     ax.set_xticklabels(cm_plot.columns, rotation=45, ha="right")
     ax.set_yticklabels(cm_plot.index)
 
-    # Annotate cells
     for i in range(len(cm_plot.index)):
         for j in range(len(cm_plot.columns)):
             val = cm_plot.iloc[i, j]

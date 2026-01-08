@@ -20,8 +20,7 @@ import pandas as pd
 
 from biorsp import BioRSPConfig
 
-# Path bootstrap
-ROOT = Path(__file__).resolve().parents[1]  # case_studies/simulations
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -136,39 +135,35 @@ def main():
     )
     args = parser.parse_args()
 
-    # n_workers alias
     if args.n_workers != -1:
         args.n_jobs = args.n_workers
 
-    # Mode overrides
     if args.mode == "quick":
-        # Quick: Debug/development only
+
         args.n_reps = 5
-        args.N = [2000]  # Single N
-        args.shape = ["disk"]  # Single shape
-        args.pattern = ["uniform", "core", "rim"]  # Minimal patterns
+        args.N = [2000]
+        args.shape = ["disk"]
+        args.pattern = ["uniform", "core", "rim"]
         args.n_permutations = 100
         args.permutation_scope = "none"
     elif args.mode == "publication":
-        # Publication: Three-tier framework
-        # Validation tier triggered by --n_reps 50 (preliminary results)
-        # Publication tier is default (peer-review ready)
+
         if args.n_reps == 50:
-            # Validation tier: Preliminary assessment
+
             args.n_reps = 50
-            args.N = [1000, 2000]  # Key N values
-            args.shape = ["disk", "peanut"]  # Representative shapes
-            args.pattern = ["uniform", "core", "rim", "wedge"]  # Core patterns
+            args.N = [1000, 2000]
+            args.shape = ["disk", "peanut"]
+            args.pattern = ["uniform", "core", "rim", "wedge"]
             args.n_permutations = 500
-            args.permutation_scope = "topk"  # Moderate rigor
+            args.permutation_scope = "topk"
         else:
-            # Publication tier: Full peer-review rigor (default)
-            args.n_reps = max(args.n_reps, 100)  # 100 reps for stable recovery rates
-            # Multi-scale assessment
+
+            args.n_reps = max(args.n_reps, 100)
+
             args.N = [1000, 2000, 5000]
-            # All three main shapes for geometric diversity
+
             args.shape = ["disk", "peanut", "crescent"]
-            # Comprehensive pattern space
+
             args.pattern = [
                 "uniform",
                 "sparse",
@@ -179,25 +174,21 @@ def main():
                 "wedge_rim",
                 "two_wedges",
             ]
-            # 1000 permutations for robust significance testing
+
             args.n_permutations = 1000
-            # ENFORCE permutation_scope=all for publication rigor
+
             args.permutation_scope = "all"
 
-    # Conditional permutations
     n_perms = args.n_permutations if args.permutation_scope == "all" else 0
 
-    # Setup output directory
     output_dir = io.ensure_output_dir("archetypes", base_dir=args.outdir.rsplit("/", 1)[0])
 
-    # Load completed runs if resuming
     runs_csv_path = output_dir / "runs.csv"
     skip_completed = set()
     if args.resume and runs_csv_path.exists():
         skip_completed = checkpoint.load_completed_runs(runs_csv_path)
         print(f"Resuming: {len(skip_completed)} runs already completed")
 
-    # BioRSP config
     config = BioRSPConfig(
         B=72,
         delta_deg=60.0,
@@ -205,12 +196,10 @@ def main():
         qc_mode="principled",
     )
 
-    # Expand grid
     configs = sweeps.expand_grid(shape=args.shape, N=args.N, pattern=args.pattern)
 
     print(f"Running archetype benchmark: {len(configs)} conditions × {args.n_reps} reps")
 
-    # Checkpoint callback
     def save_checkpoint(results: list):
         """Save incremental checkpoint."""
         if not results:
@@ -219,7 +208,6 @@ def main():
         checkpoint.append_to_runs_csv(checkpoint_df, runs_csv_path)
         print(f"✓ Checkpoint saved ({len(results)} results)")
 
-    # Run replicates
     start_time = time.time()
 
     runs_df = sweeps.run_replicates(
@@ -237,18 +225,14 @@ def main():
 
     runtime = time.time() - start_time
 
-    # Write runs CSV with schema validation
     io.write_runs_csv(runs_df, output_dir, benchmark="archetypes")
 
-    # Compute summary statistics with archetype quadrant classification
     summary_rows = []
     for (shape, N, pattern), group in runs_df.groupby(["shape", "N", "pattern"]):
-        # Compute mean/std for metrics
+
         cov_mean = group["coverage_expr"].mean()
         ss_mean = group["spatial_score"].mean()
 
-        # Classify into quadrant (for biologist-facing interpretation)
-        # High coverage = > 0.3, High spatial = > 0.02 (typical thresholds)
         high_cov = cov_mean > 0.3
         high_ss = ss_mean > 0.02
 
@@ -284,16 +268,13 @@ def main():
     summary_df = pd.DataFrame(summary_rows)
     io.write_summary_csv(summary_df, output_dir, benchmark="archetypes")
 
-    # Generate plots
     print("Generating plots...")
     figs_dir = ROOT / "figs"
     figs_dir.mkdir(exist_ok=True)
 
-    # Archetype scatter (Coverage vs Spatial Score)
     for shape in args.shape:
         subset = runs_df[runs_df["shape"] == shape]
 
-        # Validation guard
         try:
             validation.validate_dataframe_for_plot(
                 subset,
@@ -305,7 +286,6 @@ def main():
             print(f"⚠ Skipping scatter plot for {shape}: {e}")
             continue
 
-        # Simple scatter - could use plotting.plot_spatial_embedding but need to adapt
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -326,7 +306,6 @@ def main():
         plt.tight_layout()
         io.save_figure(fig, output_dir, f"archetypes_scatter_{shape}.png")
 
-    # Write report
     interpretation = docs.interpret_archetypes(summary_df)
     docs.write_report(
         output_dir,
@@ -336,7 +315,6 @@ def main():
         interpretation=interpretation,
     )
 
-    # Write manifest with full BioRSPConfig
     io.write_manifest(
         output_dir,
         benchmark_name="archetypes",

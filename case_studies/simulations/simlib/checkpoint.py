@@ -27,7 +27,7 @@ def make_checkpoint_key(config: Dict[str, Any], replicate: int) -> str:
     str
         Unique checkpoint key
     """
-    # Sort keys for consistency
+
     config_items = sorted(config.items())
     return f"{config_items}__rep_{replicate}"
 
@@ -54,7 +54,6 @@ def load_completed_runs(runs_csv_path: Path) -> Set[str]:
         if len(df) == 0:
             return set()
 
-        # Extract config columns (exclude replicate, seed, and result columns)
         exclude_cols = {
             "replicate",
             "seed",
@@ -107,7 +106,7 @@ def append_to_runs_csv(
     if overwrite or not runs_csv_path.exists():
         df_new.to_csv(runs_csv_path, index=False)
     else:
-        # Append mode
+
         df_new.to_csv(runs_csv_path, mode="a", header=False, index=False)
 
 

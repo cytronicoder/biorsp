@@ -23,16 +23,15 @@ import time
 from pathlib import Path
 from typing import Tuple
 
-# Find project root
 ROOT = Path(__file__).resolve().parent
 METHODS_PAPER = ROOT / "methods_paper"
 
-# Benchmark configuration (name, script, extra_flags)
+
 # Note: permutation_scope is now enforced internally by scripts based on mode
 BENCHMARKS = [
     ("calibration", "run_calibration.py", {}),
     ("archetypes", "run_archetypes.py", {}),
-    ("genegene", "run_genegene.py", {"topk_perm": 500}),  # topk_perm used only in validation mode
+    ("genegene", "run_genegene.py", {"topk_perm": 500}),
     ("robustness", "run_robustness.py", {}),
 ]
 
@@ -61,7 +60,6 @@ def run_benchmark(
     if resume:
         cmd.append("--resume")
 
-    # Add extra flags
     for key, val in extra_flags.items():
         cmd.extend([f"--{key}", str(val)])
 
@@ -100,10 +98,10 @@ def main():
 Examples:
   # Full publication pipeline
   python run_all_benchmarks.py --mode publication --n_workers 8
-  
+
   # Quick test
   python run_all_benchmarks.py --mode quick --n_workers 4
-  
+
   # Resume interrupted run
   python run_all_benchmarks.py --mode publication --n_workers 8 --resume
         """,
@@ -133,7 +131,6 @@ Examples:
     )
     args = parser.parse_args()
 
-    # Filter benchmarks
     benchmarks_to_run = [
         (name, script, extra) for name, script, extra in BENCHMARKS if name not in args.skip
     ]
@@ -152,7 +149,6 @@ Examples:
 """
     )
 
-    # Run benchmarks
     results = []
     total_time = 0
 
@@ -177,7 +173,6 @@ Examples:
         print("\n\n⚠️  Batch run interrupted by user")
         print("You can resume by running with --resume flag")
 
-    # Summary
     print("\n" + "=" * 70)
     print("BATCH RUN SUMMARY")
     print("=" * 70)

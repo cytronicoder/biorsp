@@ -31,7 +31,7 @@ warnings.warn(
     stacklevel=2,
 )
 
-# Legacy constants
+
 DEFAULT_DELTA = 60.0
 DEFAULT_B = 72
 SECONDARY_DELTA = 180.0

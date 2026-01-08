@@ -31,7 +31,7 @@ class GeometryCache:
 
     def _make_key(self, **kwargs) -> str:
         """Generate cache key from kwargs."""
-        # Sort keys for consistency
+
         items = sorted(kwargs.items())
         key_str = str(items)
         return hashlib.md5(key_str.encode()).hexdigest()
@@ -49,7 +49,6 @@ class GeometryCache:
         """Store geometry in cache."""
         key = self._make_key(**kwargs)
 
-        # Simple eviction: remove oldest if at capacity
         if len(self._cache) >= self.max_size:
             oldest_key = next(iter(self._cache))
             del self._cache[oldest_key]
@@ -78,7 +77,6 @@ class GeometryCache:
         return self.stats()
 
 
-# Global cache instance
 _GEOMETRY_CACHE = GeometryCache(max_size=200)
 
 

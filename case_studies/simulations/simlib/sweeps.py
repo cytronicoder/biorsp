@@ -100,7 +100,6 @@ def run_replicates(
     if n_jobs == -1:
         n_jobs = multiprocessing.cpu_count()
 
-    # Build task list
     total_runs = len(configs) * n_reps
     tasks = []
     skipped_count = 0
@@ -111,7 +110,6 @@ def run_replicates(
         config = configs[config_idx]
         seed = seed_start + idx
 
-        # Skip if already completed
         if skip_completed is not None:
             from .checkpoint import make_checkpoint_key
 
@@ -135,7 +133,7 @@ def run_replicates(
     completed = 0
 
     if n_jobs > 1:
-        # Parallel execution with BLAS control
+
         with ProcessPoolExecutor(max_workers=n_jobs, initializer=_worker_init) as executor:
             futures = {executor.submit(_run_single_task, task): task for task in tasks}
 
@@ -145,7 +143,7 @@ def run_replicates(
 
             for future in iterator:
                 try:
-                    row = future.result(timeout=3600)  # 1 hour timeout per task
+                    row = future.result(timeout=3600)
                     if "error" in row:
                         print(f"\nError in task: {row['error']}")
                         print(row.get("traceback", ""))
@@ -153,7 +151,6 @@ def run_replicates(
                         results.append(row)
                         completed += 1
 
-                        # Checkpoint
                         if (
                             checkpoint_every > 0
                             and completed % checkpoint_every == 0
@@ -163,7 +160,7 @@ def run_replicates(
                 except Exception as e:  # noqa: PERF203
                     print(f"\nFailed to retrieve result: {e}")
     else:
-        # Serial execution
+
         iterator = tasks
         if progress:
             iterator = tqdm(tasks, desc="Replicates (serial)")
@@ -176,7 +173,6 @@ def run_replicates(
                 results.append(row)
                 completed += 1
 
-                # Checkpoint
                 if (
                     checkpoint_every > 0
                     and completed % checkpoint_every == 0

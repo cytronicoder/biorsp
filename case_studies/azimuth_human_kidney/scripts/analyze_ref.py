@@ -17,7 +17,6 @@ adata = ad.read_h5ad(str(ref_path))
 print("Loaded:", ref_path, "shape:", adata.shape)
 
 
-# UMI stats
 def get_umis(adata):
     candidates = [
         c
@@ -28,7 +27,7 @@ def get_umis(adata):
         col = candidates[0]
         print("Using UMI column:", col)
         return pd.to_numeric(adata.obs[col], errors="coerce").fillna(0).astype(float).values
-    # fallback to sum adata.X
+
     if sp.issparse(adata.X):
         return np.asarray(adata.X.sum(axis=1)).reshape(-1)
     else:
@@ -43,7 +42,7 @@ print(
     np.mean(umis),
     np.max(umis),
 )
-# save histogram
+
 outdir = Path("examples")
 outdir.mkdir(exist_ok=True)
 plt.figure(figsize=(6, 3))
@@ -56,7 +55,6 @@ plt.savefig(outdir / "umi_distribution.png")
 print("Wrote umi_distribution.png")
 
 
-# TAL detection
 def is_tal_label(s: str) -> bool:
     if s is None:
         return False
@@ -99,14 +97,14 @@ else:
     celltype_key = None
     tal_labels = []
 
-# compute mask
+
 mask = None
 if celltype_key is not None:
     pattern = "|".join([re.escape(str(x)) for x in tal_labels]) if len(tal_labels) > 0 else ""
     mask = adata.obs[celltype_key].astype(str).str.contains(pattern, case=False, na=False)
     print("Found TAL count by annotation:", int(mask.sum()))
 
-# fallback: marker-based heuristic
+
 if mask is None or mask.sum() == 0:
     genes = list(adata.var_names.astype(str))
     markers = ["UMOD", "SLC12A1"]
@@ -116,17 +114,17 @@ if mask is None or mask.sum() == 0:
         print("No canonical TAL markers found; cannot auto-detect TAL cells.")
         mask = np.zeros(adata.n_obs, dtype=bool)
     else:
-        # build mask: cells expressing any of the markers above zero, or above 75th percentile
+
         expr = {}
         for g in found:
             x = adata[:, g].X
             x = np.asarray(x.todense()).reshape(-1) if sp.issparse(x) else np.asarray(x).reshape(-1)
             expr[g] = x
-        # require at least one marker positive
+
         m_any = np.zeros(adata.n_obs, dtype=bool)
         for x in expr.values():
             m_any = m_any | (x > 0)
-        # if too many cells match, use top percentile
+
         mask = np.zeros(adata.n_obs, dtype=bool) if m_any.sum() == 0 else m_any
         print("Found TAL count by marker heuristic:", int(mask.sum()))
 
@@ -134,7 +132,7 @@ if mask.sum() == 0:
     print("No TAL cells found after heuristics; aborting TAL-specific stats")
 else:
     adata_tal = adata[mask].copy()
-    # prevalence and mean
+
     if sp.issparse(adata_tal.X):
         is_expr = adata_tal.X > 0
         prevalence = np.asarray(is_expr.sum(axis=0)).reshape(-1) / float(adata_tal.n_obs)
@@ -151,9 +149,8 @@ else:
     df_stats.to_csv(out, index=False)
     print("Wrote", out)
 
-    # small embedding figure
     try:
-        # find embedding
+
         emb = None
         for k in adata.obsm:
             if "umap" in k.lower():

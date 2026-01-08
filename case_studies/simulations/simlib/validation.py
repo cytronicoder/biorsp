@@ -40,25 +40,22 @@ def validate_dataframe_for_plot(
     ValidationError
         If validation fails
     """
-    # Check exists
+
     if df is None:
         raise ValidationError(f"{name} is None")
 
-    # Check not empty
     if len(df) < min_rows:
         raise ValidationError(
             f"{name} has {len(df)} rows, but {min_rows} required. "
             f"Cannot generate plot with insufficient data."
         )
 
-    # Check required columns
     missing = [col for col in required_columns if col not in df.columns]
     if missing:
         raise ValidationError(
             f"{name} missing required columns: {missing}. " f"Available columns: {list(df.columns)}"
         )
 
-    # Check for all-NaN required columns
     for col in required_columns:
         if df[col].isna().all():
             raise ValidationError(
@@ -81,7 +78,6 @@ def log_dataframe_stats(df: pd.DataFrame, name: str = "DataFrame"):
     print(f"  Shape: {df.shape}")
     print(f"  Columns: {list(df.columns)}")
 
-    # Numeric columns stats
     numeric_cols = df.select_dtypes(include=["number"]).columns
     if len(numeric_cols) > 0:
         print("  Numeric columns summary:")
@@ -130,15 +126,14 @@ def check_estimate_convergence(
     if metric not in results_df.columns:
         return {"error": f"Metric {metric} not found in results"}
 
-    # Group by cumulative replicates
-    n_reps = results_df[replicate_col].max() + 1  # 0-indexed
+    n_reps = results_df[replicate_col].max() + 1
     values_by_rep = {}
     max_devs = []
 
     for rep in range(1, n_reps + 1):
         subset = results_df[results_df[replicate_col] < rep]
         if len(subset) > 0:
-            # For p-values, use median; for scores, use mean
+
             if "p_value" in metric or "pval" in metric.lower():
                 est = subset[metric].median()
             else:
@@ -150,7 +145,7 @@ def check_estimate_convergence(
 
     final = values_by_rep[max(values_by_rep.keys())]
     if final == 0:
-        final = 1e-6  # Avoid division by zero
+        final = 1e-6
 
     max_deviation = 0
     convergence_rep = None

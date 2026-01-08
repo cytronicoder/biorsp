@@ -61,7 +61,6 @@ def make_gene_panel(
             gene_name = f"{archetype}_{i}"
             var_names.append(gene_name)
 
-            # Generate signal field
             if archetype == "housekeeping_uniform":
                 pattern = "uniform"
                 field_params = {"base": 0.7}
@@ -80,14 +79,13 @@ def make_gene_panel(
                 field_params = {"base": 0.02}
                 target_coverage = 0.02
             else:
-                # Generic pattern
+
                 pattern = archetype
                 field_params = {}
                 target_coverage = 0.3
 
             field = generate_signal_field(coords, pattern, field_params)
 
-            # Generate counts
             expr_params = {**params, "abundance": params.get("abundance", 1e-3)}
             counts = generate_expression_from_field(
                 field, libsize, rng, expr_model="nb", params=expr_params
@@ -95,7 +93,6 @@ def make_gene_panel(
 
             X_list.append(counts)
 
-            # Record truth
             truth_rows.append(
                 {
                     "gene": gene_name,
@@ -155,21 +152,18 @@ def make_module_panel(
     var_names = []
     truth_rows = []
 
-    # Generate module genes
     for mod_idx, mod in enumerate(modules):
         mod_name = mod.get("name", f"mod_{mod_idx}")
         n_genes = mod["n_genes"]
         pattern = mod["pattern"]
         pattern_params = mod.get("params", {})
 
-        # Shared field for module
         field = generate_signal_field(coords, pattern, pattern_params)
 
         for g_idx in range(n_genes):
             gene_name = f"{mod_name}_g{g_idx}"
             var_names.append(gene_name)
 
-            # Add noise to field per gene
             noise_scale = params.get("module_noise", 0.1)
             field_noisy = np.clip(field + rng.normal(0, noise_scale, len(field)), 0, 1)
 
@@ -187,7 +181,6 @@ def make_module_panel(
                 }
             )
 
-    # Generate null genes
     for i in range(n_null):
         gene_name = f"null_{i}"
         var_names.append(gene_name)
@@ -206,7 +199,6 @@ def make_module_panel(
     X = np.column_stack(X_list)
     truth_df = pd.DataFrame(truth_rows)
 
-    # Generate edge truth
     edges = []
     for i, gene_a in enumerate(var_names):
         for j, gene_b in enumerate(var_names):
@@ -266,18 +258,15 @@ def package_as_anndata(
     n_cells, n_genes = X.shape
     assert len(var_names) == n_genes
 
-    # Build obs DataFrame
     obs_data = {"cell_id": [f"cell_{i}" for i in range(n_cells)]}
     if obs_meta:
         obs_data.update(obs_meta)
     obs_df = pd.DataFrame(obs_data)
     obs_df.index = obs_df["cell_id"]
 
-    # Build var DataFrame
     var_df = pd.DataFrame({"gene": var_names})
     var_df.index = var_names
 
-    # Create AnnData
     adata = AnnData(X=X, obs=obs_df, var=var_df)
     adata.obsm[embedding_key] = coords
 

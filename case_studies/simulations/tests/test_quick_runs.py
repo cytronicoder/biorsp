@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-# Paths
 TEST_DIR = Path(__file__).resolve().parent
 SIM_ROOT = TEST_DIR.parent
 METHODS_DIR = SIM_ROOT / "methods_paper"
@@ -19,8 +18,7 @@ def setup_teardown():
         shutil.rmtree(OUTPUT_DIR)
     OUTPUT_DIR.mkdir(parents=True)
     yield
-    # Keep outputs for inspection if failed, or clean up?
-    # For now, let's keep them so user can inspect.
+
     pass
 
 
@@ -43,32 +41,28 @@ def run_script(script_name: str, out_name: str, args: list = None):
         "--seed",
         "42",
         "--n_workers",
-        "1",  # validation issues with parallel in tests sometimes
+        "1",
     ] + args
 
-    # Run
     result = subprocess.run(
         cmd,
-        cwd=str(SIM_ROOT),  # Run from simulation root to satisfy relative imports if any
+        cwd=str(SIM_ROOT),
         env={**sys.modules["os"].environ, "PYTHONPATH": str(SIM_ROOT.parent.parent)},
         capture_output=True,
         text=True,
     )
 
-    # Check return code
     if result.returncode != 0:
         print(f"STDOUT:\n{result.stdout}")
         print(f"STDERR:\n{result.stderr}")
 
     assert result.returncode == 0, f"Script {script_name} failed"
 
-    # Check outputs
     assert (out_path / "runs.csv").exists()
     assert (out_path / "summary.csv").exists()
     assert (out_path / "manifest.json").exists()
     assert (out_path / "report.md").exists()
 
-    # Check CSV content
     import pandas as pd
 
     runs = pd.read_csv(out_path / "runs.csv")
@@ -84,7 +78,7 @@ def test_run_archetypes():
 
 
 def test_run_genegene():
-    # genegene might need more memory or time, check args
+
     run_script("run_genegene.py", "genegene")
 
 

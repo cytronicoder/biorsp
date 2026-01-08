@@ -44,15 +44,15 @@ def fpr_with_ci(
     fpr = n_reject / n
 
     if method == "wilson":
-        # Wilson score interval
-        z = 1.96  # 95% CI
+
+        z = 1.96
         denom = 1 + z**2 / n
         center = (fpr + z**2 / (2 * n)) / denom
         margin = z * np.sqrt(fpr * (1 - fpr) / n + z**2 / (4 * n**2)) / denom
         ci_low = max(0, center - margin)
         ci_high = min(1, center + margin)
     else:
-        # Clopper-Pearson
+
         ci_low = 0 if n_reject == 0 else stats.beta.ppf(0.025, n_reject, n - n_reject + 1)
         ci_high = 1 if n_reject == n else stats.beta.ppf(0.975, n_reject + 1, n - n_reject)
 
@@ -146,7 +146,6 @@ def power_with_ci(p_values: np.ndarray, alpha: float = 0.05) -> Tuple[float, flo
     n_reject = np.sum(p_valid <= alpha)
     power = n_reject / n_valid
 
-    # Wilson CI
     z = 1.96
     denom = 1 + z**2 / n_valid
     center = (power + z**2 / (2 * n_valid)) / denom
@@ -237,8 +236,7 @@ def quadrant_accuracy(
     accuracy : float
         Fraction in correct quadrant
     """
-    # Simple heuristic: high C + low S = housekeeping, low C + high S = niche, etc.
-    # This is a placeholder; real implementation needs ground truth
+
     return np.nan
 
 
@@ -263,7 +261,7 @@ def auprc(y_true: np.ndarray, y_score: np.ndarray) -> float:
 
         return average_precision_score(y_true, y_score)
     except ImportError:
-        # Manual implementation
+
         order = np.argsort(-y_score)
         y_true_sorted = y_true[order]
         n_pos = np.sum(y_true)
@@ -275,7 +273,6 @@ def auprc(y_true: np.ndarray, y_score: np.ndarray) -> float:
         precision = tp / (tp + fp)
         recall = tp / n_pos
 
-        # Compute AUC via trapezoidal rule
         return np.trapz(precision, recall)
 
 

@@ -20,7 +20,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# Path bootstrap
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -68,7 +67,7 @@ def plot_power(csv_path: Path, outdir: Path):
         fig = plotting.plot_power_curve(df, x_var="N", title="Power vs Sample Size")
         io.save_figure(fig, Path(outdir), "power_vs_N.png")
     elif "N" in df.columns and "power_mean" in df.columns:
-        # Legacy name support
+
         df = df.rename(columns={"power_mean": "power"})
         fig = plotting.plot_power_curve(df, x_var="N", title="Power vs Sample Size")
         io.save_figure(fig, Path(outdir), "power_vs_N.png")
@@ -78,7 +77,6 @@ def plot_power(csv_path: Path, outdir: Path):
         )
 
 
-# Alias for newer main
 plot_power_vs_N = plot_power
 
 
@@ -89,7 +87,7 @@ def plot_robustness(csv_path: Path, outdir: Path):
     df = pd.read_csv(csv_path)
 
     if "distortion_strength" in df.columns and "median_abs_delta" in df.columns:
-        # Noise robustness
+
         for dist_kind in df["distortion_kind"].unique():
             subset = df[df["distortion_kind"] == dist_kind]
             fig = plotting.plot_robustness_delta(
@@ -101,17 +99,15 @@ def plot_robustness(csv_path: Path, outdir: Path):
             io.save_figure(fig, Path(outdir), f"robustness_{dist_kind}.png")
 
     elif "param" in df.columns and "value" in df.columns and "similarity" in df.columns:
-        # Parameter sensitivity
+
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-        # Grid Size B
         grid_data = df[df["param"] == "theta_grid_size"]
         if not grid_data.empty:
             sns.lineplot(data=grid_data, x="value", y="similarity", hue="type", ax=axes[0])
             axes[0].set_title("Sensitivity to Grid Size (B)")
             _set_common_axes(axes[0], "Value", "Similarity")
 
-        # Sector Width delta
         width_data = df[df["param"] == "sector_width"]
         if not width_data.empty:
             sns.lineplot(data=width_data, x="value", y="similarity", hue="type", ax=axes[1])
@@ -120,7 +116,7 @@ def plot_robustness(csv_path: Path, outdir: Path):
 
         _save_fig(fig, outdir / "robustness_sensitivity")
     else:
-        # Fallback: boxplot of similarity by type if it exists
+
         if "type" in df.columns and "similarity" in df.columns:
             fig, ax = plt.subplots(figsize=(8, 6))
             sns.boxplot(data=df, x="type", y="similarity", ax=ax)
@@ -137,7 +133,7 @@ def plot_baselines(csv_path: Path, outdir: Path):
     """Plot comparison against baseline methods."""
     df = pd.read_csv(csv_path)
     metrics_list = [c for c in df.columns if c not in ["type", "gene", "replicate", "seed"]]
-    # Limit to top 3 metrics for visibility
+
     plot_metrics = metrics_list[:3]
 
     fig, axes = plt.subplots(1, max(1, len(plot_metrics)), figsize=(5 * len(plot_metrics), 4))
@@ -165,7 +161,7 @@ def plot_failure_modes(csv_path: Path, outdir: Path):
         _set_common_axes(ax, "Case", "Abstention Rate")
         _save_fig(fig, outdir / "failure_modes")
     else:
-        # Fallback: simple histogram of first numeric column
+
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         if not numeric_cols.empty:
             fig, ax = plt.subplots(figsize=(6, 4))
@@ -201,7 +197,7 @@ def plot_separability(csv_path: Path, outdir: Path):
 
 def main():
     parser = argparse.ArgumentParser(description="Plot simulation results from CSV files")
-    # Support for legacy positional args if needed, or structured dirs
+
     parser.add_argument(
         "--input-dir",
         type=str,
@@ -221,7 +217,6 @@ def main():
         help="Which plots: all|calibration|power|robustness|baselines|separability|failure",
     )
 
-    # Also support positional for backward compatibility if 2 or 3 args provided
     if len(sys.argv) >= 3 and not sys.argv[1].startswith("-"):
         parser = argparse.ArgumentParser()
         parser.add_argument("csv_path", type=Path)
