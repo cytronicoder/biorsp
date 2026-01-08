@@ -92,9 +92,16 @@ def interpret_calibration(summary_df: pd.DataFrame, alpha: float = 0.05) -> str:
         "We test this across different spatial shapes, distortions, and null models.\n"
     )
 
-    # FPR analysis
-    fpr_mean = summary_df["fpr_mean"].mean()
-    fpr_max = summary_df["fpr_mean"].max()
+    # FPR analysis - support both old (fpr_mean) and new (fpr_0p05) schema
+    fpr_col = "fpr_0p05" if "fpr_0p05" in summary_df.columns else "fpr_mean"
+    fpr_values = summary_df[fpr_col].dropna()
+
+    if len(fpr_values) == 0:
+        lines.append("⚠️ **No FPR data available:** All tests abstained.")
+        return "\n".join(lines)
+
+    fpr_mean = fpr_values.mean()
+    fpr_max = fpr_values.max()
 
     if fpr_mean < alpha * 1.5:
         lines.append(
@@ -110,19 +117,31 @@ def interpret_calibration(summary_df: pd.DataFrame, alpha: float = 0.05) -> str:
             f"\n⚠️ Some conditions show FPR up to {fpr_max:.3f}, indicating potential miscalibration."
         )
 
-    # KS test
-    ks_pval_mean = (
-        summary_df["ks_pval_mean"].mean() if "ks_pval_mean" in summary_df.columns else None
-    )
-    if ks_pval_mean is not None:
-        if ks_pval_mean > 0.1:
-            lines.append(
-                f"\n✅ **KS test:** P-values appear uniformly distributed (mean KS p = {ks_pval_mean:.3f})"
-            )
-        else:
-            lines.append(
-                f"\n⚠️ **KS test:** Deviation from uniform (mean KS p = {ks_pval_mean:.3f})"
-            )
+    # Include multi-alpha info if available
+    if "fpr_0p01" in summary_df.columns:
+        fpr_01_values = summary_df["fpr_0p01"].dropna()
+        if len(fpr_01_values) > 0:
+            lines.append(f"\n📊 **At α=0.01:** Mean FPR = {fpr_01_values.mean():.3f}")
+
+    # KS test - check for different column name variants
+    ks_col = None
+    for col_name in ["ks_pval_mean", "ks_pval"]:
+        if col_name in summary_df.columns:
+            ks_col = col_name
+            break
+
+    if ks_col is not None:
+        ks_values = summary_df[ks_col].dropna()
+        if len(ks_values) > 0:
+            ks_pval_mean = ks_values.mean()
+            if ks_pval_mean > 0.1:
+                lines.append(
+                    f"\n✅ **KS test:** P-values appear uniformly distributed (mean KS p = {ks_pval_mean:.3f})"
+                )
+            else:
+                lines.append(
+                    f"\n⚠️ **KS test:** Deviation from uniform (mean KS p = {ks_pval_mean:.3f})"
+                )
 
     lines.append("\n### Recommended actions\n")
     if fpr_mean < alpha * 1.5:

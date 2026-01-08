@@ -53,6 +53,9 @@ Sweeps:
 
 __version__ = "3.0.0"
 
+# Cache
+from .cache import GeometryCache, clear_cache, get_cache
+
 # Datasets
 from .datasets import make_gene_panel, make_module_panel, package_as_anndata
 
@@ -85,11 +88,15 @@ from .geometry import compute_polar, radial_density_proxy
 
 # I/O
 from .io import (
+    REQUIRED_COLUMNS,
+    SCHEMA_VERSION,
     ensure_output_dir,
     load_manifest,
     load_runs_csv,
     load_summary_csv,
     save_figure,
+    serialize_biorsp_config,
+    validate_output_schema,
     write_manifest,
     write_runs_csv,
     write_summary_csv,
@@ -187,6 +194,10 @@ __all__ = [
     "plot_robustness_delta",
     "plot_spatial_embedding",
     # I/O
+    "REQUIRED_COLUMNS",
+    "SCHEMA_VERSION",
+    "serialize_biorsp_config",
+    "validate_output_schema",
     "ensure_output_dir",
     "write_runs_csv",
     "write_summary_csv",
@@ -208,4 +219,8 @@ __all__ = [
     "aggregate_replicates",
     "stratify_by",
     "replicate_seed",
+    # Cache
+    "GeometryCache",
+    "clear_cache",
+    "get_cache",
 ]

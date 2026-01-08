@@ -4,12 +4,15 @@ Plotting utilities for simulation benchmarks.
 Provides matplotlib figure generation for QQ plots, power curves, confusion matrices, PR curves.
 """
 
+import logging
 from typing import Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
+
+logger = logging.getLogger(__name__)
 
 
 def plot_qq(
@@ -40,6 +43,14 @@ def plot_qq(
     fig : Figure
         Matplotlib figure
     """
+    if len(expected) == 0 or len(observed) == 0:
+        logger.warning(
+            f"Empty data for QQ plot: expected={len(expected)}, observed={len(observed)}"
+        )
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "No Data for QQ Plot", ha="center", va="center")
+        return fig
+
     fig, ax = plt.subplots(figsize=figsize)
 
     # Plot diagonal
@@ -95,6 +106,12 @@ def plot_fpr_grid(
     fig : Figure
         Matplotlib figure
     """
+    if fpr_df.empty:
+        logger.warning(f"Empty DataFrame for FPR Grid: {title}")
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "No Data for FPR Grid", ha="center", va="center")
+        return fig
+
     pivot = fpr_df.pivot(index=row_var, columns=col_var, values="fpr")
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -154,6 +171,12 @@ def plot_power_curve(
     fig : Figure
         Matplotlib figure
     """
+    if power_df.empty:
+        logger.warning(f"Empty DataFrame for Power Curve: {title}")
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "No Data for Power Curve", ha="center", va="center")
+        return fig
+
     fig, ax = plt.subplots(figsize=figsize)
 
     if hue_var is None:
@@ -212,6 +235,12 @@ def plot_confusion_matrix(
     fig : Figure
         Matplotlib figure
     """
+    if cm_df.empty:
+        logger.warning(f"Empty Confusion Matrix: {title}")
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "Empty Confusion Matrix", ha="center", va="center")
+        return fig
+
     if normalize:
         cm_plot = cm_df.div(cm_df.sum(axis=1), axis=0)
         cmap = "Blues"
@@ -318,6 +347,12 @@ def plot_robustness_delta(
     fig : Figure
         Matplotlib figure
     """
+    if delta_df.empty:
+        logger.warning(f"Empty DataFrame for Robustness Plot: {title}")
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.text(0.5, 0.5, "No Data for Robustness", ha="center", va="center")
+        return fig
+
     fig, ax = plt.subplots(figsize=figsize)
 
     if hue_var is None:
