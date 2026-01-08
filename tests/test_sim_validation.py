@@ -29,7 +29,6 @@ def test_monotonic_power_with_N():
                 detections += 1
         powers.append(detections / n_reps)
 
-    # Power at N=5000 should be >= power at N=500
     assert powers[1] >= powers[0]
 
 
@@ -45,7 +44,6 @@ def test_rotation_invariance():
     radar_base = compute_rsp_radar(r_base, theta_base, y)
     summ_base = compute_scalar_summaries(radar_base)
 
-    # Rotate 90 degrees
     angle = np.pi / 2
     c, s = np.cos(angle), np.sin(angle)
     R = np.array([[c, -s], [s, c]])
@@ -55,14 +53,11 @@ def test_rotation_invariance():
     radar_rot = compute_rsp_radar(r_rot, theta_rot, y)
     summ_rot = compute_scalar_summaries(radar_rot)
 
-    # Anisotropy should be very close
     assert np.isclose(summ_base.anisotropy, summ_rot.anisotropy, rtol=1e-2)
 
-    # Peak angle should shift by ~90 degrees (modulo 2pi)
-    # Use peak_distal_angle for rim pattern
     diff = (summ_rot.peak_distal_angle - summ_base.peak_distal_angle) % (2 * np.pi)
-    # 90 deg is pi/2
-    assert np.isclose(diff, np.pi / 2, atol=0.2)  # Allow some noise due to binning
+
+    assert np.isclose(diff, np.pi / 2, atol=0.2)
 
 
 if __name__ == "__main__":

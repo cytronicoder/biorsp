@@ -15,7 +15,7 @@ def test_sigma_column_in_simulation_csv():
 
     This is a regression test for the per-sigma plotting feature.
     """
-    # Create a minimal simulation result DataFrame
+
     data = {
         "variant": ["wedge", "wedge", "rim", "rim"],
         "beta": [0.5, 1.0, 0.5, 1.0],
@@ -28,17 +28,14 @@ def test_sigma_column_in_simulation_csv():
 
     df = pd.DataFrame(data)
 
-    # Verify required columns exist
     assert "sigma_deg" in df.columns, "sigma_deg column missing"
     assert "variant" in df.columns, "variant column missing"
     assert "beta" in df.columns, "beta column missing"
     assert "A_bg" in df.columns, "A_bg column missing"
 
-    # Verify we can group by sigma
     grouped = df.groupby(["variant", "sigma_deg"])
     assert len(grouped) > 0, "Grouping by variant and sigma_deg failed"
 
-    # Verify each group has the expected structure
     for (variant, sigma), group in grouped:
         assert variant in ["wedge", "rim"], f"Unexpected variant: {variant}"
         assert sigma in [10, 20], f"Unexpected sigma: {sigma}"
@@ -52,14 +49,14 @@ def test_per_sigma_plotting_logic():
 
     Verifies that the grouping and aggregation work correctly.
     """
-    # Simulate multiple replicates
+
     np.random.seed(42)
     data = []
     for variant in ["wedge", "rim"]:
         for beta in [0.5, 1.0, 1.5]:
             for sigma_deg in [10, 20, 40]:
                 for replicate in range(5):
-                    # Simulate anisotropy that increases with beta
+
                     base_aniso = beta * 0.15
                     noise = np.random.normal(0, 0.02)
                     data.append(
@@ -74,7 +71,6 @@ def test_per_sigma_plotting_logic():
 
     df = pd.DataFrame(data)
 
-    # Test grouping and aggregation (what the plotting code does)
     variants = ["wedge", "rim"]
     for variant in variants:
         sub = df[df["variant"] == variant]
@@ -87,11 +83,9 @@ def test_per_sigma_plotting_logic():
             sigma_sub = sub[sub["sigma_deg"] == sigma_val]
             assert not sigma_sub.empty, f"No data for sigma={sigma_val}"
 
-            # Group by beta and compute statistics
             grouped = sigma_sub.groupby("beta")["A_bg"].agg(["mean", "sem", "count"])
             assert len(grouped) == 3, f"Expected 3 beta values, got {len(grouped)}"
 
-            # Verify statistics are reasonable
             for beta in grouped.index:
                 mean = grouped.loc[beta, "mean"]
                 sem = grouped.loc[beta, "sem"]
@@ -101,7 +95,6 @@ def test_per_sigma_plotting_logic():
                 assert sem >= 0, f"Negative SEM for beta={beta}"
                 assert count == 5, f"Expected 5 replicates, got {count}"
 
-                # Mean should increase with beta (roughly)
                 assert mean > 0, f"Expected positive anisotropy for beta={beta}"
 
 
@@ -109,7 +102,7 @@ def test_plotting_handles_missing_data():
     """
     Test that plotting gracefully handles missing data or empty groups.
     """
-    # Create sparse data
+
     data = {
         "variant": ["wedge", "wedge"],
         "beta": [0.5, 1.0],
@@ -119,11 +112,9 @@ def test_plotting_handles_missing_data():
 
     df = pd.DataFrame(data)
 
-    # Try to access a variant that doesn't exist
     sub = df[df["variant"] == "nonexistent"]
     assert sub.empty, "Should get empty dataframe for missing variant"
 
-    # Try to access a sigma that doesn't exist in a variant
     sub = df[df["variant"] == "wedge"]
     sigma_sub = sub[sub["sigma_deg"] == 999]
     assert sigma_sub.empty, "Should get empty dataframe for missing sigma"

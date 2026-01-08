@@ -29,11 +29,10 @@ def test_normalize_radii_outliers():
     r = np.array([1.0, 1.1, 1.2, 1.3, 100.0])
     r_hat, stats = normalize_radii(r)
 
-    # Median is 1.2
     assert stats["median_r"] == 1.2
-    # IQR should be small (0.2), not affected by 100.0
+
     assert np.allclose(stats["iqr_r"], 0.2)
-    assert r_hat[4] > 100.0  # Outlier is very far in normalized units
+    assert r_hat[4] > 100.0
 
 
 def test_normalize_radii_non_finite():
@@ -59,11 +58,8 @@ def test_normalize_radii_reproducibility():
 
 def test_normalize_radii_fallback_mad():
     """Test fallback to MAD when IQR is zero but data is not constant."""
-    # Data with many ties at the median, but some variation
+
     r = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0])
-    # IQR will be 0 because Q1=1.0, Q3=1.0
-    # MAD will be median(|r - 1.0|) = median([0, 0, 0, 0, 0, 0, 0, 1]) = 0
-    # Wait, if MAD is also 0, it falls back to std.
 
     r_hat, stats = normalize_radii(r)
     assert stats["iqr_r"] > 0.0

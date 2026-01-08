@@ -14,12 +14,10 @@ def test_compute_rsp_with_precomputed_indices_matches():
         r, theta, y, n_sectors=180, delta_deg=20.0, min_fg_sector=3, min_bg_sector=20
     )
 
-    # Compute radar without reuse
     radar_a = compute_rsp_radar(
         r, theta, y, B=180, delta_deg=20.0, min_fg_sector=3, min_bg_sector=20
     )
 
-    # Compute radar with reuse of sector indices
     radar_b = compute_rsp_radar(
         r,
         theta,
@@ -31,11 +29,9 @@ def test_compute_rsp_with_precomputed_indices_matches():
         sector_indices=adequacy.sector_indices,
     )
 
-    # Counts should match
     assert np.all(radar_a.counts_fg == radar_b.counts_fg)
     assert np.all(radar_a.counts_bg == radar_b.counts_bg)
 
-    # RSP values should match where either is finite
     mask = np.isfinite(radar_a.rsp) | np.isfinite(radar_b.rsp)
     for a, b in zip(radar_a.rsp[mask], radar_b.rsp[mask]):
         if np.isfinite(a) and np.isfinite(b):

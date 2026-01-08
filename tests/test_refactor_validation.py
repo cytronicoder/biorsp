@@ -39,23 +39,17 @@ def test_permutation_determinism():
 
 def test_finite_permutation_correction():
     """Verify p = (count_ge + 1) / (n_perm + 1)."""
-    # Mock observed and nulls
-    # If obs = 0.5 and nulls = [0.4, 0.5, 0.6], count_ge = 2.
-    # p = (2 + 1) / (3 + 1) = 0.75.
 
-    # We can't easily mock the internal loop without monkeypatching,
-    # but we can check the result of a known small case.
     n = 50
     r = np.linspace(0, 1, n)
     theta = np.linspace(-np.pi, np.pi, n)
     y = np.zeros(n)
-    y[n // 2 :] = 1  # Some signal
+    y[n // 2 :] = 1
 
     n_perm = 9
     config = BioRSPConfig(B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1)
     res = compute_p_value(r, theta, y, n_perm=n_perm, seed=42, config=config)
 
-    # p-value must be a multiple of 1/(n_perm + 1) = 0.1
     assert np.isclose((res.p_value * (n_perm + 1)) % 1, 0) or np.isclose(
         (res.p_value * (n_perm + 1)) % 1, 1
     )
@@ -66,7 +60,7 @@ def test_weighted_quantile_binary_match():
     from biorsp.utils.helpers import weighted_quantile
 
     values = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-    weights = np.array([1, 0, 1, 0, 1])  # Use 1, 3, 5
+    weights = np.array([1, 0, 1, 0, 1])
 
     q = 0.5
     wq = weighted_quantile(values, weights, q)
@@ -88,6 +82,5 @@ def test_compute_rsp_radar_kwargs_compatibility():
     theta = rng.uniform(-np.pi, np.pi, n)
     y = rng.choice([0, 1], n)
 
-    # This should not raise TypeError
     res = compute_rsp_radar(r, theta, y, B=10, delta_deg=45.0)
     assert len(res.rsp) == 10

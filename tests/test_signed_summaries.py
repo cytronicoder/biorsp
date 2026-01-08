@@ -79,7 +79,7 @@ def test_signed_missing_sectors():
     M_total = 20
     M_valid = 10
     R = np.ones(M_total)
-    R[M_valid:] = -1.0  # These should be ignored
+    R[M_valid:] = -1.0
     valid_mask = np.zeros(M_total, dtype=bool)
     valid_mask[:M_valid] = True
 

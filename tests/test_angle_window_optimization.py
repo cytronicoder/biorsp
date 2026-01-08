@@ -53,8 +53,7 @@ def naive_rsp(r, theta, y, B, delta_deg, min_fg_sector, min_bg_sector):
         medB = np.median(r_bg)
         sign = 1.0 if medB > medF else -1.0
 
-        # Consistent with engine.py: stat = w1 / (1.0 + iqr_floor)
-        global_iqr = iqr(r[~np.asarray(y).astype(bool)])  # Global background
+        global_iqr = iqr(r[~np.asarray(y).astype(bool)])
         iqr_floor = max(0.1 * global_iqr, 1e-8)
 
         rsp[b] = sign * w1 / (1.0 + iqr_floor)
@@ -91,12 +90,12 @@ def test_compute_rsp_radar_matches_naive():
         min_bg_sector=20,
     )
     rsp_naive = naive_rsp(r, theta, y, B=180, delta_deg=20.0, min_fg_sector=5, min_bg_sector=20)
-    # Compare where neither is NaN
+
     mask = np.isfinite(rsp_opt.rsp) | np.isfinite(rsp_naive)
-    # Differences should be small where both compute values
+
     for a, b in zip(rsp_opt.rsp[mask], rsp_naive[mask]):
         if np.isfinite(a) and np.isfinite(b):
             assert np.isclose(a, b, rtol=1e-6, atol=1e-8)
         else:
-            # One may be NaN while other is NaN; allow that
+
             assert np.isnan(a) or np.isnan(b)
