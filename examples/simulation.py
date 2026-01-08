@@ -20,21 +20,19 @@ from biorsp.preprocess.geometry import geometric_median
 
 @dataclass
 class SimulationConfig:
-    # Reverted to original large defaults
+
     n_cells: int = 10000
     n_genes: int = 100
     n_permutations: int = 1000
     seed: int = 42
 
-    # BioRSP defaults
     B: int = 360
     delta_deg: float = 20.0
     n_fg_min: int = 10
     n_bg_min: int = 50
     n_fg_tot_min: int = 100
 
-    # Debug-friendly override: set environment var SIM_DEBUG to enable quick runs
-    debug_override: Optional[Tuple[int, int]] = None  # (n_genes, n_permutations)
+    debug_override: Optional[Tuple[int, int]] = None
 
     def to_biorsp_config(self) -> BioRSPConfig:
         return BioRSPConfig(
@@ -58,20 +56,9 @@ def generate_geometry_elliptical(
     """
     rng = np.random.default_rng(seed)
 
-    # Rejection sampling for density gradient
-    # Proposal: Gaussian
-    # Target: Gaussian * exp(gamma * x)
-    # This is just a shifted Gaussian, but let's follow the spec's rejection steps if needed.
-    # Actually, Gaussian * exp(gamma * x) is proportional to a shifted Gaussian.
-    # f(x) ~ exp(-x^2/2s^2 + gamma*x) = exp(-(x^2 - 2s^2 gamma x)/2s^2)
-    # = exp(-(x - s^2 gamma)^2 / 2s^2) * const.
-    # So we can just sample from shifted Gaussian directly.
-
     sigma_y = 1.0
     sigma_x = sigma_ratio * sigma_y
 
-    # Shifted mean for x due to gradient exp(gamma * z_x)
-    # If z_x ~ N(0, sigma_x^2), then z_x * exp(gamma * z_x) ~ N(gamma * sigma_x^2, sigma_x^2)
     mu_x = gamma * (sigma_x**2)
 
     x = rng.normal(mu_x, sigma_x, n)
@@ -79,7 +66,6 @@ def generate_geometry_elliptical(
 
     z = np.column_stack((x, y))
 
-    # Standardize to unit median radius
     radii = np.linalg.norm(z, axis=1)
     med_r = np.median(radii)
     if med_r > 0:
@@ -117,12 +103,10 @@ def generate_geometry_peanut(n: int, separation: float = 1.5, seed: int = 0) -> 
     n1 = rng.binomial(n, 0.5)
     n2 = n - n1
 
-    # Lobe 1: centered at (-sep/2, 0)
     z1 = rng.normal(0, 1, (n1, 2))
-    z1[:, 0] = z1[:, 0] * 0.7 + (-separation / 2)  # narrower in x
-    z1[:, 1] = z1[:, 1] * 1.2  # taller in y
+    z1[:, 0] = z1[:, 0] * 0.7 + (-separation / 2)
+    z1[:, 1] = z1[:, 1] * 1.2
 
-    # Lobe 2: centered at (sep/2, 0)
     z2 = rng.normal(0, 1, (n2, 2))
     z2[:, 0] = z2[:, 0] * 0.7 + (separation / 2)
     z2[:, 1] = z2[:, 1] * 1.2
@@ -130,9 +114,6 @@ def generate_geometry_peanut(n: int, separation: float = 1.5, seed: int = 0) -> 
     z = np.vstack((z1, z2))
     rng.shuffle(z)
 
-    # Mild nonlinear warp to remove obvious separability?
-    # "apply a mild nonlinear warp"
-    # Let's bend it slightly: y' = y + 0.2 * x^2
     z[:, 1] += 0.2 * (z[:, 0] ** 2)
 
     return z
@@ -163,10 +144,9 @@ def apply_distortion_truncation(z: np.ndarray, c: float = 1.0, seed: int = 0) ->
     mask = z[:, 0] <= c
     z_keep = z[mask]
 
-    # Resample to restore size n
     n_target = z.shape[0]
     if len(z_keep) == 0:
-        return z  # Should not happen in reasonable settings
+        return z
 
     indices = rng.choice(len(z_keep), size=n_target, replace=True)
     return z_keep[indices]
@@ -203,17 +183,15 @@ def generate_umis(
 
     donors = rng.integers(0, n_donors, n)
 
-    # Donor-specific means
     mus = np.full(n, mu_u)
     if n_donors > 1 and donor_shift != 0:
-        # Shift even donors up, odd donors down (or just shift half)
+
         is_shifted = donors % 2 == 1
         mus[is_shifted] += donor_shift
 
-    # Spatial structure
     if z is not None and delta_spatial != 0:
         r = np.linalg.norm(z, axis=1)
-        # Standardize r to have mean 0, std 1 for predictable delta effect
+
         r_std = (r - np.mean(r)) / (np.std(r) + 1e-8)
         mus += delta_spatial * r_std
 
@@ -239,10 +217,6 @@ def sample_nb(mu: np.ndarray, phi: float, seed: int) -> np.ndarray:
     n_param = phi
     p_param = n_param / (n_param + mu)
 
-    # Handle mu=0 case
-    # If mu is 0, p=1, result is 0.
-    # p_param can be 0 if mu is inf, but mu is finite.
-
     return rng.negative_binomial(n_param, p_param)
 
 
@@ -267,7 +241,7 @@ def generate_expression_null_A(
     If Null A has NO depth effect, it's an idealized theoretical null.
     Let's implement generic Null with kappa.
     """
-    # Implementing as generic null with kappa=0
+
     return generate_expression_null_B(umis, lambda_0, kappa=0.0, phi=phi, seed=seed)
 
 
@@ -294,22 +268,13 @@ def generate_expression_null_C(
 ) -> np.ndarray:
     """Null C: Donor-driven. lambda_i = lambda_0,d(i)."""
     if donor_effects is None:
-        # Default: random multipliers for each donor
-        rng_d = np.random.default_rng(seed)  # distinct seed for effects?
+
+        rng_d = np.random.default_rng(seed)
         n_donors = donors.max() + 1
         donor_effects = rng_d.lognormal(0, 0.5, n_donors)
 
     lam = lambda_0 * donor_effects[donors]
-    # Usually still scales with library size? Spec says "independent of z_i".
-    # Doesn't explicitly say independent of u_i, but Null B was the depth one.
-    # Let's assume it scales with u_i as well, otherwise it's just donor batch effect.
-    # "lambda_i = lambda_0,d(i) ... independent of z_i".
-    # Let's assume standard depth scaling is present unless kappa is specified.
-    # But let's stick to the formula: lambda_i = lambda_0,d(i).
-    # If we want depth scaling, we should probably multiply by u_i/med_u.
-    # Let's add depth scaling implicitly or assume lambda_0,d includes it?
-    # Given Null B is "depth only", Null C is likely "donor only" or "donor + depth".
-    # Let's assume it includes depth scaling (kappa=1) because that's realistic.
+
     med_u = np.median(umis)
     lam = lam * (umis / med_u)
 
@@ -319,11 +284,11 @@ def generate_expression_null_C(
 def generate_expression_alt(
     z: np.ndarray,
     umis: np.ndarray,
-    variant: str = "wedge",  # wedge, rim, bipolar
+    variant: str = "wedge",
     theta_dagger: float = 0.0,
     sigma_theta: float = np.deg2rad(20),
     beta_theta: float = 1.0,
-    beta_r: float = 1.0,  # usually 1 or -1 implicitly in spec, but we can make it explicit
+    beta_r: float = 1.0,
     kappa: float = 1.0,
     lambda_0: float = 0.1,
     phi: float = 10.0,
@@ -334,7 +299,7 @@ def generate_expression_alt(
     Unified Alternative Generator.
     log lambda = beta_0 + beta_theta * h(theta) + beta_r * q(r) + kappa * log u
     """
-    # Compute theta, r relative to vantage point v (center)
+
     if center is None:
         center = np.zeros(2)
 
@@ -342,26 +307,22 @@ def generate_expression_alt(
     r = np.linalg.norm(z_centered, axis=1)
     theta = np.arctan2(z_centered[:, 1], z_centered[:, 0])
 
-    # h(theta)
     def dist_s1(t1, t2):
         d = np.abs(t1 - t2)
         return np.minimum(d, 2 * np.pi - d)
 
     if variant == "wedge":
-        # h = exp(-0.5 * (dist/sigma)^2)
-        # q = -r
+
         d = dist_s1(theta, theta_dagger)
         h = np.exp(-0.5 * (d / sigma_theta) ** 2)
         q = -r
     elif variant == "rim":
-        # h same
-        # q = +r
+
         d = dist_s1(theta, theta_dagger)
         h = np.exp(-0.5 * (d / sigma_theta) ** 2)
         q = r
     elif variant == "bipolar":
-        # h = exp(...) - exp(... + pi)
-        # q = 0 (purely angular)
+
         d1 = dist_s1(theta, theta_dagger)
         d2 = dist_s1(theta, theta_dagger + np.pi)
         h = np.exp(-0.5 * (d1 / sigma_theta) ** 2) - np.exp(-0.5 * (d2 / sigma_theta) ** 2)
@@ -369,17 +330,11 @@ def generate_expression_alt(
     else:
         raise ValueError(f"Unknown variant {variant}")
 
-    # log lambda
-    # beta_0 = log(lambda_0)
-    # log u term: kappa * log(u/med_u) to keep scale
     med_u = np.median(umis)
     log_lam = np.log(lambda_0) + beta_theta * h + beta_r * q + kappa * np.log(umis / med_u)
     lam = np.exp(log_lam)
 
     return sample_nb(lam, phi, seed)
-
-
-# --- Core Analysis Function ---
 
 
 @dataclass
@@ -411,7 +366,6 @@ def analyze_gene(
     center: Optional[np.ndarray] = None,
 ) -> GeneResult:
 
-    # 1. Compute Vantage and Angles
     if center is None:
         if config.vantage == "geometric_median":
             center, _, _ = geometric_median(
@@ -423,16 +377,13 @@ def analyze_gene(
     z_centered = z - center
     r = np.linalg.norm(z_centered, axis=1)
     theta = np.arctan2(z_centered[:, 1], z_centered[:, 0])
-    theta = (theta + 2 * np.pi) % (2 * np.pi)  # [0, 2pi)
+    theta = (theta + 2 * np.pi) % (2 * np.pi)
 
-    # 2. Define Foreground
-    # Using quantile
     threshold = np.quantile(x, config.foreground_quantile)
     y = x > 0 if threshold == 0 else x >= threshold
 
     n_fg = np.sum(y)
 
-    # Check total adequacy
     if n_fg < config.min_fg_total:
         return GeneResult(
             gene_id=gene_id,
@@ -449,8 +400,6 @@ def analyze_gene(
             variant=variant,
         )
 
-    # 3. Compute Observed Radar
-    # Now passing r, theta, y to compute_rsp_radar
     radar = compute_rsp_radar(
         r,
         theta,
@@ -462,17 +411,12 @@ def analyze_gene(
     )
 
     # Note: compute_rsp_radar now returns NaNs for inadequate sectors.
-    # We do NOT set them to 0.0 anymore.
 
     summaries = compute_scalar_summaries(radar)
 
-    # Adequacy fraction (fraction of sectors that are not NaN)
     adequate_mask = ~np.isnan(radar.rsp)
     adequacy_fraction = np.mean(adequate_mask)
 
-    # 4. Compute P-values
-    # 4. Compute P-values
-    # Naive
     p_naive, _, _, _ = compute_p_value(
         r,
         theta,
@@ -480,7 +424,7 @@ def analyze_gene(
         B=config.n_angles,
         delta_deg=config.sector_width_deg,
         n_perm=config.n_permutations,
-        umi_counts=None,  # Naive
+        umi_counts=None,
         seed=config.seed + gene_id,
         min_fg_sector=config.min_fg_sector,
         min_bg_sector=config.min_bg_sector,
@@ -495,7 +439,7 @@ def analyze_gene(
             B=config.n_angles,
             delta_deg=config.sector_width_deg,
             n_perm=config.n_permutations,
-            umi_counts=umis,  # Stratified
+            umi_counts=umis,
             seed=config.seed + gene_id,
             min_fg_sector=config.min_fg_sector,
             min_bg_sector=config.min_bg_sector,
@@ -517,15 +461,11 @@ def analyze_gene(
     )
 
 
-# --- Worker wrappers for parallel execution ---
-
-
 def worker_analyze_null(args: Dict) -> Dict:
     """Worker wrapper for null gene analysis."""
-    # Import here so top-level import cost is minimal and ruff doesn't complain
+
     from multiprocessing import shared_memory
 
-    # Attach geometry
     if "shm_z" in args:
         info_z = args["shm_z"]
         shm_z = shared_memory.SharedMemory(name=info_z["name"])
@@ -533,7 +473,6 @@ def worker_analyze_null(args: Dict) -> Dict:
     else:
         z = args["z"]
 
-    # Attach umis
     if "shm_umis" in args:
         info_u = args["shm_umis"]
         shm_u = shared_memory.SharedMemory(name=info_u["name"])
@@ -541,7 +480,6 @@ def worker_analyze_null(args: Dict) -> Dict:
     else:
         umis = args["umis"]
 
-    # Attach donors if present
     donors = args.get("donors")
 
     config = args["config"]
@@ -550,16 +488,15 @@ def worker_analyze_null(args: Dict) -> Dict:
     seed = args["seed"]
     null_type = args.get("null_type", "A")
 
-    # Wrap work in try/finally to ensure shared memory is always closed
     try:
-        # Generate expression based on null type
+
         if null_type == "A":
             x = generate_expression_null_A(umis, seed=seed)
         elif null_type == "B":
             x = generate_expression_null_B(umis, kappa=1.0, seed=seed)
         elif null_type == "C":
             if donors is None:
-                # Fallback if no donors provided
+
                 x = generate_expression_null_B(umis, seed=seed)
             else:
                 x = generate_expression_null_C(umis, donors, seed=seed)
@@ -573,7 +510,7 @@ def worker_analyze_null(args: Dict) -> Dict:
         d["seed"] = seed
         return d
     finally:
-        # Close shared memory handles in child when attached
+
         try:
             if "shm_z" in args:
                 shm_z.close()
@@ -613,7 +550,6 @@ def worker_analyze_planted(args: Dict) -> Dict:
     seed = args["seed"]
     center = args.get("center")
 
-    # Generate expression
     x = generate_expression_alt(
         z=z,
         umis=umis,
@@ -639,9 +575,9 @@ def worker_analyze_planted(args: Dict) -> Dict:
         )
 
         d = asdict(res)
-        # Propagate meta inputs so plotting can group by them
+
         d["sigma_deg"] = args.get("sigma_deg")
-        # Unique job key for checkpointing
+
         d["job_key"] = args.get(
             "job_key", f"{variant}_b{beta}_s{args.get('sigma_deg', '')}_g{gene_id}"
         )
@@ -657,9 +593,6 @@ def worker_analyze_planted(args: Dict) -> Dict:
                 shm_u.close()
         except Exception:
             pass
-
-
-# --- Shared-memory helpers ---
 
 
 def _create_shared_arrays(z: np.ndarray, umis: np.ndarray) -> Dict:
@@ -692,9 +625,6 @@ def _cleanup_shared(shm_objs: List):
             pass
 
 
-# --- Checkpointing & robustness helpers ---
-
-
 def write_batch_to_csv(results: List[Dict], outpath: str):
     """Append a list of result dicts to CSV (creates file if missing)."""
     if not results:
@@ -722,10 +652,7 @@ def get_completed_job_keys(outpath: str) -> set:
     return set(df["job_key"].dropna().astype(str).tolist())
 
 
-BATCH_SIZE = 200  # number of genes/results to accumulate before flushing to disk
-
-
-# --- Simulation Families ---
+BATCH_SIZE = 200
 
 
 def run_family_1_null_calibration(
@@ -738,8 +665,7 @@ def run_family_1_null_calibration(
 ):
     print("Running Family 1: Null Calibration (Null A, B, C)...")
 
-    # Grid parameters
-    n_sizes = [1000, 3000]  # Reduced for default run, spec says 10000 too
+    n_sizes = [1000, 3000]
     if config.n_cells not in n_sizes:
         n_sizes = [config.n_cells]
 
@@ -751,38 +677,31 @@ def run_family_1_null_calibration(
     for n in n_sizes:
         print(f"  Size n={n}")
 
-        # Generate geometries once per size
         geom_data = {}
         geom_data["Elliptical"] = generate_geometry_elliptical(n, seed=config.seed)
         geom_data["Crescent"] = generate_geometry_crescent(n, seed=config.seed)
         geom_data["Peanut"] = generate_geometry_peanut(n, seed=config.seed)
 
-        # Generate UMIs and Donors
-        # Case 1: Balanced donors
         umis_bal, donors_bal = generate_umis(n, n_donors=4, donor_shift=0.0, seed=config.seed)
-        # Case 2: Shifted donors (for Null C stress test)
+
         umis_shift, donors_shift = generate_umis(n, n_donors=4, donor_shift=1.0, seed=config.seed)
 
         for geom_name in geometries:
             z = geom_data[geom_name]
 
-            # Generate structured UMIs for THIS geometry for Null B
-            # This ensures depth confounding is aligned with the specific geometry
             umis_struct, _ = generate_umis(n, z=z, delta_spatial=1.0, seed=config.seed)
 
-            # Generate shifted Z for Null C
-            # This creates donor-structured geometry to test donor confounding
             z_shifted = apply_donor_shifts(z, donors_shift, seed=config.seed)
 
             for null_type in null_types:
-                # Select UMI/Donor/Z set
+
                 if null_type == "C":
                     current_z = z_shifted
                     current_umis = umis_shift
                     current_donors = donors_shift
                     scenario = f"{geom_name}_Null{null_type}_Shifted"
                 elif null_type == "B":
-                    # Use structured UMIs for Null B on ALL geometries
+
                     current_z = z
                     current_umis = umis_struct
                     current_donors = donors_bal
@@ -795,7 +714,6 @@ def run_family_1_null_calibration(
 
                 print(f"    Scenario: {scenario}")
 
-                # Save inputs for this scenario so plots can reconstruct signals later
                 inputs_dir = os.path.join(outdir, "inputs")
                 os.makedirs(inputs_dir, exist_ok=True)
                 zfile = os.path.join(inputs_dir, f"{scenario}_z.npy")
@@ -849,7 +767,7 @@ def run_family_1_null_calibration(
                                 res = worker_analyze_null(args)
                             except Exception as e:
                                 print(f"Job failed {args.get('job_key')}: {e}")
-                                # Log error to disk for auditing
+
                                 try:
                                     with open(os.path.join(outdir, "errors.log"), "a") as fh:
                                         fh.write(f"{args.get('job_key')}\t{e}\n")
@@ -895,7 +813,7 @@ def run_family_1_null_calibration(
                                 results = []
                         pool.shutdown(wait=True)
                 finally:
-                    # flush remaining
+
                     if results:
                         write_batch_to_csv(results, outcsv)
                         results = []
@@ -903,20 +821,17 @@ def run_family_1_null_calibration(
                         _cleanup_shared(shm_info["shm_objs"])
 
     outpath = os.path.join(outdir, "family_1_null_calibration.csv")
-    # Flush any remaining in-memory results
+
     if results:
         write_batch_to_csv(results, outpath)
         results = []
 
     df = pd.read_csv(outpath) if os.path.exists(outpath) else pd.DataFrame([])
 
-    # Plotting: QQ Plots for Null B (Depth)
-    # Filter for Null B Structured
     df_b = df[df["geometry"].str.contains("NullB_Structured")]
     if not df_b.empty:
         fig, ax = plt.subplots(figsize=(6, 6))
 
-        # Naive
         p_naive = df_b["p_naive"].values
         p_naive = p_naive[~np.isnan(p_naive)]
         if len(p_naive) > 0:
@@ -925,7 +840,6 @@ def run_family_1_null_calibration(
                 expected, np.sort(p_naive), label="Naive (Confounded)", color="red", linestyle="--"
             )
 
-        # Stratified
         p_strat = df_b["p_strat"].values
         p_strat = p_strat[~np.isnan(p_strat)]
         if len(p_strat) > 0:
@@ -953,19 +867,16 @@ def run_family_2_planted_signal(
 ):
     print("Running Family 2: Power and Recovery...")
 
-    # Fixed geometry for power analysis (usually Elliptical or Gaussian)
     n = config.n_cells
     z = generate_geometry_elliptical(n, seed=config.seed)
     umis, _ = generate_umis(n, seed=config.seed)
 
-    # Compute center once to ensure generation and analysis use the same vantage
     biorsp_config = config.to_biorsp_config()
     if biorsp_config.vantage == "geometric_median":
         center, _, _ = geometric_median(z)
     else:
         center = np.mean(z, axis=0)
 
-    # Save inputs for family 2
     inputs_dir = os.path.join(outdir, "inputs")
     os.makedirs(inputs_dir, exist_ok=True)
     zfile = os.path.join(inputs_dir, "family_2_z.npy")
@@ -975,12 +886,11 @@ def run_family_2_planted_signal(
     if not os.path.exists(ufile):
         np.save(ufile, umis)
 
-    # Grid
     variants = ["wedge", "rim", "bipolar"]
     betas = [0.5, 1.0, 1.5]
-    sigmas = [10, 20, 40]  # degrees
+    sigmas = [10, 20, 40]
 
-    theta_0 = np.pi / 2  # 90 degrees
+    theta_0 = np.pi / 2
 
     results = []
 
@@ -993,7 +903,6 @@ def run_family_2_planted_signal(
             for sigma_deg in sigmas:
                 sigma_rad = np.deg2rad(sigma_deg)
 
-                # Build jobs for this combination
                 for g in range(config.n_genes):
                     job = {
                         "config": config.to_biorsp_config(),
@@ -1076,14 +985,13 @@ def run_family_2_planted_signal(
         _cleanup_shared(shm_info["shm_objs"])
 
     outpath = os.path.join(outdir, "family_2_power.csv")
-    # Flush any remaining results (already written by batches)
+
     if results:
         write_batch_to_csv(results, outpath)
         results = []
 
     df = pd.read_csv(outpath) if os.path.exists(outpath) else pd.DataFrame([])
 
-    # Plotting: Power vs Beta for each variant
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
     for _i, variant in enumerate(variants):
@@ -1103,15 +1011,13 @@ def run_family_3_robustness(
     print("Running Family 3: Robustness to Distortions...")
 
     n = config.n_cells
-    # Latent geometry
+
     z_latent = generate_geometry_elliptical(n, seed=config.seed)
     umis, _ = generate_umis(n, seed=config.seed)
 
-    # Plant a signal
     theta_0 = np.pi / 2
     beta = 1.5
 
-    # We'll simulate multiple genes to get a distribution of robustness
     n_robust_genes = 100
     results = []
 
@@ -1119,7 +1025,7 @@ def run_family_3_robustness(
     completed = get_completed_job_keys(outcsv) if resume else set()
 
     for g in tqdm(range(n_robust_genes), desc="Robustness genes"):
-        # Generate expression for this gene
+
         if f"robust_g{g}" in completed:
             continue
 
@@ -1132,12 +1038,11 @@ def run_family_3_robustness(
             seed=config.seed + g,
         )
 
-        # Transformations
         transforms = {}
         transforms["Original"] = z_latent
         transforms["RadialWarp"] = apply_distortion_radial(z_latent, alpha=0.25)
         transforms["Shear"] = apply_distortion_shear(z_latent, beta=0.5)
-        # Truncation
+
         mask = z_latent[:, 0] <= 1.0
         transforms["Truncation"] = z_latent[mask]
 
@@ -1167,7 +1072,6 @@ def run_family_3_robustness(
 
     df = pd.read_csv(outcsv) if os.path.exists(outcsv) else pd.DataFrame([])
 
-    # Summary stats
     if not df.empty:
         summary = df.groupby("transform")[["A_g", "adequacy_fraction"]].mean()
         print(summary)
@@ -1214,7 +1118,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Configure. Debug mode must be explicitly requested via --debug (no longer using SIM_DEBUG env var).
     if args.debug:
         config = SimulationConfig()
         config.n_genes, config.n_permutations = (5, 50)
@@ -1222,17 +1125,14 @@ if __name__ == "__main__":
     else:
         config = SimulationConfig()
 
-    # Ensure outdir exists
     os.makedirs(args.outdir, exist_ok=True)
 
-    # Print configuration summary so the user knows what will run
     print(
         f"Configuration: n_cells={config.n_cells}, n_genes={config.n_genes}, "
         f"n_permutations={config.n_permutations}, workers={args.workers}, "
         f"executor={args.executor}, shared={args.shared}, outdir={args.outdir}"
     )
 
-    # Run all families with requested workers
     run_family_1_null_calibration(
         config,
         workers=args.workers,
@@ -1257,7 +1157,6 @@ if __name__ == "__main__":
 
     print("All simulation families complete.")
 
-    # Basic verification of outputs
     for fname in ["family_1_null_calibration.csv", "family_2_power.csv", "family_3_robustness.csv"]:
         p = os.path.join(args.outdir, fname)
         if os.path.exists(p):

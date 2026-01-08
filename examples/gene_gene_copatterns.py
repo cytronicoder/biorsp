@@ -18,7 +18,6 @@ def main():
     theta = rng.uniform(-np.pi, np.pi, n_cells)
     coords = np.column_stack([r * np.cos(theta), r * np.sin(theta)])
 
-    # Gene A and B: Co-localized in wedge theta > 0
     mask_pos = theta > 0
     gA = rng.poisson(0.1, n_cells)
     gA[mask_pos] += rng.poisson(3, np.sum(mask_pos))
@@ -26,7 +25,6 @@ def main():
     gB = rng.poisson(0.1, n_cells)
     gB[mask_pos] += rng.poisson(3, np.sum(mask_pos))
 
-    # Gene C: Opposite localized (theta < 0)
     mask_neg = theta < 0
     gC = rng.poisson(0.1, n_cells)
     gC[mask_neg] += rng.poisson(3, np.sum(mask_neg))
@@ -35,7 +33,6 @@ def main():
     adata.var_names = ["GeneA", "GeneB", "GeneC"]
     adata.obsm["X_umap"] = coords
 
-    # Run Pairwise Scoring
     print("Running score_gene_pairs...")
     config = BioRSPConfig(delta_deg=60, B=72, empty_fg_policy="zero")
 
