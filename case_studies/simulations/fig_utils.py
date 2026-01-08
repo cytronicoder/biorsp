@@ -1,8 +1,21 @@
-import os
+"""
+DEPRECATED: Thin wrapper around simlib.io for legacy figure saving.
+
+This module provides backward-compatible utilities for figure styling and saving.
+New code should import directly from simlib.io and simlib.plotting.
+"""
+
+import sys
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-# Standard colors
+# Path bootstrap
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# Standard colors (preserved for compatibility)
 COLOR_BG = "#e0e0e0"  # Light gray for background
 COLOR_FG = "#d62728"  # Red for foreground
 COLOR_RSP = "#1f77b4"  # Blue for RSP profile
@@ -30,24 +43,18 @@ def setup_style():
 
 
 def save_fig(fig: plt.Figure, output_dir: str, filename: str):
-    """Save figure as both PNG and PDF."""
-    os.makedirs(output_dir, exist_ok=True)
+    """Save figure as PNG (wrapper around simlib.io.save_figure)."""
+    from simlib import io
 
-    # Ensure filename doesn't have extension
-    base_name = os.path.splitext(filename)[0]
-
-    png_path = os.path.join(output_dir, f"{base_name}.png")
-    pdf_path = os.path.join(output_dir, f"{base_name}.pdf")
-
-    fig.savefig(png_path, bbox_inches="tight", dpi=300)
-    fig.savefig(pdf_path, bbox_inches="tight")
-    print(f"Saved figure to {png_path} and {pdf_path}")
+    output_path = Path(output_dir)
+    io.save_figure(fig, output_path, filename, dpi=300)
 
 
 def clean_axis(ax: plt.Axes):
     """Remove ticks and set axis equal."""
     ax.set_xticks([])
     ax.set_yticks([])
+    ax.set_aspect("equal")
     ax.set_aspect("equal")
     for spine in ax.spines.values():
         spine.set_visible(False)
