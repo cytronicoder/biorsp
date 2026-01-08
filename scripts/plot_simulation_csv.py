@@ -1,11 +1,37 @@
-"""Small wrapper CLI that calls `case_studies.simulations.plot_from_csv` to produce figures
-from existing CSV tables.
+#!/usr/bin/env python3
+"""Plot simulation results from CSV files with robust schema validation.
 
-Example:
-    python3 scripts/plot_simulation_csv.py --input-dir results/simulations_phase3 --outdir results/simulations_phase3/figures_from_csv --which all
+This script provides a command-line interface for plotting various types of
+simulation results. It validates CSV schemas before plotting and provides
+actionable error messages if data is malformed or empty after filtering.
+
+Usage:
+    # Plot all available figures
+    python scripts/plot_simulation_csv.py --input-dir results/sim --outdir figures --which all
+
+    # Plot specific types
+    python scripts/plot_simulation_csv.py --input-dir results/sim --outdir figures --which calibration,power
+
+    # Legacy mode (single CSV)
+    python scripts/plot_simulation_csv.py results/sim/calibration.csv figures/out --plot_type calibration
+
+Requires:
+    Package installation: pip install -e .
+
+Note: This is a thin wrapper around case_studies.simulations.plot_from_csv.
+      The validation and plotting logic is delegated to that module.
 """
 
-from case_studies.simulations import plot_from_csv
+import sys
+
+try:
+    from case_studies.simulations import plot_from_csv
+except ImportError as e:
+    print("ERROR: Cannot import case_studies.simulations module.")
+    print("This module should exist in the case_studies/ directory.")
+    print(f"Details: {e}")
+    print("\\nPlease ensure the package is installed: pip install -e .")
+    sys.exit(1)
 
 if __name__ == "__main__":
     plot_from_csv.main()

@@ -1,15 +1,29 @@
-import os
-import sys
+#!/usr/bin/env python3
+"""Debug script for selection bias analysis.
+
+Tests that empty_fg_policy='zero' correctly handles empty sectors and avoids
+selection bias. Compares global_rim vs wedge_rim scenarios.
+
+Usage:
+    python scripts/debug_selection_bias.py
+
+Requires:
+    Package installation: pip install -e .
+"""
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from biorsp.core.engine import compute_rsp_radar
-from biorsp.core.summaries import compute_scalar_summaries
-from biorsp.preprocess.geometry import polar_coordinates
-from biorsp.utils.config import BioRSPConfig
+try:
+    from biorsp.core.engine import compute_rsp_radar
+    from biorsp.core.summaries import compute_scalar_summaries
+    from biorsp.preprocess.geometry import polar_coordinates
+    from biorsp.utils.config import BioRSPConfig
+except ImportError as e:
+    print("ERROR: Cannot import biorsp. Please install the package first:")
+    print("  pip install -e .")
+    print(f"Details: {e}")
+    exit(1)
 
 
 def make_synthetic_data(scenario="wedge"):
@@ -50,7 +64,14 @@ def make_synthetic_data(scenario="wedge"):
 
 
 def run_debug_session():
+    """Run selection bias debug session.
+
+    Key test: Under empty_fg_policy='zero', wedge_rim should have smaller
+    |R_mean_bg| than global_rim, since fewer sectors have foreground.
+    This verifies the selection bias fix.
+    """
     print("Running Selection Bias Debug Session...")
+    print("Testing empty_fg_policy behavior for rim patterns.\n")
 
     scenarios = ["global_rim", "wedge_rim", "null"]
     policies = ["nan", "zero"]
@@ -128,6 +149,8 @@ def run_debug_session():
                 print(f"    Saved plot to {outpath}")
 
     print("\n=== Summary Results ===")
+    print("Expected: wedge_rim should have lower |R_mean| than global_rim under policy='zero'")
+    print("(because fewer sectors have foreground, avoiding selection bias)\n")
     print(
         f"{'Scenario':<15} | {'Policy':<6} | {'R_mean':>8} | {'Aniso':>8} | {'Cov_BG':>6} | {'Cov_FG':>6} | {'Valid':>5}"
     )

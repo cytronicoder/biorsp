@@ -1,36 +1,119 @@
-"""
-DEPRECATED: Thin wrapper around simlib.plotting for legacy CSV plotting.
+"""Plot simulation results from CSV files with robust schema validation.
 
-This module provides backward-compatible plotting functions for simulation CSVs.
-New code should import directly from simlib.plotting.
+This module provides plotting functions for various simulation result types.
+Each function validates the CSV schema before plotting and provides actionable
+error messages if columns are missing or data is empty after filtering.
 
 Usage:
-    python plot_from_csv.py <csv_path> <output_dir> --plot_type <calibration|power|robustness>
-    OR (new style):
     python plot_from_csv.py --input-dir <results_dir> --outdir <output_dir> --which all
+
+Schema Validation:
+    - Validates required columns before plotting
+    - Provides actionable error messages listing missing columns
+    - Shows dataframe shape and sample data on validation failures
+    - Prevents silent empty plot generation
 """
 
 import argparse
 import logging
 import sys
 from pathlib import Path
+from typing import Set
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+
+def validate_columns(
+    df: pd.DataFrame, required_cols: Set[str], csv_path: Path, plot_type: str
+) -> None:
+    """Validate that dataframe contains required columns.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe to validate
+    required_cols : Set[str]
+        Set of required column names
+    csv_path : Path
+        Path to CSV file (for error messages)
+    plot_type : str
+        Type of plot being generated (for error messages)
+
+    Raises
+    ------
+    ValueError
+        If required columns are missing
+    """
+    missing = required_cols - set(df.columns)
+    if missing:
+        error_msg = (
+            f"\n{'='*60}\n"
+            f"SCHEMA VALIDATION ERROR: {plot_type}\n"
+            f"{'='*60}\n"
+            f"CSV: {csv_path}\n\n"
+            f"Missing columns: {sorted(missing)}\n"
+            f"Found columns: {sorted(df.columns.tolist())}\n\n"
+            f"Dataframe shape: {df.shape}\n"
+            f"First few rows:\n{df.head(3)}\n"
+            f"{'='*60}\n"
+        )
+        raise ValueError(error_msg)
+
+
+def check_empty_after_filter(
+    df: pd.DataFrame, original_shape: tuple, filter_desc: str, csv_path: Path, plot_type: str
+) -> None:
+    """Check if dataframe is empty after filtering and raise informative error.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Filtered dataframe
+    original_shape : tuple
+        Shape of dataframe before filtering
+    filter_desc : str
+        Description of filter applied
+    csv_path : Path
+        Path to CSV file
+    plot_type : str
+        Type of plot being generated
+
+    Raises
+    ------
+    ValueError
+        If dataframe is empty after filtering
+    """
+    if df.empty:
+        error_msg = (
+            f"\n{'='*60}\n"
+            f"EMPTY DATA ERROR: {plot_type}\n"
+            f"{'='*60}\n"
+            f"CSV: {csv_path}\n\n"
+            f"Filter: {filter_desc}\n"
+            f"Original shape: {original_shape}\n"
+            f"After filter: {df.shape}\n\n"
+            f"This would produce an empty plot. Check:\n"
+            f"1. Are the filter column values correct?\n"
+            f"2. Does the data contain the expected categories?\n"
+            f"3. Are column names matching expected format?\n"
+            f"{'='*60}\n"
+        )
+        raise ValueError(error_msg)
 
 
 def _save_fig(fig, path):
-    """Save figure to path as PNG and close."""
+    """Save figure to path as PNG and PDF, then close."""
+    path = Path(path)
     fig.savefig(f"{path}.png", dpi=300, bbox_inches="tight")
+    fig.savefig(f"{path}.pdf", bbox_inches="tight")
     plt.close(fig)
+    logger.info(f"Saved: {path}.png and {path}.pdf")
 
 
 def _set_common_axes(ax, xlabel, ylabel):
@@ -43,62 +126,113 @@ def _set_common_axes(ax, xlabel, ylabel):
 
 
 def plot_calibration(csv_path: Path, outdir: Path):
-    """Plot calibration results (QQ plot)."""
-    from simlib import io, metrics, plotting
-
+    """Plot calibration results (QQ plot) with schema validation."""
     df = pd.read_csv(csv_path)
 
-    if "p_value" in df.columns:
-        p_values = df["p_value"].dropna().values
-        expected, observed = metrics.qq_quantiles(p_values)
+    validate_columns(df, {"p_value"}, csv_path, "Calibration QQ Plot")
+
+    p_values = df["p_value"].dropna()
+    if len(p_values) == 0:
+        raise ValueError(
+            f"No valid p-values in {csv_path}. " f"All {len(df)} rows have NaN p_value."
+        )
+
+    try:
+        from simlib import io, metrics, plotting
+
+        p_values_arr = p_values.values
+        expected, observed = metrics.qq_quantiles(p_values_arr)
         fig = plotting.plot_qq(expected, observed, title="Calibration: QQ Plot")
         io.save_figure(fig, Path(outdir), "calibration_qq.png")
-    else:
-        raise ValueError("CSV must contain 'p_value' column")
+    except ImportError:
+        fig, ax = plt.subplots(figsize=(6, 6))
+        sorted_p = np.sort(p_values.values)
+        expected_quantiles = np.linspace(0, 1, len(sorted_p))
+        ax.plot([0, 1], [0, 1], "k--", label="Uniform")
+        ax.plot(expected_quantiles, sorted_p, "o", alpha=0.5, label="Observed")
+        ax.set_xlabel("Expected Quantile")
+        ax.set_ylabel("Observed P-value")
+        ax.set_title("Calibration QQ Plot")
+        ax.legend()
+        _save_fig(fig, outdir / "calibration_qq")
 
 
 def plot_power(csv_path: Path, outdir: Path):
-    """Plot power curves."""
-    from simlib import io, plotting
-
+    """Plot power curves with schema validation."""
     df = pd.read_csv(csv_path)
 
-    if "N" in df.columns and "power" in df.columns:
-        fig = plotting.plot_power_curve(df, x_var="N", title="Power vs Sample Size")
-        io.save_figure(fig, Path(outdir), "power_vs_N.png")
-    elif "N" in df.columns and "power_mean" in df.columns:
+    if "N" not in df.columns:
+        validate_columns(df, {"N"}, csv_path, "Power Curve")
 
+    if "power_mean" in df.columns:
         df = df.rename(columns={"power_mean": "power"})
+
+    validate_columns(df, {"N", "power"}, csv_path, "Power Curve")
+
+    df_clean = df[["N", "power"]].dropna()
+    if df_clean.empty:
+        raise ValueError(
+            f"No valid (N, power) pairs in {csv_path}. "
+            f"Original shape: {df.shape}, after dropna: {df_clean.shape}"
+        )
+
+    try:
+        from simlib import io, plotting
+
         fig = plotting.plot_power_curve(df, x_var="N", title="Power vs Sample Size")
         io.save_figure(fig, Path(outdir), "power_vs_N.png")
-    else:
-        logger.warning(
-            f"CSV {csv_path} does not contain expected power columns. Found: {df.columns.tolist()}"
-        )
+    except ImportError:
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(df_clean["N"], df_clean["power"], "o-", lw=2)
+        ax.set_xlabel("Sample Size (N)")
+        ax.set_ylabel("Power")
+        ax.set_title("Power vs Sample Size")
+        ax.grid(alpha=0.3)
+        _save_fig(fig, outdir / "power_vs_N")
 
 
 plot_power_vs_N = plot_power
 
 
 def plot_robustness(csv_path: Path, outdir: Path):
-    """Plot robustness or parameter sensitivity curves."""
-    from simlib import io, plotting
-
+    """Plot robustness or parameter sensitivity curves with schema validation."""
     df = pd.read_csv(csv_path)
+    original_shape = df.shape
 
     if "distortion_strength" in df.columns and "median_abs_delta" in df.columns:
+        validate_columns(
+            df,
+            {"distortion_strength", "median_abs_delta", "distortion_kind"},
+            csv_path,
+            "Robustness (Distortion)",
+        )
 
-        for dist_kind in df["distortion_kind"].unique():
-            subset = df[df["distortion_kind"] == dist_kind]
-            fig = plotting.plot_robustness_delta(
-                subset,
-                x_var="distortion_strength",
-                y_var="median_abs_delta",
-                title=f"Robustness: {dist_kind}",
-            )
-            io.save_figure(fig, Path(outdir), f"robustness_{dist_kind}.png")
+        try:
+            from simlib import io, plotting
+
+            for dist_kind in df["distortion_kind"].unique():
+                subset = df[df["distortion_kind"] == dist_kind]
+                check_empty_after_filter(
+                    subset,
+                    original_shape,
+                    f"distortion_kind == '{dist_kind}'",
+                    csv_path,
+                    "Robustness",
+                )
+                fig = plotting.plot_robustness_delta(
+                    subset,
+                    x_var="distortion_strength",
+                    y_var="median_abs_delta",
+                    title=f"Robustness: {dist_kind}",
+                )
+                io.save_figure(fig, Path(outdir), f"robustness_{dist_kind}.png")
+        except ImportError:
+            logger.warning("simlib not available, skipping robustness distortion plots")
 
     elif "param" in df.columns and "value" in df.columns and "similarity" in df.columns:
+        validate_columns(
+            df, {"param", "value", "similarity", "type"}, csv_path, "Robustness (Param Sweep)"
+        )
 
         fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
@@ -107,26 +241,37 @@ def plot_robustness(csv_path: Path, outdir: Path):
             sns.lineplot(data=grid_data, x="value", y="similarity", hue="type", ax=axes[0])
             axes[0].set_title("Sensitivity to Grid Size (B)")
             _set_common_axes(axes[0], "Value", "Similarity")
+        else:
+            axes[0].text(
+                0.5, 0.5, "No theta_grid_size data", ha="center", transform=axes[0].transAxes
+            )
 
         width_data = df[df["param"] == "sector_width"]
         if not width_data.empty:
             sns.lineplot(data=width_data, x="value", y="similarity", hue="type", ax=axes[1])
             axes[1].set_title("Sensitivity to Sector Width (delta)")
             _set_common_axes(axes[1], "Value", "Similarity")
+        else:
+            axes[1].text(0.5, 0.5, "No sector_width data", ha="center", transform=axes[1].transAxes)
 
         _save_fig(fig, outdir / "robustness_sensitivity")
-    else:
 
-        if "type" in df.columns and "similarity" in df.columns:
-            fig, ax = plt.subplots(figsize=(8, 6))
-            sns.boxplot(data=df, x="type", y="similarity", ax=ax)
-            _set_common_axes(ax, "Type", "Similarity")
-            ax.set_title("Robustness: Similarity by Type")
-            _save_fig(fig, outdir / "robustness_summary")
-        else:
-            logger.warning(
-                f"CSV {csv_path} columns not recognized for robustness plotting: {df.columns.tolist()}"
-            )
+    elif "type" in df.columns and "similarity" in df.columns:
+        validate_columns(df, {"type", "similarity"}, csv_path, "Robustness (Summary)")
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.boxplot(data=df, x="type", y="similarity", ax=ax)
+        _set_common_axes(ax, "Type", "Similarity")
+        ax.set_title("Robustness: Similarity by Type")
+        _save_fig(fig, outdir / "robustness_summary")
+    else:
+        raise ValueError(
+            f"Unrecognized robustness schema in {csv_path}. \n"
+            f"Found columns: {df.columns.tolist()}\n"
+            f"Expected one of:\n"
+            f"  - (distortion_strength, median_abs_delta, distortion_kind)\n"
+            f"  - (param, value, similarity, type)\n"
+            f"  - (type, similarity)"
+        )
 
 
 def plot_baselines(csv_path: Path, outdir: Path):

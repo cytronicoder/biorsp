@@ -44,15 +44,21 @@ def make_end_to_end_figure(
     outpath: str,
     feature_name: str = "Feature",
     seed: int = 42,
+    coverage_score: float = None,
 ):
     """Generate the end-to-end workflow figure.
+
+    This figure illustrates the BioRSP two-score framework:
+    - Coverage score C_g: fraction of cells expressing the gene (not shown here)
+    - Spatial organization score S_g: RMS magnitude of radar profile
 
     Parameters
     ----------
     z : np.ndarray
         (N, 2) coordinates.
     y : np.ndarray
-        (N,) binary foreground labels (1=fg, 0=bg).
+        (N,) binary foreground labels (1=fg, 0=bg). This is the INTERNAL
+        foreground for spatial scoring, NOT the coverage threshold.
     v : np.ndarray
         (2,) vantage point.
     theta_grid : np.ndarray
@@ -61,7 +67,12 @@ def make_end_to_end_figure(
         Sector width in degrees.
     outpath : str
         Path to save the figure.
-
+    feature_name : str
+        Feature name for title.
+    seed : int
+        Random seed (for reproducibility).
+    coverage_score : float, optional
+        If provided, display C_g in the annotation (coverage from detection threshold).
     """
     if delta_deg > 180:
         raise ValueError(f"Delta {delta_deg} > 180 degrees is forbidden.")
@@ -128,7 +139,9 @@ def make_end_to_end_figure(
     ax_a.fill(wedge_x, wedge_y, color=COLORS["highlight"], alpha=0.1)
 
     ax_a.set_aspect("equal")
-    ax_a.set_title("Embedding & Radar Sweep")
+    ax_a.set_title(f"{feature_name}: Spatial Distribution")
+    ax_a.set_xlabel("Embedding Dimension 1")
+    ax_a.set_ylabel("Embedding Dimension 2")
     ax_a.legend(loc="upper right", fontsize=8)
     add_panel_label(ax_a, "A")
 
@@ -186,9 +199,9 @@ def make_end_to_end_figure(
     else:
         ax_b.text(0.5, 0.5, "Insufficient points in sector", ha="center")
 
-    ax_b.set_title(r"Radial ECDFs (Sector $\theta^*$)")
-    ax_b.set_xlabel(r"Std. Radius $\hat{r}$")
-    ax_b.set_ylabel("Cumulative Prob.")
+    ax_b.set_title(r"Radial Distribution at Peak Direction $\theta^*$")
+    ax_b.set_xlabel(r"Normalized Radius $\hat{r}$")
+    ax_b.set_ylabel("Cumulative Probability")
     ax_b.legend(loc="lower right", fontsize=8)
     add_panel_label(ax_b, "B")
 
@@ -208,7 +221,7 @@ def make_end_to_end_figure(
         np.linspace(0, 2 * np.pi, 100), np.zeros(100), color=COLORS["ref_line"], lw=0.8, ls="--"
     )
 
-    ax_c.set_title(r"Radar Profile $R(\theta)$", pad=20)
+    ax_c.set_title(r"Directional Organization Profile $R(\theta)$", pad=20)
     ax_c.set_theta_zero_location("E")
     ax_c.set_theta_direction(1)
     add_panel_label(ax_c, "C")
@@ -221,6 +234,7 @@ def make_end_to_end_figure(
     interpretation = interpret_pattern(A, L, R_bar, polarity)
 
     vantage_str = config.vantage.replace("_", " ").title()
+
     param_text = (
         r"$\bf{BioRSP\ Parameters}$" + "\n\n"
         f"$B = {config.B}$ | "
@@ -231,12 +245,30 @@ def make_end_to_end_figure(
         f"Perm: {config.perm_mode.title()}"
     )
 
-    stats_text = (
-        r"$\bf{Summary\ Statistics}$" + "\n\n"
+    stats_text = r"$\bf{Two\text{-}Score\ Output}$" + "\n\n"
+
+    if coverage_score is not None:
+        stats_text += f"Coverage $C_g$ = {coverage_score:.2%}\n"
+
+    valid_mask = ~np.isnan(res.rsp)
+    if np.any(valid_mask):
+        w = (
+            res.sector_weights[valid_mask]
+            if hasattr(res, "sector_weights")
+            else np.ones(np.sum(valid_mask))
+        )
+        w = w / np.sum(w)
+        S_g = np.sqrt(np.sum(w * res.rsp[valid_mask] ** 2))
+        stats_text += f"Spatial Org. $S_g$ = {S_g:.3f}\n\n"
+    else:
+        stats_text += "Spatial Org. $S_g$ = N/A\n\n"
+
+    stats_text += (
+        r"$\bf{Diagnostic\ Metrics}$" + "\n"
         f"$A$ = {A:.3f} | "
         f"$L$ = {L:.3f} | "
         rf"$\bar{{R}}$ = {R_bar:.3f}" + "\n\n"
-        f"Interpretation: {interpretation}"
+        f"Pattern: {interpretation}"
     )
 
     bbox_props = dict(
@@ -265,7 +297,7 @@ def make_end_to_end_figure(
         transform=ax_d.transAxes,
         bbox=bbox_props,
     )
-    ax_d.set_title("Parameters & Summary Statistics")
+    ax_d.set_title("BioRSP Summary: Coverage & Spatial Organization")
     add_panel_label(ax_d, "D")
 
     save_figure(

@@ -1,8 +1,22 @@
 #!/usr/bin/env python3
-"""
-Generate a comprehensive Polar Embedding visualization.
-Combines original embedding, polar transformation (theta, r-hat),
-polar-reembedding, and radial distribution analysis.
+"""Generate Polar Re-parameterization Diagnostic Figure.
+
+This figure illustrates how BioRSP transforms Cartesian coordinates (x,y)
+into polar coordinates (θ, r) for directional spatial analysis. It does NOT
+claim to generate a new embedding, but rather shows the geometric transformation.
+
+Panels:
+- A: Original embedding with highlighted example sectors
+- B: Polar representation (θ, r̂) showing angular structure
+- C: Cartesian projection of polar coords (for visualization)
+- D: Radial ECDF comparison in an example sector
+
+Usage:
+    python scripts/make_polar_embedding_figure.py --adata data.h5ad --feature CD3D
+    python scripts/make_polar_embedding_figure.py  # uses demo data
+
+Requires:
+    Package installation: pip install -e .
 """
 
 import argparse
@@ -13,43 +27,62 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import Wedge
 
-from biorsp.plotting.style import (
-    COLORS,
-    add_panel_label,
-    get_column_width,
-    save_figure,
-    set_publication_style,
-)
-from biorsp.preprocess.geometry import compute_vantage, get_sector_indices, polar_coordinates
+try:
+    from biorsp.plotting.style import (
+        COLORS,
+        add_panel_label,
+        get_column_width,
+        set_publication_style,
+    )
+    from biorsp.preprocess.geometry import compute_vantage, get_sector_indices, polar_coordinates
+except ImportError as e:
+    print("ERROR: Cannot import biorsp. Please install the package first:")
+    print("  pip install -e .")
+    print(f"Details: {e}")
+    exit(1)
 
 set_publication_style()
 
 
 def setup_args():
-    parser = argparse.ArgumentParser(description="Generate Comprehensive Polar Embedding Figure")
-    parser.add_argument("--adata", type=str, help="Path to AnnData h5ad file")
-    parser.add_argument("--coords_csv", type=str, help="Path to coordinates CSV")
+    """Set up command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Generate Polar Re-parameterization Diagnostic Figure",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--adata", type=str, help="Path to AnnData h5ad file (optional)")
+    parser.add_argument("--coords_csv", type=str, help="Path to coordinates CSV (optional)")
     parser.add_argument(
-        "--embedding_key", type=str, default="X_umap", help="Embedding key in adata.obsm"
+        "--embedding-key", type=str, default="X_umap", help="Embedding key in adata.obsm"
     )
     parser.add_argument(
-        "--feature", type=str, default="Enriched_Gene", help="Feature (gene) to visualize"
+        "--feature", type=str, default="Enriched_Gene", help="Gene name to visualize"
     )
-    parser.add_argument("--q", type=float, default=0.9, help="Quantile for binary foreground")
     parser.add_argument(
-        "--abs_threshold", type=float, help="Absolute threshold for binary foreground"
+        "--q",
+        type=float,
+        default=0.9,
+        help="Quantile for binary foreground (internal, NOT coverage)",
+    )
+    parser.add_argument(
+        "--abs-threshold", type=float, help="Absolute threshold for binary foreground (overrides q)"
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--outdir", type=str, default="figures", help="Output directory")
     parser.add_argument(
-        "--sector_idx", type=int, default=0, help="Sector index to highlight in Panel D"
+        "--out",
+        type=str,
+        default="figures/polar_reparameterization.png",
+        help="Output file path",
     )
     parser.add_argument(
-        "--example_thetas",
+        "--sector-idx", type=int, default=0, help="Sector index to highlight in Panel D"
+    )
+    parser.add_argument(
+        "--example-thetas",
         type=float,
         nargs="+",
         default=[0.0, np.pi / 2, -np.pi / 2],
-        help="Example angles to show as wedges in Panel A/B",
+        help="Example angles (radians) to show as wedges in Panels A/B",
     )
     return parser.parse_args()
 
@@ -71,25 +104,39 @@ def generate_demo_data(seed=42):
 
 
 def main():
+    """Main entry point."""
     args = setup_args()
     np.random.seed(args.seed)
-    outdir = Path(args.outdir)
-    outdir.mkdir(parents=True, exist_ok=True)
+
+    outpath = Path(args.out)
+    outpath.parent.mkdir(parents=True, exist_ok=True)
 
     if args.adata:
-        import scanpy as sc
+        try:
+            import scanpy as sc
+        except ImportError:
+            print("ERROR: scanpy required to load AnnData")
+            print("  pip install scanpy")
+            exit(1)
 
         adata = sc.read_h5ad(args.adata)
         coords = adata.obsm[args.embedding_key]
         if args.feature in adata.var_names:
-            expr = adata[:, args.feature].X.toarray().flatten()
-        else:
+            from scipy import sparse
+
+            X = adata[:, args.feature].X
+            expr = X.toarray().flatten() if sparse.issparse(X) else X
+        elif args.feature in adata.obs.columns:
             expr = adata.obs[args.feature].values
+        else:
+            print(f"ERROR: Feature '{args.feature}' not found")
+            exit(1)
     elif args.coords_csv:
         df = pd.read_csv(args.coords_csv)
         coords = df[["x", "y"]].values
         expr = df[args.feature].values
     else:
+        print("No --adata or --coords-csv provided. Using demo data.")
         coords, expr = generate_demo_data(args.seed)
 
     v = compute_vantage(coords, method="geometric_median")
@@ -116,7 +163,7 @@ def main():
         c=COLORS["fg_cells"],
         s=2,
         alpha=0.5,
-        label="Foreground",
+        label="High Expression",
     )
     ax.scatter(v[0], v[1], c="black", marker="x", s=50, label="Vantage $v$")
 
@@ -132,8 +179,11 @@ def main():
         )
         ax.add_patch(wedge)
 
-    ax.set_title("Original Embedding $(x,y)$")
+    ax.set_title(f"Original Embedding: {args.feature}")
+    ax.set_xlabel("Embedding Dim 1")
+    ax.set_ylabel("Embedding Dim 2")
     ax.set_aspect("equal")
+    ax.legend(loc="upper right", fontsize=7)
     add_panel_label(ax, "A")
 
     ax = axes[0, 1]
@@ -155,7 +205,7 @@ def main():
     vv = r_hat * np.sin(theta)
     ax.scatter(u[~fg_mask], vv[~fg_mask], c=COLORS["bg_cells"], s=1, alpha=0.2)
     ax.scatter(u[fg_mask], vv[fg_mask], c=COLORS["fg_cells"], s=2, alpha=0.5)
-    ax.set_title("Polar-reembedded $(u, v)$")
+    ax.set_title(r"Cartesian Projection of $(\theta, \hat{r})$")
     ax.set_xlabel(r"$u = \hat{r} \cos \theta$")
     ax.set_ylabel(r"$v = \hat{r} \sin \theta$")
     ax.set_aspect("equal")
@@ -207,13 +257,17 @@ def main():
                 fontsize=8,
             )
 
-    ax.set_title("Radial ECDFs")
+    ax.set_title("Radial ECDFs in Example Sector")
     ax.set_xlabel(r"Std. Radius $\hat{r}$")
     ax.set_ylabel("Cumulative Prob.")
     ax.legend(fontsize=7, loc="upper left")
     add_panel_label(ax, "D")
 
-    save_figure(fig, "fig_polar_embedding_comprehensive", outdir=outdir)
+    plt.tight_layout()
+    fig.savefig(outpath, dpi=300, bbox_inches="tight")
+    fig.savefig(outpath.with_suffix(".pdf"), bbox_inches="tight")
+    plt.close()
+    print(f"✅ Figure saved to: {outpath} and {outpath.with_suffix('.pdf')}")
 
 
 if __name__ == "__main__":

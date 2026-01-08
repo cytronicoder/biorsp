@@ -1,13 +1,25 @@
-import os
-import sys
+#!/usr/bin/env python3
+"""Debug script for end-to-end workflow visualization.
+
+Generates end-to-end figures for synthetic scenarios to verify the workflow
+is functioning correctly. This is a developer/debugging tool.
+
+Usage:
+    python scripts/debug_end_to_end.py
+
+Requires:
+    Package installation: pip install -e .
+"""
 
 import numpy as np
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from biorsp.plotting.workflow import make_end_to_end_figure
-from biorsp.preprocess.geometry import angle_grid
-from biorsp.utils.debug_geometry import debug_polar_sanity
+try:
+    from biorsp.plotting.workflow import make_end_to_end_figure
+except ImportError as e:
+    print("ERROR: Cannot import biorsp. Please install the package first:")
+    print("  pip install -e .")
+    print(f"Details: {e}")
+    exit(1)
 
 
 def make_synthetic_data(scenario="wedge"):
@@ -53,11 +65,8 @@ def make_synthetic_data(scenario="wedge"):
 
 
 def run_debug_session():
-    print("Running Debug Session...")
-
-    z_dummy = np.random.rand(10, 2)
-    v_dummy = np.array([0.0, 0.0])
-    debug_polar_sanity(z_dummy, v_dummy)
+    """Run debug session for all synthetic scenarios."""
+    print("Running Debug Session for End-to-End Workflow...")
 
     scenarios = ["wedge_core", "wedge_rim", "global_rim", "null"]
 
@@ -68,9 +77,10 @@ def run_debug_session():
 
         B = 36
         delta_deg = 180
-        theta_grid = angle_grid(B)
+        theta_grid = np.linspace(-np.pi, np.pi, B, endpoint=False)
 
         outpath = f"debug_figure_{sc}.png"
+        print(f"  Generating figure: {outpath}")
         make_end_to_end_figure(z, y, v, theta_grid, delta_deg, outpath, feature_name=sc)
 
 
