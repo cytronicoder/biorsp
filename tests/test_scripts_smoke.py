@@ -14,7 +14,6 @@ EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
         EXAMPLES_DIR / "quickstart.py",
         EXAMPLES_DIR / "simulation.py",
         SCRIPTS_DIR / "plot_simulation_csv.py",
-        SCRIPTS_DIR / "validate_calibration.py",
     ],
 )
 def test_script_help(script_path):

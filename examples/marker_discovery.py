@@ -24,10 +24,6 @@ def main():
     biorsp.add_common_args(parser)
     args = parser.parse_args()
 
-    # Recommended defaults for Marker Discovery are now the package defaults:
-    # B=72, delta_deg=60, q=0.90, empty_fg_policy="zero"
-
-    # Generate synthetic data: 2000 cells in a 2D disk
     n_cells = 2000
     rng = np.random.default_rng(args.seed)
     r = np.sqrt(rng.random(n_cells))

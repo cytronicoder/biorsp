@@ -16,7 +16,6 @@ def main():
     parser = argparse.ArgumentParser(description="BioRSP Quickstart Example")
     parser.parse_args()
 
-    # 1. Setup Synthetic Data
     print("Generating synthetic data...")
     n_cells = 1000
     rng = np.random.default_rng(42)

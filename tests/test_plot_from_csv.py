@@ -28,14 +28,27 @@ def test_plot_functions_create_files(tmp_path):
     base = tmp_path / "results"
     tables = base / "tables"
     outdir = tmp_path / "figs"
+    outdir.mkdir(parents=True, exist_ok=True)
 
     # calibration CSV
-    cal = pd.DataFrame({"expected": [0.01, 0.5, 0.99], "observed": [0.02, 0.47, 0.98]})
+    cal = pd.DataFrame(
+        {
+            "expected": [0.01, 0.5, 0.99],
+            "observed": [0.02, 0.47, 0.98],
+            "p_value": [0.01, 0.5, 0.99],
+        }
+    )
     _touch_csv(tables / "calibration_summary.csv", cal)
 
     # power CSV
     power = pd.DataFrame(
-        {"N": [50, 100, 200], "detected": [0.1, 0.4, 0.8], "alpha": [0.05, 0.05, 0.05]}
+        {
+            "N": [50, 100, 200],
+            "power": [0.1, 0.4, 0.8],
+            "ci_low": [0.05, 0.35, 0.75],
+            "ci_high": [0.15, 0.45, 0.85],
+            "alpha": [0.05, 0.05, 0.05],
+        }
     )
     _touch_csv(tables / "power_vs_N.csv", power)
 
@@ -71,9 +84,9 @@ def test_plot_functions_create_files(tmp_path):
     plot_from_csv.plot_failure_modes(tables / "failure_modes_runs.csv", outdir)
 
     # assert some files exist
-    assert (outdir / "calibration.png").exists() or (outdir / "calibration.pdf").exists()
-    assert (outdir / "power_vs_N.png").exists() or (outdir / "power_vs_N.pdf").exists()
-    assert (outdir / "robustness.png").exists() or (outdir / "robustness.pdf").exists()
-    assert (outdir / "baselines.png").exists() or (outdir / "baselines.pdf").exists()
-    assert (outdir / "separability_roc.png").exists() or (outdir / "separability_roc.pdf").exists()
-    assert (outdir / "failure_modes.png").exists() or (outdir / "failure_modes.pdf").exists()
+    assert (outdir / "calibration_qq.png").exists()
+    assert (outdir / "power_vs_N.png").exists()
+    assert (outdir / "robustness_sensitivity.png").exists()
+    assert (outdir / "baselines.png").exists()
+    assert (outdir / "separability_roc.png").exists()
+    assert (outdir / "failure_modes.png").exists()
