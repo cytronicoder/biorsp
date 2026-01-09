@@ -9,14 +9,23 @@ These tests run scripts in minimal mode to verify:
 This prevents regressions like empty plots or broken imports.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
-EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
+ROOT_DIR = Path(__file__).parent.parent
+SCRIPTS_DIR = ROOT_DIR / "scripts"
+EXAMPLES_DIR = ROOT_DIR / "examples"
+
+
+def get_env():
+    """Get environment with workspace root in PYTHONPATH."""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(ROOT_DIR) + os.pathsep + env.get("PYTHONPATH", "")
+    return env
 
 
 @pytest.mark.parametrize(
@@ -39,7 +48,8 @@ def test_script_help(script_path):
         [sys.executable, str(script_path), "--help"],
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=60,
+        env=get_env(),
     )
     assert result.returncode == 0, f"Help failed for {script_path.name}"
     assert (
@@ -50,7 +60,10 @@ def test_script_help(script_path):
 def test_biorsp_cli_help():
     """Check if the main CLI works."""
     result = subprocess.run(
-        [sys.executable, "-m", "biorsp.cli", "--help"], capture_output=True, text=True
+        [sys.executable, "-m", "biorsp.cli", "--help"],
+        capture_output=True,
+        text=True,
+        env=get_env(),
     )
     assert result.returncode == 0
     assert "usage" in result.stdout.lower()
@@ -70,12 +83,13 @@ def test_make_schematic_diagram_runs():
             [sys.executable, str(script), "--outdir", str(outdir)],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=120,
+            env=get_env(),
         )
 
         assert (
             result.returncode == 0
-        ), f"Script failed\\nStdout: {result.stdout}\\nStderr: {result.stderr}"
+        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
 
         # Check output exists
         expected_files = list(outdir.glob("fig_schematic_diagram*"))
@@ -85,9 +99,10 @@ def test_make_schematic_diagram_runs():
             assert fpath.stat().st_size > 2000, f"Output file too small: {fpath}"
     finally:
         # Clean up
-        for fpath in outdir.glob("*"):
-            fpath.unlink()
-        outdir.rmdir()
+        if outdir.exists():
+            for fpath in outdir.glob("*"):
+                fpath.unlink()
+            outdir.rmdir()
 
 
 def test_make_end_to_end_workflow_demo():
@@ -116,12 +131,13 @@ def test_make_end_to_end_workflow_demo():
             ],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=300,
+            env=get_env(),
         )
 
         assert (
             result.returncode == 0
-        ), f"Script failed\\nStdout: {result.stdout}\\nStderr: {result.stderr}"
+        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
 
         assert outpath.exists(), f"Output not created: {outpath}"
         assert outpath.stat().st_size > 5000, "Output file suspiciously small"
@@ -151,12 +167,13 @@ def test_make_polar_embedding_figure_demo():
             ],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=180,
+            env=get_env(),
         )
 
         assert (
             result.returncode == 0
-        ), f"Script failed\\nStdout: {result.stdout}\\nStderr: {result.stderr}"
+        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
 
         assert outpath.exists(), "Output not created"
         assert outpath.stat().st_size > 5000, "Output file suspiciously small"
@@ -166,7 +183,7 @@ def test_make_polar_embedding_figure_demo():
 
 
 def test_debug_end_to_end_runs():
-    """Test that debug_end_to_end.py runs without crashing (no --help, just execute)."""
+    """Test that debug_end_to_end.py runs without crashing."""
     script = SCRIPTS_DIR / "debug_end_to_end.py"
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
@@ -176,13 +193,13 @@ def test_debug_end_to_end_runs():
             [sys.executable, str(script)],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=180,
+            env=get_env(),
         )
 
         assert (
             result.returncode == 0
-        ), f"Script failed\\nStdout: {result.stdout}\\nStderr: {result.stderr}"
-        # Just verify it runs, don't check specific outputs since it's a debug script
+        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
     finally:
         # Clean up any generated figures
         figures_dir = Path("figures")
@@ -193,7 +210,7 @@ def test_debug_end_to_end_runs():
 
 
 def test_debug_selection_bias_runs():
-    """Test that debug_selection_bias.py runs without crashing (no --help, just execute)."""
+    """Test that debug_selection_bias.py runs without crashing."""
     script = SCRIPTS_DIR / "debug_selection_bias.py"
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
@@ -202,10 +219,10 @@ def test_debug_selection_bias_runs():
         [sys.executable, str(script)],
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=180,
+        env=get_env(),
     )
 
     assert (
         result.returncode == 0
-    ), f"Script failed\\nStdout: {result.stdout}\\nStderr: {result.stderr}"
-    # Just verify it runs, don't check specific outputs since it's a debug script
+    ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"

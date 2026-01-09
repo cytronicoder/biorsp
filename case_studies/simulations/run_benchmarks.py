@@ -7,13 +7,13 @@ and aggregating runtime statistics.
 
 Usage:
     # Full publication pipeline (~3-4 hours with 8 workers)
-    python run_all_benchmarks.py --mode publication --n_workers 8
+    python run_benchmarks.py --mode publication --n_workers 8
 
     # Quick smoke test (~5 minutes)
-    python run_all_benchmarks.py --mode quick --n_workers 4
+    python run_benchmarks.py --mode quick --n_workers 4
 
     # Custom configuration
-    python run_all_benchmarks.py --mode publication --n_workers 8 --checkpoint_every 50 --resume
+    python run_benchmarks.py --mode publication --n_workers 8 --checkpoint_every 50 --resume
 """
 
 import argparse
@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Tuple
 
 ROOT = Path(__file__).resolve().parent
-METHODS_PAPER = ROOT / "methods_paper"
+BENCHMARKS_DIR = ROOT / "benchmarks"
 
 
 # Note: permutation_scope is now enforced internally by scripts based on mode
@@ -48,7 +48,7 @@ def run_benchmark(
     """Run a single benchmark."""
     cmd = [
         sys.executable,
-        str(METHODS_PAPER / script),
+        str(BENCHMARKS_DIR / script),
         "--mode",
         mode,
         "--n_workers",
@@ -97,13 +97,13 @@ def main():
         epilog="""
 Examples:
   # Full publication pipeline
-  python run_all_benchmarks.py --mode publication --n_workers 8
+  python run_benchmarks.py --mode publication --n_workers 8
 
   # Quick test
-  python run_all_benchmarks.py --mode quick --n_workers 4
+  python run_benchmarks.py --mode quick --n_workers 4
 
   # Resume interrupted run
-  python run_all_benchmarks.py --mode publication --n_workers 8 --resume
+  python run_benchmarks.py --mode publication --n_workers 8 --resume
         """,
     )
     parser.add_argument(

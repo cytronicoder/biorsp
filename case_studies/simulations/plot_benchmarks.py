@@ -5,7 +5,7 @@ Each function validates the CSV schema before plotting and provides actionable
 error messages if columns are missing or data is empty after filtering.
 
 Usage:
-    python plot_from_csv.py --input-dir <results_dir> --outdir <output_dir> --which all
+    python plot_benchmarks.py --input-dir <results_dir> --outdir <output_dir> --which all
 
 Schema Validation:
     - Validates required columns before plotting

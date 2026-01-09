@@ -18,20 +18,20 @@ Usage:
 Requires:
     Package installation: pip install -e .
 
-Note: This is a thin wrapper around case_studies.simulations.plot_from_csv.
+Note: This is a thin wrapper around case_studies.simulations.plot_benchmarks.
       The validation and plotting logic is delegated to that module.
 """
 
 import sys
 
 try:
-    from case_studies.simulations import plot_from_csv
+    from case_studies.simulations import plot_benchmarks
 except ImportError as e:
     print("ERROR: Cannot import case_studies.simulations module.")
     print("This module should exist in the case_studies/ directory.")
     print(f"Details: {e}")
-    print("\\nPlease ensure the package is installed: pip install -e .")
+    print("\nPlease ensure the package is installed: pip install -e .")
     sys.exit(1)
 
 if __name__ == "__main__":
-    plot_from_csv.main()
+    plot_benchmarks.main()
