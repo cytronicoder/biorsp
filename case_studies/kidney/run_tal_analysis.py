@@ -47,7 +47,6 @@ from biorsp import (
     run,
 )
 
-# Suppress known FutureWarning from legacy_api_wrap about dtype argument deprecation
 warnings.filterwarnings("ignore", message=".*dtype argument is deprecated.*")
 warnings.filterwarnings("ignore", category=FutureWarning, module="legacy_api_wrap")
 

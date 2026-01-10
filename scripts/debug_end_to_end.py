@@ -70,7 +70,6 @@ def run_debug_session():
     """Run debug session for all synthetic scenarios."""
     print("Running Debug Session for End-to-End Workflow...")
 
-    # Create output directory for debug figures
     debug_dir = Path("outputs") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 

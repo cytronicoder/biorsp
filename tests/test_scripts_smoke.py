@@ -50,6 +50,7 @@ def test_script_help(script_path):
         text=True,
         timeout=60,
         env=get_env(),
+        check=False,
     )
     assert result.returncode == 0, f"Help failed for {script_path.name}"
     assert (
@@ -64,6 +65,7 @@ def test_biorsp_cli_help():
         capture_output=True,
         text=True,
         env=get_env(),
+        check=False,
     )
     assert result.returncode == 0
     assert "usage" in result.stdout.lower()
@@ -85,6 +87,7 @@ def test_make_schematic_diagram_runs():
             text=True,
             timeout=120,
             env=get_env(),
+            check=False,
         )
 
         assert (
@@ -111,7 +114,9 @@ def test_make_end_to_end_workflow_demo():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outpath = Path("test_end_to_end_demo.png").resolve()
+    outdir = Path("outputs") / "tests"
+    outdir.mkdir(parents=True, exist_ok=True)
+    outpath = outdir / "test_end_to_end_demo.png"
 
     try:
         result = subprocess.run(
@@ -125,7 +130,7 @@ def test_make_end_to_end_workflow_demo():
                 "--seed",
                 "123",
                 "--B",
-                "18",  # Fewer sectors for speed
+                "18",
                 "--delta-deg",
                 "60",
             ],
@@ -133,6 +138,7 @@ def test_make_end_to_end_workflow_demo():
             text=True,
             timeout=300,
             env=get_env(),
+            check=False,
         )
 
         assert (
@@ -151,7 +157,9 @@ def test_make_polar_embedding_figure_demo():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outpath = Path("test_polar_demo.png").resolve()
+    outdir = Path("outputs") / "tests"
+    outdir.mkdir(parents=True, exist_ok=True)
+    outpath = outdir / "test_polar_demo.png"
 
     try:
         result = subprocess.run(
@@ -169,6 +177,7 @@ def test_make_polar_embedding_figure_demo():
             text=True,
             timeout=180,
             env=get_env(),
+            check=False,
         )
 
         assert (
@@ -179,7 +188,7 @@ def test_make_polar_embedding_figure_demo():
         assert outpath.stat().st_size > 5000, "Output file suspiciously small"
     finally:
         outpath.unlink(missing_ok=True)
-        outpath.with_suffix(".pdf").unlink(missing_ok=True)
+        (outdir / outpath.with_suffix(".pdf").name).unlink(missing_ok=True)
 
 
 def test_debug_end_to_end_runs():
@@ -195,6 +204,7 @@ def test_debug_end_to_end_runs():
             text=True,
             timeout=180,
             env=get_env(),
+            check=False,
         )
 
         assert (
@@ -221,6 +231,7 @@ def test_debug_selection_bias_runs():
         text=True,
         timeout=180,
         env=get_env(),
+        check=False,
     )
 
     assert (

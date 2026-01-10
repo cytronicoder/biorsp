@@ -50,6 +50,7 @@ def run_script(script_name: str, out_name: str, args: list = None):
         env={**sys.modules["os"].environ, "PYTHONPATH": str(SIM_ROOT.parent.parent)},
         capture_output=True,
         text=True,
+        check=False,
     )
 
     if result.returncode != 0:
