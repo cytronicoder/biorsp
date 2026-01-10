@@ -1,37 +1,55 @@
 #!/usr/bin/env python3
 """
-Case Study 1: Azimuth Human Kidney Reference (TAL Cells)
---------------------------------------------------------
-This script executes the BioRSP analysis for the Thick Ascending Limb (TAL)
-cell population from the Azimuth Human Kidney reference.
+Analyze how genes are spatially organized in Thick Ascending Limb (TAL) cells
+from the human kidney reference dataset.
 
-It performs the following steps:
-1. Loads the reference dataset (H5AD preferred).
-2. Subsets cells to the TAL population and performs optional subsampling.
-3. Selects a panel of genes (controls + discovery).
-4. Runs BioRSP (Radial Structure Procedure) on each gene.
-5. Computes depth-aware permutation statistics.
-6. Performs stability diagnostics (donor-aware reruns).
-7. Generates ranked summary CSVs and visualization plots.
+Key Outputs:
+- Coverage Score (C_g): What fraction of TAL cells express this gene?
+- Spatial Score (S_g): Does expression cluster in specific regions, or spread uniformly?
+- Archetype: Classification into spatial patterns (localized, housekeeping, niche, sparse)
+- Gene-Gene Relationships: Which genes show similar spatial patterns?
 
-Usage:
-    python case_study_1_tal.py \
-      --ref_data path/to/ref.h5ad \
-      --outdir results/tal_case_study \
-      --controls "SLC12A1,UMOD,EGF" \
-      --donor_key donor_id \
+Workflow:
+1. Load your reference dataset
+2. Extract TAL cells (with optional subsampling for quick testing)
+3. Select genes to analyze (canonical markers + discovery candidates)
+4. Score each gene for coverage and spatial organization
+5. Classify genes into spatial archetypes
+6. Optionally compute pairwise gene relationships
+7. Generate publication-ready figures and data tables
+
+Quick Examples:
+    # Fast test run (2 minutes)
+    python run_tal_analysis.py \\
+      --ref_data data/kpmp.h5ad \\
+      --outdir results/tal_pilot \\
+      --controls "SLC12A1,UMOD,EGF" \\
+      --max_genes 10 \\
+      --n_permutations 100
+
+    # Full analysis (30-60 minutes)
+    python run_tal_analysis.py \\
+      --ref_data data/kpmp.h5ad \\
+      --outdir results/tal_full \\
+      --controls "SLC12A1,UMOD,EGF" \\
+      --max_genes 500 \\
+      --n_permutations 1000 \\
+      --do_genegene \\
       --n_workers 4
 """
 
+from __future__ import annotations
+
 import argparse
-import faulthandler
+import hashlib
 import json
 import logging
-import signal
+import os
+import re
 import warnings
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,17 +57,24 @@ import pandas as pd
 import scipy.sparse
 from tqdm import tqdm
 
+# Prevent BLAS thread oversubscription when using multiple workers
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+
 from biorsp import (
     BioRSPConfig,
+    classify_genes,
     compute_rsp_radar,
     plot_radar,
     polar_coordinates,
-    run,
+    score_gene_pairs,
+    score_genes,
 )
+from biorsp.preprocess.geometry import compute_vantage
 
 warnings.filterwarnings("ignore", message=".*dtype argument is deprecated.*")
 warnings.filterwarnings("ignore", category=FutureWarning, module="legacy_api_wrap")
-
 
 try:
     import anndata
@@ -57,7 +82,6 @@ try:
 except ImportError:
     anndata = None
     sc = None
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,709 +91,1087 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def parse_args():
+# =============================================================================
+# CLI Argument Parsing
+# =============================================================================
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for the TAL case study."""
     parser = argparse.ArgumentParser(
-        description="BioRSP Case Study 1: TAL Cells in Azimuth Kidney Reference"
+        description="BioRSP TAL Case Study: Spatial gene scoring in human kidney",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Pilot run (fast, for testing)
+  python run_tal_analysis.py --ref_data data/kpmp.h5ad --outdir results/pilot \\
+      --controls "SLC12A1,UMOD,EGF" --max_genes 10 --n_permutations 100
+
+  # Full run with gene-gene analysis
+  python run_tal_analysis.py --ref_data data/kpmp.h5ad --outdir results/full \\
+      --controls "SLC12A1,UMOD,EGF" --max_genes 500 --n_permutations 1000 \\
+      --do_genegene --n_workers 4
+""",
     )
 
-    parser.add_argument(
+    # Input/Output
+    io_group = parser.add_argument_group("Input/Output")
+    io_group.add_argument(
         "--ref_data",
         type=str,
         required=True,
-        help="Path to reference data (.h5ad preferred, or .Rds)",
+        help="Path to reference data (.h5ad preferred)",
     )
-    parser.add_argument(
+    io_group.add_argument(
         "--outdir",
         type=str,
         required=True,
-        help="Directory to save results",
+        help="Directory to save all results",
     )
 
-    parser.add_argument(
+    # Cell selection
+    cell_group = parser.add_argument_group("Cell Selection")
+    cell_group.add_argument(
         "--celltype_key",
         type=str,
         default="subclass.l1",
-        help="Metadata column containing cell type annotations",
+        help="Metadata column for cell type annotations (default: subclass.l1)",
     )
-    parser.add_argument(
+    cell_group.add_argument(
         "--tal_labels",
         type=str,
         nargs="+",
         default=["TAL"],
-        help="Label(s) identifying TAL cells in the annotation column",
+        help="Label(s) identifying TAL cells (default: TAL)",
     )
-    parser.add_argument(
+    cell_group.add_argument(
         "--donor_key",
         type=str,
         default="donor_id",
-        help="Metadata column containing donor identifiers",
+        help="Metadata column for donor identifiers (default: donor_id)",
     )
-
-    parser.add_argument(
-        "--controls",
-        type=str,
-        help="Comma-separated list of canonical TAL markers (e.g., 'SLC12A1,UMOD,EGF')",
-    )
-    parser.add_argument(
-        "--min_pct",
-        type=float,
-        default=0.01,
-        help="Minimum fraction of cells expressing a gene to be included in discovery panel",
-    )
-    parser.add_argument(
-        "--max_genes",
-        type=int,
-        default=None,
-        help="Maximum number of discovery genes to analyze (for speed)",
-    )
-    parser.add_argument(
-        "--top_k_plots",
-        type=int,
-        default=12,
-        help="Number of top genes to generate detailed plots for",
-    )
-
-    parser.add_argument(
-        "--n_perm",
-        type=int,
-        default=200,
-        help="Number of permutations for p-value calculation",
-    )
-    parser.add_argument(
-        "--n_workers",
-        type=int,
-        default=1,
-        help="Number of parallel workers (1 = serial)",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed for reproducibility",
-    )
-
-    parser.add_argument(
-        "--annoy_index",
-        type=str,
-        default=None,
-        help="Optional path to an idx.annoy file for nearest-neighbor queries",
-    )
-    parser.add_argument(
+    cell_group.add_argument(
         "--subsample",
         type=int,
         default=None,
-        help="Optional number of cells to subsample for robustness testing",
+        help="Subsample to N cells for faster testing (default: no subsampling)",
     )
-    parser.add_argument(
-        "--min_cells_per_donor",
-        type=int,
-        default=100,
-        help="Minimum cells required per donor for donor-aware analysis",
+
+    # Gene selection
+    gene_group = parser.add_argument_group("Gene Selection")
+    gene_group.add_argument(
+        "--controls",
+        type=str,
+        help="Comma-separated canonical TAL markers (e.g., 'SLC12A1,UMOD,EGF')",
     )
-    parser.add_argument(
-        "--min_adequacy_fraction",
+    gene_group.add_argument(
+        "--min_pct",
         type=float,
-        default=0.9,
-        help="Minimum adequacy fraction for a gene to be considered adequate",
+        default=0.01,
+        help="Minimum expression prevalence for discovery genes (default: 0.01)",
     )
-    parser.add_argument(
+    gene_group.add_argument(
+        "--max_genes",
+        type=int,
+        default=None,
+        help="Maximum discovery genes to analyze (default: all passing filters)",
+    )
+    gene_group.add_argument(
+        "--exclude_patterns",
+        type=str,
+        default="^MT-|^mt-|^RPS|^RPL",
+        help="Regex pattern for genes to exclude (default: MT/ribosomal)",
+    )
+
+    # Scoring parameters
+    scoring_group = parser.add_argument_group("Scoring Parameters")
+    scoring_group.add_argument(
+        "--embedding_key",
+        type=str,
+        default=None,
+        help="Key in adata.obsm for embedding (default: auto-detect X_umap)",
+    )
+    scoring_group.add_argument(
+        "--B",
+        type=int,
+        default=72,
+        help="Number of angular sectors (default: 72 = 5° resolution)",
+    )
+    scoring_group.add_argument(
+        "--delta_deg",
+        type=float,
+        default=60.0,
+        help="Sector width in degrees (default: 60°; use 180 for half-plane contrast)",
+    )
+    scoring_group.add_argument(
+        "--foreground_quantile",
+        type=float,
+        default=0.90,
+        help="Quantile for internal foreground selection (default: 0.90)",
+    )
+    scoring_group.add_argument(
+        "--expr_threshold_mode",
+        type=str,
+        choices=["detect", "fixed", "nonzero_quantile"],
+        default="detect",
+        help="How to determine coverage threshold (default: detect)",
+    )
+    scoring_group.add_argument(
+        "--expr_threshold_value",
+        type=float,
+        default=None,
+        help="Fixed coverage threshold (only used if mode=fixed)",
+    )
+    scoring_group.add_argument(
+        "--empty_fg_policy",
+        type=str,
+        choices=["nan", "zero"],
+        default="zero",
+        help="Policy for empty-foreground sectors (default: zero = no signal)",
+    )
+    scoring_group.add_argument(
+        "--n_permutations",
+        type=int,
+        default=200,
+        help="Number of permutations for p-value calculation (default: 200)",
+    )
+
+    # Classification parameters
+    class_group = parser.add_argument_group("Archetype Classification")
+    class_group.add_argument(
+        "--c_cut",
+        type=float,
+        default=0.10,
+        help="Coverage cutoff for archetype classification (default: 0.10)",
+    )
+    class_group.add_argument(
+        "--s_cut",
+        type=float,
+        default=None,
+        help="Spatial score cutoff (default: auto from FDR or empirical null)",
+    )
+    class_group.add_argument(
+        "--fdr_cut",
+        type=float,
+        default=0.05,
+        help="FDR threshold for significance (default: 0.05)",
+    )
+
+    # Gene-gene analysis
+    pair_group = parser.add_argument_group("Gene-Gene Analysis (Optional)")
+    pair_group.add_argument(
+        "--do_genegene",
+        action="store_true",
+        help="Compute pairwise gene relationships",
+    )
+    pair_group.add_argument(
+        "--top_for_pairs",
+        type=int,
+        default=50,
+        help="Number of top genes for pairwise analysis (default: 50)",
+    )
+
+    # Plotting
+    plot_group = parser.add_argument_group("Plotting")
+    plot_group.add_argument(
+        "--top_k_plots",
+        type=int,
+        default=12,
+        help="Number of top genes to generate detailed plots for (default: 12)",
+    )
+    plot_group.add_argument(
         "--plot_mode",
         type=str,
-        choices=["relative", "absolute", "combined"],
-        default="absolute",
-        help="Radar plotting mode: 'relative' (signed), 'absolute' (split enrichment/depletion), or 'combined' (both on one axis)",
+        choices=["signed", "absolute"],
+        default="signed",
+        help="Radar plot mode: 'signed' (proximal/distal color) or 'absolute' (split panels)",
     )
-    parser.add_argument(
+
+    # Runtime
+    runtime_group = parser.add_argument_group("Runtime")
+    runtime_group.add_argument(
+        "--n_workers",
+        type=int,
+        default=1,
+        help="Number of parallel workers (default: 1 = serial)",
+    )
+    runtime_group.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducibility (default: 42)",
+    )
+    runtime_group.add_argument(
         "--log_level",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
-        help="Logging level for the run",
-    )
-
-    parser.add_argument(
-        "--per_gene_timeout",
-        type=float,
-        default=None,
-        help="Time limit (seconds) per gene before marking as timed out (None = no timeout)",
-    )
-
-    parser.add_argument(
-        "--executor",
-        type=str,
-        choices=["auto", "thread", "process"],
-        default="auto",
-        help="Executor type for parallel runs; 'auto' chooses 'process' when n_workers > 1",
+        help="Logging verbosity (default: INFO)",
     )
 
     return parser.parse_args()
 
 
+# =============================================================================
+# Data Loading and Utilities
+# =============================================================================
+
+
+def compute_file_checksum(path: str, algorithm: str = "sha256") -> str:
+    """Compute checksum of a file for provenance tracking."""
+    h = hashlib.new(algorithm)
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def load_reference(path: str) -> anndata.AnnData:
-    """
-    Load reference data from h5ad or Rds.
-    """
+    """Load reference data from H5AD file."""
     path_obj = Path(path)
     if not path_obj.exists():
         raise FileNotFoundError(f"Reference file not found: {path}")
 
-    if path_obj.suffix.lower() == ".h5ad":
-        if anndata is None:
-            raise ImportError("anndata is required to load .h5ad files.")
-        logger.info(f"Loading H5AD from {path}... (this may take a few minutes for large files)")
-        adata = anndata.read_h5ad(path)
-        logger.info(f"Successfully loaded {path}: {adata.shape}")
-        return adata
-
-    elif path_obj.suffix.lower() == ".rds":
+    if path_obj.suffix.lower() != ".h5ad":
         raise ValueError(
-            f"Direct loading of .Rds files is not robustly supported in this script. "
-            f"Please run the provided R conversion script first:\n"
-            f"  Rscript examples/convert_ref_rds_to_h5ad.R {path} {path_obj.with_suffix('.h5ad')}\n"
-            f"Then run this script with the .h5ad file."
+            f"Only .h5ad files are supported. Got: {path_obj.suffix}\n"
+            "Convert using: scripts/convert_to_h5ad.R or scripts/build_h5ad_from_export.py"
         )
-    else:
-        raise ValueError(f"Unsupported file extension: {path_obj.suffix}")
+
+    if anndata is None:
+        raise ImportError("anndata is required: pip install anndata scanpy")
+
+    logger.info(f"Loading H5AD from {path}...")
+    adata = anndata.read_h5ad(path)
+    logger.info(f"Loaded: {adata.n_obs} cells × {adata.n_vars} genes")
+    return adata
 
 
-def get_embedding(adata: anndata.AnnData) -> np.ndarray:
-    """
-    Extract 2D embedding from AnnData.
+def detect_embedding_key(adata: anndata.AnnData, preferred_key: str | None = None) -> str:
+    """Auto-detect embedding key from adata.obsm."""
+    if preferred_key is not None:
+        if preferred_key in adata.obsm:
+            return preferred_key
+        raise ValueError(f"Embedding key '{preferred_key}' not found in adata.obsm")
 
-    This function is intentionally flexible: it looks for common obsm keys
-    that include 'umap' (case-insensitive), falls back to explicit obs
-    columns, and finally uses any 2-col obsm entry as a last resort.
-    """
+    # Try common UMAP keys
+    umap_candidates = ["X_umap", "X_UMAP", "umap"]
+    for key in umap_candidates:
+        if key in adata.obsm:
+            logger.info(f"Auto-detected embedding: {key}")
+            return key
 
-    for key in list(adata.obsm.keys()):
+    # Try any key containing 'umap' (case-insensitive)
+    for key in adata.obsm:
         if "umap" in key.lower():
-            emb = adata.obsm[key]
-            if getattr(emb, "ndim", 2) == 2 and emb.shape[1] >= 2:
-                logger.info(f"Found embedding in obsm['{key}']")
-                return emb[:, :2]
+            logger.info(f"Auto-detected embedding: {key}")
+            return key
 
-    if "UMAP_1" in adata.obs.columns and "UMAP_2" in adata.obs.columns:
-        logger.info("Found embedding in obs columns UMAP_1, UMAP_2")
-        return adata.obs[["UMAP_1", "UMAP_2"]].values
-
-    for key in list(adata.obsm.keys()):
+    # Fallback to first 2D embedding
+    for key in adata.obsm:
         emb = adata.obsm[key]
-        if getattr(emb, "ndim", 2) == 2 and emb.shape[1] >= 2:
-            logger.info(f"Using obsm['{key}'] as embedding (fallback)")
-            return emb[:, :2]
+        if hasattr(emb, "shape") and len(emb.shape) == 2 and emb.shape[1] >= 2:
+            logger.warning(f"Using fallback embedding: {key}")
+            return key
 
     raise ValueError(
-        f"Could not find a 2D embedding in AnnData; available obsm keys: {list(adata.obsm.keys())}"
+        f"No suitable embedding found. Available keys: {list(adata.obsm.keys())}\n"
+        "Hint: Provide --embedding_key explicitly or ensure X_umap exists."
     )
 
 
-def get_umis(adata: anndata.AnnData) -> np.ndarray:
-    """
-    Extract or compute UMI counts per cell.
+def build_symbol_mappings(adata: anndata.AnnData) -> tuple[dict[str, str], dict[str, str]]:
+    """Build var_name <-> gene_symbol mappings."""
+    var_to_symbol = {}
+    symbol_cols = ["feature_name", "gene_symbol", "gene_name", "symbol"]
+    for col in symbol_cols:
+        if col in adata.var.columns:
+            var_to_symbol = adata.var[col].to_dict()
+            logger.info(f"Using '{col}' column for gene symbols")
+            break
 
-    Preference: look for common metadata columns, else sum adata.X, else try adata.raw.
-    """
-    candidates = ["nCount_RNA", "n_counts", "total_counts", "library_size"]
-    for col in candidates:
-        if col in adata.obs.columns:
-            logger.info(f"Using UMI counts from obs['{col}']")
-            return np.asarray(adata.obs[col].values).astype(float)
+    if not var_to_symbol:
+        var_to_symbol = {name: name for name in adata.var_names}
+        logger.info("Using var_names as gene symbols (no symbol column found)")
 
-    logger.info("Computing UMI counts from expression matrix sum...")
-    try:
-        if scipy.sparse.issparse(adata.X):
-            vals = np.asarray(adata.X.sum(axis=1)).reshape(-1)
-        else:
-            vals = np.asarray(adata.X.sum(axis=1)).reshape(-1)
-        return vals.astype(float)
-    except Exception:
-        if getattr(adata, "raw", None) is not None and getattr(adata.raw, "X", None) is not None:
-            logger.info("Computing UMIs from adata.raw.X")
-            if scipy.sparse.issparse(adata.raw.X):
-                return np.asarray(adata.raw.X.sum(axis=1)).reshape(-1).astype(float)
+    symbol_to_var = {v: k for k, v in var_to_symbol.items()}
+    return var_to_symbol, symbol_to_var
+
+
+# =============================================================================
+# Gene Selection
+# =============================================================================
+
+
+def select_genes(
+    adata: anndata.AnnData,
+    controls_str: str | None,
+    symbol_to_var: dict[str, str],
+    var_to_symbol: dict[str, str],
+    min_pct: float,
+    max_genes: int | None,
+    exclude_pattern: str,
+    seed: int,
+) -> tuple[list[str], list[str], dict]:
+    """Select genes for analysis: controls + discovery set.
+
+    Returns
+    -------
+    genes_to_analyze : List[str]
+        All genes (var_names) to score
+    control_vars : List[str]
+        Control gene var_names (subset of genes_to_analyze)
+    selection_info : Dict
+        Metadata about selection for provenance
+    """
+    all_genes = adata.var_names.tolist()
+    n_cells = adata.n_obs
+
+    selection_info = {
+        "n_genes_total": len(all_genes),
+        "min_pct": min_pct,
+        "max_genes": max_genes,
+        "exclude_pattern": exclude_pattern,
+    }
+
+    # Parse controls
+    control_vars = []
+    control_symbols = []
+    missing_controls = []
+    if controls_str:
+        for c in controls_str.split(","):
+            c = c.strip()
+            if c in symbol_to_var:
+                v = symbol_to_var[c]
+                if v in all_genes:
+                    control_vars.append(v)
+                    control_symbols.append(c)
+                else:
+                    missing_controls.append(c)
+            elif c in all_genes:
+                control_vars.append(c)
+                control_symbols.append(var_to_symbol.get(c, c))
             else:
-                return np.asarray(adata.raw.X.sum(axis=1)).reshape(-1).astype(float)
+                missing_controls.append(c)
 
-    raise ValueError(
-        "Could not determine UMI counts from AnnData (no suitable metadata or counts)."
+        if missing_controls:
+            logger.warning(f"Control genes not found (skipped): {missing_controls}")
+
+        selection_info["controls_requested"] = controls_str.split(",")
+        selection_info["controls_found"] = control_symbols
+        selection_info["controls_missing"] = missing_controls
+        logger.info(f"Controls: {len(control_vars)} found, {len(missing_controls)} missing")
+    else:
+        selection_info["controls_requested"] = []
+        selection_info["controls_found"] = []
+
+    # Compute prevalence (fraction of cells with expr > 0)
+    logger.info("Computing gene prevalence...")
+    X = adata.X
+    if scipy.sparse.issparse(X):
+        nonzero_frac = np.asarray((X > 0).sum(axis=0)).flatten() / n_cells
+    else:
+        nonzero_frac = np.asarray((X > 0).sum(axis=0)).flatten() / n_cells
+
+    # Filter by prevalence
+    prevalence_mask = nonzero_frac >= min_pct
+
+    # Exclude MT/ribosomal - check both var_names and symbols
+    exclude_re = re.compile(exclude_pattern) if exclude_pattern else None
+    if exclude_re:
+        # Check var_names
+        exclude_by_varname = np.array([bool(exclude_re.match(g)) for g in all_genes])
+        # Also check symbols (for ENSEMBL IDs where symbol is MT-*, RPS*, RPL*)
+        exclude_by_symbol = np.array(
+            [bool(exclude_re.match(var_to_symbol.get(g, g))) for g in all_genes]
+        )
+        exclude_mask = exclude_by_varname | exclude_by_symbol
+        prevalence_mask = prevalence_mask & ~exclude_mask
+        n_excluded = int(exclude_mask.sum())
+        logger.info(
+            f"Excluded {n_excluded} genes matching '{exclude_pattern}' (var_name or symbol)"
+        )
+
+    discovery_genes = [g for g, m in zip(all_genes, prevalence_mask) if m and g not in control_vars]
+    logger.info(f"Discovery candidates: {len(discovery_genes)} genes with prevalence >= {min_pct}")
+
+    # Subsample if max_genes specified
+    if max_genes and len(discovery_genes) > max_genes:
+        # Prioritize by prevalence
+        disc_prev = {g: nonzero_frac[all_genes.index(g)] for g in discovery_genes}
+        discovery_genes = sorted(discovery_genes, key=lambda g: -disc_prev[g])[:max_genes]
+        logger.info(f"Subsampled to top {max_genes} discovery genes by prevalence")
+
+    genes_to_analyze = control_vars + discovery_genes
+    selection_info["n_controls"] = len(control_vars)
+    selection_info["n_discovery"] = len(discovery_genes)
+    selection_info["n_total"] = len(genes_to_analyze)
+
+    logger.info(
+        f"Gene selection complete: {len(control_vars)} controls + {len(discovery_genes)} discovery = {len(genes_to_analyze)} total"
     )
 
-
-def load_annoy_index(path: str, dim: int):
-    """Load an Annoy index from disk and return the index object.
-
-    Requires the 'annoy' package (pip install annoy).
-    """
-    try:
-        from annoy import AnnoyIndex
-    except ImportError as exc:
-        raise ImportError("Install 'annoy' (pip install annoy) to load idx.annoy files") from exc
-    t = AnnoyIndex(dim, metric="angular")
-    t.load(path)
-    return t
+    return genes_to_analyze, control_vars, selection_info
 
 
-def plot_results(
-    gene_name: str,
-    adata_tal: anndata.AnnData,
-    res: Dict,
-    outdir: Path,
+# =============================================================================
+# Plotting Functions (v3 compatible)
+# =============================================================================
+
+
+def plot_gene_v3(
+    gene: str,
+    adata: anndata.AnnData,
+    gene_result: pd.Series,
+    embedding_key: str,
     config: BioRSPConfig,
-    var_to_symbol: Dict[str, str],
-    plot_mode: str = "absolute",
+    var_to_symbol: dict[str, str],
+    outdir: Path,
+    plot_mode: str = "signed",
 ):
+    """Create a two-panel visualization for a single gene.
+
+    Left panel: Cell embedding colored by expression level, with a boundary
+                showing which cells actually express the gene (above threshold)
+    Right panel: Radar plot showing radial distribution of expression
+    Annotation box: Key metrics (coverage, spatial score, significance)
     """
-    Generate Embedding and Radar plots for a gene.
-    """
+    symbol = var_to_symbol.get(gene, gene)
 
-    embedding = get_embedding(adata_tal)
-    x = adata_tal[:, gene_name].X
-    x = x.toarray().flatten() if scipy.sparse.issparse(x) else x.flatten()
+    # Get expression data
+    X = adata[:, gene].X
+    expr = X.toarray().flatten() if scipy.sparse.issparse(X) else np.asarray(X).flatten()
 
-    threshold = np.quantile(x, 0.90)
-    fg_mask = x >= threshold if threshold > 0 else x > 0
+    # Get embedding
+    coords = adata.obsm[embedding_key][:, :2]
 
-    center = np.median(embedding, axis=0)
+    # Coverage mask (biological threshold)
+    t_g = gene_result.get("expr_threshold_value", 1.0)
+    coverage_mask = expr >= t_g
 
-    symbol = var_to_symbol.get(gene_name, gene_name)
+    # Internal foreground (quantile-based for radar)
+    q_thresh = np.quantile(expr, config.foreground_quantile)
+    fg_mask = expr >= q_thresh if q_thresh > 0 else expr > 0
 
+    # Compute vantage and polar coords using package functions
+    center = compute_vantage(coords, method=config.vantage, seed=config.seed)
+    r, theta = polar_coordinates(coords, center)
+
+    # Compute radar for plotting
+    radar = compute_rsp_radar(r, theta, fg_mask.astype(float), config=config)
+
+    # Create figure
     if plot_mode == "absolute":
         fig = plt.figure(figsize=(18, 6))
-        gs = fig.add_gridspec(1, 3)
-        ax1 = fig.add_subplot(gs[0, 0])
-        ax2 = fig.add_subplot(gs[0, 1], projection="polar")
-        ax3 = fig.add_subplot(gs[0, 2], projection="polar")
+        gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1])
+        ax_emb = fig.add_subplot(gs[0, 0])
+        ax_radar1 = fig.add_subplot(gs[0, 1], projection="polar")
+        ax_radar2 = fig.add_subplot(gs[0, 2], projection="polar")
     else:
-        fig = plt.figure(figsize=(12, 6))
-        gs = fig.add_gridspec(1, 2)
-        ax1 = fig.add_subplot(gs[0, 0])
-        ax2 = fig.add_subplot(gs[0, 1], projection="polar")
+        fig = plt.figure(figsize=(14, 6))
+        gs = fig.add_gridspec(1, 2, width_ratios=[1.2, 1])
+        ax_emb = fig.add_subplot(gs[0, 0])
+        ax_radar = fig.add_subplot(gs[0, 1], projection="polar")
 
-    ax1.scatter(
-        embedding[~fg_mask, 0],
-        embedding[~fg_mask, 1],
-        c="lightgray",
+    # --- Embedding panel ---
+    # Plot all cells colored by expression
+    sc = ax_emb.scatter(
+        coords[:, 0],
+        coords[:, 1],
+        c=expr,
         s=5,
-        alpha=0.5,
-        label="Background",
+        alpha=0.7,
+        cmap="viridis",
+        edgecolors="none",
     )
+    plt.colorbar(sc, ax=ax_emb, label="Expression", shrink=0.6)
 
-    ax1.scatter(
-        embedding[fg_mask, 0],
-        embedding[fg_mask, 1],
-        c="red",
-        s=10,
-        alpha=0.8,
-        label="Foreground (Top 10%)",
-    )
-    ax1.scatter(center[0], center[1], c="black", marker="x", s=100, label="Vantage Point")
-    ax1.set_title(f"{symbol} Expression\n(TAL Cells)", fontsize=20)
-    ax1.axis("off")
-    ax1.legend(loc="lower left", fontsize=18)
+    # Outline coverage-positive cells
+    if np.any(coverage_mask):
+        ax_emb.scatter(
+            coords[coverage_mask, 0],
+            coords[coverage_mask, 1],
+            s=15,
+            facecolors="none",
+            edgecolors="red",
+            linewidths=0.5,
+            alpha=0.6,
+            label=f"Coverage (x ≥ {t_g:.2g})",
+        )
 
-    r, theta = polar_coordinates(embedding, center)
-    radar_res = compute_rsp_radar(
-        r,
-        theta,
-        fg_mask,
-        B=config.n_angles,
-        delta_deg=config.sector_width_deg,
-        min_fg_sector=config.min_fg_sector,
-        min_bg_sector=config.min_bg_sector,
-    )
+    # Mark vantage point
+    ax_emb.scatter(center[0], center[1], c="black", marker="X", s=150, zorder=10, label="Vantage")
 
-    radar_res.rsp = np.asarray(radar_res.rsp).flatten()
+    ax_emb.set_title(f"{symbol}\n(TAL Cells)", fontsize=14)
+    ax_emb.axis("off")
+    ax_emb.legend(loc="lower left", fontsize=9)
 
-    rsp = radar_res.rsp
-    n_nan = int(np.sum(np.isnan(rsp)))
-    n_valid = int(np.sum(~np.isnan(rsp)))
-    n_zero = int(np.sum(np.isfinite(rsp) & (np.abs(rsp) <= 1e-12)))
-    logger.debug(
-        f"Radar stats for {symbol}: n_sectors={len(rsp)}, n_valid={n_valid}, n_nan={n_nan}, n_zero={n_zero}, min={np.nanmin(rsp) if n_valid>0 else 'NA'}, max={np.nanmax(rsp) if n_valid>0 else 'NA'}"
-    )
-
-    if n_valid == 0:
-        logger.warning(f"Radar for {symbol} has no valid sectors (all NaN); plot will be empty")
-
-        if plot_mode == "absolute":
-            msg = "No valid sectors\n" "(insufficient foreground/background counts)"
-            ax2.text(0.5, 0.5, msg, transform=ax2.transAxes, ha="center", va="center", fontsize=10)
-            ax3.text(0.5, 0.5, msg, transform=ax3.transAxes, ha="center", va="center", fontsize=10)
-        else:
-            msg = "No valid sectors\n" "(insufficient foreground/background counts)"
-            ax2.text(0.5, 0.5, msg, transform=ax2.transAxes, ha="center", va="center", fontsize=10)
+    # --- Radar panel(s) ---
+    if plot_mode == "absolute":
+        plot_radar(radar, ax=ax_radar1, title="Proximal ($R > 0$)", mode="proximal")
+        plot_radar(radar, ax=ax_radar2, title="Distal ($R < 0$)", mode="distal")
     else:
-        if plot_mode == "absolute":
-            plot_radar(radar_res, ax=ax2, title="Proximal RSP ($R > 0$)", mode="proximal")
-            plot_radar(radar_res, ax=ax3, title="Distal RSP ($R < 0$)", mode="distal")
-        elif plot_mode == "relative":
+        plot_radar(radar, ax=ax_radar, title=f"{symbol} RSP", mode="signed")
 
-            plot_radar(radar_res, ax=ax2, title="BioRSP RSP (Signed)", mode="signed")
-        else:
-            plot_radar(radar_res, ax=ax2, title="BioRSP RSP (Signed)", mode="signed")
+    # --- Annotation box with key metrics ---
+    c_g = gene_result.get("coverage_expr", np.nan)
+    s_g = gene_result.get("spatial_score", np.nan)
+    sign = gene_result.get("spatial_sign", 0)
+    r_mean = gene_result.get("r_mean_bg", np.nan)
+    cov_bg = gene_result.get("coverage_bg", np.nan)
+    p_val = gene_result.get("p_value", np.nan)
+    q_val = gene_result.get("q_value", np.nan)
 
-    A_g = res.get("A_g", np.nan)
-    P_g = res.get("P_g", np.nan)
-    theta_g = res.get("theta_g", np.nan)
-    p_strat = res.get("p_strat", np.nan)
+    sign_str = "+" if sign > 0 else ("-" if sign < 0 else "0")
 
     def _fmt(x, fmt="{:.3f}"):
-        try:
-            if x is None or (isinstance(x, float) and np.isnan(x)):
-                return "NA"
-            return fmt.format(x)
-        except Exception:
-            return str(x)
+        if x is None or (isinstance(x, float) and np.isnan(x)):
+            return "—"
+        return fmt.format(x)
 
-    theta_text = "NA"
-    try:
-        if not (theta_g is None or np.isnan(theta_g)):
-            theta_text = f"{np.degrees(theta_g):.1f}°"
-    except Exception:
-        theta_text = str(theta_g)
+    info_lines = [
+        f"$C_g$ (coverage): {_fmt(c_g)}",
+        f"$S_g$ (spatial): {_fmt(s_g)}",
+        f"Sign: {sign_str}",
+        f"$\\bar{{R}}_{{bg}}$: {_fmt(r_mean)}",
+        f"Coverage$_{{bg}}$: {_fmt(cov_bg)}",
+        f"p-value: {_fmt(p_val, '{:.2e}')}",
+        f"q-value: {_fmt(q_val, '{:.2e}')}",
+    ]
 
-    info_text = (
-        f"$A_g$: {_fmt(A_g)}\n"
-        f"$P_g$: {_fmt(P_g)}\n"
-        f"$\\theta_g$: {theta_text}\n"
-        f"$p$: {_fmt(p_strat, '{:.1e}')}"
-    )
-    plt.figtext(
-        0.99,
-        0.9,
-        info_text,
-        ha="right",
-        va="top",
-        fontsize=20,
-        bbox=dict(facecolor="white", alpha=0.8),
+    fig.text(
+        0.98,
+        0.95,
+        "\n".join(info_lines),
+        transform=fig.transFigure,
+        fontsize=10,
+        verticalalignment="top",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.9),
+        family="monospace",
     )
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
     outdir.mkdir(parents=True, exist_ok=True)
     plt.savefig(outdir / f"plot_{symbol}.png", dpi=150, bbox_inches="tight")
-    plt.close()
+    plt.close(fig)
+
+
+def plot_archetype_scatter(
+    df: pd.DataFrame,
+    control_symbols: list[str],
+    c_cut: float,
+    s_cut: float | None,
+    outpath: Path,
+):
+    """Create C_g vs S_g scatter plot with archetype quadrants.
+
+    This is the primary "story figure" for biologists.
+    """
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    # Get cutoffs
+    if s_cut is None:
+        s_cut = df.attrs.get("s_cut", 0.05)  # Default from classify_genes
+
+    # Plot all genes
+    if "archetype" in df.columns:
+        archetype_colors = {
+            "localized_program": "#e41a1c",
+            "housekeeping_uniform": "#377eb8",
+            "niche_biomarker": "#4daf4a",
+            "sparse_presence": "#999999",
+        }
+        for arch, color in archetype_colors.items():
+            mask = df["archetype"] == arch
+            ax.scatter(
+                df.loc[mask, "coverage_expr"],
+                df.loc[mask, "spatial_score"],
+                c=color,
+                label=arch.replace("_", " ").title(),
+                s=30,
+                alpha=0.7,
+                edgecolors="none",
+            )
+    else:
+        ax.scatter(
+            df["coverage_expr"],
+            df["spatial_score"],
+            c="steelblue",
+            s=30,
+            alpha=0.7,
+            edgecolors="none",
+        )
+
+    # Draw quadrant lines
+    ax.axvline(c_cut, color="gray", linestyle="--", alpha=0.5, linewidth=1)
+    ax.axhline(s_cut, color="gray", linestyle="--", alpha=0.5, linewidth=1)
+
+    # Label control genes
+    symbol_col = "gene_symbol" if "gene_symbol" in df.columns else "gene"
+    for _, row in df.iterrows():
+        sym = row.get(symbol_col, row["gene"])
+        if sym in control_symbols:
+            ax.annotate(
+                sym,
+                (row["coverage_expr"], row["spatial_score"]),
+                fontsize=9,
+                fontweight="bold",
+                xytext=(5, 5),
+                textcoords="offset points",
+                color="red",
+            )
+
+    # Quadrant labels
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    ax.text(
+        xlim[0] + 0.02 * (xlim[1] - xlim[0]),
+        ylim[1] - 0.05 * (ylim[1] - ylim[0]),
+        "Niche Biomarker\n(low C, high S)",
+        fontsize=9,
+        fontstyle="italic",
+        alpha=0.7,
+        ha="left",
+        va="top",
+    )
+    ax.text(
+        xlim[1] - 0.02 * (xlim[1] - xlim[0]),
+        ylim[1] - 0.05 * (ylim[1] - ylim[0]),
+        "Localized Program\n(high C, high S)",
+        fontsize=9,
+        fontstyle="italic",
+        alpha=0.7,
+        ha="right",
+        va="top",
+    )
+    ax.text(
+        xlim[0] + 0.02 * (xlim[1] - xlim[0]),
+        ylim[0] + 0.05 * (ylim[1] - ylim[0]),
+        "Sparse Presence\n(low C, low S)",
+        fontsize=9,
+        fontstyle="italic",
+        alpha=0.7,
+        ha="left",
+        va="bottom",
+    )
+    ax.text(
+        xlim[1] - 0.02 * (xlim[1] - xlim[0]),
+        ylim[0] + 0.05 * (ylim[1] - ylim[0]),
+        "Housekeeping/Uniform\n(high C, low S)",
+        fontsize=9,
+        fontstyle="italic",
+        alpha=0.7,
+        ha="right",
+        va="bottom",
+    )
+
+    ax.set_xlabel("Coverage ($C_g$): Fraction of cells expressing", fontsize=12)
+    ax.set_ylabel("Spatial Score ($S_g$): Radial organization magnitude", fontsize=12)
+    ax.set_title("Gene Archetype Landscape\n(TAL Cells)", fontsize=14)
+
+    if "archetype" in df.columns:
+        ax.legend(loc="upper right", fontsize=9)
+
+    plt.tight_layout()
+    plt.savefig(outpath, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    logger.info(f"Saved archetype scatter to {outpath}")
+
+
+def plot_gene_pairs_heatmap(
+    pairs_df: pd.DataFrame,
+    var_to_symbol: dict[str, str],
+    outpath: Path,
+    top_n: int = 30,
+):
+    """Create a heatmap of gene-gene copattern scores."""
+    if pairs_df.empty:
+        logger.warning("No gene pairs to plot")
+        return
+
+    # Get top pairs by absolute copattern score
+    pairs_df = pairs_df.copy()
+    pairs_df["abs_copattern"] = pairs_df["copattern_score"].abs()
+    top_pairs = pairs_df.nlargest(top_n, "abs_copattern")
+
+    # Get unique genes
+    genes_a = top_pairs["gene_a"].unique()
+    genes_b = top_pairs["gene_b"].unique()
+    all_genes = sorted(set(genes_a) | set(genes_b))
+
+    if len(all_genes) < 2:
+        logger.warning("Not enough genes for heatmap")
+        return
+
+    # Build matrix
+    n = len(all_genes)
+    gene_idx = {g: i for i, g in enumerate(all_genes)}
+    matrix = np.zeros((n, n))
+    np.fill_diagonal(matrix, 1.0)
+
+    for _, row in top_pairs.iterrows():
+        i = gene_idx.get(row["gene_a"])
+        j = gene_idx.get(row["gene_b"])
+        if i is not None and j is not None:
+            matrix[i, j] = row["copattern_score"]
+            matrix[j, i] = row["copattern_score"]
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(12, 10))
+    symbols = [var_to_symbol.get(g, g) for g in all_genes]
+
+    im = ax.imshow(matrix, cmap="RdBu_r", vmin=-1, vmax=1, aspect="auto")
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    ax.set_xticklabels(symbols, rotation=45, ha="right", fontsize=8)
+    ax.set_yticklabels(symbols, fontsize=8)
+    ax.set_title("Gene-Gene Copattern Scores\n(Top pairs)", fontsize=14)
+
+    plt.colorbar(im, ax=ax, label="Copattern Score", shrink=0.8)
+    plt.tight_layout()
+    plt.savefig(outpath, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    logger.info(f"Saved gene pairs heatmap to {outpath}")
+
+
+# =============================================================================
+# Main Pipeline
+# =============================================================================
 
 
 def main():
     args = parse_args()
 
-    root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, args.log_level.upper(), logging.INFO))
-
-    if args.log_level.upper() == "DEBUG":
-        try:
-            faulthandler.register(signal.SIGUSR1, all_threads=True)
-            logger.info(
-                "faulthandler registered for SIGUSR1 (send kill -SIGUSR1 <PID> to dump threads)"
-            )
-        except Exception as e:
-            logger.warning(f"Could not register faulthandler: {e}")
+    # Setup logging
+    logging.getLogger().setLevel(getattr(logging, args.log_level.upper(), logging.INFO))
 
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
-    logger.info("Starting BioRSP Case Study 1: TAL Cells")
+    logger.info("=" * 60)
+    logger.info("BioRSP Case Study: TAL Cells (v3 API)")
+    logger.info("=" * 60)
 
+    # Initialize run metadata
     run_meta = {
-        "args": vars(args),
         "timestamp": datetime.now().isoformat(),
+        "args": vars(args),
+        "biorsp_version": "3.0",  # Placeholder - could import from package
     }
 
-    logger.info("Loading reference dataset")
-    logger.info(f"Loading reference from {args.ref_data}...")
+    # -------------------------------------------------------------------------
+    # Stage 1: Load Data
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 1] Loading reference dataset...")
     adata = load_reference(args.ref_data)
-    logger.info(f"Loaded data: {adata.shape}")
-    logger.info(f"Available obs columns: {list(adata.obs.columns)}")
-    logger.info(f"Available var columns: {list(adata.var.columns)}")
-    logger.info("Data loading complete")
 
-    var_to_symbol = {}
-    if "feature_name" in adata.var.columns:
-        var_to_symbol = adata.var["feature_name"].to_dict()
-        logger.info("Using 'feature_name' column for gene symbols")
-    elif "gene_symbol" in adata.var.columns:
-        var_to_symbol = adata.var["gene_symbol"].to_dict()
-        logger.info("Using 'gene_symbol' column for gene symbols")
-    elif "gene_name" in adata.var.columns:
-        var_to_symbol = adata.var["gene_name"].to_dict()
-        logger.info("Using 'gene_name' column for gene symbols")
-    else:
-
-        var_to_symbol = {name: name for name in adata.var_names}
-        logger.info("No symbol column found; assuming var_names are gene symbols")
-    symbol_to_var = {v: k for k, v in var_to_symbol.items()}
-    logger.info(f"Symbol to var mapping created for {len(symbol_to_var)} genes")
-
-    logger.info("Subsetting to TAL cells")
-    logger.info(f"Subsetting to TAL cells (key='{args.celltype_key}', labels={args.tal_labels})...")
-    if args.celltype_key not in adata.obs.columns:
-        logger.info(f"Available obs columns: {list(adata.obs.columns)}")
-        raise ValueError(f"Column '{args.celltype_key}' not found in metadata.")
-
-    unique_labels = adata.obs[args.celltype_key].unique()
-    logger.info(f"Unique values in '{args.celltype_key}': {sorted(unique_labels)}")
-
-    tal_mask = adata.obs[args.celltype_key].isin(args.tal_labels)
-    logger.info(f"Subset mask: {tal_mask.sum()} cells selected out of {len(tal_mask)}")
-    adata_tal = adata[tal_mask].copy()
-
-    if args.subsample and args.subsample < adata_tal.n_obs:
-        logger.info(f"Subsampling to {args.subsample} cells (seed={args.seed})...")
-        np.random.seed(args.seed)
-        idx = np.random.choice(adata_tal.n_obs, args.subsample, replace=False)
-        adata_tal = adata_tal[idx].copy()
-
-    if args.donor_key in adata_tal.obs.columns:
-        donor_counts = adata_tal.obs[args.donor_key].value_counts()
-        logger.info(f"Donor distribution in TAL subset:\n{donor_counts}")
-        run_meta["donor_distribution"] = donor_counts.to_dict()
-
-        valid_donors = donor_counts[donor_counts >= args.min_cells_per_donor].index.tolist()
-        logger.info(f"Donors with >= {args.min_cells_per_donor} cells: {valid_donors}")
-        run_meta["valid_donors"] = valid_donors
-    else:
-        logger.warning(f"Donor key '{args.donor_key}' not found in metadata.")
-
-    n_tal = adata_tal.n_obs
-    logger.info(f"Final analysis set: {n_tal} TAL cells.")
-    if n_tal < 100:
-        logger.warning("Very few TAL cells found. Results may be unstable.")
-
-    run_meta["n_tal_cells"] = int(n_tal)
-    logger.info("Subsetting complete")
-
-    logger.info("Preparing inputs (embedding and UMIs)")
-    embedding = get_embedding(adata_tal)
-    logger.info(f"Embedding shape: {embedding.shape}")
-    umis = get_umis(adata_tal)
-    logger.info(f"UMIs shape: {umis.shape}")
-    logger.info("Input preparation complete")
-
-    logger.info("Selecting genes for analysis")
-    all_genes = adata_tal.var_names.tolist()
-    genes_to_analyze = []
-
-    auto_controls = []
-    if args.controls:
-        controls = [g.strip() for g in args.controls.split(",")]
-
-        valid_controls = []
-        missing_controls = []
-        for c in controls:
-            if c in symbol_to_var:
-                v = symbol_to_var[c]
-                if v not in genes_to_analyze:
-                    valid_controls.append(v)
-            else:
-                missing_controls.append(c)
-        if missing_controls:
-            logger.warning(
-                f"The following control symbols were not found in reference and will be skipped: {missing_controls}"
-            )
-        genes_to_analyze.extend(valid_controls)
-        logger.info(f"Added {len(valid_controls)} control genes from --controls.")
-        run_meta["controls_selected"] = [var_to_symbol.get(c, c) for c in valid_controls]
-    else:
-
-        logger.info(
-            "Selecting control genes automatically (top mean-expression, excluding MT/RPS/RPL)..."
-        )
-        try:
-            if scipy.sparse.issparse(adata_tal.X):
-                means = np.asarray(adata_tal.X.mean(axis=0)).reshape(-1)
-            else:
-                means = np.asarray(adata_tal.X.mean(axis=0)).reshape(-1)
-        except Exception:
-            means = np.asarray(np.asarray(adata_tal.X).mean(axis=0)).reshape(-1)
-        gene_means = list(zip(all_genes, means))
-
-        import re
-
-        bad_re = re.compile(r"^(MT-|mt-|RPS|RPL)")
-        gene_means = [gm for gm in gene_means if not bad_re.match(gm[0])]
-        gene_means.sort(key=lambda x: -x[1])
-        n_controls = min(6, len(gene_means))
-        auto_controls = [g for g, _ in gene_means[:n_controls]]
-        genes_to_analyze.extend(auto_controls)
-        auto_controls_symbols = [var_to_symbol.get(g, g) for g in auto_controls]
-        logger.info(f"Auto-selected {len(auto_controls)} control genes: {auto_controls_symbols}")
-        run_meta["controls_selected"] = auto_controls_symbols
-
-    logger.info("Calculating gene prevalence...")
+    # Compute checksum for provenance
     try:
-        if scipy.sparse.issparse(adata_tal.X):
-            present = np.asarray((adata_tal.X > 0).sum(axis=0)).reshape(-1)
-        else:
-            present = np.asarray((adata_tal.X > 0).sum(axis=0)).reshape(-1)
-    except Exception:
-        present = np.asarray((np.asarray(adata_tal.X) > 0).sum(axis=0)).reshape(-1)
-
-    prevalence = present / float(n_tal)
-    logger.info(f"Calculated prevalence for {len(prevalence)} genes.")
-
-    discovery_mask = prevalence >= float(args.min_pct)
-    discovery_genes = np.array(all_genes)[discovery_mask]
-
-    discovery_genes = [g for g in discovery_genes if g not in genes_to_analyze]
-
-    if args.max_genes and len(discovery_genes) > args.max_genes:
-
-        if sc is not None:
-            logger.info("Computing HVGs to select top genes...")
-
-            pass
-
-        disc_indices = [all_genes.index(g) for g in discovery_genes]
-        disc_prev = prevalence[disc_indices]
-        sorted_indices = np.argsort(-disc_prev)
-        discovery_genes = np.array(discovery_genes)[sorted_indices[: args.max_genes]].tolist()
-
-    genes_to_analyze.extend(discovery_genes)
-    genes_to_analyze = sorted(list(set(genes_to_analyze)))
-
-    logger.info(
-        f"Total genes to analyze: {len(genes_to_analyze)} (controls: {len(controls) if args.controls else 0}, discovery: {len(discovery_genes)})"
-    )
-    run_meta["n_genes_analyzed"] = len(genes_to_analyze)
+        run_meta["input_checksum"] = {
+            "file": args.ref_data,
+            "sha256": compute_file_checksum(args.ref_data),
+        }
+    except Exception as e:
+        logger.warning(f"Could not compute checksum: {e}")
+        run_meta["input_checksum"] = None
 
     run_meta["n_cells_total"] = int(adata.n_obs)
     run_meta["n_genes_total"] = int(adata.n_vars)
 
-    if args.annoy_index:
-        try:
-            load_annoy_index(args.annoy_index, dim=embedding.shape[1])
-            logger.info(f"Loaded Annoy index from {args.annoy_index}")
-            run_meta["annoy_index"] = {"path": args.annoy_index, "loaded": True}
-        except Exception as e:
-            logger.warning(f"Could not load Annoy index: {e}")
-            run_meta["annoy_index"] = {"path": args.annoy_index, "loaded": False, "error": str(e)}
-    else:
-        run_meta["annoy_index"] = None
+    # Build symbol mappings
+    var_to_symbol, symbol_to_var = build_symbol_mappings(adata)
 
-    logger.info("Stage 5: Running BioRSP analysis on each gene")
-    config = BioRSPConfig(
-        min_adequacy_fraction=args.min_adequacy_fraction,
-        n_permutations=args.n_perm,
-        seed=args.seed,
-    )
+    # -------------------------------------------------------------------------
+    # Stage 2: Subset to TAL cells
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 2] Subsetting to TAL cells...")
 
-    expr_df = adata_tal[:, genes_to_analyze].to_df()
-
-    summary = run(
-        coords=embedding,
-        expression=expr_df,
-        umi_counts=umis,
-        config=config,
-        outdir=str(outdir),
-        n_workers=args.n_workers,
-    )
-
-    results = []
-    for name, res in summary.feature_results.items():
-        results.append(
-            {
-                "gene": name,
-                "A_g": res.summaries.anisotropy,
-                "P_g": res.summaries.peak_extremal,
-                "theta_g": res.summaries.peak_extremal_angle,
-                "p_strat": res.p_value,
-                "n_fg": res.foreground_info.get("n_fg", 0),
-                "adequacy_fraction": res.adequacy.adequacy_fraction,
-                "is_adequate": res.adequacy.is_adequate,
-            }
+    if args.celltype_key not in adata.obs.columns:
+        available = list(adata.obs.columns)
+        raise ValueError(
+            f"Cell type column '{args.celltype_key}' not found.\n" f"Available columns: {available}"
         )
 
-    logger.info(f"BioRSP run complete. Produced {len(results)} results.")
-    run_meta["n_results"] = len(results)
-    logger.info("Stage 5 complete")
+    tal_mask = adata.obs[args.celltype_key].isin(args.tal_labels)
+    n_tal = tal_mask.sum()
+    logger.info(f"Found {n_tal} TAL cells (labels: {args.tal_labels})")
 
-    logger.info("Stage 6: Saving results")
+    if n_tal == 0:
+        unique_labels = adata.obs[args.celltype_key].unique().tolist()
+        raise ValueError(
+            f"No cells match labels {args.tal_labels}.\n"
+            f"Available labels in '{args.celltype_key}': {unique_labels}"
+        )
+
+    adata_tal = adata[tal_mask].copy()
+
+    # Subsample if requested
+    if args.subsample and args.subsample < adata_tal.n_obs:
+        logger.info(f"Subsampling to {args.subsample} cells (seed={args.seed})")
+        np.random.seed(args.seed)
+        idx = np.random.choice(adata_tal.n_obs, args.subsample, replace=False)
+        adata_tal = adata_tal[idx].copy()
+
+    # Record donor distribution
+    if args.donor_key in adata_tal.obs.columns:
+        donor_counts = adata_tal.obs[args.donor_key].value_counts().to_dict()
+        run_meta["donor_distribution"] = donor_counts
+        logger.info(f"Donor distribution: {len(donor_counts)} donors")
+    else:
+        run_meta["donor_distribution"] = None
+        logger.warning(f"Donor key '{args.donor_key}' not found in metadata")
+
+    run_meta["n_tal_cells"] = int(adata_tal.n_obs)
+    logger.info(f"Analysis subset: {adata_tal.n_obs} TAL cells")
+
+    if adata_tal.n_obs < 100:
+        logger.warning("Very few cells (<100). Results may be unstable.")
+
+    # -------------------------------------------------------------------------
+    # Stage 3: Detect embedding
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 3] Detecting embedding...")
+    embedding_key = detect_embedding_key(adata_tal, args.embedding_key)
+    run_meta["embedding_key"] = embedding_key
+
+    # -------------------------------------------------------------------------
+    # Stage 4: Gene selection
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 4] Selecting genes for analysis...")
+    genes_to_analyze, control_vars, selection_info = select_genes(
+        adata_tal,
+        args.controls,
+        symbol_to_var,
+        var_to_symbol,
+        args.min_pct,
+        args.max_genes,
+        args.exclude_patterns,
+        args.seed,
+    )
+    run_meta["gene_selection"] = selection_info
+    control_symbols = [var_to_symbol.get(v, v) for v in control_vars]
+
+    if len(genes_to_analyze) == 0:
+        raise ValueError("No genes selected for analysis. Check --min_pct and --exclude_patterns.")
+
+    # -------------------------------------------------------------------------
+    # Stage 5: Run BioRSP scoring (v3 API)
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 5] Running BioRSP scoring...")
+
+    # Determine stratify key (convert categorical to string to avoid numpy dtype issues)
+    stratify_key = None
+    if args.donor_key in adata_tal.obs.columns:
+        donor_col = adata_tal.obs[args.donor_key]
+        # Convert categorical to string for stratification
+        if hasattr(donor_col, "cat"):
+            adata_tal.obs[args.donor_key] = donor_col.astype(str)
+        stratify_key = args.donor_key
+
+    # Build config
+    config = BioRSPConfig(
+        B=args.B,
+        delta_deg=args.delta_deg,
+        foreground_quantile=args.foreground_quantile,
+        expr_threshold_mode=args.expr_threshold_mode,
+        expr_threshold_value=args.expr_threshold_value,
+        empty_fg_policy=args.empty_fg_policy,
+        n_permutations=args.n_permutations,
+        seed=args.seed,
+        stratify_key=stratify_key,
+    )
+
+    run_meta["config"] = asdict(config)
+
+    logger.info(f"Config: B={config.B}, delta={config.delta_deg}°, q={config.foreground_quantile}")
+    logger.info(f"  threshold_mode={config.expr_threshold_mode}, empty_fg={config.empty_fg_policy}")
+    logger.info(f"  n_permutations={config.n_permutations}, seed={config.seed}")
+
+    # Call score_genes (v3 API)
+    df_results = score_genes(
+        adata_tal,
+        genes=genes_to_analyze,
+        embedding_key=embedding_key,
+        config=config,
+    )
+
+    # Add gene symbols
+    df_results["gene_symbol"] = df_results["gene"].map(var_to_symbol)
+    df_results["is_control"] = df_results["gene"].isin(control_vars)
+
+    logger.info(f"Scored {len(df_results)} genes")
+    run_meta["n_genes_scored"] = len(df_results)
+
+    # -------------------------------------------------------------------------
+    # Stage 6: Classify genes into archetypes
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 6] Classifying genes into archetypes...")
+    df_classified = classify_genes(
+        df_results,
+        c_cut=args.c_cut,
+        s_cut=args.s_cut,
+        fdr_cut=args.fdr_cut,
+    )
+
+    # Record classification cutoffs
+    run_meta["classification"] = {
+        "c_cut": df_classified.attrs.get("c_cut", args.c_cut),
+        "s_cut": df_classified.attrs.get("s_cut"),
+        "s_cut_method": df_classified.attrs.get("s_cut_method", "manual"),
+        "fdr_cut": args.fdr_cut,
+    }
+
+    archetype_counts = df_classified["archetype"].value_counts().to_dict()
+    logger.info(f"Archetype distribution: {archetype_counts}")
+    run_meta["archetype_counts"] = archetype_counts
+
+    # -------------------------------------------------------------------------
+    # Stage 7: Save results
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 7] Saving results...")
+
+    # Sort by spatial_score (primary), coverage_expr (secondary)
+    df_sorted = df_classified.sort_values(
+        ["spatial_score", "coverage_expr"], ascending=[False, False]
+    )
+
+    # Main results CSV
     csv_path = outdir / "tal_gene_results.csv"
-    df_res = pd.DataFrame(results)
+    df_sorted.to_csv(csv_path, index=False)
+    logger.info(f"Saved: {csv_path}")
 
-    if df_res.empty:
-        df_res.to_csv(csv_path, index=False)
-        logger.warning("No valid results were produced.")
-    else:
-        df_res["gene_symbol"] = df_res["gene"].map(var_to_symbol)
-        if "A_g" in df_res.columns:
-            df_res = df_res.sort_values(["is_adequate", "A_g"], ascending=[False, False])
-        df_res.to_csv(csv_path, index=False)
-        logger.info(f"Saved ranked results to {csv_path} ({len(df_res)} genes)")
-
-    logger.info("Stage 6 complete")
-
-    logger.info("Stage 7: Generating plots for top genes")
-
-    if "is_adequate" in df_res.columns:
-        valid_df = df_res[df_res["is_adequate"].fillna(False)]
-    else:
-        valid_df = df_res.iloc[0:0]
-    top_genes = valid_df.head(args.top_k_plots)["gene"].tolist()
-
-    if args.controls:
-        controls = [g.strip() for g in args.controls.split(",")]
-        plot_controls = [symbol_to_var.get(c) for c in controls if c in symbol_to_var]
-        plot_genes = list(set(top_genes + plot_controls))
-    else:
-        plot_genes = top_genes
-
-    top_genes_symbols = valid_df.head(args.top_k_plots)["gene_symbol"].tolist()
-
+    # Top genes list (significant only if q-values exist)
     txt_path = outdir / "tal_top_genes.txt"
-    with open(txt_path, "w") as f:
-        for g in top_genes_symbols:
-            f.write(f"{g}\n")
+    if "q_value" in df_sorted.columns and not df_sorted["q_value"].isna().all():
+        sig_df = df_sorted[df_sorted["q_value"] < args.fdr_cut]
+        top_genes_df = sig_df.head(50)
+    else:
+        top_genes_df = df_sorted.head(50)
 
-    logger.info(f"Generating plots for {len(plot_genes)} genes...")
+    with open(txt_path, "w") as f:
+        f.write("# Top genes by spatial_score (descending)\n")
+        f.write("# gene_symbol\tcoverage_expr\tspatial_score\tarchetype\n")
+        for _, row in top_genes_df.iterrows():
+            f.write(
+                f"{row.get('gene_symbol', row['gene'])}\t"
+                f"{row['coverage_expr']:.4f}\t"
+                f"{row['spatial_score']:.4f}\t"
+                f"{row.get('archetype', 'N/A')}\n"
+            )
+    logger.info(f"Saved: {txt_path}")
+
+    # -------------------------------------------------------------------------
+    # Stage 8: Gene-gene analysis (optional)
+    # -------------------------------------------------------------------------
+    if args.do_genegene:
+        logger.info("[Stage 8] Running gene-gene relationship analysis...")
+
+        # Select top genes for pairwise analysis
+        if "q_value" in df_sorted.columns and not df_sorted["q_value"].isna().all():
+            pair_candidates = df_sorted[df_sorted["q_value"] < args.fdr_cut]["gene"].tolist()
+        else:
+            pair_candidates = df_sorted.head(args.top_for_pairs * 2)["gene"].tolist()
+
+        pair_candidates = pair_candidates[: args.top_for_pairs]
+        logger.info(f"Computing pairwise relationships for {len(pair_candidates)} genes...")
+
+        if len(pair_candidates) >= 2:
+            df_pairs = score_gene_pairs(
+                adata_tal,
+                genes=pair_candidates,
+                embedding_key=embedding_key,
+                config=config,
+            )
+
+            pairs_path = outdir / "tal_gene_pairs.csv"
+            df_pairs.to_csv(pairs_path, index=False)
+            logger.info(f"Saved: {pairs_path} ({len(df_pairs)} pairs)")
+            run_meta["n_gene_pairs"] = len(df_pairs)
+
+            # Plot heatmap
+            heatmap_path = outdir / "tal_gene_pairs_heatmap.png"
+            plot_gene_pairs_heatmap(df_pairs, var_to_symbol, heatmap_path)
+        else:
+            logger.warning("Not enough genes for pairwise analysis")
+            run_meta["n_gene_pairs"] = 0
+    else:
+        run_meta["n_gene_pairs"] = None
+
+    # -------------------------------------------------------------------------
+    # Stage 9: Generate plots
+    # -------------------------------------------------------------------------
+    logger.info("[Stage 9] Generating plots...")
+
     plots_dir = outdir / "plots"
     plots_dir.mkdir(exist_ok=True)
 
-    for g in tqdm(plot_genes, desc="Generating plots"):
+    # Archetype scatter (primary story figure)
+    scatter_path = outdir / "tal_archetypes_scatter.png"
+    plot_archetype_scatter(
+        df_sorted,
+        control_symbols,
+        c_cut=run_meta["classification"]["c_cut"],
+        s_cut=run_meta["classification"]["s_cut"],
+        outpath=scatter_path,
+    )
 
-        var_g = g
-        if var_g not in all_genes and g in symbol_to_var:
-            var_g = symbol_to_var[g]
-        if var_g not in all_genes:
-            logger.warning(f"Plot gene {g} not found in dataset (after mapping), skipping")
+    # Per-gene plots for top genes + controls
+    top_for_plots = df_sorted.head(args.top_k_plots)["gene"].tolist()
+    plot_genes = list(set(top_for_plots + control_vars))
+
+    logger.info(f"Generating per-gene plots for {len(plot_genes)} genes...")
+    for gene in tqdm(plot_genes, desc="Plotting genes"):
+        gene_row = df_sorted[df_sorted["gene"] == gene]
+        if gene_row.empty:
             continue
 
-        sub = df_res[df_res["gene"] == var_g]
-        if sub.shape[0] == 0:
-            logger.warning(f"No result row found for {var_g}, skipping plot")
-            continue
+        try:
+            plot_gene_v3(
+                gene,
+                adata_tal,
+                gene_row.iloc[0],
+                embedding_key,
+                config,
+                var_to_symbol,
+                plots_dir,
+                plot_mode=args.plot_mode,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to plot {gene}: {e}")
 
-        raw = adata_tal[:, var_g].X
-        if scipy.sparse.issparse(raw):
-            vec = np.asarray(raw.toarray()).reshape(-1)
-        else:
-            vec = np.asarray(raw).reshape(-1)
-        if vec.size == 0:
-            logger.warning(f"Expression vector for {var_g} is empty; skipping plot")
-            continue
-        row = sub.iloc[0].to_dict()
-        plot_results(
-            var_g, adata_tal, row, plots_dir, config, var_to_symbol, plot_mode=args.plot_mode
-        )
-
-    logger.info("Stage 7 complete")
-
+    # -------------------------------------------------------------------------
+    # Stage 10: Finalize metadata
+    # -------------------------------------------------------------------------
     run_meta["end_time"] = datetime.now().isoformat()
-    run_meta["duration_seconds"] = (
-        datetime.fromisoformat(run_meta["end_time"]) - datetime.fromisoformat(run_meta["timestamp"])
-    ).total_seconds()
+    start_dt = datetime.fromisoformat(run_meta["timestamp"])
+    end_dt = datetime.fromisoformat(run_meta["end_time"])
+    run_meta["duration_seconds"] = (end_dt - start_dt).total_seconds()
+
     run_meta["output_files"] = {
         "results_csv": str(csv_path),
-        "top_genes": str(txt_path),
+        "top_genes_txt": str(txt_path),
+        "archetype_scatter": str(scatter_path),
         "plots_dir": str(plots_dir),
     }
+    if args.do_genegene and run_meta.get("n_gene_pairs", 0) > 0:
+        run_meta["output_files"]["gene_pairs_csv"] = str(outdir / "tal_gene_pairs.csv")
+        run_meta["output_files"]["gene_pairs_heatmap"] = str(outdir / "tal_gene_pairs_heatmap.png")
 
-    with open(outdir / "run_metadata.json", "w", encoding="utf-8") as f:
-        json.dump(run_meta, f, indent=2)
+    meta_path = outdir / "run_metadata.json"
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(run_meta, f, indent=2, default=str)
+    logger.info(f"Saved: {meta_path}")
 
-    logger.info("Analysis complete.")
-    logger.info(f"Total runtime: {run_meta['duration_seconds']:.1f} seconds")
-    logger.info(f"Results saved to: {outdir}")
+    # -------------------------------------------------------------------------
+    # Summary
+    # -------------------------------------------------------------------------
+    logger.info("=" * 60)
+    logger.info("Analysis complete!")
+    logger.info(f"  Duration: {run_meta['duration_seconds']:.1f} seconds")
+    logger.info(f"  Genes scored: {run_meta['n_genes_scored']}")
+    logger.info(f"  Results: {outdir}")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":
