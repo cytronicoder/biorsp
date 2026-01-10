@@ -12,6 +12,7 @@ Requires:
 """
 
 import numpy as np
+from pathlib import Path
 
 try:
     from biorsp.plotting.workflow import make_end_to_end_figure
@@ -68,6 +69,10 @@ def run_debug_session():
     """Run debug session for all synthetic scenarios."""
     print("Running Debug Session for End-to-End Workflow...")
 
+    # Create output directory for debug figures
+    debug_dir = Path("outputs") / "debug"
+    debug_dir.mkdir(parents=True, exist_ok=True)
+
     scenarios = ["wedge_core", "wedge_rim", "global_rim", "null"]
 
     for sc in scenarios:
@@ -79,9 +84,9 @@ def run_debug_session():
         delta_deg = 180
         theta_grid = np.linspace(-np.pi, np.pi, B, endpoint=False)
 
-        outpath = f"debug_figure_{sc}.png"
+        outpath = debug_dir / f"debug_figure_{sc}.png"
         print(f"  Generating figure: {outpath}")
-        make_end_to_end_figure(z, y, v, theta_grid, delta_deg, outpath, feature_name=sc)
+        make_end_to_end_figure(z, y, v, theta_grid, delta_deg, str(outpath), feature_name=sc)
 
 
 if __name__ == "__main__":

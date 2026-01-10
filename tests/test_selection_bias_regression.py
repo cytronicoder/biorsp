@@ -180,7 +180,7 @@ def test_selection_bias_parameter_sweep():
     try:
         from pathlib import Path
 
-        outdir = Path("results/tests")
+        outdir = Path("outputs/tests")
         outdir.mkdir(parents=True, exist_ok=True)
         df.to_csv(outdir / "selection_bias_sweep.csv", index=False)
     except Exception:

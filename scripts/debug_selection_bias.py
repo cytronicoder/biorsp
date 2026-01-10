@@ -13,6 +13,7 @@ Requires:
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pathlib import Path
 
 try:
     from biorsp.core.engine import compute_rsp_radar
@@ -72,6 +73,10 @@ def run_debug_session():
     """
     print("Running Selection Bias Debug Session...")
     print("Testing empty_fg_policy behavior for rim patterns.\n")
+
+    # Create output directory for debug figures
+    debug_dir = Path("outputs") / "debug"
+    debug_dir.mkdir(parents=True, exist_ok=True)
 
     scenarios = ["global_rim", "wedge_rim", "null"]
     policies = ["nan", "zero"]
@@ -143,7 +148,7 @@ def run_debug_session():
                 ax.set_ylim(-0.1, 1.1)
                 ax.grid(True)
 
-                outpath = f"debug_selection_bias_{sc}_{policy}.png"
+                outpath = debug_dir / f"debug_selection_bias_{sc}_{policy}.png"
                 plt.tight_layout()
                 plt.savefig(outpath)
                 print(f"    Saved plot to {outpath}")

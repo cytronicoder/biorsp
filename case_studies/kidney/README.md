@@ -97,15 +97,18 @@ The TAL analysis (`run_tal_analysis.py`) performs the following steps:
 ## Data Sources
 
 ### KPMP Dataset
+
 - **Source**: Kidney Precision Medicine Project
 - **Cell types**: Multiple kidney cell populations including TAL
 - **Files**: `kpmp_counts.mtx`, `kpmp_features.tsv`, `kpmp_cells.tsv`, `kpmp_metadata.csv`
 
 ### Lake et al. Dataset
+
 - **Source**: Lake et al. 2019 (single-nucleus RNA-seq)
 - **Files**: `lake_counts.mtx`, `lake_features.tsv`, `lake_cells.tsv`, `lake_metadata.csv`
 
 ### Azimuth Reference
+
 - **Provenance**: https://github.com/satijalab/azimuth-references/tree/master/human_kidney
 - **Commit**: b8b07dcdfcc09816a85aad07362e7bad4de03976
 - **Format**: Seurat RDS → converted to H5AD for Python workflows

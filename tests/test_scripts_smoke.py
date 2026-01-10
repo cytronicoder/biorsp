@@ -75,8 +75,8 @@ def test_make_schematic_diagram_runs():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outdir = Path("test_schematic_output")
-    outdir.mkdir(exist_ok=True)
+    outdir = Path("outputs") / "tests" / "schematic"
+    outdir.mkdir(parents=True, exist_ok=True)
 
     try:
         result = subprocess.run(
@@ -201,11 +201,11 @@ def test_debug_end_to_end_runs():
             result.returncode == 0
         ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
     finally:
-        # Clean up any generated figures
-        figures_dir = Path("figures")
-        if figures_dir.exists():
-            for pattern in ["debug_*.png", "debug_*.pdf", "end_to_end_*.png", "end_to_end_*.pdf"]:
-                for fpath in figures_dir.glob(pattern):
+        # Clean up any generated debug figures
+        debug_dir = Path("outputs") / "debug"
+        if debug_dir.exists():
+            for pattern in ["debug_*.png", "debug_*.pdf"]:
+                for fpath in debug_dir.glob(pattern):
                     fpath.unlink(missing_ok=True)
 
 

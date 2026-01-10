@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the following metadata."
-title: "biorsp"
-version: "0.0.0"
-doi: ""
+title: "BioRSP: Angular Scanning for Directional Gene Expression Enrichment in Single-Cell Embeddings"
+version: "1.0.0"
+doi: "10.1145/3765612.3767793"
 authors:
   - family-names: "Yao"
     given-names: "Zeyu"
@@ -12,7 +12,5 @@ authors:
     affiliation: "Department of Biomedical Informatics and Data Science, Systems Pharmacology AI Research Center, the University of Alabama at Birmingham, Birmingham, Alabama, US"
     email: "jakechen@uab.edu"
     role: "Corresponding author"
-version: "0.1.0"
-# date-released: TODO
-# Note: DOI/URL omitted (not provided)
-url: "https://github.com/your-org/biorsp"
+date-released: "2025-10-12"
+url: "https://github.com/cytronicoder/biorsp"
