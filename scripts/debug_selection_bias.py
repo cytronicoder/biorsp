@@ -11,9 +11,10 @@ Requires:
     Package installation: pip install -e .
 """
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
-from pathlib import Path
 
 try:
     from biorsp.core.engine import compute_rsp_radar

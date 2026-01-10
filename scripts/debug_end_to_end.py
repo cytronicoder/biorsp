@@ -11,8 +11,9 @@ Requires:
     Package installation: pip install -e .
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 try:
     from biorsp.plotting.workflow import make_end_to_end_figure
