@@ -53,9 +53,14 @@ Sweeps:
 
 __version__ = "3.0.0"
 
-
 from .cache import GeometryCache, clear_cache, get_cache
-from .datasets import make_gene_panel, make_module_panel, package_as_anndata
+from .datasets import (
+    make_factorial_panel,
+    make_gene_panel,
+    make_module_panel,
+    make_module_panel_structured,
+    package_as_anndata,
+)
 from .density import kde_density, knn_density
 from .distortions import apply_distortion
 from .docs import (
@@ -69,6 +74,8 @@ from .docs import (
 from .expression import (
     generate_confounded_null,
     generate_expression_from_field,
+    generate_expression_targeted,
+    generate_factorial_gene,
     generate_signal_field,
     simulate_library_size,
 )
@@ -89,25 +96,39 @@ from .io import (
 )
 from .metrics import (
     auprc,
+    classify_by_quadrant,
+    compute_classification_metrics,
     confusion_matrix,
+    derive_thresholds_from_null,
+    embedding_stability_metrics,
     flip_rate,
     fpr_with_ci,
     kendall_tau,
     ks_uniform,
     macro_f1,
     median_abs_delta,
+    module_recovery_metrics,
     power_with_ci,
+    precision_at_k_curve,
     qq_quantiles,
     topk_precision,
 )
 from .plotting import (
+    ARCHETYPE_COLORS,
+    ARCHETYPE_DESCRIPTIONS,
+    plot_abstention_summary,
+    plot_archetype_scatter,
     plot_confusion_matrix,
+    plot_confusion_matrix_styled,
     plot_fpr_grid,
+    plot_marker_recovery,
+    plot_module_recovery,
     plot_power_curve,
     plot_pr_curve,
     plot_qq,
     plot_robustness_delta,
     plot_spatial_embedding,
+    plot_stability_summary,
 )
 from .rng import condition_key, make_rng, seed_all
 from .scoring import score_dataset, score_pairs
@@ -133,9 +154,13 @@ __all__ = [
     "simulate_library_size",
     "generate_signal_field",
     "generate_expression_from_field",
+    "generate_expression_targeted",
+    "generate_factorial_gene",
     "generate_confounded_null",
     "make_gene_panel",
     "make_module_panel",
+    "make_factorial_panel",
+    "make_module_panel_structured",
     "package_as_anndata",
     "score_dataset",
     "score_pairs",
@@ -150,15 +175,27 @@ __all__ = [
     "median_abs_delta",
     "flip_rate",
     "kendall_tau",
+    "derive_thresholds_from_null",
+    "classify_by_quadrant",
+    "compute_classification_metrics",
+    "precision_at_k_curve",
+    "module_recovery_metrics",
+    "embedding_stability_metrics",
     "plot_qq",
     "plot_fpr_grid",
     "plot_power_curve",
     "plot_confusion_matrix",
+    "plot_confusion_matrix_styled",
     "plot_pr_curve",
     "plot_robustness_delta",
     "plot_spatial_embedding",
-    "REQUIRED_COLUMNS",
-    "SCHEMA_VERSION",
+    "plot_archetype_scatter",
+    "plot_marker_recovery",
+    "plot_module_recovery",
+    "plot_abstention_summary",
+    "plot_stability_summary",
+    "ARCHETYPE_COLORS",
+    "ARCHETYPE_DESCRIPTIONS",
     "serialize_biorsp_config",
     "validate_output_schema",
     "ensure_output_dir",

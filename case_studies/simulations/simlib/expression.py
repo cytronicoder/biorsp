@@ -65,13 +65,35 @@ def generate_signal_field(
 
     Represents relative expression probability or intensity.
 
+    NOTE ON BIORSP DETECTABILITY:
+    BioRSP's Spatial Score (S) measures *radial* organization - the shift in
+    mean radius between foreground (expressing) and background (non-expressing)
+    cells. Patterns that induce radial contrast are detectable:
+
+    Detectable (high S):
+    - core: center-enriched → FG radius < BG radius
+    - rim: periphery-enriched → FG radius > BG radius
+    - radial_gradient: smooth radial transition
+    - wedge_core: angular domain with center enrichment (RADIAL + angular)
+    - wedge_rim: angular domain with periphery enrichment (RADIAL + angular)
+
+    NOT detectable by S alone (low S even if structured):
+    - wedge: pure angular domain, no radial shift
+    - two_wedges: symmetric angular, cancels radial effect
+
+    For archetype validation, use patterns aligned to what S can detect:
+    - regional_program → radial_gradient, core, rim (broad + radial structure)
+    - niche_marker → wedge_core, wedge_rim (localized + radial structure)
+    - housekeeping → uniform (no structure)
+    - sparse_noise → uniform with low coverage (no structure)
+
     Parameters
     ----------
     coords : np.ndarray
         Cell coordinates (n, 2)
     pattern : str
         Pattern type: uniform, core, rim, wedge, wedge_core, wedge_rim,
-        two_wedges, halfplane_gradient
+        two_wedges, halfplane_gradient, radial_gradient
     params : Dict, optional
         Pattern-specific parameters
 
@@ -93,17 +115,23 @@ def generate_signal_field(
         return np.full(len(coords), base)
 
     elif pattern == "core":
-
         steepness = params.get("steepness", 5.0)
         return 1.0 / (1.0 + np.exp(steepness * (r_norm - 0.5)))
 
     elif pattern == "rim":
-
         steepness = params.get("steepness", 5.0)
         return 1.0 / (1.0 + np.exp(-steepness * (r_norm - 0.5)))
 
-    elif pattern == "wedge":
+    elif pattern == "radial_gradient":
+        direction = params.get("direction", "outward")
+        strength = params.get("strength", 1.0)
+        if direction == "outward":
+            field = 1.0 - strength * r_norm
+        else:
+            field = strength * r_norm
+        return np.clip(field, 0.05, 1.0)
 
+    elif pattern == "wedge":
         angle_center = params.get("angle_center", 0.0)
         width_rad = params.get("width_rad", np.pi / 4)
         diff = np.abs(np.arctan2(np.sin(theta - angle_center), np.cos(theta - angle_center)))
@@ -113,25 +141,31 @@ def generate_signal_field(
         return field
 
     elif pattern == "wedge_core":
-
-        field_wedge = generate_signal_field(coords, "wedge", params)
-        field_core = generate_signal_field(coords, "core", params)
-        return field_wedge * field_core
+        angle_center = params.get("angle_center", 0.0)
+        width_rad = params.get("width_rad", np.pi / 3)
+        steepness = params.get("steepness", 4.0)
+        diff = np.abs(np.arctan2(np.sin(theta - angle_center), np.cos(theta - angle_center)))
+        angular_weight = np.exp(-((diff / width_rad) ** 2))
+        radial_weight = 1.0 / (1.0 + np.exp(steepness * (r_norm - 0.4)))
+        field = angular_weight * radial_weight
+        return np.clip(field, 0.02, 1.0)
 
     elif pattern == "wedge_rim":
-
-        field_wedge = generate_signal_field(coords, "wedge", params)
-        field_rim = generate_signal_field(coords, "rim", params)
-        return field_wedge * field_rim
+        angle_center = params.get("angle_center", 0.0)
+        width_rad = params.get("width_rad", np.pi / 3)
+        steepness = params.get("steepness", 4.0)
+        diff = np.abs(np.arctan2(np.sin(theta - angle_center), np.cos(theta - angle_center)))
+        angular_weight = np.exp(-((diff / width_rad) ** 2))
+        radial_weight = 1.0 / (1.0 + np.exp(-steepness * (r_norm - 0.6)))
+        field = angular_weight * radial_weight
+        return np.clip(field, 0.02, 1.0)
 
     elif pattern == "two_wedges":
-
         p1 = generate_signal_field(coords, "wedge", {**params, "angle_center": 0.0})
         p2 = generate_signal_field(coords, "wedge", {**params, "angle_center": np.pi})
         return np.maximum(p1, p2)
 
     elif pattern == "halfplane_gradient":
-
         phi = params.get("phi", 0.0)
         projection = coords[:, 0] * np.cos(phi) + coords[:, 1] * np.sin(phi)
         proj_norm = (projection - projection.min()) / (projection.max() - projection.min() + 1e-9)
@@ -172,28 +206,29 @@ def generate_expression_from_field(
     params = params or {}
 
     if expr_model == "bernoulli":
-
         p = np.clip(field, 0, 1)
         return rng.binomial(1, p).astype(float)
 
     elif expr_model == "poisson":
-
         abundance = params.get("abundance", 1e-3)
         mu = libsize * field * abundance
         return rng.poisson(mu)
 
     elif expr_model == "nb":
-
         abundance = params.get("abundance", 1e-3)
         phi = params.get("phi", 10.0)
-
         mu = libsize * field * abundance
-        var = mu + (mu**2) / phi
-
-        p_nb = np.clip(mu / (var + 1e-9), 0, 1)
-        n_nb = np.clip(mu**2 / (var - mu + 1e-9), 1e-3, 1e6)
-
-        counts = np.array([nbinom.rvs(n_nb[i], p_nb[i], random_state=rng) for i in range(len(mu))])
+        counts = np.zeros(len(mu), dtype=int)
+        nonzero_mask = mu > 1e-9
+        if nonzero_mask.any():
+            mu_nz = mu[nonzero_mask]
+            var_nz = mu_nz + (mu_nz**2) / phi
+            p_nb = np.clip(mu_nz / (var_nz + 1e-9), 1e-6, 1 - 1e-6)
+            n_nb = np.clip(mu_nz**2 / (var_nz - mu_nz + 1e-9), 1e-3, 1e6)
+            counts_nz = np.array(
+                [nbinom.rvs(n_nb[i], p_nb[i], random_state=rng) for i in range(len(mu_nz))]
+            )
+            counts[nonzero_mask] = counts_nz
         return counts
 
     else:
@@ -268,3 +303,307 @@ def generate_confounded_null(
 
     else:
         raise ValueError(f"Unknown null type: {null_type}")
+
+
+def generate_expression_targeted(
+    coords: np.ndarray,
+    libsize: np.ndarray,
+    rng: Generator,
+    pattern: str,
+    target_coverage: float,
+    pattern_params: Dict[str, Any] = None,
+    expr_params: Dict[str, Any] = None,
+    detection_threshold: float = 1.0,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Generate expression with targeted coverage (prevalence).
+
+    Adjusts the expression level to achieve approximately the desired coverage
+    (fraction of cells with counts >= detection_threshold).
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        Cell coordinates (n, 2)
+    libsize : np.ndarray
+        Library size per cell (n,)
+    rng : Generator
+        Random number generator
+    pattern : str
+        Spatial pattern type (uniform, wedge, core, rim, etc.)
+    target_coverage : float
+        Target fraction of cells with expression >= detection_threshold.
+        For structured patterns, this is the coverage within the "expressing" region.
+    pattern_params : Dict, optional
+        Pattern-specific parameters
+    expr_params : Dict, optional
+        Expression model parameters
+    detection_threshold : float, optional
+        Minimum count to consider a cell as expressing (default: 1)
+
+    Returns
+    -------
+    counts : np.ndarray
+        Expression counts (n,)
+    meta : Dict
+        Metadata including achieved coverage and pattern info
+    """
+    pattern_params = pattern_params or {}
+    expr_params = expr_params or {}
+
+    # Generate base signal field
+    field = generate_signal_field(coords, pattern, pattern_params)
+
+    # We adjust the "abundance" parameter to hit target prevalence
+    phi = expr_params.get("phi", 10.0)
+    base_abundance = expr_params.get("abundance", 1e-3)
+
+    # Binary search for abundance that achieves target coverage
+    lo, hi = 1e-6, 1e-1
+    best_abundance = base_abundance
+    best_diff = 1.0
+
+    for _ in range(15):  # Binary search iterations
+        mid = np.sqrt(lo * hi)  # Geometric mean
+        test_params = {**expr_params, "abundance": mid}
+        test_counts = generate_expression_from_field(
+            field, libsize, rng, expr_model="nb", params=test_params
+        )
+        achieved_cov = np.mean(test_counts >= detection_threshold)
+
+        diff = abs(achieved_cov - target_coverage)
+        if diff < best_diff:
+            best_diff = diff
+            best_abundance = mid
+
+        if achieved_cov < target_coverage:
+            lo = mid
+        else:
+            hi = mid
+        if diff < 0.02:
+            break
+    final_params = {**expr_params, "abundance": best_abundance}
+    counts = generate_expression_from_field(
+        field, libsize, rng, expr_model="nb", params=final_params
+    )
+    achieved_coverage = np.mean(counts >= detection_threshold)
+
+    meta = {
+        "pattern": pattern,
+        "target_coverage": target_coverage,
+        "achieved_coverage": achieved_coverage,
+        "abundance_used": best_abundance,
+        **pattern_params,
+    }
+
+    return counts, meta
+
+
+def generate_factorial_gene(
+    coords: np.ndarray,
+    libsize: np.ndarray,
+    rng: Generator,
+    coverage_regime: str,
+    organization_regime: str,
+    pattern_variant: str = "wedge_core",
+    coverage_params: Dict[str, Any] = None,
+    pattern_params: Dict[str, Any] = None,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Generate gene expression with factorial control over coverage and organization.
+
+    This is the main entry point for the 2x2 archetype design:
+    - Coverage: high vs low (controlled prevalence)
+    - Organization: structured (spatial pattern) vs unstructured (iid)
+
+    IMPORTANT: For structured patterns, use ONLY patterns that BioRSP's S score
+    can detect (patterns with radial contrast):
+    - core, rim: radial enrichment
+    - wedge_core, wedge_rim: angular + radial structure (DETECTABLE)
+    - radial_gradient: smooth radial transition
+
+    Do NOT use pure angular patterns (wedge, two_wedges) as they have no radial
+    contrast and will not produce high S scores.
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        Cell coordinates (n, 2)
+    libsize : np.ndarray
+        Library size per cell (n,)
+    rng : Generator
+        Random number generator
+    coverage_regime : str
+        'high' (70-90% prevalence) or 'low' (5-20% prevalence)
+    organization_regime : str
+        'structured' (spatial pattern) or 'iid' (random scatter)
+    pattern_variant : str, optional
+        For structured: 'core', 'rim', 'wedge_core', 'wedge_rim', 'radial_gradient'
+        Default: 'wedge_core' (angular + radial, detectable by S)
+    coverage_params : Dict, optional
+        Override default coverage targets
+    pattern_params : Dict, optional
+        Pattern-specific parameters
+
+    Returns
+    -------
+    counts : np.ndarray
+        Expression counts (n,)
+    meta : Dict
+        Ground truth metadata including archetype and generative parameters
+    """
+    coverage_params = coverage_params or {}
+    pattern_params = pattern_params or {}
+    coverage_defaults = {
+        "high": {"target": 0.75, "range": (0.60, 0.90)},
+        "low": {"target": 0.12, "range": (0.05, 0.25)},
+    }
+    if coverage_regime not in coverage_defaults:
+        raise ValueError(f"Unknown coverage_regime: {coverage_regime}")
+    cov_settings = coverage_defaults[coverage_regime]
+    target_cov = coverage_params.get("target", cov_settings["target"])
+    cov_jitter = rng.uniform(-0.05, 0.05)
+    target_cov = np.clip(target_cov + cov_jitter, 0.02, 0.98)
+    DETECTABLE_PATTERNS = {"core", "rim", "wedge_core", "wedge_rim", "radial_gradient"}
+    if organization_regime == "structured" and pattern_variant not in DETECTABLE_PATTERNS:
+        import warnings
+
+        warnings.warn(
+            f"Pattern '{pattern_variant}' may not be detectable by BioRSP's S score. "
+            f"Consider using one of: {DETECTABLE_PATTERNS}"
+        )
+    if organization_regime == "iid":
+        pattern = "uniform"
+        eff_params = {"base": target_cov}
+    elif organization_regime == "structured":
+        pattern = pattern_variant
+        eff_params = {**pattern_params}
+    else:
+        raise ValueError(f"Unknown organization_regime: {organization_regime}")
+
+    counts, expr_meta = generate_expression_targeted(
+        coords=coords,
+        libsize=libsize,
+        rng=rng,
+        pattern=pattern,
+        target_coverage=target_cov,
+        pattern_params=eff_params,
+    )
+
+    # Derive ground-truth archetype label (2x2 naming)
+    archetype_map = {
+        ("high", "iid"): "housekeeping",
+        ("high", "structured"): "regional_program",
+        ("low", "iid"): "sparse_noise",
+        ("low", "structured"): "niche_marker",
+    }
+    archetype = archetype_map[(coverage_regime, organization_regime)]
+
+    n_expr_cells = np.sum(counts >= 1)
+    observed_coverage = n_expr_cells / len(counts)
+
+    meta = {
+        "archetype": archetype,
+        "coverage_regime": coverage_regime,
+        "organization_regime": organization_regime,
+        "pattern_variant": pattern_variant if organization_regime == "structured" else "none",
+        "target_coverage": target_cov,
+        "observed_coverage": observed_coverage,
+        "n_expr_cells": int(n_expr_cells),
+        **expr_meta,
+    }
+
+    return counts, meta
+
+
+def generate_factorial_gene_with_beta(
+    coords: np.ndarray,
+    libsize: np.ndarray,
+    rng: Generator,
+    base_prevalence: float,
+    spatial_beta: float,
+    pattern_mechanism: str = "radial_gradient",
+    pattern_params: Dict[str, Any] = None,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Generate expression with explicit control over prevalence and spatial effect strength.
+
+    This implements the principled logistic model:
+        logit(p_i) = logit(base_prevalence) + beta * (f_i - mean(f))
+
+    Where f_i is a zero-centered spatial modulation field.
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        Cell coordinates (n, 2)
+    libsize : np.ndarray
+        Library size per cell (n,)
+    rng : Generator
+        Random number generator
+    base_prevalence : float
+        Target overall prevalence (controls C)
+    spatial_beta : float
+        Spatial effect strength (controls S):
+        - beta = 0: no spatial structure (iid)
+        - beta > 0: spatial structure with strength proportional to beta
+    pattern_mechanism : str
+        Spatial pattern: 'core', 'rim', 'wedge_core', 'wedge_rim', 'radial_gradient'
+    pattern_params : Dict, optional
+        Pattern-specific parameters
+
+    Returns
+    -------
+    counts : np.ndarray
+        Expression counts (n,)
+    meta : Dict
+        Complete ground truth metadata
+    """
+    pattern_params = pattern_params or {}
+
+    # Generate spatial modulation field (raw, unnormalized)
+    field_raw = generate_signal_field(coords, pattern_mechanism, pattern_params)
+
+    # Zero-center the field to decouple prevalence from spatial effect
+    field_centered = field_raw - np.mean(field_raw)
+
+    # Apply logistic model: logit(p_i) = logit(base_p) + beta * f_centered_i
+    # Clip base_prevalence to avoid log(0)
+    base_p_clip = np.clip(base_prevalence, 1e-6, 1 - 1e-6)
+    logit_base = np.log(base_p_clip / (1 - base_p_clip))
+
+    logit_p = logit_base + spatial_beta * field_centered
+    p_spatial = 1.0 / (1.0 + np.exp(-logit_p))
+
+    # Generate counts using the spatially-modulated probability
+    counts = generate_expression_from_field(
+        p_spatial, libsize, rng, expr_model="nb", params={"phi": 10.0, "abundance": 1e-3}
+    )
+
+    n_expr_cells = np.sum(counts >= 1)
+    observed_coverage = n_expr_cells / len(counts)
+
+    high_coverage = base_prevalence >= 0.30
+    high_spatial = spatial_beta >= 0.5  # Threshold for "structured"
+
+    archetype_map = {
+        (True, False): "housekeeping",
+        (True, True): "regional_program",
+        (False, False): "sparse_noise",
+        (False, True): "niche_marker",
+    }
+    archetype = archetype_map[(high_coverage, high_spatial)]
+
+    meta = {
+        "archetype": archetype,
+        "base_prevalence": base_prevalence,
+        "spatial_beta": spatial_beta,
+        "pattern_mechanism": pattern_mechanism,
+        "target_coverage": base_prevalence,
+        "observed_coverage": observed_coverage,
+        "n_expr_cells": int(n_expr_cells),
+        "field_mean": float(np.mean(field_raw)),
+        "field_std": float(np.std(field_raw)),
+        "p_spatial_mean": float(np.mean(p_spatial)),
+        "p_spatial_std": float(np.std(p_spatial)),
+    }

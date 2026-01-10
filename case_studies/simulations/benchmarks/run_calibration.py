@@ -111,7 +111,9 @@ def main():
     )
 
     parser.add_argument("--n_permutations", type=int, default=250)
-    parser.add_argument("--mode", type=str, choices=["quick", "publication"], default="quick")
+    parser.add_argument(
+        "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
+    )
     parser.add_argument(
         "--n_workers", type=int, default=1, help="Parallel workers (-1 = all cores)"
     )
@@ -127,13 +129,21 @@ def main():
     args = parser.parse_args()
 
     if args.mode == "quick":
-
-        args.n_reps = 10
+        # Increased from 10 to 100 to have sufficient data for QQ plots
+        args.n_reps = 100
         args.N = [1000]
         args.shape = ["disk"]
         args.null_type = ["iid"]
-        args.n_permutations = 100
-        args.permutation_scope = "none"
+        args.n_permutations = 100  # Reduced but enabled for QQ plots
+        args.permutation_scope = "all"  # Changed from "none" to enable p-value calculation
+    elif args.mode == "validation":
+
+        args.n_reps = 30
+        args.N = [1000, 2000]
+        args.shape = ["disk", "annulus"]
+        args.null_type = ["iid", "depth_confounded"]
+        args.n_permutations = 250
+        args.permutation_scope = "topk"
     elif args.mode == "publication":
 
         if args.n_reps == 50:
@@ -239,9 +249,33 @@ def main():
     summary_df = pd.DataFrame(summary_rows)
     io.write_summary_csv(summary_df, output_dir, benchmark="calibration")
 
+    iid_df = runs_df[runs_df["null_type"] == "iid"]
+    if len(iid_df) > 0:
+        calibration_table = metrics.build_calibration_table(iid_df)
+        calibration_path = output_dir / "calibration_thresholds.csv"
+        calibration_table.to_csv(calibration_path, index=False)
+        print(f"✓ Exported calibration thresholds to: {calibration_path}")
+
+        # Also compute and export overall thresholds
+        s_values = iid_df["spatial_score"].dropna().values
+        if len(s_values) >= 10:
+            thresholds = metrics.derive_thresholds_principled(s_values, fpr_target=0.05)
+            thresholds_path = output_dir / "derived_thresholds.json"
+            import json
+
+            with open(thresholds_path, "w") as f:
+                export_thresholds = {
+                    k: v
+                    for k, v in thresholds.items()
+                    if k != "null_stats"  # Exclude nested stats dict
+                }
+                export_thresholds["null_mean"] = thresholds.get("null_stats", {}).get("mean", None)
+                export_thresholds["null_std"] = thresholds.get("null_stats", {}).get("std", None)
+                export_thresholds["null_q95"] = thresholds.get("null_stats", {}).get("q95", None)
+                json.dump(export_thresholds, f, indent=2)
+            print(f"✓ Exported derived thresholds to: {thresholds_path}")
+
     print("Generating plots...")
-    figs_dir = ROOT / "outputs" / "figures"
-    figs_dir.mkdir(parents=True, exist_ok=True)
 
     from simlib import validation
 
@@ -293,8 +327,7 @@ def main():
     )
 
     print("\n✅ Calibration benchmark complete!")
-    print(f"   Outputs: {output_dir}")
-    print(f"   Figures: {figs_dir}")
+    print(f"   Output directory: {output_dir}")
     print(f"   Runtime: {runtime:.1f}s")
 
 

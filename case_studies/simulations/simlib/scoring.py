@@ -62,8 +62,6 @@ def score_dataset(
     can provide 2-5x speedup for multi-gene panels on the same dataset.
     """
 
-    # For now, cache infrastructure exists but BioRSP API doesn't expose geometry directly
-
     if _CACHE_AVAILABLE and cache_key is not None:
         cached = cache.get_cached_geometry(**cache_key)
         if cached is not None:

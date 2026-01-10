@@ -13,7 +13,6 @@ if len(sys.argv) < 3:
 export_dir = Path(sys.argv[1])
 out_path = Path(sys.argv[2])
 
-
 data_mtx = export_dir / "data.mtx"
 counts_mtx = export_dir / "counts.mtx"
 obs_csv = export_dir / "obs.csv"
@@ -44,7 +43,6 @@ if counts_mtx.exists():
     layers_counts = counts.T.tocsr() if sp.issparse(counts) else counts.T
     adata.layers["counts"] = layers_counts
 
-
 for csv_file in export_dir.glob("*.csv"):
     if csv_file.name in ["obs.csv", "var.csv"]:
         continue
@@ -62,7 +60,6 @@ for csv_file in export_dir.glob("*.csv"):
             print(f"Added embedding {emb_name} as {key}")
     except Exception as e:
         print(f"Failed to add embedding {emb_name}: {e}")
-
 
 out_path.parent.mkdir(parents=True, exist_ok=True)
 

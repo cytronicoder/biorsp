@@ -26,7 +26,6 @@ from typing import Tuple
 ROOT = Path(__file__).resolve().parent
 BENCHMARKS_DIR = ROOT / "benchmarks"
 
-
 # Note: permutation_scope is now enforced internally by scripts based on mode
 BENCHMARKS = [
     ("calibration", "run_calibration.py", {}),

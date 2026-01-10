@@ -27,7 +27,6 @@ import pandas as pd
 
 SCHEMA_VERSION = "1.0"
 
-
 REQUIRED_COLUMNS = {
     "calibration": {
         "runs": [
@@ -42,13 +41,25 @@ REQUIRED_COLUMNS = {
         "summary": ["shape", "N", "null_type", "fpr_0p05", "ks_stat", "abstain_rate", "n_tests"],
     },
     "archetypes": {
-        "runs": ["shape", "N", "pattern", "spatial_score", "coverage_expr", "abstain_flag"],
+        "runs": [
+            "shape",
+            "N",
+            "coverage_regime",
+            "organization_regime",
+            "true_archetype",
+            "spatial_score",
+            "coverage_expr",
+            "abstain_flag",
+        ],
         "summary": [
             "shape",
             "N",
-            "pattern",
+            "coverage_regime",
+            "organization_regime",
+            "true_archetype",
             "spatial_score_mean",
             "coverage_expr_mean",
+            "classification_accuracy",
             "abstain_rate",
             "n_tests",
         ],
@@ -78,9 +89,9 @@ REQUIRED_COLUMNS = {
             "pattern",
             "distortion_kind",
             "distortion_strength",
-            "spatial_score",
-            "coverage_expr",
-            "abstain_flag",
+            "baseline_spatial_score",
+            "distorted_spatial_score",
+            "delta_s",
         ],
         "summary": [
             "shape",
@@ -88,8 +99,10 @@ REQUIRED_COLUMNS = {
             "pattern",
             "distortion_kind",
             "distortion_strength",
-            "spatial_score_mean",
-            "n_tests",
+            "abs_delta_median",
+            "correlation",
+            "is_stable",
+            "n_pairs",
         ],
     },
 }

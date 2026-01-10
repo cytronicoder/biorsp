@@ -119,7 +119,9 @@ def main():
         "--scenario", type=str, nargs="+", default=["same", "opposite", "orthogonal", "rim_core"]
     )
     parser.add_argument("--n_permutations", type=int, default=250)
-    parser.add_argument("--mode", type=str, choices=["quick", "publication"], default="quick")
+    parser.add_argument(
+        "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
+    )
     parser.add_argument("--n_jobs", type=int, default=-1)
     parser.add_argument("--n_workers", type=int, default=-1, help="Number of parallel workers")
     parser.add_argument(
@@ -150,6 +152,15 @@ def main():
         args.n_permutations = 100
         args.permutation_scope = "none"
         args.topk_perm = 100
+    elif args.mode == "validation":
+
+        args.n_reps = 20
+        args.N = [1500, 2500]
+        args.shape = ["disk", "annulus"]
+        args.scenario = ["same", "opposite", "rim_core"]
+        args.n_permutations = 300
+        args.permutation_scope = "topk"
+        args.topk_perm = 300
     elif args.mode == "publication":
 
         if args.n_reps == 50:
@@ -302,8 +313,7 @@ def main():
     )
 
     print("\n✅ Gene-gene benchmark complete!")
-    print(f"   Outputs: {output_dir}")
-    print(f"   Figures: {figs_dir}")
+    print(f"   Output directory: {output_dir}")
     print(f"   Runtime: {runtime:.1f}s")
 
 

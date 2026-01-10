@@ -6,10 +6,8 @@ simulation results. It validates CSV schemas before plotting and provides
 actionable error messages if data is malformed or empty after filtering.
 
 Usage:
-    # Plot all available figures
     python scripts/plot_simulation_csv.py --input-dir results/sim --outdir scripts/output --which all
 
-    # Plot specific types
     python scripts/plot_simulation_csv.py --input-dir results/sim --outdir scripts/output --which calibration,power
 
     # Legacy mode (single CSV)

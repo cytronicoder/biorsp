@@ -97,13 +97,11 @@ else:
     celltype_key = None
     tal_labels = []
 
-
 mask = None
 if celltype_key is not None:
     pattern = "|".join([re.escape(str(x)) for x in tal_labels]) if len(tal_labels) > 0 else ""
     mask = adata.obs[celltype_key].astype(str).str.contains(pattern, case=False, na=False)
     print("Found TAL count by annotation:", int(mask.sum()))
-
 
 if mask is None or mask.sum() == 0:
     genes = list(adata.var_names.astype(str))

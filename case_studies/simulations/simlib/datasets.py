@@ -271,3 +271,323 @@ def package_as_anndata(
     adata.obsm[embedding_key] = coords
 
     return adata
+
+
+def make_factorial_panel(
+    coords: np.ndarray,
+    libsize: np.ndarray,
+    rng: Generator,
+    n_per_archetype: int = 20,
+    pattern_variants: List[str] = None,
+    include_abstention_stress: bool = False,
+) -> Tuple[np.ndarray, List[str], pd.DataFrame]:
+    """
+    Create multi-gene panel with 2x2 factorial design (coverage × organization).
+
+    This generates genes spanning 4 archetypes:
+    - housekeeping: high coverage, no spatial structure (iid)
+    - regional_program: high coverage, spatially structured (radial patterns)
+    - sparse_noise: low coverage, no spatial structure (iid)
+    - niche_marker: low coverage, spatially structured (localized radial patterns)
+
+    IMPORTANT: Pattern selection is aligned with what BioRSP's S score can detect.
+    S measures *radial* organization (mean radius of expressing vs non-expressing cells).
+
+    Patterns used:
+    - regional_program: core, rim, radial_gradient (broad radial structure → high |S|)
+    - niche_marker: wedge_core, wedge_rim (localized + radial bias → high |S|)
+    - housekeeping/sparse_noise: uniform (no radial structure → low |S|)
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        Cell coordinates (n, 2)
+    libsize : np.ndarray
+        Library sizes (n,)
+    rng : Generator
+        Random number generator
+    n_per_archetype : int, optional
+        Number of genes per archetype (total = 4 × n_per_archetype)
+    pattern_variants : List[str], optional
+        Override default patterns. NOT recommended unless you understand S-detectability.
+        Default uses S-detectable patterns per archetype.
+    include_abstention_stress : bool, optional
+        Include extreme low-coverage genes that should trigger abstention
+
+    Returns
+    -------
+    X : np.ndarray
+        Expression matrix (n_cells, n_genes)
+    var_names : List[str]
+        Gene names
+    truth_df : pd.DataFrame
+        Ground truth with columns: gene, archetype, coverage_regime, organization_regime,
+        pattern_variant, target_coverage, achieved_coverage
+    """
+    from .expression import generate_factorial_gene
+
+    # Define patterns that BioRSP's S score CAN detect (radial structure)
+    # regional_program: broad radial patterns (high coverage + radial structure)
+    regional_program_patterns = ["core", "rim", "radial_gradient"]
+    # niche_marker: localized radial patterns (low coverage + radial structure)
+    niche_marker_patterns = ["wedge_core", "wedge_rim"]
+
+    # Allow override but warn implicitly via docstring
+    if pattern_variants is not None:
+        # User override - use their patterns for all structured genes
+        regional_program_patterns = pattern_variants
+        niche_marker_patterns = pattern_variants
+
+    X_list = []
+    var_names = []
+    truth_rows = []
+
+    gene_idx = 0
+
+    # 2x2 factorial: coverage × organization
+    archetypes = [
+        ("high", "iid"),  # housekeeping
+        ("high", "structured"),  # regional_program
+        ("low", "iid"),  # sparse_noise
+        ("low", "structured"),  # niche_marker
+    ]
+
+    for cov_regime, org_regime in archetypes:
+        for i in range(n_per_archetype):
+            # Select appropriate pattern based on archetype
+            if org_regime == "structured":
+                if cov_regime == "high":
+                    # regional_program: use radial patterns (detectable by S)
+                    patterns_for_archetype = regional_program_patterns
+                else:
+                    # niche_marker: use localized radial patterns
+                    patterns_for_archetype = niche_marker_patterns
+
+                pattern_var = patterns_for_archetype[i % len(patterns_for_archetype)]
+
+                if pattern_var == "wedge":
+                    # WARNING: Pure wedge is NOT detectable by S
+                    pattern_params = {
+                        "angle_center": rng.uniform(-np.pi, np.pi),
+                        "width_rad": rng.uniform(np.pi / 6, np.pi / 3),
+                    }
+                elif pattern_var in ["core", "rim"]:
+                    pattern_params = {"steepness": rng.uniform(3.0, 8.0)}
+                elif pattern_var == "radial_gradient":
+                    pattern_params = {
+                        "direction": rng.choice(["outward", "inward"]),
+                        "strength": rng.uniform(0.6, 1.0),
+                    }
+                elif pattern_var in ["wedge_core", "wedge_rim"]:
+                    pattern_params = {
+                        "angle_center": rng.uniform(-np.pi, np.pi),
+                        "width_rad": rng.uniform(np.pi / 4, np.pi / 2),
+                        "steepness": rng.uniform(3.0, 6.0),
+                    }
+                elif pattern_var == "halfplane_gradient":
+                    pattern_params = {"phi": rng.uniform(-np.pi, np.pi)}
+                else:
+                    pattern_params = {}
+            else:
+                pattern_var = "none"
+                pattern_params = {}
+
+            counts, meta = generate_factorial_gene(
+                coords=coords,
+                libsize=libsize,
+                rng=rng,
+                coverage_regime=cov_regime,
+                organization_regime=org_regime,
+                pattern_variant=pattern_var if org_regime == "structured" else "uniform",
+                pattern_params=pattern_params,
+            )
+
+            gene_name = f"{meta['archetype']}_{i}"
+            X_list.append(counts)
+            var_names.append(gene_name)
+
+            truth_rows.append(
+                {
+                    "gene": gene_name,
+                    "gene_idx": gene_idx,
+                    "archetype": meta["archetype"],
+                    "coverage_regime": cov_regime,
+                    "organization_regime": org_regime,
+                    "pattern_variant": pattern_var,
+                    "target_coverage": meta["target_coverage"],
+                    "achieved_coverage": meta["achieved_coverage"],
+                }
+            )
+            gene_idx += 1
+
+    # Optional: add extreme stress cases for abstention testing
+    if include_abstention_stress:
+        for i in range(5):
+            # Extremely low coverage (1-3%) - use wedge_core to maintain some structure
+            counts, meta = generate_factorial_gene(
+                coords=coords,
+                libsize=libsize,
+                rng=rng,
+                coverage_regime="low",
+                organization_regime="structured" if i % 2 == 0 else "iid",
+                pattern_variant="wedge_core",  # Changed from pure wedge
+                coverage_params={"target": 0.02},
+            )
+            gene_name = f"abstention_stress_{i}"
+            X_list.append(counts)
+            var_names.append(gene_name)
+            truth_rows.append(
+                {
+                    "gene": gene_name,
+                    "gene_idx": gene_idx,
+                    "archetype": "abstention_stress",
+                    "coverage_regime": "extreme_low",
+                    "organization_regime": meta["organization_regime"],
+                    "pattern_variant": meta.get("pattern_variant", "none"),
+                    "target_coverage": 0.02,
+                    "achieved_coverage": meta["achieved_coverage"],
+                }
+            )
+            gene_idx += 1
+
+    X = np.column_stack(X_list)
+    truth_df = pd.DataFrame(truth_rows)
+
+    return X, var_names, truth_df
+
+
+def make_module_panel_structured(
+    coords: np.ndarray,
+    libsize: np.ndarray,
+    rng: Generator,
+    n_modules: int = 4,
+    genes_per_module: int = 12,
+    n_null_genes: int = 20,
+    module_patterns: List[str] = None,
+) -> Tuple[np.ndarray, List[str], pd.DataFrame, pd.DataFrame]:
+    """
+    Create gene panel with distinct spatial modules for gene-gene co-patterning.
+
+    Each module shares a common spatial pattern, so genes within a module
+    should show high co-patterning scores. Genes across modules and null genes
+    should show low co-patterning.
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        Cell coordinates (n, 2)
+    libsize : np.ndarray
+        Library sizes (n,)
+    rng : Generator
+        Random number generator
+    n_modules : int, optional
+        Number of co-expression modules
+    genes_per_module : int, optional
+        Number of genes per module
+    n_null_genes : int, optional
+        Number of null (spatially random) genes
+    module_patterns : List[str], optional
+        Spatial patterns for each module. If None, auto-generated with distinct angles.
+
+    Returns
+    -------
+    X : np.ndarray
+        Expression matrix (n_cells, n_genes)
+    var_names : List[str]
+        Gene names
+    truth_edges_df : pd.DataFrame
+        Ground truth edges: gene_a, gene_b, is_true_edge, module_a, module_b
+    truth_genes_df : pd.DataFrame
+        Per-gene truth: gene, module, pattern, is_module_gene
+    """
+    from .expression import generate_expression_targeted
+
+    # Generate distinct module patterns (wedges at different angles)
+    if module_patterns is None:
+        angles = np.linspace(0, 2 * np.pi, n_modules, endpoint=False)
+        module_patterns = [("wedge", {"angle_center": a, "width_rad": np.pi / 4}) for a in angles]
+
+    X_list = []
+    var_names = []
+    truth_rows = []
+
+    # Generate module genes
+    for mod_idx, (pattern, pattern_params) in enumerate(module_patterns):
+        module_name = f"module_{mod_idx}"
+
+        for g_idx in range(genes_per_module):
+            gene_name = f"{module_name}_g{g_idx}"
+            var_names.append(gene_name)
+
+            noisy_params = {**pattern_params}
+            if "angle_center" in noisy_params:
+                noisy_params["angle_center"] += rng.uniform(-0.1, 0.1)
+            if "width_rad" in noisy_params:
+                noisy_params["width_rad"] += rng.uniform(-0.05, 0.05)
+
+            counts, meta = generate_expression_targeted(
+                coords=coords,
+                libsize=libsize,
+                rng=rng,
+                pattern=pattern,
+                target_coverage=rng.uniform(0.15, 0.35),
+                pattern_params=noisy_params,
+            )
+
+            X_list.append(counts)
+            truth_rows.append(
+                {
+                    "gene": gene_name,
+                    "module": module_name,
+                    "pattern": pattern,
+                    "is_module_gene": True,
+                    **meta,
+                }
+            )
+
+    # Generate null genes (no spatial pattern)
+    from .expression import generate_confounded_null
+
+    for i in range(n_null_genes):
+        gene_name = f"null_{i}"
+        var_names.append(gene_name)
+
+        counts, _ = generate_confounded_null(
+            coords, libsize, rng, null_type="iid", params={"base_prob": rng.uniform(0.1, 0.4)}
+        )
+        X_list.append(counts)
+        truth_rows.append(
+            {
+                "gene": gene_name,
+                "module": "null",
+                "pattern": "iid",
+                "is_module_gene": False,
+            }
+        )
+
+    X = np.column_stack(X_list)
+    truth_genes_df = pd.DataFrame(truth_rows)
+
+    edges = []
+    n_genes = len(var_names)
+    for i in range(n_genes):
+        for j in range(i + 1, n_genes):
+            gene_a = var_names[i]
+            gene_b = var_names[j]
+            mod_a = truth_genes_df.iloc[i]["module"]
+            mod_b = truth_genes_df.iloc[j]["module"]
+            # True edge if same module and not null
+            is_true_edge = (mod_a == mod_b) and (mod_a != "null")
+            edges.append(
+                {
+                    "gene_a": gene_a,
+                    "gene_b": gene_b,
+                    "module_a": mod_a,
+                    "module_b": mod_b,
+                    "is_true_edge": is_true_edge,
+                }
+            )
+
+    truth_edges_df = pd.DataFrame(edges)
+
+    return X, var_names, truth_edges_df, truth_genes_df

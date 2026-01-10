@@ -353,21 +353,15 @@ def detect_embedding_key(adata: anndata.AnnData, preferred_key: str | None = Non
         if preferred_key in adata.obsm:
             return preferred_key
         raise ValueError(f"Embedding key '{preferred_key}' not found in adata.obsm")
-
-    # Try common UMAP keys
     umap_candidates = ["X_umap", "X_UMAP", "umap"]
     for key in umap_candidates:
         if key in adata.obsm:
             logger.info(f"Auto-detected embedding: {key}")
             return key
-
-    # Try any key containing 'umap' (case-insensitive)
     for key in adata.obsm:
         if "umap" in key.lower():
             logger.info(f"Auto-detected embedding: {key}")
             return key
-
-    # Fallback to first 2D embedding
     for key in adata.obsm:
         emb = adata.obsm[key]
         if hasattr(emb, "shape") and len(emb.shape) == 2 and emb.shape[1] >= 2:
@@ -465,23 +459,16 @@ def select_genes(
         selection_info["controls_requested"] = []
         selection_info["controls_found"] = []
 
-    # Compute prevalence (fraction of cells with expr > 0)
     logger.info("Computing gene prevalence...")
     X = adata.X
     if scipy.sparse.issparse(X):
         nonzero_frac = np.asarray((X > 0).sum(axis=0)).flatten() / n_cells
     else:
         nonzero_frac = np.asarray((X > 0).sum(axis=0)).flatten() / n_cells
-
-    # Filter by prevalence
     prevalence_mask = nonzero_frac >= min_pct
-
-    # Exclude MT/ribosomal - check both var_names and symbols
     exclude_re = re.compile(exclude_pattern) if exclude_pattern else None
     if exclude_re:
-        # Check var_names
         exclude_by_varname = np.array([bool(exclude_re.match(g)) for g in all_genes])
-        # Also check symbols (for ENSEMBL IDs where symbol is MT-*, RPS*, RPL*)
         exclude_by_symbol = np.array(
             [bool(exclude_re.match(var_to_symbol.get(g, g))) for g in all_genes]
         )
@@ -491,13 +478,9 @@ def select_genes(
         logger.info(
             f"Excluded {n_excluded} genes matching '{exclude_pattern}' (var_name or symbol)"
         )
-
     discovery_genes = [g for g, m in zip(all_genes, prevalence_mask) if m and g not in control_vars]
     logger.info(f"Discovery candidates: {len(discovery_genes)} genes with prevalence >= {min_pct}")
-
-    # Subsample if max_genes specified
     if max_genes and len(discovery_genes) > max_genes:
-        # Prioritize by prevalence
         disc_prev = {g: nonzero_frac[all_genes.index(g)] for g in discovery_genes}
         discovery_genes = sorted(discovery_genes, key=lambda g: -disc_prev[g])[:max_genes]
         logger.info(f"Subsampled to top {max_genes} discovery genes by prevalence")

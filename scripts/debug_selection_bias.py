@@ -75,7 +75,6 @@ def run_debug_session():
     print("Running Selection Bias Debug Session...")
     print("Testing empty_fg_policy behavior for rim patterns.\n")
 
-    # Create output directory for debug figures
     debug_dir = Path("scripts") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 

@@ -12,6 +12,9 @@ SENSITIVITIES (expected failure modes):
 4. Anisotropic Scaling - Stretching breaks radial symmetry
 5. Swirl - Radial warping creates artifactual radial shifts
 
+Uses PAIRED evaluation: same seed generates baseline and distorted data,
+then computes within-replicate deltas for proper statistical comparison.
+
 Outputs: runs.csv, summary.csv, report.md, manifest.json, robustness curves
 """
 
@@ -29,12 +32,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-
 INVARIANCE_DISTORTIONS = {"none", "rotate", "jitter", "subsample"}
 
 
-def run_robustness_condition(config_dict: dict, seed: int, config: BioRSPConfig) -> dict:
-    """Run one robustness replicate."""
+def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> dict:
+    """Run paired robustness evaluation: baseline and distorted with same seed."""
     from simlib import (
         datasets,
         distortions,
@@ -53,6 +55,7 @@ def run_robustness_condition(config_dict: dict, seed: int, config: BioRSPConfig)
     condition_key = rng.condition_key(shape, N, pattern, distortion_kind, distortion_strength)
     gen = rng.make_rng(seed, "robustness", condition_key)
 
+    # Generate base data (same for baseline and distorted)
     coords_base, shape_meta = shapes.generate_coords(shape, N, gen)
 
     libsize = expression.simulate_library_size(
@@ -65,19 +68,9 @@ def run_robustness_condition(config_dict: dict, seed: int, config: BioRSPConfig)
         field, libsize, gen, expr_model="nb", params={"phi": 10.0, "abundance": 1e-3}
     )
 
-    coords_dist, dist_meta = distortions.apply_distortion(
-        coords_base, distortion_kind, distortion_strength, gen, params={}
-    )
-
-    if distortion_kind == "subsample" and distortion_strength < 1.0:
-        n_keep = int(N * distortion_strength)
-        indices = gen.choice(N, n_keep, replace=False)
-        coords_dist = coords_base[indices]
-        counts = counts[indices]
-        libsize = libsize[indices]
-
-    adata = datasets.package_as_anndata(
-        coords_dist,
+    # Score BASELINE (no distortion)
+    adata_base = datasets.package_as_anndata(
+        coords_base,
         counts[:, None],
         var_names=[f"{pattern}_gene"],
         obs_meta=None,
@@ -85,32 +78,80 @@ def run_robustness_condition(config_dict: dict, seed: int, config: BioRSPConfig)
     )
 
     t0 = time.time()
-    results_df = scoring.score_dataset(adata, genes=[f"{pattern}_gene"], config=config)
+    results_base = scoring.score_dataset(adata_base, genes=[f"{pattern}_gene"], config=config)
+
+    if len(results_base) == 0:
+        baseline_s = np.nan
+        baseline_c = np.nan
+        baseline_abstain = True
+    else:
+        row_base = results_base.iloc[0]
+        baseline_s = row_base["spatial_score"]
+        baseline_c = row_base["coverage_expr"]
+        baseline_abstain = row_base["abstain_flag"]
+
+    # Apply distortion and score DISTORTED
+    if distortion_kind == "none" or distortion_strength == 0.0:
+        # No distortion - distorted == baseline
+        distorted_s = baseline_s
+        distorted_c = baseline_c
+        distorted_abstain = baseline_abstain
+    else:
+        gen_dist = rng.make_rng(seed + 100000, "robustness_dist", condition_key)
+
+        coords_dist, dist_meta = distortions.apply_distortion(
+            coords_base, distortion_kind, distortion_strength, gen_dist, params={}
+        )
+
+        # Handle subsampling specially (changes cell count)
+        if distortion_kind == "subsample" and distortion_strength < 1.0:
+            n_keep = int(N * distortion_strength)
+            indices = gen_dist.choice(N, n_keep, replace=False)
+            coords_dist = coords_base[indices]
+            counts_dist = counts[indices]
+        else:
+            counts_dist = counts
+
+        adata_dist = datasets.package_as_anndata(
+            coords_dist,
+            counts_dist[:, None],
+            var_names=[f"{pattern}_gene"],
+            obs_meta=None,
+            embedding_key="X_sim",
+        )
+
+        results_dist = scoring.score_dataset(adata_dist, genes=[f"{pattern}_gene"], config=config)
+
+        if len(results_dist) == 0:
+            distorted_s = np.nan
+            distorted_c = np.nan
+            distorted_abstain = True
+        else:
+            row_dist = results_dist.iloc[0]
+            distorted_s = row_dist["spatial_score"]
+            distorted_c = row_dist["coverage_expr"]
+            distorted_abstain = row_dist["abstain_flag"]
+
     elapsed = time.time() - t0
 
-    if len(results_df) == 0:
-        return {
-            "shape": shape,
-            "N": N,
-            "pattern": pattern,
-            "distortion_kind": distortion_kind,
-            "distortion_strength": distortion_strength,
-            "spatial_score": np.nan,
-            "coverage_expr": np.nan,
-            "abstain_flag": True,
-            "time": elapsed,
-        }
+    delta_s = (
+        distorted_s - baseline_s if not (np.isnan(baseline_s) or np.isnan(distorted_s)) else np.nan
+    )
 
-    row = results_df.iloc[0]
     return {
         "shape": shape,
         "N": N,
         "pattern": pattern,
         "distortion_kind": distortion_kind,
         "distortion_strength": distortion_strength,
-        "spatial_score": row["spatial_score"],
-        "coverage_expr": row["coverage_expr"],
-        "abstain_flag": row["abstain_flag"],
+        "baseline_spatial_score": baseline_s,
+        "baseline_coverage": baseline_c,
+        "baseline_abstain": baseline_abstain,
+        "distorted_spatial_score": distorted_s,
+        "distorted_coverage": distorted_c,
+        "distorted_abstain": distorted_abstain,
+        "delta_s": delta_s,
+        "abs_delta_s": abs(delta_s) if not np.isnan(delta_s) else np.nan,
         "time": elapsed,
     }
 
@@ -139,7 +180,9 @@ def main():
         default=["none", "rotate", "aniso_scale", "jitter", "subsample", "swirl"],
     )
     parser.add_argument("--n_permutations", type=int, default=250)
-    parser.add_argument("--mode", type=str, choices=["quick", "publication"], default="quick")
+    parser.add_argument(
+        "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
+    )
     parser.add_argument("--n_jobs", type=int, default=-1)
     parser.add_argument("--n_workers", type=int, default=-1, help="Number of parallel workers")
     parser.add_argument(
@@ -176,6 +219,15 @@ def main():
         args.distortion_kind = ["none", "rotate"]
         args.n_permutations = 100
         args.permutation_scope = "none"
+    elif args.mode == "validation":
+
+        args.n_reps = 15
+        args.N = [1500, 2500]
+        args.shape = ["disk", "peanut"]
+        args.pattern = ["wedge", "core"]
+        args.distortion_kind = ["none", "rotate", "jitter", "aniso_scale"]
+        args.n_permutations = 250
+        args.permutation_scope = "none"
     elif args.mode == "publication":
 
         if args.n_reps == 50:
@@ -206,7 +258,6 @@ def main():
                 "aniso_scale",
                 "swirl",
             ]
-            # Note: For focused analysis, run separately:
 
             args.n_permutations = 1000
 
@@ -260,7 +311,7 @@ def main():
     start_time = time.time()
 
     runs_df = sweeps.run_replicates(
-        run_robustness_condition,
+        run_robustness_pair,
         configs,
         args.n_reps,
         seed_start=args.seed,
@@ -278,24 +329,33 @@ def main():
 
     INVARIANCE_DISTORTIONS = {"none", "rotate", "jitter", "subsample"}
 
+    from simlib import metrics
+
     summary_rows = []
-
-    baseline_df = runs_df[
-        (runs_df["distortion_kind"] == "none") | (runs_df["distortion_strength"] == 0.0)
-    ]
-    baseline_s_mean = baseline_df["spatial_score"].mean() if len(baseline_df) > 0 else np.nan
-    baseline_s_std = baseline_df["spatial_score"].std() if len(baseline_df) > 0 else np.nan
-
     for (shape, N, pattern, distortion_kind, distortion_strength), group in runs_df.groupby(
         ["shape", "N", "pattern", "distortion_kind", "distortion_strength"]
     ):
-        s_mean = group["spatial_score"].mean()
-        s_std = group["spatial_score"].std()
-        delta_s = abs(s_mean - baseline_s_mean) if not np.isnan(baseline_s_mean) else np.nan
+        # Use paired delta computation
+        baseline_s = group["baseline_spatial_score"].values
+        distorted_s = group["distorted_spatial_score"].values
+
+        if len(baseline_s) >= 3:
+            paired_stats = metrics.compute_paired_deltas(baseline_s, distorted_s)
+        else:
+            paired_stats = {
+                "delta_mean": np.nan,
+                "delta_median": np.nan,
+                "delta_std": np.nan,
+                "abs_delta_median": np.nan,
+                "abs_delta_iqr": np.nan,
+                "correlation": np.nan,
+                "n_pairs": len(baseline_s),
+            }
 
         category = "invariance" if distortion_kind in INVARIANCE_DISTORTIONS else "sensitivity"
 
-        is_unstable = delta_s > 2 * baseline_s_std if not np.isnan(baseline_s_std) else False
+        # Stability criterion: abs_delta_median < 0.05 or correlation > 0.9
+        is_stable = (paired_stats["abs_delta_median"] < 0.05) or (paired_stats["correlation"] > 0.9)
 
         summary_rows.append(
             {
@@ -305,14 +365,24 @@ def main():
                 "distortion_kind": distortion_kind,
                 "distortion_strength": distortion_strength,
                 "category": category,
-                "spatial_score_mean": s_mean,
-                "spatial_score_std": s_std,
-                "coverage_expr_mean": group["coverage_expr"].mean(),
-                "coverage_expr_std": group["coverage_expr"].std(),
-                "delta_from_baseline": delta_s,
-                "is_unstable": is_unstable,
-                "abstain_rate": group["abstain_flag"].mean(),
-                "n_tests": len(group),
+                "baseline_s_mean": (
+                    baseline_s[~np.isnan(baseline_s)].mean() if len(baseline_s) > 0 else np.nan
+                ),
+                "baseline_s_std": (
+                    baseline_s[~np.isnan(baseline_s)].std() if len(baseline_s) > 0 else np.nan
+                ),
+                "distorted_s_mean": (
+                    distorted_s[~np.isnan(distorted_s)].mean() if len(distorted_s) > 0 else np.nan
+                ),
+                "delta_mean": paired_stats["delta_mean"],
+                "delta_median": paired_stats["delta_median"],
+                "delta_std": paired_stats["delta_std"],
+                "abs_delta_median": paired_stats["abs_delta_median"],
+                "abs_delta_iqr": paired_stats["abs_delta_iqr"],
+                "correlation": paired_stats["correlation"],
+                "is_stable": is_stable,
+                "n_pairs": paired_stats["n_pairs"],
+                "abstain_rate": group["distorted_abstain"].mean(),
             }
         )
 
@@ -320,20 +390,17 @@ def main():
     io.write_summary_csv(summary_df, output_dir, benchmark="robustness")
 
     print("Generating plots...")
-    figs_dir = ROOT / "outputs" / "figures"
-    figs_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         validation.validate_dataframe_for_plot(
             summary_df,
-            required_columns=["distortion_kind", "distortion_strength", "delta_from_baseline"],
+            required_columns=["distortion_kind", "distortion_strength", "abs_delta_median"],
             min_rows=1,
             name="robustness curves",
         )
     except validation.ValidationError as e:
         print(f"⚠ Skipping plots: {e}")
     else:
-
         for dist_kind in args.distortion_kind:
             if dist_kind == "none":
                 continue
@@ -343,7 +410,7 @@ def main():
                     fig = plotting.plot_robustness_delta(
                         subset,
                         x_var="distortion_strength",
-                        y_var="delta_from_baseline",
+                        y_var="abs_delta_median",
                         title=f"{'Invariance' if dist_kind in INVARIANCE_DISTORTIONS else 'Sensitivity'}: {dist_kind}",
                     )
                     io.save_figure(fig, output_dir, f"robustness_{dist_kind}.png")
@@ -369,8 +436,7 @@ def main():
     )
 
     print("\n✅ Robustness benchmark complete!")
-    print(f"   Outputs: {output_dir}")
-    print(f"   Figures: {figs_dir}")
+    print(f"   Output directory: {output_dir}")
     print(f"   Runtime: {runtime:.1f}s")
 
 
