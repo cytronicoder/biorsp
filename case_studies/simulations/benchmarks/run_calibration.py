@@ -240,8 +240,8 @@ def main():
     io.write_summary_csv(summary_df, output_dir, benchmark="calibration")
 
     print("Generating plots...")
-    figs_dir = ROOT / "figs"
-    figs_dir.mkdir(exist_ok=True)
+    figs_dir = ROOT / "outputs" / "figures"
+    figs_dir.mkdir(parents=True, exist_ok=True)
 
     from simlib import validation
 

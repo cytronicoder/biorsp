@@ -7,8 +7,8 @@ import pytest
 
 TEST_DIR = Path(__file__).resolve().parent
 SIM_ROOT = TEST_DIR.parent
-METHODS_DIR = SIM_ROOT / "methods_paper"
-OUTPUT_DIR = SIM_ROOT / "test_outputs"
+BENCHMARKS_DIR = SIM_ROOT / "benchmarks"
+OUTPUT_DIR = SIM_ROOT / "outputs" / "test"
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -16,17 +16,17 @@ def setup_teardown():
     """Clean up test outputs before and after."""
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
-    OUTPUT_DIR.mkdir(parents=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     yield
 
     pass
 
 
 def run_script(script_name: str, out_name: str, args: list = None):
-    """Run a methods paper script via subprocess."""
+    """Run a benchmarks script via subprocess."""
     if args is None:
         args = []
-    script_path = METHODS_DIR / script_name
+    script_path = BENCHMARKS_DIR / script_name
     out_path = OUTPUT_DIR / out_name
 
     cmd = [

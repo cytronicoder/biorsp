@@ -195,7 +195,7 @@ Examples:
         print("\n✅ All benchmarks completed successfully!")
         print("\nResults location:")
         print(f"  Outputs: {ROOT / 'outputs'}")
-        print(f"  Figures: {ROOT / 'figs'}")
+        print(f"  Figures: {ROOT / 'outputs' / 'figures'}")
         sys.exit(0)
 
 

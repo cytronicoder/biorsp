@@ -15,7 +15,7 @@ def main():
 
     script_dir = Path(__file__).resolve().parent
     sim_root = script_dir.parent
-    methods_dir = sim_root / "methods_paper"
+    benchmarks_dir = sim_root / "benchmarks"
     output_dir = sim_root / "smoke_outputs"
 
     if output_dir.exists():
@@ -37,7 +37,7 @@ def main():
         print(f"\n=== Running {script_name} ===")
         t0 = time.time()
 
-        script_path = methods_dir / script_name
+        script_path = benchmarks_dir / script_name
         phase_name = script_name.replace("run_", "").replace(".py", "")
         phase_out = output_dir / phase_name
 

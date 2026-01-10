@@ -253,8 +253,8 @@ def main():
     io.write_summary_csv(summary_df, output_dir, benchmark="genegene")
 
     print("Generating plots...")
-    figs_dir = ROOT / "figs"
-    figs_dir.mkdir(exist_ok=True)
+    figs_dir = ROOT / "outputs" / "figures"
+    figs_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         validation.validate_dataframe_for_plot(

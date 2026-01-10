@@ -30,10 +30,10 @@ def test_simlib_submodules():
     assert scoring.score_dataset
 
 
-def test_methods_paper_scripts_import():
-    """Test importing methods_paper scripts."""
+def test_benchmarks_scripts_import():
+    """Test importing benchmarks scripts."""
 
-    from methods_paper import (
+    from benchmarks import (
         run_archetypes,
         run_calibration,
         run_genegene,

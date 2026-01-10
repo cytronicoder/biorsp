@@ -1,6 +1,6 @@
 """Micro-benchmark for angle-window reuse vs recompute.
 
-Usage: python -m benchmarks.benchmark_angle_window or python benchmarks/benchmark_angle_window.py
+Usage: python scripts/benchmark_angle_window.py
 """
 
 import time
