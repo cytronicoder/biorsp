@@ -13,10 +13,10 @@ The figure illustrates the two-score BioRSP output:
 
 Usage:
     # With real data
-    python scripts/make_end_to_end_workflow.py --adata data.h5ad --feature CD3D --out figures/cd3d.png
+    python scripts/make_end_to_end_workflow.py --adata data.h5ad --feature CD3D --out scripts/output/cd3d.png
 
     # With demo data
-    python scripts/make_end_to_end_workflow.py --feature Demo --out figures/demo.png
+    python scripts/make_end_to_end_workflow.py --feature Demo --out scripts/output/demo.png
 
 Requires:
     Package installation: pip install -e .
@@ -68,7 +68,7 @@ def setup_args():
     parser.add_argument(
         "--out",
         type=str,
-        default="figures/end_to_end.png",
+        default="scripts/output/end_to_end.png",
         help="Output file path",
     )
     parser.add_argument("--delta-deg", type=float, default=60.0, help="Sector width Δ in degrees")

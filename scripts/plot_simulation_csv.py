@@ -7,13 +7,13 @@ actionable error messages if data is malformed or empty after filtering.
 
 Usage:
     # Plot all available figures
-    python scripts/plot_simulation_csv.py --input-dir results/sim --outdir figures --which all
+    python scripts/plot_simulation_csv.py --input-dir results/sim --outdir scripts/output --which all
 
     # Plot specific types
-    python scripts/plot_simulation_csv.py --input-dir results/sim --outdir figures --which calibration,power
+    python scripts/plot_simulation_csv.py --input-dir results/sim --outdir scripts/output --which calibration,power
 
     # Legacy mode (single CSV)
-    python scripts/plot_simulation_csv.py results/sim/calibration.csv figures/out --plot_type calibration
+    python scripts/plot_simulation_csv.py results/sim/calibration.csv scripts/output/out --plot_type calibration
 
 Requires:
     Package installation: pip install -e .

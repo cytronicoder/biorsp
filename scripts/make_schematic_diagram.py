@@ -89,7 +89,7 @@ def draw_arrow(ax, x1, y1, x2, y2, pad=0.12):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--outdir", type=str, default="figures")
+    parser.add_argument("--outdir", type=str, default="scripts/output")
     args = parser.parse_args()
 
     outdir = Path(args.outdir)

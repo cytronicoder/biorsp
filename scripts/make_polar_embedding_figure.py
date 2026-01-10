@@ -71,7 +71,7 @@ def setup_args():
     parser.add_argument(
         "--out",
         type=str,
-        default="figures/polar_reparameterization.png",
+        default="scripts/output/polar_reparameterization.png",
         help="Output file path",
     )
     parser.add_argument(
