@@ -77,7 +77,7 @@ def test_make_schematic_diagram_runs():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outdir = Path("outputs") / "tests" / "schematic"
+    outdir = Path("tests") / "output" / "schematic"
     outdir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -114,7 +114,7 @@ def test_make_end_to_end_workflow_demo():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outdir = Path("outputs") / "tests"
+    outdir = Path("tests") / "output"
     outdir.mkdir(parents=True, exist_ok=True)
     outpath = outdir / "test_end_to_end_demo.png"
 
@@ -157,7 +157,7 @@ def test_make_polar_embedding_figure_demo():
     if not script.exists():
         pytest.skip(f"Script not found: {script}")
 
-    outdir = Path("outputs") / "tests"
+    outdir = Path("tests") / "output"
     outdir.mkdir(parents=True, exist_ok=True)
     outpath = outdir / "test_polar_demo.png"
 
@@ -212,7 +212,7 @@ def test_debug_end_to_end_runs():
         ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
     finally:
         # Clean up any generated debug figures
-        debug_dir = Path("outputs") / "debug"
+        debug_dir = Path("scripts") / "debug"
         if debug_dir.exists():
             for pattern in ["debug_*.png", "debug_*.pdf"]:
                 for fpath in debug_dir.glob(pattern):

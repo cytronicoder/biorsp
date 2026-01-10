@@ -70,7 +70,7 @@ def run_debug_session():
     """Run debug session for all synthetic scenarios."""
     print("Running Debug Session for End-to-End Workflow...")
 
-    debug_dir = Path("outputs") / "debug"
+    debug_dir = Path("scripts") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 
     scenarios = ["wedge_core", "wedge_rim", "global_rim", "null"]

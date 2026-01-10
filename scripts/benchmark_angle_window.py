@@ -7,8 +7,8 @@ import time
 
 import numpy as np
 
-from biorsp.adequacy import gene_adequacy
-from biorsp.radar import compute_rsp_radar
+from biorsp.core.radar import compute_rsp_radar
+from biorsp.preprocess.geometry import get_sector_indices
 
 
 def time_trial(n_cells, B, reps=5):
@@ -17,7 +17,7 @@ def time_trial(n_cells, B, reps=5):
     theta = rng.uniform(-np.pi, np.pi, size=n_cells)
     y = rng.choice([0, 1], size=n_cells, p=[0.85, 0.15])
 
-    adequacy = gene_adequacy(y, theta, n_sectors=B, delta_deg=180.0)
+    sector_indices = get_sector_indices(theta, n_sectors=B, delta_deg=180.0)
 
     t_a = []
     t_b = []
@@ -28,9 +28,7 @@ def time_trial(n_cells, B, reps=5):
         t_a.append(time.perf_counter() - t0)
 
         t0 = time.perf_counter()
-        _ = compute_rsp_radar(
-            r, theta, y, B=B, delta_deg=180.0, sector_indices=adequacy.sector_indices
-        )
+        _ = compute_rsp_radar(r, theta, y, B=B, delta_deg=180.0, sector_indices=sector_indices)
         t_b.append(time.perf_counter() - t0)
 
     return np.mean(t_a), np.mean(t_b)

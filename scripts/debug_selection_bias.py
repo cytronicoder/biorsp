@@ -76,7 +76,7 @@ def run_debug_session():
     print("Testing empty_fg_policy behavior for rim patterns.\n")
 
     # Create output directory for debug figures
-    debug_dir = Path("outputs") / "debug"
+    debug_dir = Path("scripts") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 
     scenarios = ["global_rim", "wedge_rim", "null"]
