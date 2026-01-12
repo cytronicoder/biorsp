@@ -44,7 +44,6 @@ if str(ROOT) not in sys.path:
 
 from biorsp import BioRSPConfig  # noqa: E402
 
-
 MODE_CONFIGS = {
     "quick": {
         "n_cells": 1500,

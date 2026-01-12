@@ -85,9 +85,9 @@ def test_coverage_vs_foreground_distinction():
     )
 
     # Coverage should be higher (more lenient threshold)
-    assert coverage_expr > foreground_fraction, (
-        "Coverage (biological threshold) should be >= internal FG (quantile)"
-    )
+    assert (
+        coverage_expr > foreground_fraction
+    ), "Coverage (biological threshold) should be >= internal FG (quantile)"
 
 
 def test_workflow_matches_scoring():
@@ -145,13 +145,13 @@ def test_workflow_matches_scoring():
     S_g_manual = float(np.sqrt(np.sum(w * rsp_masked**2) / sum_w)) if sum_w > 0 else 0.0
 
     # Critical assertions
-    assert np.isclose(coverage_manual, api_coverage, atol=0.01), (
-        f"Manual coverage ({coverage_manual:.3f}) should match API ({api_coverage:.3f})"
-    )
+    assert np.isclose(
+        coverage_manual, api_coverage, atol=0.01
+    ), f"Manual coverage ({coverage_manual:.3f}) should match API ({api_coverage:.3f})"
 
-    assert np.isclose(S_g_manual, api_spatial, atol=0.05), (
-        f"Manual spatial score ({S_g_manual:.3f}) should match API ({api_spatial:.3f})"
-    )
+    assert np.isclose(
+        S_g_manual, api_spatial, atol=0.05
+    ), f"Manual spatial score ({S_g_manual:.3f}) should match API ({api_spatial:.3f})"
 
 
 def test_empty_fg_zero_fill_correctness():
@@ -194,12 +194,12 @@ def test_delta_interpretation_rules():
     """Test that interpretation respects Δ-dependent rules."""
     # Test Δ ≥ 90° → no wedge claims
     interp_90 = interpret_pattern(S_g=0.5, R_mean=0.3, coverage_geom=0.9, delta_deg=90)
-    assert "wedge" not in interp_90.lower(), (
-        f"Δ=90° should not claim wedge localization, got: {interp_90}"
-    )
-    assert "global" in interp_90.lower() or "sector" in interp_90.lower(), (
-        f"Δ=90° should use global/sector terms, got: {interp_90}"
-    )
+    assert (
+        "wedge" not in interp_90.lower()
+    ), f"Δ=90° should not claim wedge localization, got: {interp_90}"
+    assert (
+        "global" in interp_90.lower() or "sector" in interp_90.lower()
+    ), f"Δ=90° should use global/sector terms, got: {interp_90}"
 
     # Test Δ < 60° → can claim wedge
     interp_45 = interpret_pattern(S_g=0.5, R_mean=0.3, coverage_geom=0.9, delta_deg=45)
@@ -207,9 +207,9 @@ def test_delta_interpretation_rules():
 
     # Test low coverage_geom → unreliable
     interp_low_cov = interpret_pattern(S_g=0.5, R_mean=0.3, coverage_geom=0.3, delta_deg=45)
-    assert "coverage" in interp_low_cov.lower() or "unreliable" in interp_low_cov.lower(), (
-        f"Low coverage_geom should flag unreliability, got: {interp_low_cov}"
-    )
+    assert (
+        "coverage" in interp_low_cov.lower() or "unreliable" in interp_low_cov.lower()
+    ), f"Low coverage_geom should flag unreliability, got: {interp_low_cov}"
 
 
 def test_rsp_plot_sector_types():

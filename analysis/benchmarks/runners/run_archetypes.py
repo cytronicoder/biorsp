@@ -403,7 +403,9 @@ def main():
         arch_runs = runs_df[runs_df["true_archetype"] == archetype]
         if len(arch_runs) > 0:
             median_idx = (
-                (arch_runs["Spatial_Bias_Score"] - arch_runs["Spatial_Bias_Score"].median()).abs().idxmin()
+                (arch_runs["Spatial_Bias_Score"] - arch_runs["Spatial_Bias_Score"].median())
+                .abs()
+                .idxmin()
             )
             ex_row = arch_runs.loc[median_idx]
             example_data.append(

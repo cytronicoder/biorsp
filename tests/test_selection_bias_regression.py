@@ -90,12 +90,12 @@ def test_selection_bias_wedge_vs_global_rim():
     summ_global = compute_scalar_summaries(res_global)
     summ_wedge = compute_scalar_summaries(res_wedge)
 
-    assert summ_wedge.coverage_fg < summ_global.coverage_fg, (
-        f"Expected wedge coverage_fg < global, got {summ_wedge.coverage_fg:.3f} >= {summ_global.coverage_fg:.3f}"
-    )
-    assert summ_global.r_mean < 0, (
-        f"Global rim should have R_mean < 0, got {summ_global.r_mean:.3f}"
-    )
+    assert (
+        summ_wedge.coverage_fg < summ_global.coverage_fg
+    ), f"Expected wedge coverage_fg < global, got {summ_wedge.coverage_fg:.3f} >= {summ_global.coverage_fg:.3f}"
+    assert (
+        summ_global.r_mean < 0
+    ), f"Global rim should have R_mean < 0, got {summ_global.r_mean:.3f}"
     assert summ_wedge.r_mean < 0, f"Wedge rim should have R_mean < 0, got {summ_wedge.r_mean:.3f}"
     assert not np.all(np.isnan(res_wedge.rsp)), "RSP should not be all NaN"
     assert not np.all(np.isnan(res_global.rsp)), "RSP should not be all NaN"
@@ -140,9 +140,9 @@ def test_selection_bias_parameter_sweep():
         subset = df[df["delta_deg"] == delta]
         global_val = subset[subset["scenario"] == "global_rim"]["abs_r_mean"].iloc[0]
         wedge_val = subset[subset["scenario"] == "wedge_rim"]["abs_r_mean"].iloc[0]
-        assert wedge_val < global_val, (
-            f"Delta={delta}: Expected |R_mean_wedge| < |R_mean_global|, got {wedge_val:.3f} >= {global_val:.3f}"
-        )
+        assert (
+            wedge_val < global_val
+        ), f"Delta={delta}: Expected |R_mean_wedge| < |R_mean_global|, got {wedge_val:.3f} >= {global_val:.3f}"
 
     # Optional: save results for inspection
     try:
@@ -177,9 +177,9 @@ def test_empty_fg_policy_comparison():
 
     # Policy='nan' should exclude empty sectors, potentially inflating |R_mean|
     # Policy='zero' should include them as zero, reducing |R_mean|
-    assert summ_zero.coverage_geom >= summ_nan.coverage_geom, (
-        "Policy='zero' should have >= coverage_geom than policy='nan'"
-    )
+    assert (
+        summ_zero.coverage_geom >= summ_nan.coverage_geom
+    ), "Policy='zero' should have >= coverage_geom than policy='nan'"
 
 
 if __name__ == "__main__":

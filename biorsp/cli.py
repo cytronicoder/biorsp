@@ -59,12 +59,12 @@ def run_analysis(args):
 
     coords = coords_df[["x", "y"]].values
 
-    assert df_expr.shape[0] == coords.shape[0], (
-        "Expression and coordinates size mismatch after alignment"
-    )
-    assert df_expr.index.equals(coords_df.index), (
-        "Expression and coordinates index mismatch after alignment"
-    )
+    assert (
+        df_expr.shape[0] == coords.shape[0]
+    ), "Expression and coordinates size mismatch after alignment"
+    assert df_expr.index.equals(
+        coords_df.index
+    ), "Expression and coordinates index mismatch after alignment"
 
     print(f"Final dataset: {df_expr.shape[0]} cells × {df_expr.shape[1]} genes")
 

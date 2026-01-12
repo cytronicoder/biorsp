@@ -112,9 +112,9 @@ def test_similar_patterns_high_correlation(two_gene_data):
     # their RSP profiles should be correlated (positive or negative depends on sign)
     if synergy and np.isfinite(synergy[0].correlation):
         # Similar underlying patterns should have high absolute correlation
-        assert abs(synergy[0].correlation) > 0.5, (
-            f"Similar patterns should have high |correlation|, got {synergy[0].correlation}"
-        )
+        assert (
+            abs(synergy[0].correlation) > 0.5
+        ), f"Similar patterns should have high |correlation|, got {synergy[0].correlation}"
 
 
 def test_opposite_patterns_negative_correlation(two_gene_data):
@@ -130,9 +130,9 @@ def test_opposite_patterns_negative_correlation(two_gene_data):
 
     if synergy and np.isfinite(synergy[0].correlation):
         # Opposite patterns should have negative correlation
-        assert synergy[0].correlation < 0.0, (
-            f"Opposite patterns should be negatively correlated, got {synergy[0].correlation}"
-        )
+        assert (
+            synergy[0].correlation < 0.0
+        ), f"Opposite patterns should be negatively correlated, got {synergy[0].correlation}"
 
 
 def test_weighted_corr_basic():
@@ -179,9 +179,9 @@ def test_geometric_mean_weights():
 
     # Should be <= arithmetic mean (by AM-GM inequality)
     arithmetic_mean = (w1 + w2) / 2
-    assert np.all(geometric_mean <= arithmetic_mean + 1e-10), (
-        "Geometric mean should be <= arithmetic mean"
-    )
+    assert np.all(
+        geometric_mean <= arithmetic_mean + 1e-10
+    ), "Geometric mean should be <= arithmetic mean"
 
 
 def test_self_correlation_is_one():

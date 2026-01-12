@@ -1443,8 +1443,6 @@ def plot_pattern_detectability(
     return fig
 
 
-
-
 def plot_null_distribution(
     null_s_values: np.ndarray,
     s_cut: float,

@@ -80,9 +80,9 @@ from .expression import (
     simulate_library_size,
 )
 from .geometry import compute_polar, radial_density_proxy
+from .io import REQUIRED_COLUMNS  # noqa: F401
+from .io import SCHEMA_VERSION  # noqa: F401
 from .io import (
-    REQUIRED_COLUMNS,  # noqa: F401
-    SCHEMA_VERSION,  # noqa: F401
     ensure_output_dir,
     load_manifest,
     load_runs_csv,

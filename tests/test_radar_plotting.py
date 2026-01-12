@@ -265,9 +265,9 @@ class TestSemanticLabels:
             labels = [t.get_text() for t in legend.get_texts()]
             assert any("Proximal" in label for label in labels), "Should mention 'Proximal'"
             assert any("Distal" in label for label in labels), "Should mention 'Distal'"
-            assert not any("Depletion" in label for label in labels), (
-                "Should not mention 'Depletion'"
-            )
+            assert not any(
+                "Depletion" in label for label in labels
+            ), "Should not mention 'Depletion'"
 
         plt.close(fig)
 

@@ -213,8 +213,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-
-
 def create_gene_name_mapping(adata: ad.AnnData) -> Dict[str, str]:
     """Create mapping from ENSG IDs to gene names.
 
@@ -243,8 +241,6 @@ def add_gene_names_to_dataframe(
     gene_idx = cols.index("gene")
     cols.insert(gene_idx + 1, cols.pop(cols.index("gene_name")))
     return df[cols]
-
-
 
 
 def get_gene_expression_fast(adata: ad.AnnData, gene_idx: int) -> np.ndarray:
@@ -282,8 +278,6 @@ def compute_coverage_vectorized(
         counts = np.sum(X_sub >= threshold, axis=0)
 
     return counts / X.shape[0]
-
-
 
 
 @profile_stage("gene_filtering")
@@ -347,8 +341,6 @@ def fast_filter_genes(
     )
 
     return filtered_genes, stats
-
-
 
 
 def derive_c_cut(df: pd.DataFrame, default: float = 0.10) -> float:
@@ -449,8 +441,6 @@ def derive_s_cut_simple(df: pd.DataFrame, quantile: float = 0.75) -> float:
     return max(0.02, s_cut)
 
 
-
-
 def classify_genes(
     df: pd.DataFrame,
     c_cut: float,
@@ -481,8 +471,6 @@ def classify_genes(
         df["significant"] = df["q_value"] < fdr_cut
 
     return df
-
-
 
 
 @dataclass
@@ -739,8 +727,6 @@ def score_all_genes_chunked_serial(
     return df
 
 
-
-
 def score_all_genes_chunked(
     adata: ad.AnnData,
     genes: List[str],
@@ -823,8 +809,6 @@ def add_pvalues_to_top_genes(
         df.loc[valid_mask, "q_value"] = qvals
 
     return df
-
-
 
 
 def check_subsample_stability(
@@ -925,8 +909,6 @@ def check_cross_embedding(
         "spearman_pval": float(pval),
         "n_genes_tested": int(valid.sum()),
     }
-
-
 
 
 def plot_cs_scatter(
@@ -1274,8 +1256,6 @@ def plot_archetype_examples(
     example_meta.to_csv(examples_dir / "example_metadata.csv", index=False)
 
 
-
-
 def generate_report(
     df: pd.DataFrame,
     c_cut: float,
@@ -1383,8 +1363,6 @@ def generate_report(
         f.write(report)
 
     logger.info(f"Report saved to {outdir / 'report.md'}")
-
-
 
 
 def main():

@@ -87,8 +87,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-
-
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for the TAL case study."""
     parser = argparse.ArgumentParser(
@@ -295,8 +293,6 @@ Examples:
     return parser.parse_args()
 
 
-
-
 def compute_file_checksum(path: str, algorithm: str = "sha256") -> str:
     """Compute checksum of a file for provenance tracking."""
     h = hashlib.new(algorithm)
@@ -370,8 +366,6 @@ def build_symbol_mappings(adata: anndata.AnnData) -> tuple[dict[str, str], dict[
 
     symbol_to_var = {v: k for k, v in var_to_symbol.items()}
     return var_to_symbol, symbol_to_var
-
-
 
 
 def select_genes(
@@ -471,8 +465,6 @@ def select_genes(
     )
 
     return genes_to_analyze, control_vars, selection_info
-
-
 
 
 def plot_gene_panel(
@@ -937,7 +929,9 @@ def main():
 
     logger.info("[Stage 7] Saving results...")
 
-    df_sorted = df_classified.sort_values(["Spatial_Bias_Score", "Coverage"], ascending=[False, False])
+    df_sorted = df_classified.sort_values(
+        ["Spatial_Bias_Score", "Coverage"], ascending=[False, False]
+    )
 
     csv_path = outdir / "tal_gene_results.csv"
     df_sorted.to_csv(csv_path, index=False)

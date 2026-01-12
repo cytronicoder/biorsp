@@ -40,9 +40,9 @@ def test_forced_zero_sectors_are_numeric_zeros():
         forced_zero_rsp = radar.rsp[radar.forced_zero_mask]
 
         # All forced-zero sectors should have rsp == 0.0, not NaN
-        assert np.all(forced_zero_rsp == 0.0), (
-            f"Forced-zero sectors should have rsp=0.0, got {forced_zero_rsp}"
-        )
+        assert np.all(
+            forced_zero_rsp == 0.0
+        ), f"Forced-zero sectors should have rsp=0.0, got {forced_zero_rsp}"
         assert not np.any(np.isnan(forced_zero_rsp)), "Forced-zero sectors should not have NaN"
 
 
@@ -67,9 +67,9 @@ def test_geom_supported_reflects_total_count():
     if np.any(low_total_sectors) and radar.geom_supported_mask is not None:
         # These should be unsupported
         unsupported = ~radar.geom_supported_mask
-        assert np.all(unsupported[low_total_sectors]), (
-            "Very low-count sectors should not be geom_supported"
-        )
+        assert np.all(
+            unsupported[low_total_sectors]
+        ), "Very low-count sectors should not be geom_supported"
 
 
 def test_contrast_supported_requires_fg_and_bg():
@@ -96,9 +96,9 @@ def test_contrast_supported_requires_fg_and_bg():
 
         # All no-BG sectors should be contrast-unsupported
         # (but might also be geom-unsupported, which takes precedence)
-        assert np.all(contrast_unsupported[no_bg_sectors]), (
-            "Sectors with no BG should not be contrast_supported"
-        )
+        assert np.all(
+            contrast_unsupported[no_bg_sectors]
+        ), "Sectors with no BG should not be contrast_supported"
 
 
 def test_masks_are_boolean_arrays():

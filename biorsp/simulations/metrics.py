@@ -639,8 +639,6 @@ def embedding_stability_metrics(
     return result
 
 
-
-
 def compute_null_statistics(null_s_values: np.ndarray) -> dict:
     """
     Compute comprehensive statistics from null S distribution.
@@ -879,8 +877,6 @@ def module_recovery_metrics_extended(
     }
 
 
-
-
 def build_calibration_table(
     null_results_df: pd.DataFrame,
     coverage_bins: list = None,
@@ -997,8 +993,6 @@ def lookup_calibrated_threshold(
     return float(subset[quantile].median())
 
 
-
-
 def compute_min_expr_cells(N: int, base: int = 30, fraction: float = 0.01) -> int:
     """
     Compute minimum expressing cells threshold.
@@ -1059,8 +1053,6 @@ def apply_expr_gating(
     mask = (labels == "niche_marker") & (n_expr_cells < min_thresh)
     gated[mask] = "sparse_noise"
     return gated
-
-
 
 
 def compute_module_ari_nmi(
@@ -1165,8 +1157,6 @@ def within_module_pair_classification(
     labels = np.array(labels)
 
     return module_recovery_metrics_extended(scores, labels)
-
-
 
 
 def compute_paired_deltas(

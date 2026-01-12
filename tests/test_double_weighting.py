@@ -121,9 +121,9 @@ def test_double_weighting_would_reduce_score(synthetic_data):
     # The ratio should NOT be 1.0
     if s_g_correct > 0:
         ratio = s_g_double / s_g_correct
-        assert abs(ratio - 1.0) > 0.01, (
-            f"Double-weighting should change the score (ratio={ratio:.4f})"
-        )
+        assert (
+            abs(ratio - 1.0) > 0.01
+        ), f"Double-weighting should change the score (ratio={ratio:.4f})"
 
 
 def test_scalar_summaries_uses_correct_anisotropy(synthetic_data):
