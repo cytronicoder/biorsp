@@ -37,7 +37,6 @@ from biorsp.preprocess import (
     polar_coordinates,
 )
 from biorsp.utils import (
-    BioRSPConfig,
     add_common_args,
     config_from_args,
     ensure_outdir,
