@@ -25,10 +25,10 @@ adata.obs["cell_type"] = np.random.choice(["TypeA", "TypeB"], n_cells)
 # See docs/2_concepts/inference.md for parameter details
 config = BioRSPConfig(
     n_permutations=500,  # Custom permutation count
-    seed=42,             # Reproducibility
-    min_fg_total=10,     # Ignore genes with fewer than 10 foreground cells
-    delta_deg=30.0,      # Wider sectors (default 20)
-    foreground_quantile=0.95, # Stricter foreground definition
+    seed=42,  # Reproducibility
+    min_fg_total=10,  # Ignore genes with fewer than 10 foreground cells
+    delta_deg=30.0,  # Wider sectors (default 20)
+    foreground_quantile=0.95,  # Stricter foreground definition
 )
 
 print("Running with customized config...")
@@ -46,9 +46,9 @@ results = score_genes(
 
 # 4. Classify with custom FDR
 classified = classify_genes(
-    results, 
-    fdr_cut=0.01, # Stricter FDR control
-    c_cut=0.15    # Higher coverage threshold
+    results,
+    fdr_cut=0.01,
+    c_cut=0.15,  # Stricter FDR control  # Higher coverage threshold
 )
 
 print("\nResults for TypeA cells:")

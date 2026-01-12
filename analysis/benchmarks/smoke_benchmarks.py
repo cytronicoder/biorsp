@@ -35,7 +35,6 @@ def run_smoke_test():
     all_passed = True
 
     try:
-        # Test 1: Story onepager
         print("\n[1/4] Testing story onepager...")
         from benchmarks.run_story_onepager import run_story_benchmark
 
@@ -46,7 +45,6 @@ def run_smoke_test():
 
         result = run_story_benchmark(Args())
 
-        # Check outputs
         story_dir = temp_dir / "story"
         figures_dir = story_dir / "figures"
 
@@ -85,13 +83,12 @@ def run_smoke_test():
         # Check figure sizes
         for fig_path in figures_dir.glob("*.png"):
             size = fig_path.stat().st_size
-            if size < 1000:  # Less than 1KB is suspicious
+            if size < 1000:
                 print(f"   ✗ {fig_path.name} is too small ({size} bytes)")
                 all_passed = False
             else:
                 print(f"   ✓ {fig_path.name} size OK ({size} bytes)")
 
-        # Test 2: Null calibration
         print("\n[2/4] Testing null calibration...")
         from benchmarks.run_null_calibration import run_calibration
 
@@ -110,7 +107,6 @@ def run_smoke_test():
             if not passed:
                 all_passed = False
 
-        # Test 3: Stability
         print("\n[3/4] Testing stability benchmark...")
         from benchmarks.run_stability import run_stability
 
@@ -131,7 +127,6 @@ def run_smoke_test():
             if not passed:
                 all_passed = False
 
-        # Test 4: Abstention
         print("\n[4/4] Testing abstention evaluation...")
         from benchmarks.run_abstention import run_abstention
 
@@ -153,7 +148,6 @@ def run_smoke_test():
                 all_passed = False
 
     finally:
-        # Cleanup
         print(f"\nCleaning up {temp_dir}...")
         shutil.rmtree(temp_dir, ignore_errors=True)
 

@@ -11,14 +11,12 @@ from anndata import AnnData
 from biorsp.core.scoring import classify_genes_impl, score_gene_pairs_impl, score_genes_impl
 from biorsp.utils.config import BioRSPConfig
 
-# Public column names mapping
 COLUMN_MAP = {
     "coverage": "Coverage",
     "spatial_score": "Spatial_Score",
     "r_mean": "Directionality",
     "archetype": "Archetype",
 }
-# Reverse map for internal logic
 INTERNAL_MAP = {v: k for k, v in COLUMN_MAP.items()}
 
 
@@ -57,15 +55,12 @@ def score_genes(
     elif kwargs:
         from dataclasses import fields, replace
 
-        # Update config with kwargs if provided
         valid_fields = {f.name for f in fields(BioRSPConfig)}
         updates = {k: v for k, v in kwargs.items() if k in valid_fields}
         if updates:
             config = replace(config, **updates)
 
     df = score_genes_impl(adata, genes, embedding_key, subset, config)
-
-    # Rename columns to standardized public names
     return df.rename(columns=COLUMN_MAP)
 
 
@@ -93,13 +88,8 @@ def classify_genes(
     pd.DataFrame
         DataFrame with an additional 'Archetype' column.
     """
-    # Map public names back to internal if necessary for implementation
-    # We rename columns that match Public names to Internal names
     internal_df = df.rename(columns=INTERNAL_MAP)
-
     out = classify_genes_impl(internal_df, c_cut, s_cut, fdr_cut)
-
-    # Map internal names + new archetype column to public
     return out.rename(columns=COLUMN_MAP)
 
 

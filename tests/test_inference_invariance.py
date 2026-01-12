@@ -127,9 +127,9 @@ def test_no_selection_bias_in_coverage():
         coverage_sparse = np.mean(radar_sparse.geom_supported_mask)
         coverage_dense = np.mean(radar_dense.geom_supported_mask)
 
-        assert (
-            abs(coverage_sparse - coverage_dense) < 0.01
-        ), f"Geometry coverage should be invariant to expression level: {coverage_sparse} vs {coverage_dense}"
+        assert abs(coverage_sparse - coverage_dense) < 0.01, (
+            f"Geometry coverage should be invariant to expression level: {coverage_sparse} vs {coverage_dense}"
+        )
 
 
 def test_inference_with_stratification():

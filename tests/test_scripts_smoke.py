@@ -53,9 +53,9 @@ def test_script_help(script_path):
         check=False,
     )
     assert result.returncode == 0, f"Help failed for {script_path.name}"
-    assert (
-        "help" in result.stdout.lower() or "usage" in result.stdout.lower()
-    ), f"No help/usage text for {script_path.name}"
+    assert "help" in result.stdout.lower() or "usage" in result.stdout.lower(), (
+        f"No help/usage text for {script_path.name}"
+    )
 
 
 def test_biorsp_cli_help():
@@ -90,9 +90,9 @@ def test_make_schematic_diagram_runs():
             check=False,
         )
 
-        assert (
-            result.returncode == 0
-        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        assert result.returncode == 0, (
+            f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        )
 
         # Check output exists
         expected_files = list(outdir.glob("fig_schematic_diagram*"))
@@ -141,9 +141,9 @@ def test_make_end_to_end_workflow_demo():
             check=False,
         )
 
-        assert (
-            result.returncode == 0
-        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        assert result.returncode == 0, (
+            f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        )
 
         assert outpath.exists(), f"Output not created: {outpath}"
         assert outpath.stat().st_size > 5000, "Output file suspiciously small"
@@ -180,9 +180,9 @@ def test_make_polar_embedding_figure_demo():
             check=False,
         )
 
-        assert (
-            result.returncode == 0
-        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        assert result.returncode == 0, (
+            f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        )
 
         assert outpath.exists(), "Output not created"
         assert outpath.stat().st_size > 5000, "Output file suspiciously small"
@@ -207,9 +207,9 @@ def test_debug_end_to_end_runs():
             check=False,
         )
 
-        assert (
-            result.returncode == 0
-        ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        assert result.returncode == 0, (
+            f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+        )
     finally:
         # Clean up any generated debug figures
         debug_dir = Path("scripts") / "debug"
@@ -234,6 +234,6 @@ def test_debug_selection_bias_runs():
         check=False,
     )
 
-    assert (
-        result.returncode == 0
-    ), f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+    assert result.returncode == 0, (
+        f"Script failed\nStdout: {result.stdout}\nStderr: {result.stderr}"
+    )
