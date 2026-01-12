@@ -5,7 +5,6 @@ from biorsp.core.typing import BioRSPConfig
 
 
 def test_radar_simple():
-
     theta = np.linspace(-np.pi, np.pi, 100, endpoint=False)
     y = np.zeros(100, dtype=bool)
     y[:50] = True

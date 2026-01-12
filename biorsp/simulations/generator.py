@@ -18,7 +18,6 @@ def _sample_annulus(n: int, r_in: float = 0.5, r_out: float = 1.0) -> np.ndarray
 
 
 def _sample_crescent(n: int, R: float = 1.0, r: float = 0.7, d: float = 0.4) -> np.ndarray:
-
     coords = []
     while len(coords) < n:
         batch_size = max(n - len(coords), 100)
@@ -203,7 +202,6 @@ def simulate_foreground(
         scores = np.exp(-(dists**2) / (2 * radius**2)) + np.random.normal(0, noise_sigma, n_points)
 
     elif e == "boundary" or e == "confounded":
-
         scores = r_norm + np.random.normal(0, noise_sigma, n_points)
 
     else:

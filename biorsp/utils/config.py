@@ -21,6 +21,7 @@ from biorsp.utils.constants import (
     MIN_FG_EFF_DEFAULT,
     MIN_STRATUM_SIZE_DEFAULT,
     MIN_TOTAL_MF_DEFAULT,
+    MIN_TOTAL_PER_SECTOR_DEFAULT,
     MIN_UNIQUE_FG_DEFAULT,
     MIN_VALID_SECTORS_DEFAULT,
     N_BG_MIN_DEFAULT,
@@ -60,7 +61,6 @@ class BioRSPConfig:
     foreground_threshold: Optional[float] = None
     min_unique_foreground_values: int = MIN_UNIQUE_FG_DEFAULT
 
-    qc_mode: Literal["legacy", "principled"] = "principled"
     min_fg_sector: float = N_FG_MIN_DEFAULT
     min_bg_sector: float = N_BG_MIN_DEFAULT
     min_fg_total: float = N_FG_TOT_MIN_DEFAULT
@@ -71,6 +71,7 @@ class BioRSPConfig:
     min_total_mF: float = MIN_TOTAL_MF_DEFAULT
     min_coverage: float = MIN_COVERAGE_DEFAULT
     min_valid_sectors: int = MIN_VALID_SECTORS_DEFAULT
+    min_total_per_sector: int = MIN_TOTAL_PER_SECTOR_DEFAULT
 
     perm_mode: Literal["radial", "joint", "rt_umi", "none"] = "radial"
     n_permutations: int = K_EXPLORATORY_DEFAULT
@@ -101,19 +102,9 @@ class BioRSPConfig:
     save_plots: bool = True
 
     @property
-    def n_angles(self) -> int:
-        """Backward compatible alias for B."""
-        return self.B
-
-    @property
-    def sector_width_deg(self) -> float:
-        """Backward compatible alias for delta_deg."""
-        return self.delta_deg
-
-    @property
     def sector_width_rad(self) -> float:
         """Sector width in radians."""
-        return np.deg2rad(self.sector_width_deg)
+        return np.deg2rad(self.delta_deg)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for manifest writing."""

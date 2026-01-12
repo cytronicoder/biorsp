@@ -52,7 +52,7 @@ def main():
 
     print("\nBioRSP Results Table:")
     print("---------------------")
-    cols = ["gene", "coverage_expr", "spatial_score", "spatial_sign", "archetype"]
+    cols = ["gene", "Coverage", "Spatial_Score", "spatial_sign", "Archetype"]
     print(df_classified[cols].to_string(index=False))
 
     print("\nInterpretation:")

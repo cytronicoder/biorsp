@@ -1,11 +1,12 @@
 from pathlib import Path
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
 
 from biorsp.core.engine import compute_rsp_radar
-from biorsp.core.summaries import compute_scalar_summaries
+from biorsp.core.geometry import get_sector_indices, polar_coordinates
 from biorsp.plotting.style import (
     COLORS,
     add_panel_label,
@@ -13,28 +14,62 @@ from biorsp.plotting.style import (
     save_figure,
     set_publication_style,
 )
-from biorsp.preprocess.geometry import get_sector_indices, polar_coordinates
+from biorsp.preprocess.normalization import normalize_radii
 from biorsp.utils.config import BioRSPConfig
 
 
-def interpret_pattern(A: float, L: float, R_mean: float, polarity: float) -> str:
-    """Deterministic interpretation of the pattern."""
-    if L < 0.1:
-        if abs(R_mean) < 0.2:
-            return "Diffuse / Uniform"
+def interpret_pattern(
+    S_g: float,
+    R_mean: float,
+    coverage_geom: float,
+    delta_deg: float,
+) -> str:
+    """Interpret spatial pattern using angular resolution-dependent rules.
+
+    Args:
+        S_g: Spatial organization score (RMS of radar profile).
+        R_mean: Mean signed radar profile (positive = core bias, negative = rim bias).
+        coverage_geom: Fraction of geometry-supported sectors.
+        delta_deg: Angular resolution in degrees.
+
+    Returns:
+        Interpretation string with conservative labels appropriate for Δ.
+
+    Note:
+        Δ ≥ 90°: Cannot make wedge/directional claims (half-plane sectors).
+        Use only global core/rim bias or diffuse/weak labels.
+    """
+    if coverage_geom < 0.5:
+        return "Low angular coverage (unreliable)"
+
+    if S_g < 0.1:
+        return "Diffuse / Weak signal"
+
+    # Δ-dependent interpretation
+    if delta_deg >= 90:
+        # Conservative: only global core/rim bias allowed
+        if abs(R_mean) < 0.15:
+            return "Global mixed signal"
         elif R_mean > 0:
-            return "Global Core Bias"
+            return "Global core bias"
         else:
-            return "Global Rim Bias"
+            return "Global rim bias"
+    elif delta_deg >= 60:
+        # Moderate directionality - cautious localization
+        if abs(R_mean) < 0.15:
+            return "Mixed / Sector-level variation"
+        elif R_mean > 0:
+            return "Sector localization (core-biased)"
+        else:
+            return "Sector localization (rim-biased)"
     else:
-        base = "Localized"
-        if polarity > 0.8:
-            if R_mean > 0:
-                return f"{base} Core"
-            else:
-                return f"{base} Rim"
+        # High directionality - can claim wedge localization
+        if abs(R_mean) < 0.15:
+            return "Localized mixed pattern"
+        elif R_mean > 0:
+            return "Wedge localization (core direction)"
         else:
-            return f"{base} Mixed"
+            return "Wedge localization (rim direction)"
 
 
 def make_end_to_end_figure(
@@ -46,13 +81,21 @@ def make_end_to_end_figure(
     outpath: str,
     feature_name: str = "Feature",
     seed: int = 42,
-    coverage_score: float = None,
+    coverage: Optional[float] = None,
+    expr_threshold: Optional[float] = None,
+    foreground_fraction: Optional[float] = None,
+    debug: bool = False,
 ):
-    """Generate the end-to-end workflow figure.
+    """Generate end-to-end workflow figure illustrating BioRSP scoring.
 
     This figure illustrates the BioRSP two-score framework:
-    - Coverage score C_g: fraction of cells expressing the gene (not shown here)
+    - Coverage score C_g: fraction of cells expressing >= biological threshold
     - Spatial organization score S_g: RMS magnitude of radar profile
+
+    Key Design:
+    - coverage (C_g) is distinct from foreground_fraction (internal quantile)
+    - Radii are normalized before radar computation
+    - Interpretation uses Δ-dependent rules (no wedge claims when Δ ≥ 90°)
 
     Parameters
     ----------
@@ -60,7 +103,7 @@ def make_end_to_end_figure(
         (N, 2) coordinates.
     y : np.ndarray
         (N,) binary foreground labels (1=fg, 0=bg). This is the INTERNAL
-        foreground for spatial scoring, NOT the coverage threshold.
+        foreground for spatial scoring (from quantile), NOT coverage threshold.
     v : np.ndarray
         (2,) vantage point.
     theta_grid : np.ndarray
@@ -73,33 +116,61 @@ def make_end_to_end_figure(
         Feature name for title.
     seed : int
         Random seed (for reproducibility).
-    coverage_score : float, optional
-        If provided, display C_g in the annotation (coverage from detection threshold).
+    coverage : float, optional
+        Coverage score C_g (fraction >= expr_threshold). If provided, displayed.
+    expr_threshold : float, optional
+        Expression threshold used for coverage. Shown if provided.
+    foreground_fraction : float, optional
+        Internal foreground fraction (quantile). Metadata only, not a biological score.
+    debug : bool
+        If True, add debug panels showing:
+        - Embedding + vantage
+        - FG/BG overlays for both thresholds
+        - nF/nB per θ
+        - bg-supported mask per θ
     """
     if delta_deg > 180:
-        raise ValueError(f"Delta {delta_deg} > 180 degrees is forbidden.")
-    if delta_deg >= 180:
+        raise ValueError(f"Delta {delta_deg} > 180 degrees is forbidden (sector > hemisphere).")
 
+    if delta_deg >= 90:
         print(
-            f"WARNING: Delta {delta_deg} >= 180 degrees. Directionality is lost (sector covers half-circle)."
+            f"WARNING: Δ={delta_deg}° ≥ 90° → half-plane sectors. "
+            "Cannot make directional wedge claims. Use global core/rim bias only."
         )
-    elif delta_deg >= 90:
-        print(f"WARNING: Delta {delta_deg} >= 90 degrees. Directionality may be poor.")
 
     r, theta = polar_coordinates(z, v)
+    r_norm, norm_stats = normalize_radii(r)
+
     config = BioRSPConfig(delta_deg=delta_deg, B=len(theta_grid))
-    res = compute_rsp_radar(r, theta, y, config=config)
+    res = compute_rsp_radar(r_norm, theta, y, config=config)
 
     valid_mask = ~np.isnan(res.rsp)
     if not np.any(valid_mask):
         print("No valid sectors. Cannot generate figure.")
         return
 
+    # Use geom_supported_mask (geometry support)
+    mask_geom = res.geom_supported_mask if res.geom_supported_mask is not None else valid_mask
+    weights = res.sector_weights if res.sector_weights is not None else np.ones(len(res.rsp))
+
+    # Compute S_g and R_mean using geometry mask and weights ONCE
+    w_valid = weights[mask_geom]
+    sum_w = np.sum(w_valid)
+    if sum_w > 0:
+        w_norm = w_valid / sum_w
+        rsp_valid = res.rsp[mask_geom]
+        rsp_valid = np.nan_to_num(rsp_valid, nan=0.0)
+        S_g = float(np.sqrt(np.sum(w_norm * rsp_valid**2)))
+        R_mean = float(np.sum(w_norm * rsp_valid))
+    else:
+        S_g = 0.0
+        R_mean = 0.0
+
+    coverage_geom = float(np.mean(mask_geom))
+
     peak_idx = np.nanargmax(np.abs(res.rsp))
     theta_star = res.centers[peak_idx]
     R_star = res.rsp[peak_idx]
-
-    summaries = compute_scalar_summaries(res, valid_mask=valid_mask)
 
     set_publication_style()
     fig = plt.figure(figsize=(get_column_width("double"), 7), constrained_layout=True)
@@ -114,7 +185,12 @@ def make_end_to_end_figure(
         z[y == 0, 0], z[y == 0, 1], c=COLORS["bg_cells"], s=1, alpha=0.2, label="Background"
     )
     ax_a.scatter(
-        z[y == 1, 0], z[y == 1, 1], c=COLORS["fg_cells"], s=2, alpha=0.5, label=feature_name
+        z[y == 1, 0],
+        z[y == 1, 1],
+        c=COLORS["fg_cells"],
+        s=2,
+        alpha=0.5,
+        label=f"{feature_name} (internal FG)",
     )
     ax_a.scatter(v[0], v[1], c="black", marker="x", s=50, label="Vantage")
 
@@ -150,7 +226,7 @@ def make_end_to_end_figure(
     sector_indices_list = get_sector_indices(theta, len(theta_grid), delta_deg)
     indices_star = sector_indices_list[peak_idx]
 
-    r_star_sector = r[indices_star]
+    r_star_sector = r_norm[indices_star]
     y_star_sector = y[indices_star]
 
     r_fg = r_star_sector[y_star_sector == 1]
@@ -160,24 +236,16 @@ def make_end_to_end_figure(
     n_bg = len(r_bg)
 
     if n_fg > 0 and n_bg > 0:
-
-        r_med = np.median(r)
-        r_iqr = np.percentile(r, 75) - np.percentile(r, 25)
-        scale_denom = r_iqr if r_iqr > 1e-8 else 1.0
-
-        r_fg_hat = (r_fg - r_med) / scale_denom
-        r_bg_hat = (r_bg - r_med) / scale_denom
-
-        r_fg_sorted = np.sort(r_fg_hat)
-        r_bg_sorted = np.sort(r_bg_hat)
+        r_fg_sorted = np.sort(r_fg)
+        r_bg_sorted = np.sort(r_bg)
         y_fg = np.linspace(0, 1, n_fg)
         y_bg = np.linspace(0, 1, n_bg)
 
         ax_b.step(r_bg_sorted, y_bg, color=COLORS["ref_line"], label=r"$P_{\mathrm{bg}}$")
         ax_b.step(r_fg_sorted, y_fg, color=COLORS["fg_cells"], label=r"$P_{\mathrm{fg}}$")
 
-        med_fg = np.median(r_fg_hat)
-        med_bg = np.median(r_bg_hat)
+        med_fg = np.median(r_fg)
+        med_bg = np.median(r_bg)
         ax_b.axvline(med_bg, color=COLORS["ref_line"], ls="--", lw=1)
         ax_b.axvline(med_fg, color=COLORS["fg_cells"], ls="--", lw=1)
 
@@ -197,43 +265,31 @@ def make_end_to_end_figure(
             ),
             fontsize=8,
         )
-
     else:
         ax_b.text(0.5, 0.5, "Insufficient points in sector", ha="center")
 
-    ax_b.set_title(r"Radial Distribution at Peak Direction $\theta^*$")
+    ax_b.set_title(r"Radial Distribution at Peak Direction $\theta^*$ (normalized)")
     ax_b.set_xlabel(r"Normalized Radius $\hat{r}$")
     ax_b.set_ylabel("Cumulative Probability")
     ax_b.legend(loc="lower right", fontsize=8)
     add_panel_label(ax_b, "B")
 
-    theta_plot = np.concatenate([res.centers, [res.centers[0]]])
-    rsp_plot = np.concatenate([res.rsp, [res.rsp[0]]])
+    from biorsp.plotting.radar import plot_radar
 
-    r_max = np.nanmax(np.abs(res.rsp))
-    r_lim = np.ceil(r_max * 10) / 10 if r_max > 0 else 0.1
-    ax_c.set_ylim(-r_lim, r_lim)
-    ax_c.set_rticks([-r_lim, 0, r_lim])
-    ax_c.set_yticklabels([f"-{r_lim:.1f}", "0", f"{r_lim:.1f}"], fontsize=7)
-    ax_c.set_rlabel_position(22.5)
-
-    ax_c.plot(theta_plot, rsp_plot, marker="o", markersize=3, color="black", lw=1.2)
-    ax_c.fill(theta_plot, rsp_plot, color="black", alpha=0.1)
-    ax_c.plot(
-        np.linspace(0, 2 * np.pi, 100), np.zeros(100), color=COLORS["ref_line"], lw=0.8, ls="--"
+    plot_radar(
+        res,
+        ax=ax_c,
+        title=r"Directional Organization Profile $R(\theta)$",
+        mode="signed",
+        theta_convention="math",
+        color="black",
+        alpha=0.1,
+        linewidth=1.2,
+        debug_overlay=debug,
     )
-
-    ax_c.set_title(r"Directional Organization Profile $R(\theta)$", pad=20)
-    ax_c.set_theta_zero_location("E")
-    ax_c.set_theta_direction(1)
     add_panel_label(ax_c, "C")
 
-    L = summaries.localization_entropy
-    R_bar = summaries.r_mean
-    A = summaries.anisotropy
-    polarity = summaries.polarity
-
-    interpretation = interpret_pattern(A, L, R_bar, polarity)
+    interpretation = interpret_pattern(S_g, R_mean, coverage_geom, delta_deg)
 
     vantage_str = config.vantage.replace("_", " ").title()
 
@@ -243,35 +299,29 @@ def make_end_to_end_figure(
         rf"$\Delta = {config.delta_deg:g}^\circ$ | "
         f"Feature: {feature_name}" + "\n\n"
         f"Vantage: {vantage_str}\n"
-        f"QC: {config.qc_mode.title()} | "
-        f"Perm: {config.perm_mode.title()}"
+        f"Normalization: {norm_stats.get('method', 'median-IQR')}"
     )
 
-    stats_text = r"$\bf{Two\text{-}Score\ Output}$" + "\n\n"
+    stats_text = r"$\bf{Two\text{-}Score\ Framework}$" + "\n\n"
 
-    if coverage_score is not None:
-        stats_text += f"Coverage $C_g$ = {coverage_score:.2%}\n"
+    if coverage is not None:
+        stats_text += f"Coverage $C_g$ = {coverage:.2%}"
+        if expr_threshold is not None:
+            stats_text += f" (≥ {expr_threshold:.2g})"
+        stats_text += "\n"
 
-    valid_mask = ~np.isnan(res.rsp)
-    if np.any(valid_mask):
-        w = (
-            res.sector_weights[valid_mask]
-            if hasattr(res, "sector_weights")
-            else np.ones(np.sum(valid_mask))
-        )
-        w = w / np.sum(w)
-        S_g = np.sqrt(np.sum(w * res.rsp[valid_mask] ** 2))
-        stats_text += f"Spatial Org. $S_g$ = {S_g:.3f}\n\n"
-    else:
-        stats_text += "Spatial Org. $S_g$ = N/A\n\n"
+    stats_text += f"Spatial Org. $S_g$ = {S_g:.3f}\n\n"
 
     stats_text += (
         r"$\bf{Diagnostic\ Metrics}$" + "\n"
-        f"$A$ = {A:.3f} | "
-        f"$L$ = {L:.3f} | "
-        rf"$\bar{{R}}$ = {R_bar:.3f}" + "\n\n"
-        f"Pattern: {interpretation}"
+        f"$\\bar{{R}}_{{geom}}$ = {R_mean:.3f} | "
+        f"$C_{{geom}}$ = {coverage_geom:.2f}\n"
     )
+
+    if foreground_fraction is not None:
+        stats_text += f"Internal FG frac = {foreground_fraction:.2%} (not C_g)\n"
+
+    stats_text += f"\nPattern: {interpretation}"
 
     bbox_props = dict(
         boxstyle="round,pad=0.8", facecolor="#F8F9FA", edgecolor=COLORS["ref_line"], alpha=0.5
@@ -310,13 +360,6 @@ def make_end_to_end_figure(
         outdir = outpath
         filename = f"end_to_end_{feature_name}"
 
-    save_figure(fig, filename, outdir)
-
-    if outpath_obj.suffix:
-        import shutil
-
-        src_png = Path(outdir) / f"{filename}.png"
-        if src_png.exists() and src_png != outpath_obj:
-            shutil.copy(src_png, outpath_obj)
+    save_figure(fig, Path(outdir) / filename)
 
     plt.close()

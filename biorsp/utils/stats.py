@@ -171,7 +171,6 @@ def compute_signed_summaries(
         return res
 
     if M < 2:
-
         res["status"] = "insufficient_sectors"
 
     r_mean = np.mean(R_valid)

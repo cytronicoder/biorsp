@@ -15,12 +15,11 @@ from biorsp import (
     compute_rsp_radar,
     compute_scalar_summaries,
 )
-from biorsp.preprocess.geometry import geometric_median
+from biorsp.core.geometry import geometric_median
 
 
 @dataclass
 class SimulationConfig:
-
     n_cells: int = 10000
     n_genes: int = 100
     n_permutations: int = 1000
@@ -185,7 +184,6 @@ def generate_umis(
 
     mus = np.full(n, mu_u)
     if n_donors > 1 and donor_shift != 0:
-
         is_shifted = donors % 2 == 1
         mus[is_shifted] += donor_shift
 
@@ -268,7 +266,6 @@ def generate_expression_null_C(
 ) -> np.ndarray:
     """Null C: Donor-driven. lambda_i = lambda_0,d(i)."""
     if donor_effects is None:
-
         rng_d = np.random.default_rng(seed)
         n_donors = donors.max() + 1
         donor_effects = rng_d.lognormal(0, 0.5, n_donors)
@@ -312,17 +309,14 @@ def generate_expression_alt(
         return np.minimum(d, 2 * np.pi - d)
 
     if variant == "wedge":
-
         d = dist_s1(theta, theta_dagger)
         h = np.exp(-0.5 * (d / sigma_theta) ** 2)
         q = -r
     elif variant == "rim":
-
         d = dist_s1(theta, theta_dagger)
         h = np.exp(-0.5 * (d / sigma_theta) ** 2)
         q = r
     elif variant == "bipolar":
-
         d1 = dist_s1(theta, theta_dagger)
         d2 = dist_s1(theta, theta_dagger + np.pi)
         h = np.exp(-0.5 * (d1 / sigma_theta) ** 2) - np.exp(-0.5 * (d2 / sigma_theta) ** 2)
@@ -365,7 +359,6 @@ def analyze_gene(
     compute_stratified: bool = True,
     center: Optional[np.ndarray] = None,
 ) -> GeneResult:
-
     if center is None:
         if config.vantage == "geometric_median":
             center, _, _ = geometric_median(
@@ -404,8 +397,8 @@ def analyze_gene(
         r,
         theta,
         y,
-        B=config.n_angles,
-        delta_deg=config.sector_width_deg,
+        B=config.B,
+        delta_deg=config.delta_deg,
         min_fg_sector=config.min_fg_sector,
         min_bg_sector=config.min_bg_sector,
     )
@@ -421,8 +414,8 @@ def analyze_gene(
         r,
         theta,
         y,
-        B=config.n_angles,
-        delta_deg=config.sector_width_deg,
+        B=config.B,
+        delta_deg=config.delta_deg,
         n_perm=config.n_permutations,
         umi_counts=None,
         seed=config.seed + gene_id,
@@ -436,8 +429,8 @@ def analyze_gene(
             r,
             theta,
             y,
-            B=config.n_angles,
-            delta_deg=config.sector_width_deg,
+            B=config.B,
+            delta_deg=config.delta_deg,
             n_perm=config.n_permutations,
             umi_counts=umis,
             seed=config.seed + gene_id,
@@ -447,7 +440,7 @@ def analyze_gene(
 
     return GeneResult(
         gene_id=gene_id,
-        A_g=summaries.rms_anisotropy,
+        A_g=summaries.anisotropy,
         theta_g=summaries.peak_angle,
         P_g=summaries.peak_strength,
         p_naive=p_naive,
@@ -489,14 +482,12 @@ def worker_analyze_null(args: Dict) -> Dict:
     null_type = args.get("null_type", "A")
 
     try:
-
         if null_type == "A":
             x = generate_expression_null_A(umis, seed=seed)
         elif null_type == "B":
             x = generate_expression_null_B(umis, kappa=1.0, seed=seed)
         elif null_type == "C":
             if donors is None:
-
                 x = generate_expression_null_B(umis, seed=seed)
             else:
                 x = generate_expression_null_C(umis, donors, seed=seed)
@@ -510,7 +501,6 @@ def worker_analyze_null(args: Dict) -> Dict:
         d["seed"] = seed
         return d
     finally:
-
         try:
             if "shm_z" in args:
                 shm_z.close()
@@ -694,14 +684,12 @@ def run_family_1_null_calibration(
             z_shifted = apply_donor_shifts(z, donors_shift, seed=config.seed)
 
             for null_type in null_types:
-
                 if null_type == "C":
                     current_z = z_shifted
                     current_umis = umis_shift
                     current_donors = donors_shift
                     scenario = f"{geom_name}_Null{null_type}_Shifted"
                 elif null_type == "B":
-
                     current_z = z
                     current_umis = umis_struct
                     current_donors = donors_bal
@@ -813,7 +801,6 @@ def run_family_1_null_calibration(
                                 results = []
                         pool.shutdown(wait=True)
                 finally:
-
                     if results:
                         write_batch_to_csv(results, outcsv)
                         results = []
@@ -1025,7 +1012,6 @@ def run_family_3_robustness(
     completed = get_completed_job_keys(outcsv) if resume else set()
 
     for g in tqdm(range(n_robust_genes), desc="Robustness genes"):
-
         if f"robust_g{g}" in completed:
             continue
 

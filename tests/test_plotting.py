@@ -4,9 +4,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from biorsp.core.geometry import angle_grid
 from biorsp.core.typing import RadarResult
 from biorsp.plotting.radar import plot_radar, plot_radar_absolute
-from biorsp.preprocess.geometry import angle_grid
 
 
 def test_plot_radar_all_nan():
@@ -93,7 +93,6 @@ def test_plot_radar_absolute_helper():
 
 
 def test_plot_fills_no_gaps():
-
     B = 36
     centers = angle_grid(B)
     rsp = np.zeros(B)

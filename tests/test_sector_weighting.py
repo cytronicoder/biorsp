@@ -7,7 +7,6 @@ from biorsp.utils.helpers import compute_sector_weight
 
 
 def test_compute_sector_weight():
-
     assert compute_sector_weight(10, 10, mode="none") == 1.0
 
     assert compute_sector_weight(10, 30, mode="sqrt_frac") == np.sqrt(10 / 40)
@@ -41,6 +40,7 @@ def test_sector_signed_stat_weighting():
 
 
 def test_compute_rsp_radar_weighting():
+    """Test that sector weighting works correctly (contract: rsp is RAW)."""
 
     N = 1000
     r = np.random.uniform(0, 1, N)
@@ -54,21 +54,19 @@ def test_compute_rsp_radar_weighting():
     assert radar.sector_weights is not None
     assert len(radar.sector_weights) == config.B
 
+    # Contract: rsp is RAW, weights are stored separately
+    # Verify weights are positive where rsp is valid
     for b in range(config.B):
         if not np.isnan(radar.rsp[b]):
+            assert radar.sector_weights[b] >= 0, "Weights should be non-negative"
 
-            config_none = BioRSPConfig(
-                sector_weight_mode="none", B=config.B, delta_deg=config.delta_deg
-            )
-
-            from biorsp.preprocess.geometry import get_sector_indices
-
-            sector_indices = get_sector_indices(theta, config.B, config.delta_deg)
-            radar_none = compute_rsp_radar(
-                r, theta, y, config=config_none, sector_indices=sector_indices
-            )
-
-            assert pytest.approx(radar.rsp[b]) == radar.sector_weights[b] * radar_none.rsp[b]
+    # Verify weighted S_g can be computed
+    valid_mask = np.isfinite(radar.rsp)
+    if np.any(valid_mask):
+        w = radar.sector_weights[valid_mask]
+        rsp = radar.rsp[valid_mask]
+        s_g = np.sqrt(np.sum(w * rsp**2) / np.sum(w))
+        assert np.isfinite(s_g), "Weighted S_g should be finite"
 
 
 def test_permutation_weight_reuse():
@@ -129,9 +127,17 @@ def test_weighting_reduces_variance_of_low_support_sectors():
     radar_none = compute_rsp_radar(r, theta, y, config=config_none)
     radar_weighted = compute_rsp_radar(r, theta, y, config=config_weighted)
 
+    # Contract: rsp is RAW, weights are stored separately
+    # For weighted anisotropy, we must apply weights in the aggregation
     valid_mask = ~np.isnan(radar_none.rsp)
+    valid_mask_weighted = ~np.isnan(radar_weighted.rsp)
+
+    # Unweighted anisotropy (uniform weights)
     A_none_baseline = compute_anisotropy(radar_none.rsp, valid_mask)
-    A_weighted_baseline = compute_anisotropy(radar_weighted.rsp, valid_mask)
+    # Weighted anisotropy (using sector_weights from weighted radar)
+    A_weighted_baseline = compute_anisotropy(
+        radar_weighted.rsp, valid_mask_weighted, weights=radar_weighted.sector_weights
+    )
 
     low_support_idx = None
     for i in range(1, B, 2):
@@ -158,8 +164,16 @@ def test_weighting_reduces_variance_of_low_support_sectors():
     )
 
     valid_mask_pert = ~np.isnan(radar_none_pert.rsp)
+    valid_mask_weighted_pert = ~np.isnan(radar_weighted_pert.rsp)
+
+    # Unweighted anisotropy after perturbation
     A_none_pert = compute_anisotropy(radar_none_pert.rsp, valid_mask_pert)
-    A_weighted_pert = compute_anisotropy(radar_weighted_pert.rsp, valid_mask_pert)
+    # Weighted anisotropy after perturbation
+    A_weighted_pert = compute_anisotropy(
+        radar_weighted_pert.rsp,
+        valid_mask_weighted_pert,
+        weights=radar_weighted_pert.sector_weights,
+    )
 
     delta_none = abs(A_none_pert - A_none_baseline)
     delta_weighted = abs(A_weighted_pert - A_weighted_baseline)

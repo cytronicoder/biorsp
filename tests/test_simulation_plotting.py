@@ -22,7 +22,7 @@ def test_sigma_column_in_simulation_csv():
         "sigma_deg": [10, 10, 20, 20],
         "A_bg": [0.1, 0.2, 0.15, 0.25],
         "R_mean_bg": [0.05, 0.10, -0.08, -0.15],
-        "coverage_bg": [0.9, 0.9, 0.85, 0.85],
+        "coverage_geom": [0.9, 0.9, 0.85, 0.85],
         "coverage_fg": [0.7, 0.8, 0.75, 0.80],
     }
 
@@ -56,7 +56,6 @@ def test_per_sigma_plotting_logic():
         for beta in [0.5, 1.0, 1.5]:
             for sigma_deg in [10, 20, 40]:
                 for replicate in range(5):
-
                     base_aniso = beta * 0.15
                     noise = np.random.normal(0, 0.02)
                     data.append(

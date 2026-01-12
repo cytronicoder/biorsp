@@ -1,0 +1,22 @@
+{
+  "h5ad_path": "data/kpmp.h5ad",
+  "embedding_key": "X_umap",
+  "n_obs_total": 225177,
+  "n_obs_plotted": 225177,
+  "subsampled": false,
+  "subsample_seed": null,
+  "point_size": 2.0,
+  "alpha": 0.6,
+  "rasterized": true,
+  "dpi": 300,
+  "plots_generated": [
+    "overview",
+    "by_cell_type",
+    "by_disease",
+    "by_donor_id",
+    "density"
+  ],
+  "celltype_column": "cell_type",
+  "condition_column": "disease",
+  "sample_column": "donor_id"
+}

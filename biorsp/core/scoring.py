@@ -11,8 +11,8 @@ from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
 from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.geometry import compute_vantage, get_sector_indices, polar_coordinates
 from biorsp.preprocess.foreground import define_foreground
-from biorsp.preprocess.geometry import compute_vantage, get_sector_indices, polar_coordinates
 from biorsp.preprocess.normalization import normalize_radii
 from biorsp.utils.config import BioRSPConfig
 
@@ -101,22 +101,44 @@ def _prepare_embedding(
     return adata, coords, center, r_norm, theta, sector_indices, meta
 
 
-def _compute_spatial_score_from_radar(radar) -> Tuple[float, float]:
-    """Compute S_g and r_mean from a RadarResult using bg_supported mask."""
-    mask = radar.bg_supported_mask
-    if mask is None or not np.any(mask):
-        return 0.0, 0.0
+def _compute_spatial_score_from_radar(radar) -> Tuple[float, float, float, float, float]:
+    """Compute S_g, r_mean, and coverage metrics from a RadarResult.
 
+    Uses geom_supported_mask and applies weights EXACTLY ONCE.
+
+    Returns:
+        Tuple of (spatial_score, r_mean, coverage_geom, coverage_contrast, coverage_forced_zero)
+    """
+    # Use geom_supported_mask (geometry support)
+    mask = radar.geom_supported_mask
+    if mask is None or not np.any(mask):
+        return 0.0, 0.0, 0.0, 0.0, 0.0
+
+    # rsp is RAW (unweighted). Apply weights here ONCE.
     valid_rsp = np.nan_to_num(radar.rsp[mask], nan=0.0)
     w = radar.sector_weights[mask]
 
     sum_w = np.sum(w)
     if sum_w <= 0:
-        return 0.0, 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0
 
+    # S_g = weighted RMS of rsp
     s_g = float(np.sqrt(np.sum(w * valid_rsp**2) / sum_w))
+    # r_mean = weighted mean of rsp
     r_mean = float(np.sum(w * valid_rsp) / sum_w)
-    return s_g, r_mean
+
+    # Coverage metrics
+    coverage_geom = float(np.mean(mask))
+    coverage_contrast = (
+        float(np.mean(radar.contrast_supported_mask))
+        if radar.contrast_supported_mask is not None
+        else 0.0
+    )
+    coverage_forced_zero = (
+        float(np.mean(radar.forced_zero_mask)) if radar.forced_zero_mask is not None else 0.0
+    )
+
+    return s_g, r_mean, coverage_geom, coverage_contrast, coverage_forced_zero
 
 
 def _permute_p_value(
@@ -126,10 +148,16 @@ def _permute_p_value(
     sector_indices: List[np.ndarray],
     config: BioRSPConfig,
     observed_s: float,
+    fixed_geom_mask: Optional[np.ndarray] = None,
+    fixed_weights: Optional[np.ndarray] = None,
     stratify_labels: Optional[np.ndarray] = None,
     rng_seed: int = 42,
 ) -> Tuple[float, float, float, float, int]:
-    """Stratified permutation inference for S_g."""
+    """Stratified permutation inference for S_g with fixed geometry.
+
+    Key fix: geometry mask and weights are fixed from observed data.
+    This avoids selection bias where geometry would change per permutation.
+    """
     n_perm = config.n_permutations
     if n_perm <= 0:
         return np.nan, np.nan, np.nan, np.nan, 0
@@ -164,8 +192,22 @@ def _permute_p_value(
             config=config,
             sector_indices=sector_indices,
             sector_sort_indices=sector_sort_indices,
+            sector_weights=fixed_weights,  # Fixed weights
         )
-        s_null, _ = _compute_spatial_score_from_radar(radar_null)
+
+        # Compute S_g using fixed geometry mask
+        if fixed_geom_mask is not None and np.any(fixed_geom_mask):
+            valid_rsp = np.nan_to_num(radar_null.rsp[fixed_geom_mask], nan=0.0)
+            w = (
+                fixed_weights[fixed_geom_mask]
+                if fixed_weights is not None
+                else np.ones(np.sum(fixed_geom_mask))
+            )
+            sum_w = np.sum(w)
+            s_null = float(np.sqrt(np.sum(w * valid_rsp**2) / sum_w)) if sum_w > 0 else 0.0
+        else:
+            s_null, _, _, _, _ = _compute_spatial_score_from_radar(radar_null)
+
         null_scores.append(s_null)
 
     null_scores = np.array(null_scores)
@@ -184,7 +226,6 @@ def score_genes_impl(
     subset: Optional[Union[dict, str, List[str]]],
     config: BioRSPConfig,
 ) -> pd.DataFrame:
-
     adata_sub, _, _, r_norm, theta, sector_indices, _ = _prepare_embedding(
         adata, embedding_key, subset, config
     )
@@ -208,7 +249,7 @@ def score_genes_impl(
             continue
 
         t_g, t_mode = _detect_threshold(x, config)
-        coverage_expr = float(np.mean(x >= t_g))
+        coverage = float(np.mean(x >= t_g))
 
         y, fg_info = define_foreground(
             x,
@@ -220,8 +261,8 @@ def score_genes_impl(
         )
 
         warnings = []
-        if coverage_expr < 0.01:
-            warnings.append("low_coverage_expr")
+        if coverage < 0.01:
+            warnings.append("low_coverage")
 
         if y is None:
             results.append(
@@ -230,11 +271,13 @@ def score_genes_impl(
                     "n_cells_total": len(x),
                     "expr_threshold_mode": t_mode,
                     "expr_threshold_value": t_g,
-                    "coverage_expr": coverage_expr,
+                    "coverage": coverage,
                     "spatial_score": 0.0,
                     "spatial_sign": 0,
-                    "r_mean_bg": 0.0,
-                    "coverage_bg": 0.0,
+                    "r_mean": 0.0,
+                    "coverage_geom": 0.0,
+                    "coverage_contrast": 0.0,
+                    "coverage_forced_zero": 0.0,
                     "coverage_fg": 0.0,
                     "p_value": np.nan,
                     "z_score": np.nan,
@@ -244,20 +287,25 @@ def score_genes_impl(
             continue
 
         radar = compute_rsp_radar(r_norm, theta, y, config=config, sector_indices=sector_indices)
-        s_g, r_mean = _compute_spatial_score_from_radar(radar)
+        s_g, r_mean, cov_geom, cov_contrast, cov_forced_zero = _compute_spatial_score_from_radar(
+            radar
+        )
 
-        bg_mask = radar.bg_supported_mask
-        cov_bg = float(np.mean(bg_mask)) if bg_mask is not None else 0.0
-        if cov_bg < 0.8:
-            warnings.append("low_coverage_bg")
+        # QC warnings
+        if cov_geom < 0.8:
+            warnings.append("low_coverage_geom")
 
-        if bg_mask is not None and np.any(bg_mask):
-            n_fg_sector = radar.n_fg_per_sector[bg_mask]
+        # Coverage FG: fraction of geom-supported sectors with sufficient FG
+        geom_mask = radar.geom_supported_mask
+        if geom_mask is not None and np.any(geom_mask):
+            n_fg_sector = radar.counts_fg[geom_mask]
             cov_fg = float(np.mean(n_fg_sector >= config.min_fg_sector))
         else:
             cov_fg = 0.0
 
         gene_seed = (config.seed + hash(gene)) % (2**32)
+
+        # Use fixed geometry mask and weights for inference
         p_val, _, _, z_score, _ = _permute_p_value(
             r_norm,
             theta,
@@ -265,6 +313,8 @@ def score_genes_impl(
             sector_indices,
             config,
             s_g,
+            fixed_geom_mask=radar.geom_supported_mask,
+            fixed_weights=radar.sector_weights,
             stratify_labels=stratify_labels,
             rng_seed=gene_seed,
         )
@@ -275,11 +325,13 @@ def score_genes_impl(
                 "n_cells_total": len(x),
                 "expr_threshold_mode": t_mode,
                 "expr_threshold_value": t_g,
-                "coverage_expr": coverage_expr,
+                "coverage": coverage,
                 "spatial_score": s_g,
                 "spatial_sign": int(np.sign(r_mean)),
-                "r_mean_bg": r_mean,
-                "coverage_bg": cov_bg,
+                "r_mean": r_mean,
+                "coverage_geom": cov_geom,
+                "coverage_contrast": cov_contrast,
+                "coverage_forced_zero": cov_forced_zero,
                 "coverage_fg": cov_fg,
                 "p_value": p_val,
                 "z_score": z_score,
@@ -305,7 +357,6 @@ def score_gene_pairs_impl(
     subset: Optional[Union[dict, str, List[str]]],
     config: BioRSPConfig,
 ) -> pd.DataFrame:
-
     adata_sub, _, _, r_norm, theta, sector_indices, _ = _prepare_embedding(
         adata, embedding_key, subset, config
     )
@@ -326,11 +377,11 @@ def score_gene_pairs_impl(
             radar = compute_rsp_radar(
                 r_norm, theta, y, config=config, sector_indices=sector_indices
             )
-            s_g, r_mean = _compute_spatial_score_from_radar(radar)
+            s_g, r_mean, _, _, _ = _compute_spatial_score_from_radar(radar)
 
             gene_data[gene] = {
                 "rsp": radar.rsp,
-                "mask": radar.bg_supported_mask,
+                "mask": radar.geom_supported_mask,
                 "r_mean": r_mean,
                 "weights": radar.sector_weights,
             }
@@ -403,7 +454,6 @@ def classify_genes_impl(
 
             s_cut = BioRSPConfig().effect_floor
         else:
-
             method = "empirical_mad"
             scores = df["spatial_score"].values
             med = np.median(scores)
@@ -411,7 +461,7 @@ def classify_genes_impl(
             s_cut = float(med + 2 * mad)
 
     def classify(row):
-        high_c = row["coverage_expr"] >= c_cut
+        high_c = row["coverage"] >= c_cut
 
         if method == "fdr":
             high_s = (row["q_value"] < fdr_cut) and (row["spatial_score"] > 0)

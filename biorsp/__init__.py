@@ -1,4 +1,17 @@
-"""BioRSP: Bayesian Inference and Robustness for RSP-style analyses."""
+"""BioRSP: Spatial transcriptomics analysis using radar-style gene profiles.
+
+This package quantifies gene expression patterns through two complementary metrics:
+- Coverage (C): Fraction of cells with biologically meaningful expression
+- Spatial Organization (S): Extent of directional clustering in the radar profile
+
+These metrics classify genes into interpretable archetypes:
+- Housekeeping (high C, low S): uniformly expressed across tissue
+- Regional Program (high C, high S): broad spatial domains
+- Niche Marker (low C, high S): spatially restricted expression
+- Sparse Noise (low C, low S): random sparse expression
+
+P-values are computed via permutation-based null distributions.
+"""
 
 from biorsp import simulations
 from biorsp._version import __version__

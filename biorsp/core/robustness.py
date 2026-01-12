@@ -109,7 +109,19 @@ def compute_robustness_score(
         radar_sub = compute_rsp_radar(r_sub, theta_sub, y_sub, config=config)
         rsp_sub = radar_sub.rsp
 
-        mask = np.isfinite(rsp_sub) & np.isfinite(rsp_full)
+        # Use geom_supported_mask for comparison
+        mask_full = (
+            radar_full.geom_supported_mask
+            if radar_full.geom_supported_mask is not None
+            else np.isfinite(rsp_full)
+        )
+        mask_sub = (
+            radar_sub.geom_supported_mask
+            if radar_sub.geom_supported_mask is not None
+            else np.isfinite(rsp_sub)
+        )
+        mask = mask_full & mask_sub & np.isfinite(rsp_sub) & np.isfinite(rsp_full)
+
         if np.sum(mask) < 2:
             corr = np.nan
         elif np.std(rsp_sub[mask]) == 0 or np.std(rsp_full[mask]) == 0:

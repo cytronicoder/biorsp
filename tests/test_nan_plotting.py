@@ -6,7 +6,6 @@ from biorsp.plotting.radar import plot_radar
 
 
 def test_nan_gaps_segments():
-
     theta = np.linspace(0, 2 * np.pi, 8, endpoint=False)
 
     r1 = np.ones(8)
@@ -25,7 +24,6 @@ def test_nan_gaps_segments():
 
 
 def test_nan_gaps_logic():
-
     theta = np.linspace(0, 2 * np.pi, 8, endpoint=False)
 
     r2 = np.array([1.0, 1.0, np.nan, np.nan, 1.0, 1.0, 1.0, 1.0])
@@ -62,7 +60,6 @@ def test_nan_gaps_logic():
 
 
 def test_no_bridging():
-
     theta = np.linspace(0, 2 * np.pi, 8, endpoint=False)
 
     r = np.array([1.0, 1.0, np.nan, np.nan, 1.0, 1.0, 1.0, 1.0])

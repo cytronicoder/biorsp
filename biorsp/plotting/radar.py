@@ -4,6 +4,17 @@ Provides visualization functions:
 - Radar plots for RSP profiles
 - Embedding scatter plots
 - Summary visualizations
+
+Theta Convention
+----------------
+BioRSP computation uses mathematical convention from atan2:
+- 0 radians at +x axis (east)
+- Increases counterclockwise
+- Range: [-π, π) or [0, 2π)
+
+Plotting supports two conventions:
+- "math" (default): matches computation, 0 at east, CCW
+- "compass": 0 at north, clockwise (visual transform only)
 """
 
 from __future__ import annotations
@@ -16,6 +27,43 @@ from biorsp.core.typing import RadarResult
 from biorsp.utils.helpers import _as_1d
 
 
+def transform_theta(
+    theta: np.ndarray, from_convention: str = "math", to_convention: str = "math"
+) -> np.ndarray:
+    """Transform angles between theta conventions.
+
+    Args:
+        theta: Array of angles in radians.
+        from_convention: Source convention ("math" or "compass").
+        to_convention: Target convention ("math" or "compass").
+
+    Returns:
+        Transformed angles in radians, normalized to [0, 2π).
+
+    Conventions:
+        - "math": 0 at +x (east), increases counterclockwise (atan2 convention)
+        - "compass": 0 at +y (north), increases clockwise
+
+    Transform: compass = (π/2 - math) mod 2π
+               math = (π/2 - compass) mod 2π
+    """
+    if from_convention == to_convention:
+        return np.mod(theta, 2 * np.pi)
+
+    if (
+        from_convention == "math"
+        and to_convention == "compass"
+        or from_convention == "compass"
+        and to_convention == "math"
+    ):
+        return np.mod(np.pi / 2 - theta, 2 * np.pi)
+    else:
+        raise ValueError(
+            f"Unsupported convention pair: from={from_convention}, to={to_convention}. "
+            f"Supported: 'math', 'compass'."
+        )
+
+
 def _maybe_degrees_to_radians(theta: np.ndarray) -> np.ndarray:
     """Heuristic: if angles look like degrees, convert to radians."""
     finite = np.isfinite(theta)
@@ -26,6 +74,71 @@ def _maybe_degrees_to_radians(theta: np.ndarray) -> np.ndarray:
     if tmax > (2.0 * np.pi * 1.2):
         return np.deg2rad(theta)
     return theta
+
+
+def _split_into_finite_segments(theta: np.ndarray, vals: np.ndarray) -> list[list[int]]:
+    """Split sorted arrays into contiguous segments of finite values.
+
+    Args:
+        theta: Sorted angles in radians.
+        vals: Corresponding values.
+
+    Returns:
+        List of index lists, each representing a contiguous finite segment.
+    """
+    if theta.size == 0:
+        return []
+
+    mask = np.isfinite(vals)
+    if not np.any(mask):
+        return []
+
+    idx = np.where(mask)[0]
+    if len(idx) == 0:
+        return []
+
+    splits = np.where(np.diff(idx) > 1)[0] + 1
+    seg_indices = np.split(idx, splits)
+    return [s.tolist() for s in seg_indices]
+
+
+def _merge_wraparound_segments(segments: list[list[int]], vals: np.ndarray) -> list[list[int]]:
+    """Merge first and last segments if they represent circular continuity.
+
+    Args:
+        segments: List of index lists from _split_into_finite_segments.
+        vals: Original value array to check finite status.
+
+    Returns:
+        Merged segment list with wraparound handled.
+    """
+    if len(segments) == 0:
+        return segments
+
+    n = vals.size
+
+    if len(segments) == 1:
+        first_seg = segments[0]
+        if len(first_seg) == n and np.all(np.isfinite(vals)):
+            first_seg.append(first_seg[0])
+        return segments
+
+    if len(segments) > 1:
+        first_indices = segments[0]
+        last_indices = segments[-1]
+
+        if (
+            len(first_indices) > 0
+            and len(last_indices) > 0
+            and first_indices[0] == 0
+            and last_indices[-1] == n - 1
+            and np.isfinite(vals[0])
+            and np.isfinite(vals[n - 1])
+        ):
+            merged = last_indices + first_indices
+            return [merged] + segments[1:-1]
+
+    return segments
 
 
 def _prepare_polar(theta: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -67,10 +180,75 @@ def _ensure_polar_ax(ax: plt.Axes | None) -> plt.Axes:
     return ax
 
 
-def _set_default_polar_style(ax: plt.Axes) -> None:
+def _set_default_polar_style(ax: plt.Axes, theta_convention: str = "math") -> None:
+    """Configure polar axis style based on theta convention.
 
-    ax.set_theta_direction(1)
-    ax.set_theta_zero_location("E")
+    Args:
+        ax: Polar axes object.
+        theta_convention: "math" (default, 0 at east, CCW) or "compass" (0 at north, CW).
+    """
+    if theta_convention == "math":
+        pass
+    elif theta_convention == "compass":
+        ax.set_theta_direction(-1)
+        ax.set_theta_zero_location("N")
+    else:
+        raise ValueError(f"Unknown theta_convention: {theta_convention}")
+
+
+def _draw_debug_overlays(
+    ax: plt.Axes,
+    theta: np.ndarray,
+    radar: RadarResult,
+    theta_convention: str,
+    y_top: float,
+) -> None:
+    """Add diagnostic overlays showing sector validity and counts.
+
+    Displays:
+    - nF (foreground count) per sector as text
+    - nB (background count) per sector as text
+    - Whether sector was forced-zero (empty FG)
+    - Whether sector is geom-supported (valid)
+    """
+    if radar.counts_fg is None or radar.counts_bg is None:
+        return
+
+    theta_centers_math = _as_1d(radar.centers)
+    theta_display = transform_theta(
+        theta_centers_math, from_convention="math", to_convention=theta_convention
+    )
+
+    for i, (th, nf, nb) in enumerate(zip(theta_display, radar.counts_fg, radar.counts_bg)):
+        is_valid = True
+        if radar.geom_supported_mask is not None:
+            is_valid = radar.geom_supported_mask[i]
+
+        is_zero_filled = False
+        if radar.forced_zero_mask is not None:
+            is_zero_filled = radar.forced_zero_mask[i]
+
+        if is_zero_filled:
+            color_text = "orange"
+            marker = "◉"
+        elif not is_valid:
+            color_text = "gray"
+            marker = "○"
+        else:
+            color_text = "black"
+            marker = "●"
+
+        r_text = y_top * 0.85
+        ax.text(
+            th,
+            r_text,
+            f"{marker}\nnF={int(nf)}\nnB={int(nb)}",
+            ha="center",
+            va="center",
+            fontsize=7,
+            color=color_text,
+            bbox=dict(facecolor="white", alpha=0.7, edgecolor="none", pad=1),
+        )
 
 
 def _draw_segmented_rsp(
@@ -83,7 +261,7 @@ def _draw_segmented_rsp(
     line_color: str | None = None,
     **kwargs,
 ) -> None:
-    """Draw RSP outline and fill, handling NaN gaps and wrap-around.
+    """Draw RSP outline and fill, handling NaN gaps and circular wrap-around.
 
     Splits continuous segments at NaN boundaries. Merges segments across
     the 0/2pi boundary if both ends are finite (polar wrap-around).
@@ -91,25 +269,11 @@ def _draw_segmented_rsp(
     if th.size == 0:
         return
 
-    mask = np.isfinite(vals)
-    if not np.any(mask):
+    segments = _split_into_finite_segments(th, vals)
+    if not segments:
         return
 
-    idx = np.where(mask)[0]
-    if len(idx) == 0:
-        return
-
-    splits = np.where(np.diff(idx) > 1)[0] + 1
-    seg_indices = np.split(idx, splits)
-    segments = [s.tolist() for s in seg_indices]
-
-    if len(segments) > 1 and mask[0] and mask[-1]:
-        last_seg = segments.pop(-1)
-        first_seg = segments.pop(0)
-        merged_seg = last_seg + first_seg
-        segments.append(merged_seg)
-    elif len(segments) == 1 and mask.all():
-        segments[0].append(segments[0][0])
+    segments = _merge_wraparound_segments(segments, vals)
 
     for seg in segments:
         th_seg = th[seg].astype(float, copy=True)
@@ -341,36 +505,59 @@ def plot_radar(
     color: str = "b",
     alpha: float = 0.5,
     mode: str = "signed",
-    radial_max: float | None = None,
+    radial_max: float | str | None = None,
     summaries: ScalarSummaries | None = None,
     show_anchors: bool = False,
+    theta_convention: str = "math",
+    debug_overlay: bool = False,
     **kwargs,
 ) -> plt.Axes:
-    """Plot RSP radar profile.
+    """Plot radar profile with proper handling of supported sectors.
+
+    This function ensures:
+    - Geometry-supported sectors (finite RSP) are plotted
+    - Invalid sectors (NaN RSP from insufficient background) shown as gaps
+    - Zero-filled sectors (empty FG, forced to 0) marked distinctly
+    - No smoothing applied to metrics (display-only smoothing would be explicit)
+    - Correct theta convention handling
 
     Args:
-        radar: RadarResult object.
+        radar: RadarResult object with centers in math convention (0 at +x, CCW).
+               Must contain rsp, centers, and optionally geom_supported_mask, forced_zero_mask.
         ax: Matplotlib axes (must be polar). If None, created.
         title: Plot title.
-        color: Line/Fill color for proximal (positive) values.
-        alpha: Fill transparency.
+        color: Line/Fill color for proximal (positive) values (default: "b").
+        alpha: Fill transparency (default: 0.5).
         mode: Plotting mode (semantic):
-            - "signed": canonical signed view; radial length = |R|, color/style encodes sign (proximal vs distal).
-            - "proximal": only proximal (R > 0) magnitudes.
-            - "distal": only distal (R < 0) magnitudes.
-        Note: legacy aliases supported: 'enrichment' -> 'proximal', 'depletion' -> 'distal',
-        'combined'/'relative' -> 'signed'.
-        radial_max: Optional override for the radial axis upper limit. If provided, used directly.
+            - "signed" (default): canonical signed view; |R| as radius, sign determines color/style
+            - "proximal": only positive (R > 0) magnitudes
+            - "distal": only negative (R < 0) magnitudes
+        radial_max: Radial axis upper limit control:
+            - None (default): robust 99th percentile * 1.1 (avoids outlier flattening)
+            - "max": use absolute maximum (may be affected by outliers)
+            - float: explicit value
         summaries: Optional `ScalarSummaries` object to annotate peak angles and statistics.
-        show_anchors: When True and `summaries` provided, plot peak markers and an annotation box.
+        show_anchors: When True and `summaries` provided, plot peak markers and annotation box.
+        theta_convention: Axis convention for visualization:
+            - "math" (default): 0 at +x (east), increases CCW (matches computation)
+            - "compass": 0 at +y (north), increases CW (visual transform only)
+        debug_overlay: If True, add diagnostic overlays showing sector validity and counts.
         **kwargs: Additional arguments forwarded to matplotlib (e.g., linewidth).
 
     Returns:
         ax: The axes object.
 
+    Note:
+        BioRSP computes angles using mathematical convention (atan2: 0 at +x, CCW).
+        The theta_convention parameter only affects visualization. Data integrity
+        is preserved regardless of display convention.
+
+    Example:
+        >>> radar = compute_rsp_radar(r_norm, theta, fg_mask, config=config)
+        >>> plot_radar(radar, theta_convention="math", radial_max=None, debug_overlay=False)
     """
     ax = _ensure_polar_ax(ax)
-    _set_default_polar_style(ax)
+    _set_default_polar_style(ax, theta_convention)
 
     theta_raw = _as_1d(radar.centers)
     r_raw = _as_1d(radar.rsp)
@@ -393,8 +580,14 @@ def plot_radar(
         ax.set_ylim(0, 1)
         return ax
 
-    max_mag = float(np.nanmax(np.abs(r_raw[finite_r])))
-    y_top = float(radial_max) if radial_max is not None else max(1e-06, max_mag * 1.05)
+    if radial_max is None:
+        max_mag = float(np.nanpercentile(np.abs(r_raw[finite_r]), 99))
+        y_top = max(1e-06, max_mag * 1.1)
+    elif radial_max == "max":
+        max_mag = float(np.nanmax(np.abs(r_raw[finite_r])))
+        y_top = max(1e-06, max_mag * 1.05)
+    else:
+        y_top = float(radial_max)
 
     if y_top <= 0:
         y_top = 1e-6
@@ -402,13 +595,14 @@ def plot_radar(
     theta_norm = _maybe_degrees_to_radians(theta_raw.astype(float, copy=False))
     theta_norm = np.mod(theta_norm, 2 * np.pi)
 
-    order = np.array([0], dtype=int) if theta_norm.size == 1 else np.argsort(theta_norm)
+    theta_plot = transform_theta(theta_norm, from_convention="math", to_convention=theta_convention)
 
-    theta = theta_norm[order]
+    order = np.array([0], dtype=int) if theta_plot.size == 1 else np.argsort(theta_plot)
+
+    theta = theta_plot[order]
     r = r_raw[order]
-    counts_fg = radar.counts_fg[order] if hasattr(radar, "counts_fg") else None
 
-    theta_sorted, widths = _prepare_polar(theta)
+    theta_sorted, _ = _prepare_polar(theta)
     theta = theta_sorted
 
     valid = np.isfinite(r)
@@ -427,12 +621,10 @@ def plot_radar(
         for t in invalid_theta:
             ax.plot([t, t], [y_top * 0.95, y_top], color="gray", linewidth=1.0, alpha=0.6)
 
-    if counts_fg is not None:
-
-        zero_filled_mask = valid & (r == 0) & (counts_fg == 0)
-        zero_filled_theta = theta[zero_filled_mask]
+    if radar.forced_zero_mask is not None:
+        zero_filled_ordered = radar.forced_zero_mask[order]
+        zero_filled_theta = theta[zero_filled_ordered]
         if zero_filled_theta.size:
-
             ax.scatter(
                 zero_filled_theta,
                 np.full_like(zero_filled_theta, y_top),
@@ -443,15 +635,24 @@ def plot_radar(
                 zorder=10,
             )
 
-    def _maybe_add_anchors(ax_obj: plt.Axes, summaries_obj: ScalarSummaries | None):
+    def _add_anchors_if_requested(ax_obj: plt.Axes, summaries_obj: ScalarSummaries | None):
         if not summaries_obj or not show_anchors:
             return
         p_prox = getattr(summaries_obj, "peak_proximal_angle", None)
         p_dist = getattr(summaries_obj, "peak_distal_angle", None)
+
         if p_prox is not None:
-            ax_obj.plot(p_prox, y_top * 0.9, marker="^", color=color, markersize=8)
+            p_prox_plot = transform_theta(
+                np.array([p_prox]), from_convention="math", to_convention=theta_convention
+            )[0]
+            ax_obj.plot(p_prox_plot, y_top * 0.9, marker="^", color=color, markersize=8, zorder=15)
+
         if p_dist is not None:
-            ax_obj.plot(p_dist, y_top * 0.9, marker="v", color="r", markersize=8)
+            p_dist_plot = transform_theta(
+                np.array([p_dist]), from_convention="math", to_convention=theta_convention
+            )[0]
+            ax_obj.plot(p_dist_plot, y_top * 0.9, marker="v", color="r", markersize=8, zorder=15)
+
         lines = []
         anis = getattr(summaries_obj, "anisotropy", None)
         integ = getattr(summaries_obj, "integrated_rsp", None)
@@ -511,6 +712,10 @@ def plot_radar(
             )
 
         ax.set_ylim(0, y_top)
+
+        if debug_overlay:
+            _draw_debug_overlays(ax, theta, radar, theta_convention, y_top)
+
         if title:
             ax.set_title(title + " RSP (signed)" if "RSP" not in title else title, fontsize=20)
 
@@ -520,17 +725,17 @@ def plot_radar(
             handles, labels = [], []
             if np.any(np.isfinite(r_pos)):
                 handles.append(mpatches.Patch(color=color, alpha=alpha))
-                labels.append("Proximal bias (R > 0)")
+                labels.append("Proximal shift (core-biased)")
             if np.any(np.isfinite(r_neg)):
                 p = mpatches.Patch(facecolor="r", hatch="//", edgecolor="r", alpha=alpha)
                 handles.append(p)
-                labels.append("Distal bias (R < 0)")
+                labels.append("Distal shift (rim-biased)")
             if handles:
                 ax.legend(handles, labels, loc="lower left", fontsize=18)
         except Exception:
             pass
 
-        _maybe_add_anchors(ax, summaries)
+        _add_anchors_if_requested(ax, summaries)
         return ax
 
     if mode == "proximal":
@@ -540,7 +745,7 @@ def plot_radar(
         ax.set_ylim(0, y_top)
         if title:
             ax.set_title(title + " RSP (proximal)", fontsize=20)
-        _maybe_add_anchors(ax, summaries)
+        _add_anchors_if_requested(ax, summaries)
         return ax
 
     if mode == "distal":
@@ -560,47 +765,7 @@ def plot_radar(
         ax.set_ylim(0, y_top)
         if title:
             ax.set_title(title + " RSP (distal)", fontsize=20)
-        _maybe_add_anchors(ax, summaries)
-        return ax
-
-    if mode == "combined":
-        r_pos = np.where(r > 0, r, np.nan)
-        r_neg = np.where(r < 0, np.abs(r), np.nan)
-
-        if np.any(np.isfinite(r_pos)):
-            _draw_segmented_rsp(ax, theta, r_pos, fill=True, color=color, alpha=alpha, linewidth=lw)
-
-        if np.any(np.isfinite(r_neg)):
-            _draw_segmented_rsp(
-                ax,
-                theta,
-                r_neg,
-                fill=True,
-                color="r",
-                alpha=alpha,
-                linewidth=lw,
-                linestyle="--",
-            )
-
-        ax.set_ylim(0, y_top)
-        if title:
-            ax.set_title(title + " RSP (combined)", fontsize=20)
-
-        try:
-            import matplotlib.patches as mpatches
-
-            handles, labels = [], []
-            if np.any(np.isfinite(r_pos)):
-                handles.append(mpatches.Patch(color=color, alpha=alpha))
-                labels.append("Enrichment")
-            if np.any(np.isfinite(r_neg)):
-                handles.append(mpatches.Patch(color="r", alpha=alpha))
-                labels.append("Depletion")
-            if handles:
-                ax.legend(handles, labels, loc="lower left", fontsize=18)
-        except Exception:
-            pass
-
+        _add_anchors_if_requested(ax, summaries)
         return ax
 
     raise ValueError(f"Unknown mode: {mode}")
@@ -612,9 +777,10 @@ def plot_radar_absolute(
     title: str | None = None,
     color: str = "b",
     alpha: float = 0.5,
-    radial_max: float | None = None,
+    radial_max: float | str | None = None,
     summaries: ScalarSummaries | None = None,
     show_anchors: bool = False,
+    theta_convention: str = "math",
     **kwargs,
 ) -> plt.Figure:
     """Generate both proximal and distal radar plots side-by-side with shared radial scale.
@@ -625,9 +791,10 @@ def plot_radar_absolute(
         title: Overall title.
         color: Line/Fill color for proximal.
         alpha: Fill transparency.
-        radial_max: Optional override for shared radial axis upper limit.
+        radial_max: Radial limit control (None=robust, "max"=absolute, float=explicit).
         summaries: Optional `ScalarSummaries` object to annotate peaks and stats.
         show_anchors: Whether to draw anchors/annotations when `summaries` is provided.
+        theta_convention: Axis convention ("math" or "compass").
         **kwargs: Additional arguments for plot_radar.
 
     Returns:
@@ -639,6 +806,11 @@ def plot_radar_absolute(
 
     finite = np.isfinite(radar.rsp)
     if radial_max is None:
+        if np.any(finite):
+            radial_max_use = float(np.nanpercentile(np.abs(radar.rsp[finite]), 99)) * 1.1
+        else:
+            radial_max_use = 1.0
+    elif radial_max == "max":
         if np.any(finite):
             radial_max_use = float(np.nanmax(np.abs(radar.rsp[finite]))) * 1.05
         else:
@@ -657,6 +829,7 @@ def plot_radar_absolute(
         radial_max=radial_max_use,
         summaries=summaries,
         show_anchors=show_anchors,
+        theta_convention=theta_convention,
         **kwargs,
     )
 
@@ -671,6 +844,7 @@ def plot_radar_absolute(
         radial_max=radial_max_use,
         summaries=summaries,
         show_anchors=show_anchors,
+        theta_convention=theta_convention,
         **kwargs,
     )
 
@@ -707,7 +881,7 @@ def plot_summary(summary: ScalarSummaries, ax: plt.Axes | None = None) -> plt.Ax
         f"Min RSP: {summary.min_rsp:.3f}\n"
         f"RMS Anisotropy: {summary.anisotropy:.3f}\n"
         f"Integrated RSP: {summary.integrated_rsp:.3f}\n"
-        f"Coverage (BG/FG): {summary.coverage_bg:.2f} / {summary.coverage_fg:.2f}\n"
+        f"Coverage (geom/FG): {summary.coverage_geom:.2f} / {summary.coverage_fg:.2f}\n"
         f"Peak Distal Angle: {np.degrees(summary.peak_distal_angle):.1f}°\n"
         f"Peak Proximal Angle: {np.degrees(summary.peak_proximal_angle):.1f}°\n"
         f"Peak Extremal Angle: {np.degrees(summary.peak_extremal_angle):.1f}°"

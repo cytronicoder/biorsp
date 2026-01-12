@@ -6,7 +6,6 @@ from biorsp.utils.config import BioRSPConfig
 
 
 def test_pooled_vs_bg_scale_stability():
-
     r = np.array([5.0, 5.0, 5.01, 4.99, 5.5, 5.6])
     y = np.array([0, 0, 0, 0, 1, 1])
     idx = np.arange(6)
@@ -23,7 +22,6 @@ def test_pooled_vs_bg_scale_stability():
 
 
 def test_degeneracy_guard():
-
     r = np.array([5.0, 5.0, 5.0, 5.0001])
     y = np.array([0, 0, 1, 1])
     idx = np.arange(4)
@@ -48,7 +46,10 @@ def test_radar_uses_u_space_by_default():
     theta = np.zeros(4)
     y = np.array([1, 1, 0, 0])
 
-    config = BioRSPConfig(B=1, delta_deg=360, min_fg_sector=1, min_bg_sector=1)
+    # With only 4 data points, we need to lower min_total_per_sector
+    config = BioRSPConfig(
+        B=1, delta_deg=360, min_fg_sector=1, min_bg_sector=1, min_total_per_sector=1
+    )
     assert config.scale_mode == "u_space"
 
     res = compute_rsp_radar(r, theta, y, config=config)

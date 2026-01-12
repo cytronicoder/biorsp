@@ -14,7 +14,6 @@ from biorsp.utils.constants import (
 
 
 def test_kish_effective_sample_size():
-
     w_uniform = np.ones(10)
     assert kish_effective_sample_size(w_uniform) == pytest.approx(10.0)
 
@@ -27,7 +26,7 @@ def test_kish_effective_sample_size():
 
 
 def test_sector_qc_binary():
-    config = BioRSPConfig(qc_mode="principled", min_fg_sector=10, min_bg_sector=50, min_scale=0.01)
+    config = BioRSPConfig(min_fg_sector=10, min_bg_sector=50, min_scale=0.01)
 
     y_pass = np.concatenate([np.ones(10), np.zeros(50)])
     valid, reason, metrics = compute_sector_qc(y_pass, 0.05, config)
@@ -49,7 +48,6 @@ def test_sector_qc_binary():
 def test_sector_qc_weighted():
     config = BioRSPConfig(
         foreground_mode="weights",
-        qc_mode="principled",
         min_fg_eff=5.0,
         min_bg_eff=10.0,
         min_scale=0.01,
@@ -72,7 +70,6 @@ def test_sector_qc_weighted():
 
 def test_gene_qc():
     config = BioRSPConfig(
-        qc_mode="principled",
         min_fg_total=100,
         min_coverage=0.5,
         min_valid_sectors=3,

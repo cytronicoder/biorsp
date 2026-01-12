@@ -8,18 +8,13 @@ from typing import Optional
 
 import numpy as np
 
+from biorsp.core.geometry import get_sector_indices
 from biorsp.core.qc import compute_gene_qc, compute_sector_qc
 from biorsp.core.typing import AdequacyReport
-from biorsp.preprocess.geometry import get_sector_indices
 from biorsp.utils.config import BioRSPConfig
 from biorsp.utils.constants import (
     REASON_FOREGROUND_TIE_UNSTABLE,
-    REASON_GENE_UNDERPOWERED,
     REASON_OK,
-    REASON_SECTOR_BG_TOO_SMALL,
-    REASON_SECTOR_DEGENERATE_SCALE,
-    REASON_SECTOR_FG_TOO_SMALL,
-    REASON_SECTOR_MIXED_TOO_SMALL,
 )
 
 
@@ -33,8 +28,7 @@ def assess_adequacy(
 ) -> AdequacyReport:
     r"""Assess gene adequacy for BioRSP.
 
-    In 'principled' mode (default), uses effective sample sizes and coverage.
-    In 'legacy' mode, uses hard count thresholds.
+    Uses effective sample sizes and coverage-based criteria.
 
     Parameters
     ----------
@@ -111,41 +105,15 @@ def assess_adequacy(
             res = sector_signed_stat(r, y, idx, config=config)
             denom = res["denom"]
 
-        if config.qc_mode == "principled":
-            valid, reason, _ = compute_sector_qc(y_s, denom, config)
-            sector_mask[b] = valid
-            sector_reasons[b] = reason
-        else:
-            fg_ok = counts_fg[b] >= config.min_fg_sector
-            bg_ok = counts_bg[b] >= config.min_bg_sector
-            scale_ok = denom >= config.min_scale
-            sector_mask[b] = fg_ok and bg_ok and scale_ok
-            if not fg_ok:
-                sector_reasons[b] = REASON_SECTOR_FG_TOO_SMALL
-            elif not bg_ok:
-                sector_reasons[b] = REASON_SECTOR_BG_TOO_SMALL
-            elif not scale_ok:
-                sector_reasons[b] = REASON_SECTOR_DEGENERATE_SCALE
+        valid, reason, _ = compute_sector_qc(y_s, denom, config)
+        sector_mask[b] = valid
+        sector_reasons[b] = reason
 
     total_fg = np.sum(y)
-    if config.qc_mode == "principled":
-        is_adequate, gene_reason, metrics = compute_gene_qc(
-            sector_mask, sector_reasons, total_fg, config
-        )
-        adequacy_fraction = metrics["coverage"]
-    else:
-        adequacy_fraction = np.mean(sector_mask)
-        is_adequate = (total_fg >= config.min_fg_total) and (
-            adequacy_fraction >= config.min_adequacy_fraction
-        )
-        if total_fg < config.min_fg_total:
-            gene_reason = REASON_GENE_UNDERPOWERED
-        elif is_adequate:
-            gene_reason = REASON_OK
-        elif not np.any(sector_mask):
-            gene_reason = REASON_SECTOR_MIXED_TOO_SMALL
-        else:
-            gene_reason = REASON_GENE_UNDERPOWERED
+    is_adequate, gene_reason, metrics = compute_gene_qc(
+        sector_mask, sector_reasons, total_fg, config
+    )
+    adequacy_fraction = metrics["coverage"]
 
     return AdequacyReport(
         is_adequate=is_adequate,

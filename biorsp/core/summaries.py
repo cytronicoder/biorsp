@@ -72,19 +72,8 @@ class ScalarSummaries:
     frac_pos: float
     frac_neg: float
     signed_status: str
-    coverage_bg: float = 0.0
+    coverage_geom: float = 0.0
     coverage_fg: float = 0.0
-
-    @property
-    def rms_anisotropy(self) -> float:
-        """Backward compatible alias for anisotropy.
-
-        Note: Anisotropy (A_g) measures the magnitude of spatial patterning but
-        can conflate global shifts (e.g., rim/core) with localized patterns (e.g., wedges).
-        Use localization_entropy (L_g) to distinguish these phenotypes, and
-        r_mean or polarity to distinguish core vs rim bias.
-        """
-        return self.anisotropy
 
 
 def compute_scalar_summaries(
@@ -135,7 +124,7 @@ def compute_scalar_summaries(
             frac_pos=0.0,
             frac_neg=0.0,
             signed_status="no_valid_sectors",
-            coverage_bg=0.0,
+            coverage_geom=0.0,
             coverage_fg=0.0,
         )
 
@@ -157,7 +146,14 @@ def compute_scalar_summaries(
     peak_extremal = valid_rsp[extremal_idx]
     peak_extremal_angle = valid_centers[extremal_idx]
 
-    anisotropy = np.sqrt(np.mean(valid_rsp**2))
+    # Weighted anisotropy if weights available
+    weights = getattr(radar, "sector_weights", None)
+    if weights is not None and np.sum(weights[valid_mask]) > 0:
+        w = weights[valid_mask]
+        sum_w = np.sum(w)
+        anisotropy = float(np.sqrt(np.sum(w * valid_rsp**2) / sum_w))
+    else:
+        anisotropy = np.sqrt(np.mean(valid_rsp**2))
     integrated_rsp = np.sum(valid_rsp)
 
     l_entropy, info = compute_localization(rsp, valid_mask=valid_mask, method="entropy")
@@ -169,11 +165,16 @@ def compute_scalar_summaries(
     counts_bg = getattr(radar, "counts_bg", np.zeros(B))
     counts_fg = getattr(radar, "counts_fg", np.zeros(B))
 
-    bg_supported = counts_bg > 0
-    coverage_bg = np.mean(bg_supported)
+    # Use geom_supported_mask if available, else fall back to counts_bg > 0
+    geom_mask = getattr(radar, "geom_supported_mask", None)
+    if geom_mask is not None:
+        coverage_geom = float(np.mean(geom_mask))
+    else:
+        bg_supported = counts_bg > 0
+        coverage_geom = float(np.mean(bg_supported))
 
-    fg_present = (counts_fg > 0) & bg_supported
-    coverage_fg = np.mean(fg_present)
+    fg_present = (counts_fg > 0) & (geom_mask if geom_mask is not None else (counts_bg > 0))
+    coverage_fg = float(np.mean(fg_present))
 
     return ScalarSummaries(
         peak_distal=float(peak_distal),
@@ -198,8 +199,8 @@ def compute_scalar_summaries(
         frac_pos=float(signed["frac_pos"]),
         frac_neg=float(signed["frac_neg"]),
         signed_status=str(signed["status"]),
-        coverage_bg=float(coverage_bg),
-        coverage_fg=float(coverage_fg),
+        coverage_geom=coverage_geom,
+        coverage_fg=coverage_fg,
     )
 
 

@@ -43,7 +43,7 @@ def validate_inputs(
 
     if expr_len != n_cells:
         raise ValueError(
-            f"Expression length ({expr_len}) does not match " f"number of cells ({n_cells})"
+            f"Expression length ({expr_len}) does not match number of cells ({n_cells})"
         )
 
     if umi_counts is not None:

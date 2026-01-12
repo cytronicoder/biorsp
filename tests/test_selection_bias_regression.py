@@ -3,8 +3,8 @@
 This test ensures that the empty_fg_policy='zero' correctly handles empty sectors
 and prevents selection bias. The key insight is:
 
-- Global rim: Foreground spread across all sectors (high coverage_bg, moderate |R_mean|)
-- Wedge rim: Foreground localized to narrow angular range (lower coverage_bg, smaller |R_mean|)
+- Global rim: Foreground spread across all sectors (high coverage_geom, moderate |R_mean|)
+- Wedge rim: Foreground localized to narrow angular range (lower coverage_geom, smaller |R_mean|)
 
 Under empty_fg_policy='zero', wedge_rim should have materially smaller tendency
 metrics because fewer sectors contain foreground cells.
@@ -16,8 +16,8 @@ import numpy as np
 import pandas as pd
 
 from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.geometry import polar_coordinates
 from biorsp.core.summaries import compute_scalar_summaries
-from biorsp.preprocess.geometry import polar_coordinates
 from biorsp.utils.config import BioRSPConfig
 
 
@@ -126,10 +126,10 @@ def test_selection_bias_parameter_sweep():
                 {
                     "scenario": scenario,
                     "delta_deg": delta_deg,
-                    "r_mean": summ.r_mean,
+                    "Directionality": summ.r_mean,
                     "abs_r_mean": abs(summ.r_mean),
                     "anisotropy": summ.anisotropy,
-                    "coverage_bg": summ.coverage_bg,
+                    "coverage_geom": summ.coverage_geom,
                     "coverage_fg": summ.coverage_fg,
                 }
             )
@@ -178,8 +178,8 @@ def test_empty_fg_policy_comparison():
     # Policy='nan' should exclude empty sectors, potentially inflating |R_mean|
     # Policy='zero' should include them as zero, reducing |R_mean|
     assert (
-        summ_zero.coverage_bg >= summ_nan.coverage_bg
-    ), "Policy='zero' should have >= coverage_bg than policy='nan'"
+        summ_zero.coverage_geom >= summ_nan.coverage_geom
+    ), "Policy='zero' should have >= coverage_geom than policy='nan'"
 
 
 if __name__ == "__main__":

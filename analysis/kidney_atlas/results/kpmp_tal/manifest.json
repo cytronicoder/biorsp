@@ -1,0 +1,25 @@
+{
+  "h5ad_path": "data/kpmp.h5ad",
+  "embedding_key": "X_umap",
+  "subset_query": "`subclass.l1` == \"TAL\"",
+  "n_cells": 38384,
+  "n_genes_scored": 15595,
+  "seed": 42,
+  "max_cells": 250000,
+  "min_coverage": 0.005,
+  "min_nonzero": 50,
+  "B": 72,
+  "delta_deg": 60.0,
+  "foreground_quantile": 0.9,
+  "empty_fg_policy": "zero",
+  "n_workers": 6,
+  "use_parquet": false,
+  "timestamp": "2026-01-11T21:00:26.266008",
+  "filter_stats": {
+    "total_genes": 31332,
+    "passed_coverage": 15595,
+    "passed_nonzero": 19254,
+    "passed_both": 15595,
+    "filtered_out": 15737
+  }
+}

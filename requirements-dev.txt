@@ -1,18 +1,11 @@
-# Development requirements (includes runtime requirements)
 -r requirements.txt
-
-# Testing and CI
 pytest>=9.0.0
-
-# Linting & Formatting
 black>=25.12.0
 ruff>=0.14.10
 flake8>=7.3.0
 isort>=7.0.0
 mypy>=1.19.0
 pre-commit>=3.4.0
-
-# Optional / scientific extras
 umap-learn>=0.5.5
 phate>=2.0.0
 anndata>=0.11

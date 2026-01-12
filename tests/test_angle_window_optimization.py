@@ -97,5 +97,4 @@ def test_compute_rsp_radar_matches_naive():
         if np.isfinite(a) and np.isfinite(b):
             assert np.isclose(a, b, rtol=1e-6, atol=1e-8)
         else:
-
             assert np.isnan(a) or np.isnan(b)

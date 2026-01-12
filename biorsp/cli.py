@@ -7,7 +7,12 @@ Commands:
 import argparse
 
 from biorsp import BioRSPConfig, run
-from biorsp.io.loaders import load_expression_matrix, load_spatial_coords, load_umi_counts
+from biorsp.io.loaders import (
+    align_inputs,
+    load_expression_matrix,
+    load_spatial_coords,
+    load_umi_counts,
+)
 from biorsp.utils.constants import (
     B_DEFAULT,
     DELTA_DEG_DEFAULT,
@@ -27,19 +32,41 @@ def run_analysis(args):
     df_expr = load_expression_matrix(args.expression, transpose=args.transpose)
 
     print(f"Loading coordinates from {args.coords}...")
-    coords = load_spatial_coords(args.coords)
+    coords_df = load_spatial_coords(args.coords)
 
     umi_counts = None
     if args.inference:
         if args.umis:
+            print(f"Loading UMI counts from {args.umis}...")
             umi_counts = load_umi_counts(
                 args.umis,
-                n_cells=len(coords),
+                n_cells=None,
                 column=args.umi_column,
             )
         else:
             print("Warning: Using expression row sums as UMI counts for stratified inference.")
             umi_counts = df_expr.sum(axis=1).values
+
+    print("Aligning inputs...")
+    df_expr, coords_df, umi_counts, alignment_report = align_inputs(
+        expr=df_expr,
+        coords=coords_df,
+        umi=umi_counts,
+        how="inner",
+        min_overlap=0.5,
+        verbose=True,
+    )
+
+    coords = coords_df[["x", "y"]].values
+
+    assert (
+        df_expr.shape[0] == coords.shape[0]
+    ), "Expression and coordinates size mismatch after alignment"
+    assert df_expr.index.equals(
+        coords_df.index
+    ), "Expression and coordinates index mismatch after alignment"
+
+    print(f"Final dataset: {df_expr.shape[0]} cells × {df_expr.shape[1]} genes")
 
     config = BioRSPConfig(
         B=args.B,

@@ -1,16 +1,51 @@
-"""Pairwise synergy/complementarity computations for BioRSP."""
+"""Pairwise synergy/complementarity computations for BioRSP.
+
+Key fix: gene-gene similarity is computed on SHARED support masks
+with proper weighting.
+"""
 
 from __future__ import annotations
 
 import numpy as np
 
+from biorsp.core.geometry import wrapped_circular_distance
 from biorsp.core.results import PairwiseResult
 from biorsp.core.summaries import compute_scalar_summaries
 from biorsp.core.typing import RadarResult
-from biorsp.preprocess.geometry import wrapped_circular_distance
+
+
+def _weighted_corr(a: np.ndarray, b: np.ndarray, w: np.ndarray) -> float:
+    """Compute weighted Pearson correlation."""
+    mask = np.isfinite(a) & np.isfinite(b) & (w > 0)
+    if np.sum(mask) < 2:
+        return np.nan
+
+    a_m = a[mask]
+    b_m = b[mask]
+    w_m = w[mask]
+
+    sum_w = np.sum(w_m)
+    if sum_w <= 0:
+        return np.nan
+
+    a_mean = np.sum(w_m * a_m) / sum_w
+    b_mean = np.sum(w_m * b_m) / sum_w
+
+    a_centered = a_m - a_mean
+    b_centered = b_m - b_mean
+
+    cov = np.sum(w_m * a_centered * b_centered) / sum_w
+    var_a = np.sum(w_m * a_centered**2) / sum_w
+    var_b = np.sum(w_m * b_centered**2) / sum_w
+
+    if var_a < 1e-12 or var_b < 1e-12:
+        return np.nan
+
+    return float(cov / np.sqrt(var_a * var_b))
 
 
 def _pearson_corr(a: np.ndarray, b: np.ndarray) -> float:
+    """Compute unweighted Pearson correlation (backward compatible)."""
     mask = np.isfinite(a) & np.isfinite(b)
     if np.sum(mask) < 2:
         return np.nan
@@ -30,12 +65,16 @@ def _select_top_k(features: list[str], scores: dict[str, float], top_k: int | No
 def compute_pairwise_relationships(
     radar_by_feature: dict[str, RadarResult],
     top_k: int | None = None,
+    min_shared_mask_fraction: float = 0.5,
 ) -> tuple[list[PairwiseResult], list[PairwiseResult]]:
     """Compute pairwise synergy and complementarity from radar profiles.
+
+    Key fix: uses SHARED geom_supported_mask and weighted correlation.
 
     Args:
         radar_by_feature: Mapping of feature name to RadarResult.
         top_k: Optional limit on number of features by anisotropy.
+        min_shared_mask_fraction: Minimum shared support fraction.
 
     Returns:
         (synergy, complementarity) lists sorted by their respective scores.
@@ -53,11 +92,59 @@ def compute_pairwise_relationships(
     complementarity: list[PairwiseResult] = []
 
     for i, f1 in enumerate(selected):
-        r1 = radar_by_feature[f1].rsp
+        radar1 = radar_by_feature[f1]
+        r1 = radar1.rsp
+        w1 = radar1.sector_weights
+        mask1 = (
+            radar1.geom_supported_mask
+            if radar1.geom_supported_mask is not None
+            else np.isfinite(r1)
+        )
+
         for f2 in selected[i + 1 :]:
-            r2 = radar_by_feature[f2].rsp
-            corr = _pearson_corr(r1, r2)
-            comp = _pearson_corr(r1, -r2)
+            radar2 = radar_by_feature[f2]
+            r2 = radar2.rsp
+            w2 = radar2.sector_weights
+            mask2 = (
+                radar2.geom_supported_mask
+                if radar2.geom_supported_mask is not None
+                else np.isfinite(r2)
+            )
+
+            # Shared support mask
+            shared_mask = mask1 & mask2
+            shared_frac = float(np.mean(shared_mask))
+
+            if shared_frac < min_shared_mask_fraction:
+                synergy.append(
+                    PairwiseResult(
+                        feature_a=f1,
+                        feature_b=f2,
+                        correlation=np.nan,
+                        complementarity=np.nan,
+                        peak_distance=np.nan,
+                    )
+                )
+                complementarity.append(
+                    PairwiseResult(
+                        feature_a=f1,
+                        feature_b=f2,
+                        correlation=np.nan,
+                        complementarity=np.nan,
+                        peak_distance=np.nan,
+                    )
+                )
+                continue
+
+            # Shared weights: geometric mean
+            shared_weights = (
+                np.sqrt(w1 * w2) if w1 is not None and w2 is not None else np.ones_like(r1)
+            )
+            shared_weights[~shared_mask] = 0.0
+
+            # Weighted correlation on shared mask
+            corr = _weighted_corr(r1, r2, shared_weights)
+            comp = _weighted_corr(r1, -r2, shared_weights)
 
             angle1 = summaries[f1].peak_extremal_angle
             angle2 = summaries[f2].peak_extremal_angle

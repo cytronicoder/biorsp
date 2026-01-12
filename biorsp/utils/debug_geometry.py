@@ -1,6 +1,6 @@
 import numpy as np
 
-from biorsp.preprocess.geometry import (
+from biorsp.core.geometry import (
     get_sector_indices,
     polar_coordinates,
     wrapped_circular_distance,

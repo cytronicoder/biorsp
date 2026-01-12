@@ -1,8 +1,11 @@
 """Statistical inference for BioRSP.
 
 This module implements permutation testing to assess the significance of
-observed anisotropy, using geometry-aware stratification and finite-permutation
-corrected p-values.
+observed spatial organization score S_g, using geometry-aware stratification
+and finite-permutation corrected p-values.
+
+Key fix: geometry support mask and weights are FIXED from observed data.
+This avoids selection bias where geometry would change per permutation.
 """
 
 import logging
@@ -35,6 +38,8 @@ def _permutation_worker(
 ) -> Tuple[float, int, bool]:
     """Worker function for parallel permutation testing.
 
+    Key fix: uses FIXED valid_mask and sector_weights from observed data.
+
     Parameters
     ----------
     seed : int
@@ -50,16 +55,16 @@ def _permutation_worker(
     config : BioRSPConfig
         Configuration object.
     valid_mask : np.ndarray
-        (B,) boolean mask of valid sectors.
+        (B,) FIXED boolean mask of valid sectors from observed data.
     sector_indices : List[np.ndarray]
         Precomputed sector indices.
     sector_weights : np.ndarray, optional
-        Precomputed sector weights to reuse.
+        FIXED precomputed sector weights from observed data.
 
     Returns
     -------
     Tuple[float, int, bool]
-        (null_anisotropy, empty_sector_count, is_valid)
+        (null_S_g, empty_sector_count, is_valid)
 
     """
     rng = np.random.default_rng(seed)
@@ -83,7 +88,12 @@ def _permutation_worker(
     is_valid = not np.any(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
     empty_count = np.sum(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
 
-    return compute_anisotropy(radar_perm.rsp, valid_mask), int(empty_count), bool(is_valid)
+    # Compute S_g using fixed mask and weights
+    return (
+        compute_anisotropy(radar_perm.rsp, valid_mask, sector_weights),
+        int(empty_count),
+        bool(is_valid),
+    )
 
 
 def compute_p_value(
@@ -100,11 +110,14 @@ def compute_p_value(
     show_progress: bool = True,
     adequacy: Optional[AdequacyReport] = None,
 ) -> InferenceResult:
-    r"""Compute p-value for the observed anisotropy using a permutation test.
+    r"""Compute p-value for the observed spatial organization score S_g.
+
+    Key fix: geometry support mask and weights are FIXED from observed data.
+    This avoids selection bias where geometry would change per permutation.
 
     The p-value is computed using the finite-permutation correction:
-    $$p = \frac{1 + \sum_{k=1}^K I(A_k \geq A_{obs})}{K + 1}$$
-    where $A_{obs}$ is the observed anisotropy and $A_k$ are the null anisotropies.
+    $$p = \frac{1 + \sum_{k=1}^K I(S_k \geq S_{obs})}{K + 1}$$
+    where $S_{obs}$ is the observed spatial score and $S_k$ are the null scores.
 
     Parameters
     ----------
@@ -162,7 +175,13 @@ def compute_p_value(
     radar_obs = compute_rsp_radar(
         r, theta, y, config=config, sector_indices=adequacy.sector_indices
     )
-    valid_mask = adequacy.sector_mask
+
+    # Use geom_supported_mask as the valid mask (fixed for all permutations)
+    valid_mask = (
+        radar_obs.geom_supported_mask
+        if radar_obs.geom_supported_mask is not None
+        else adequacy.sector_mask
+    )
 
     if config.sector_weight_mode != "none":
         logger.info(
@@ -182,7 +201,8 @@ def compute_p_value(
             empty_sector_count=0,
         )
 
-    observed_stat = compute_anisotropy(radar_obs.rsp, valid_mask)
+    # Compute observed S_g using fixed mask and weights
+    observed_stat = compute_anisotropy(radar_obs.rsp, valid_mask, radar_obs.sector_weights)
 
     null_stats = []
     all_seeds = []

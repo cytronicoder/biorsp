@@ -9,12 +9,12 @@ from tqdm import tqdm
 
 from biorsp.core.adequacy import assess_adequacy
 from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.geometry import compute_vantage, polar_coordinates
 from biorsp.core.inference import compute_p_value
 from biorsp.core.results import FeatureResult, RunSummary, assign_feature_types
 from biorsp.core.summaries import compute_scalar_summaries
 from biorsp.io.manifest import create_manifest, save_manifest
 from biorsp.preprocess.foreground import define_foreground
-from biorsp.preprocess.geometry import compute_vantage, polar_coordinates
 from biorsp.preprocess.normalization import normalize_radii
 from biorsp.utils.config import BioRSPConfig
 from biorsp.utils.logging import get_logger
@@ -190,7 +190,6 @@ def run(
                     abstention_reasons["error"] = abstention_reasons.get("error", 0) + 1
     else:
         for i, name in enumerate(tqdm(feature_names, desc="BioRSP Features")):
-
             y, fg_info = define_foreground(
                 x_mat[:, i],
                 mode=config.foreground_mode,

@@ -43,7 +43,10 @@ def test_rsp_sign_convention_distal_negative():
     r = np.array([5.0, 5.0, 6.0, 7.0])
     theta = np.array([0.0, 0.1, -0.1, 0.2])
     y = np.array([False, False, True, True])
-    radar = compute_rsp_radar(r, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1)
+    # With only 4 data points, we need to lower min_total_per_sector
+    radar = compute_rsp_radar(
+        r, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1, min_total_per_sector=1
+    )
     assert radar.rsp[0] < 0
 
 
@@ -51,8 +54,17 @@ def test_iqr_floor_hits_when_sector_iqr_zero():
     r = np.array([5.0, 5.0, 5.0, 6.0, 6.0])
     theta = np.zeros_like(r)
     y = np.array([False, False, False, True, True])
+    # With only 5 data points, we need to lower min_total_per_sector
     radar = compute_rsp_radar(
-        r, theta, y, B=1, delta_deg=360.0, min_fg_sector=1, min_bg_sector=1, scale_mode="bg_iqr"
+        r,
+        theta,
+        y,
+        B=1,
+        delta_deg=360.0,
+        min_fg_sector=1,
+        min_bg_sector=1,
+        min_total_per_sector=1,
+        scale_mode="bg_iqr",
     )
     assert np.isclose(radar.iqr_floor, EPS)
     assert radar.iqr_floor_hits[0]

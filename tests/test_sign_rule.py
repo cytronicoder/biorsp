@@ -4,7 +4,6 @@ from biorsp.core.engine import sector_signed_stat
 
 
 def test_sign_rule_proximal():
-
     r = np.array([1.0, 2.0, 10.0, 11.0])
     y = np.array([1.0, 1.0, 0.0, 0.0])
     idx = np.arange(4)
@@ -16,7 +15,6 @@ def test_sign_rule_proximal():
 
 
 def test_sign_rule_distal():
-
     r = np.array([1.0, 2.0, 10.0, 11.0])
     y = np.array([0.0, 0.0, 1.0, 1.0])
     idx = np.arange(4)
@@ -28,7 +26,6 @@ def test_sign_rule_distal():
 
 
 def test_sign_rule_equal():
-
     r = np.array([1.0, 2.0, 1.0, 2.0])
     y = np.array([1.0, 0.0, 0.0, 1.0])
     idx = np.arange(4)
@@ -40,7 +37,6 @@ def test_sign_rule_equal():
 
 
 def test_sign_rule_empty():
-
     r = np.array([1.0, 2.0])
     y = np.array([1.0, 1.0])
     idx = np.arange(2)
@@ -51,7 +47,6 @@ def test_sign_rule_empty():
 
 
 def test_sign_rule_weighted():
-
     r = np.array([1.0, 10.0])
     y = np.array([0.9, 0.1])
     idx = np.arange(2)
@@ -67,7 +62,6 @@ def test_sign_rule_weighted():
 
 
 def test_sign_rule_tolerance():
-
     r = np.array([1.0, 1.1])
     y = np.array([1.0, 0.0])
     idx = np.arange(2)
