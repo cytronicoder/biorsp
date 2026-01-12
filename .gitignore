@@ -223,13 +223,44 @@ marimo/_lsp/
 __marimo__/
 
 # Generated data and results
-**/data/
 **/sim_results/
 **/plots/
-**/outputs/
 **/test_outputs/
 debug_calib_out/
-case_studies/simulations/figs/
+
+# ============================================================================
+# BioRSP-Specific: Analysis outputs and generated data
+# ============================================================================
+# Benchmark outputs
+analysis/benchmarks/outputs/
+analysis/benchmarks/figs/
+analysis/benchmarks/*/outputs/
+analysis/benchmarks/*/figs/
+analysis/benchmarks/**/checkpoints/
+analysis/benchmarks/**/runs.csv
+analysis/benchmarks/**/summary.csv
+
+# Kidney atlas analysis results
+analysis/kidney_atlas/results/
+analysis/kidney_atlas/data/
+analysis/kidney_atlas/*/outputs/
+
+# Development/smoke test outputs
+dev/smoke_tests/output*/
+dev/smoke_tests/archetypes/
+dev/debug/output*/
+dev/make_figures/output*/
+
+# Temporary and intermediate analysis files
+*.h5ad
+*.h5
+*.zarr/
+*.csv  # Only generated CSVs, not source data
+
+# Simulation results and checkpoints
+simulations/outputs/
+simulations/checkpoints/
+simulations/results/
 
 # macOS
 .DS_Store
