@@ -175,7 +175,6 @@ def compute_p_value(
         r, theta, y, config=config, sector_indices=adequacy.sector_indices
     )
 
-    # Use geom_supported_mask as the valid mask (fixed for all permutations)
     valid_mask = (
         radar_obs.geom_supported_mask
         if radar_obs.geom_supported_mask is not None

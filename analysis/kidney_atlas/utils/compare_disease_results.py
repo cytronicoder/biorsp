@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Compare disease-stratified BioRSP results across conditions.
 
@@ -6,13 +5,10 @@ This utility script helps analyze and compare results from disease-stratified
 BioRSP analysis, identifying genes with disease-specific spatial patterns.
 
 Usage:
-    # Basic comparison
     python compare_disease_results.py results/disease_stratified
 
-    # With visualization
     python compare_disease_results.py results/tal_disease --plot
 
-    # Export comparison table
     python compare_disease_results.py results/disease_stratified --export comparison.csv
 """
 

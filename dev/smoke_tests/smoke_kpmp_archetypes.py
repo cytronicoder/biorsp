@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Smoke Test for KPMP All-Gene Archetypes Pipeline
 
@@ -24,7 +23,6 @@ def run_smoke_test():
     print("SMOKE TEST: KPMP All-Gene Archetypes Pipeline")
     print("=" * 60)
 
-    # Find KPMP data
     possible_paths = [
         Path("analysis/kidney_atlas/data/kpmp.h5ad"),
         Path("data/kpmp.h5ad"),
@@ -44,30 +42,24 @@ def run_smoke_test():
 
     print(f"Found data: {h5ad_path}")
 
-    # Load and subsample
     print("Loading AnnData...")
     adata = ad.read_h5ad(h5ad_path)
     print(f"Original shape: {adata.n_obs} cells × {adata.n_vars} genes")
 
-    # Subsample cells
     rng = np.random.default_rng(42)
     n_cells = min(5000, adata.n_obs)
     cell_idx = rng.choice(adata.n_obs, size=n_cells, replace=False)
 
-    # Subsample genes - select genes with some expression
     if sparse.issparse(adata.X):
         gene_expr = np.array(adata.X.sum(axis=0)).flatten()
     else:
         gene_expr = adata.X.sum(axis=0)
 
-    # Get top 200 expressed genes
     top_gene_idx = np.argsort(gene_expr)[-200:]
 
-    # Create subsampled AnnData
     adata_sub = adata[cell_idx, top_gene_idx].copy()
     print(f"Subsampled: {adata_sub.n_obs} cells × {adata_sub.n_vars} genes")
 
-    # Save to temp file
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
         sub_h5ad = tmpdir / "kpmp_subset.h5ad"
@@ -76,7 +68,6 @@ def run_smoke_test():
         adata_sub.write_h5ad(sub_h5ad)
         print(f"Saved subset to: {sub_h5ad}")
 
-        # Run pipeline
         script_path = Path("analysis/kidney_atlas/run_kpmp_archetypes_all_genes.py")
         if not script_path.exists():
             script_path = (
@@ -113,7 +104,6 @@ def run_smoke_test():
             print(f"ERROR: Pipeline failed with return code {result.returncode}")
             sys.exit(1)
 
-        # Test parallel mode if joblib available
         try:
             import joblib  # noqa: F401
 
@@ -150,11 +140,9 @@ def run_smoke_test():
             else:
                 print("\n✓ Parallel mode test passed")
 
-                # Compare results for determinism
                 df1 = pd.read_csv(outdir / "runs_all_genes.csv")
                 df2 = pd.read_csv(outdir_parallel / "runs_all_genes.csv")
 
-                # Check same genes were scored
                 if set(df1["gene"]) == set(df2["gene"]):
                     print("✓ Determinism check: Same genes scored")
                 else:
@@ -163,7 +151,6 @@ def run_smoke_test():
         except ImportError:
             print("\n⚠ Skipping parallel test (joblib not available)")
 
-        # Verify outputs from serial run
         print("\n" + "-" * 60)
         print("Verifying outputs...")
 
@@ -191,7 +178,6 @@ def run_smoke_test():
             print(f"\nERROR: Missing {len(missing)} expected files")
             sys.exit(1)
 
-        # Check CSV content
         import pandas as pd
 
         df = pd.read_csv(outdir / "runs_all_genes.csv")

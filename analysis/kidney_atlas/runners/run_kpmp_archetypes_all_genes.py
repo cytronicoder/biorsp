@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 KPMP All-Gene Archetypes Pipeline
 
@@ -33,7 +32,6 @@ from scipy.stats import spearmanr
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
-# Suppress common warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
@@ -54,7 +52,6 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Profiling storage
 TIMINGS = {}
 
 
@@ -91,7 +88,6 @@ rcParams["font.sans-serif"] = ["Arial", "Helvetica", "DejaVu Sans"]
 rcParams["pdf.fonttype"] = 42
 rcParams["ps.fonttype"] = 42
 
-# Archetype names (exact strings as specified)
 ARCHETYPE_NAMES = {
     (True, False): "I: Ubiquitous",  # High C, Low S
     (False, True): "III: Patchy",  # Low C, High S
@@ -114,12 +110,10 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    # Required
     parser.add_argument(
         "--h5ad", type=str, default="data/kpmp.h5ad", help="Path to KPMP AnnData h5ad file"
     )
 
-    # Embedding and subsetting
     parser.add_argument(
         "--embedding-key",
         type=str,
@@ -133,12 +127,10 @@ def parse_args() -> argparse.Namespace:
         help="Pandas eval query on adata.obs (e.g., 'cell_type == \"TAL\"')",
     )
 
-    # Output
     parser.add_argument(
         "--outdir", type=str, default="results/kpmp_archetypes", help="Output directory"
     )
 
-    # Sampling and performance
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument(
         "--max-cells",
@@ -149,13 +141,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--chunk-size", type=int, default=500, help="Genes per checkpoint chunk")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoints")
 
-    # BioRSP config
     parser.add_argument("--delta-deg", type=float, default=60.0)
     parser.add_argument("--B", type=int, default=72)
     parser.add_argument("--foreground-quantile", type=float, default=0.90)
     parser.add_argument("--empty-fg-policy", type=str, default="zero")
 
-    # Expression threshold for coverage
     parser.add_argument(
         "--expr-threshold-mode",
         type=str,
@@ -170,7 +160,6 @@ def parse_args() -> argparse.Namespace:
         help="Fixed expression threshold (if mode=fixed)",
     )
 
-    # Gene filtering
     parser.add_argument(
         "--min-coverage", type=float, default=0.005, help="Min coverage for gene filtering"
     )
@@ -178,14 +167,12 @@ def parse_args() -> argparse.Namespace:
         "--min-nonzero", type=int, default=50, help="Min nonzero cells for gene filtering"
     )
 
-    # Classification thresholds
     parser.add_argument(
         "--derive-thresholds", action="store_true", default=True, help="Auto-derive c_cut and s_cut"
     )
     parser.add_argument("--c-cut", type=float, default=None)
     parser.add_argument("--s-cut", type=float, default=None)
 
-    # Optional permutation p-values
     parser.add_argument(
         "--compute-pvalues",
         action="store_true",
@@ -197,7 +184,6 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--n-permutations", type=int, default=500)
 
-    # Reliability checks
     parser.add_argument(
         "--skip-reliability",
         action="store_true",
@@ -205,7 +191,6 @@ def parse_args() -> argparse.Namespace:
         help="Skip reliability checks (subsample stability, cross-embedding)",
     )
 
-    # Performance
     parser.add_argument(
         "--n-workers",
         type=int,
@@ -228,7 +213,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# Gene name mapping
 
 
 def create_gene_name_mapping(adata: ad.AnnData) -> Dict[str, str]:
@@ -239,7 +223,6 @@ def create_gene_name_mapping(adata: ad.AnnData) -> Dict[str, str]:
     mapping = {}
     if "feature_name" in adata.var.columns:
         for ensg_id, gene_name in zip(adata.var_names, adata.var["feature_name"]):
-            # Use gene name if it's not also an ENSG ID
             if gene_name and not gene_name.startswith("ENSG"):
                 mapping[ensg_id] = gene_name
             else:
@@ -256,14 +239,12 @@ def add_gene_names_to_dataframe(
     """Add gene_name column to dataframe based on ENSG gene column."""
     df = df.copy()
     df["gene_name"] = df["gene"].map(lambda x: gene_name_mapping.get(x, x))
-    # Reorder columns to have gene_name right after gene
     cols = df.columns.tolist()
     gene_idx = cols.index("gene")
     cols.insert(gene_idx + 1, cols.pop(cols.index("gene_name")))
     return df[cols]
 
 
-# Optimized data access
 
 
 def get_gene_expression_fast(adata: ad.AnnData, gene_idx: int) -> np.ndarray:
@@ -303,13 +284,11 @@ def compute_coverage_vectorized(
     return counts / X.shape[0]
 
 
-# Gene filtering
 
 
 @profile_stage("gene_filtering")
 def detect_expression_threshold(adata: ad.AnnData) -> Tuple[float, str]:
     """Detect appropriate expression threshold based on data type."""
-    # Check a sample of the matrix
     if sparse.issparse(adata.X):
         sample = adata.X[:1000].toarray() if adata.n_obs > 1000 else adata.X.toarray()
     else:
@@ -370,7 +349,6 @@ def fast_filter_genes(
     return filtered_genes, stats
 
 
-# Threshold derivation
 
 
 def derive_c_cut(df: pd.DataFrame, default: float = 0.10) -> float:
@@ -421,16 +399,13 @@ def derive_s_cut_from_null(
     all_null_scores = []
 
     for gene in tqdm(sample_genes, desc="Deriving s_cut from null"):
-        # Score with permutation to get null distribution
         result = score_gene_with_context(
             adata, gene, context, config, compute_pvalue=True, n_permutations=K
         )
 
         if "null_mean" in result and not np.isnan(result.get("null_mean", np.nan)):
-            # Approximate null distribution around the mean
             null_mean = result["null_mean"]
             null_sd = result.get("null_sd", 0.01)
-            # Sample from approximate null
             null_samples = rng.normal(null_mean, null_sd, size=10)
             all_null_scores.extend(null_samples)
 
@@ -464,19 +439,16 @@ def derive_s_cut_simple(df: pd.DataFrame, quantile: float = 0.75) -> float:
     if len(s_values) == 0:
         return 0.05
 
-    # Use upper quantile of near-zero coverage genes as null proxy
     low_c_mask = df["Coverage"] < 0.02
     if low_c_mask.sum() > 50:
         null_proxy = df.loc[low_c_mask, "Spatial_Score"].dropna()
         s_cut = float(np.percentile(null_proxy, 95)) if len(null_proxy) > 0 else 0.05
     else:
-        # Fallback: use lower quantile of all S
         s_cut = float(np.percentile(s_values, 50))
 
     return max(0.02, s_cut)
 
 
-# Classification
 
 
 def classify_genes(
@@ -505,14 +477,12 @@ def classify_genes(
     df["c_cut_used"] = c_cut
     df["s_cut_used"] = s_cut
 
-    # Add significance flag if q_value exists
     if "q_value" in df.columns:
         df["significant"] = df["q_value"] < fdr_cut
 
     return df
 
 
-# Parallel scoring infrastructure
 
 
 @dataclass
@@ -539,15 +509,12 @@ def score_gene_chunk_worker(
     import anndata as ad
     import numpy as np
 
-    # Reconstruct context - in a real fork, this might be shared memory
-    # For now, we reconstruct from the dict
     from biorsp.preprocess.context import BioRSPContext, score_gene_with_context
     from biorsp.utils.config import BioRSPConfig
 
     adata = ad.read_h5ad(shared_ctx.h5ad_path)
     config = BioRSPConfig(**shared_ctx.config_dict)
 
-    # Reconstruct context with all required fields
     context = BioRSPContext(
         coords=np.array(shared_ctx.context_dict["coords"]),
         center=np.array(shared_ctx.context_dict["center"]),
@@ -569,7 +536,6 @@ def score_gene_chunk_worker(
         stratify_labels=shared_ctx.context_dict.get("stratify_labels"),
     )
 
-    # Deterministic RNG for this chunk
     np.random.default_rng(np.random.SeedSequence(shared_ctx.seed + chunk_id))
 
     results = []
@@ -630,7 +596,6 @@ def score_all_genes_parallel(
 
     n_chunks = (len(genes) + chunk_size - 1) // chunk_size
 
-    # Determine actual number of workers
     if n_workers == -1:
         n_workers = mp.cpu_count()
     elif n_workers == 0:
@@ -638,17 +603,14 @@ def score_all_genes_parallel(
 
     logger.info(f"Scoring {len(genes)} genes in {n_chunks} chunks using {n_workers} worker(s)")
 
-    # Single-process mode
     if n_workers == 1:
         return score_all_genes_chunked_serial(
             adata, genes, context, config, outdir, chunk_size, resume, use_parquet
         )
 
-    # Parallel mode - prepare shared context
     if h5ad_path is None:
         raise ValueError("h5ad_path required for parallel execution")
 
-    # Serialize context for sharing
     context_dict = {
         "coords": context.coords.tolist(),
         "center": context.center.tolist(),
@@ -673,7 +635,6 @@ def score_all_genes_parallel(
         seed=config.seed,
     )
 
-    # Prepare chunks
     chunks_to_process = []
     for i in range(n_chunks):
         chunk_file = checkpoint_dir / f"chunk_{i:04d}"
@@ -692,7 +653,6 @@ def score_all_genes_parallel(
         logger.info(f"Processing {len(chunks_to_process)} chunks in parallel")
 
         if HAS_JOBLIB:
-            # Use joblib for better progress tracking
             results = Parallel(n_jobs=n_workers, backend="loky", verbose=10)(
                 delayed(score_gene_chunk_worker)(chunk_id, chunk_genes, shared_ctx)
                 for chunk_id, chunk_genes in chunks_to_process
@@ -703,7 +663,6 @@ def score_all_genes_parallel(
                 chunk_file = checkpoint_dir / f"chunk_{chunk_id:04d}"
                 save_chunk(chunk_df, chunk_file, use_parquet)
         else:
-            # Fallback to ProcessPoolExecutor
             from concurrent.futures import ProcessPoolExecutor, as_completed
 
             with ProcessPoolExecutor(max_workers=n_workers) as executor:
@@ -776,12 +735,10 @@ def score_all_genes_chunked_serial(
         save_chunk(chunk_df, chunk_file, use_parquet)
         all_results.append(chunk_df)
 
-    # Concatenate all chunks
     df = pd.concat(all_results, ignore_index=True)
     return df
 
 
-# Scoring functions (deprecated - kept for compatibility)
 
 
 def score_all_genes_chunked(
@@ -827,7 +784,6 @@ def score_all_genes_chunked(
         chunk_df.to_csv(chunk_file, index=False)
         all_results.append(chunk_df)
 
-    # Concatenate all chunks
     df = pd.concat(all_results, ignore_index=True)
     return df
 
@@ -847,7 +803,6 @@ def add_pvalues_to_top_genes(
     df["p_value"] = np.nan
     df["q_value"] = np.nan
 
-    # Select top genes by S
     top_genes = df.nlargest(topk, "Spatial_Score")["gene"].tolist()
 
     logger.info(f"Computing p-values for top {len(top_genes)} genes")
@@ -859,11 +814,9 @@ def add_pvalues_to_top_genes(
         )
         pvals[gene] = result.get("p_value", np.nan)
 
-    # Update dataframe
     for gene, pval in pvals.items():
         df.loc[df["gene"] == gene, "p_value"] = pval
 
-    # FDR correction
     valid_mask = df["p_value"].notna()
     if valid_mask.sum() > 0:
         _, qvals, _, _ = multipletests(df.loc[valid_mask, "p_value"], method="fdr_bh")
@@ -872,7 +825,6 @@ def add_pvalues_to_top_genes(
     return df
 
 
-# Reliability checks
 
 
 def check_subsample_stability(
@@ -891,7 +843,6 @@ def check_subsample_stability(
     n_cells = adata.n_obs
     n_sub = int(n_cells * subsample_frac)
 
-    # Two independent subsamples
     idx1 = rng.choice(n_cells, size=n_sub, replace=False)
     idx2 = rng.choice(n_cells, size=n_sub, replace=False)
 
@@ -901,7 +852,6 @@ def check_subsample_stability(
     _, context1 = prepare_context(adata1, embedding_key, config=config)
     _, context2 = prepare_context(adata2, embedding_key, config=config)
 
-    # Score subset of genes
     test_genes = genes[:n_genes] if len(genes) > n_genes else genes
 
     s1, s2 = [], []
@@ -938,7 +888,6 @@ def check_cross_embedding(
     """Check S score consistency between UMAP and t-SNE."""
     from biorsp.preprocess.context import prepare_context, score_gene_with_context
 
-    # Check available embeddings
     has_umap = any(k in adata.obsm for k in ["X_umap", "X_UMAP"])
     has_tsne = any(k in adata.obsm for k in ["X_tsne", "X_tSNE"])
 
@@ -978,7 +927,6 @@ def check_cross_embedding(
     }
 
 
-# Plotting
 
 
 def plot_cs_scatter(
@@ -992,7 +940,6 @@ def plot_cs_scatter(
     """Create C-S scatter plot with quadrant boundaries."""
     fig, ax = plt.subplots(figsize=(10, 10))
 
-    # Downsample if needed
     if len(df) > max_points:
         rng = np.random.default_rng(seed)
         idx = rng.choice(len(df), size=max_points, replace=False)
@@ -1000,7 +947,6 @@ def plot_cs_scatter(
     else:
         plot_df = df.copy()
 
-    # Plot by archetype
     for archetype, color in ARCHETYPE_COLORS.items():
         mask = plot_df["Archetype"] == archetype
         ax.scatter(
@@ -1013,11 +959,9 @@ def plot_cs_scatter(
             rasterized=True,
         )
 
-    # Quadrant lines
     ax.axvline(c_cut, color="gray", linestyle="--", linewidth=1, alpha=0.7)
     ax.axhline(s_cut, color="gray", linestyle="--", linewidth=1, alpha=0.7)
 
-    # Labels
     ax.set_xlabel("Coverage Score $C$", fontsize=16)
     ax.set_ylabel("Spatial Bias Score $S$", fontsize=16)
     ax.set_title(
@@ -1027,14 +971,12 @@ def plot_cs_scatter(
 
     ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=13, frameon=True, borderpad=0.5)
 
-    # Force square plot by setting equal axis ranges
     x_max = min(1.02, plot_df["Coverage"].max() * 1.1)
     y_max = plot_df["Spatial_Score"].quantile(0.99) * 1.2
     lim = max(x_max, y_max)
     ax.set_xlim(-0.02, lim)
     ax.set_ylim(-0.01, lim)
 
-    # Add text labels for cutoff lines (after setting limits)
     ax.text(
         c_cut,
         lim * 0.95,
@@ -1070,7 +1012,6 @@ def plot_cs_marginals(df: pd.DataFrame, c_cut: float, s_cut: float, outdir: Path
     """Plot marginal distributions of Coverage and Spatial Bias Scores."""
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-    # Coverage histogram
     ax = axes[0]
     ax.hist(df["Coverage"], bins=50, color="steelblue", alpha=0.7, edgecolor="white")
     ax.axvline(
@@ -1085,7 +1026,6 @@ def plot_cs_marginals(df: pd.DataFrame, c_cut: float, s_cut: float, outdir: Path
     ax.set_title("Distribution of Coverage Scores", fontsize=16)
     ax.legend(fontsize=12)
 
-    # Spatial bias score histogram
     ax = axes[1]
     ax.hist(df["Spatial_Score"], bins=50, color="darkorange", alpha=0.7, edgecolor="white")
     ax.axvline(
@@ -1112,14 +1052,12 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     axes = axes.flatten()
 
-    # Use gene_name if available, otherwise gene
     gene_col = "gene_name" if "gene_name" in df.columns else "gene"
 
     for idx, (archetype, color) in enumerate(ARCHETYPE_COLORS.items()):
         ax = axes[idx]
         subset = df[df["Archetype"] == archetype].copy()
 
-        # Handle empty archetype
         if len(subset) == 0:
             ax.axis("off")
             ax.set_title(f"{archetype}\n(n=0 genes)", fontsize=16, pad=32, loc="center")
@@ -1135,7 +1073,6 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
             )
             continue
 
-        # Sort appropriately
         if archetype == "Focal Marker" or archetype == "Regional Gradient":
             subset = subset.nlargest(min(n_top, len(subset)), "Spatial_Score")
         elif archetype == "Ubiquitous Uniform":
@@ -1145,7 +1082,6 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
 
         ax.axis("off")
 
-        # Select columns to display (only those that exist)
         display_cols = [gene_col, "Coverage", "Spatial_Score"]
         if "spatial_sign" in subset.columns:
             display_cols.append("spatial_sign")
@@ -1165,7 +1101,6 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
         table.set_fontsize(9)
         table.scale(1.2, 1.5)
 
-        # Color header
         for j in range(len(col_labels)):
             table[(0, j)].set_facecolor(color)
             table[(0, j)].set_text_props(color="white", weight="bold")
@@ -1202,10 +1137,8 @@ def plot_archetype_examples(
     examples_dir = outdir / "examples"
     examples_dir.mkdir(exist_ok=True)
 
-    # Use gene_name if available
     has_gene_name = "gene_name" in df.columns
 
-    # Select representative genes
     selected = {}  # archetype -> (gene_id, gene_name)
     for archetype in ARCHETYPE_NAMES.values():
         subset = df[df["Archetype"] == archetype]
@@ -1215,7 +1148,6 @@ def plot_archetype_examples(
         if archetype == "Focal Marker" or archetype == "Regional Gradient":
             row = subset.nlargest(1, "Spatial_Score").iloc[0]
         else:
-            # Closest to centroid
             c_mean = subset["Coverage"].mean()
             s_mean = subset["Spatial_Score"].mean()
             dist = np.sqrt(
@@ -1227,7 +1159,6 @@ def plot_archetype_examples(
         gene_name = row["gene_name"] if has_gene_name else gene_id
         selected[archetype] = (gene_id, gene_name)
 
-    # Skip if no archetypes have genes
     if len(selected) == 0:
         logger.warning("No archetypes have genes - skipping example plots")
         return
@@ -1250,7 +1181,6 @@ def plot_archetype_examples(
         coords = context.coords
         gene_row = df[df["gene"] == gene_id].iloc[0]
 
-        # Define foreground for coloring
         y, _ = define_foreground(
             x,
             mode=config.foreground_mode,
@@ -1260,7 +1190,6 @@ def plot_archetype_examples(
         if y is None:
             y = np.zeros(len(x))
 
-        # Left panel: embedding
         ax_emb = plt.subplot(n_rows, n_cols, base_pos)
         ax_emb.scatter(coords[:, 0], coords[:, 1], c="lightgray", s=1, alpha=0.3, rasterized=True)
         fg_mask = y > 0.5
@@ -1272,7 +1201,6 @@ def plot_archetype_examples(
         ax_emb.set_ylabel("UMAP 2", fontsize=16)
         ax_emb.set_aspect("equal")
 
-        # Right panel: radar curve as POLAR PLOT
         ax_radar = plt.subplot(n_rows, n_cols, base_pos + 1, projection="polar")
 
         radar = compute_rsp_radar(
@@ -1281,7 +1209,6 @@ def plot_archetype_examples(
 
         from biorsp.plotting.radar import plot_radar
 
-        # Plot using the new API with math convention (0 at +x/east, CCW)
         plot_radar(
             radar,
             ax=ax_radar,
@@ -1295,7 +1222,6 @@ def plot_archetype_examples(
 
         fig_single = plt.figure(figsize=(10, 4))
 
-        # Left subplot: embedding
         ax_single_emb = plt.subplot(1, 2, 1)
         ax_single_emb.scatter(
             coords[:, 0], coords[:, 1], c="lightgray", s=1, alpha=0.3, rasterized=True
@@ -1307,7 +1233,6 @@ def plot_archetype_examples(
         ax_single_emb.set_title(f"{gene_name} - {archetype}")
         ax_single_emb.set_aspect("equal")
 
-        # Right subplot: polar radar plot
         ax_single_radar = plt.subplot(1, 2, 2, projection="polar")
         radar = compute_rsp_radar(
             context.r_norm, context.theta, y, config=config, sector_indices=context.sector_indices
@@ -1349,7 +1274,6 @@ def plot_archetype_examples(
     example_meta.to_csv(examples_dir / "example_metadata.csv", index=False)
 
 
-# Report generation
 
 
 def generate_report(
@@ -1370,7 +1294,6 @@ def generate_report(
 
 **Generated:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
-## Dataset Summary
 
 - **Cells analyzed:** {manifest.get("n_cells", "N/A"):,}
 - **Embedding used:** `{manifest.get("embedding_key", "N/A")}`
@@ -1378,7 +1301,6 @@ def generate_report(
 - **Total genes in dataset:** {filter_stats.get("total_genes", "N/A"):,}
 - **Genes passing filters:** {filter_stats.get("passed_both", "N/A"):,}
 
-## Gene Filtering
 
 | Criterion | Threshold | Passed |
 |-----------|-----------|--------|
@@ -1386,17 +1308,13 @@ def generate_report(
 | Nonzero cells | ≥ {manifest.get("min_nonzero", 50)} | {filter_stats.get("passed_nonzero", "N/A"):,} |
 | **Both** | - | **{filter_stats.get("passed_both", "N/A"):,}** |
 
-## Threshold Selection
 
-### Coverage Cutoff (c_cut)
 - **Value used:** {c_cut:.4f}
 - **Method:** {thresholds_meta.get("c_cut_method", "default or user-specified")}
 
-### Spatial Bias Score Cutoff (s_cut)
 - **Value used:** {s_cut:.4f}
 - **Method:** {thresholds_meta.get("s_cut_method", "default or null-derived")}
 
-## Archetype Classification
 
 | Archetype | Count | Percentage |
 |-----------|-------|------------|
@@ -1409,7 +1327,6 @@ def generate_report(
 
     report += f"\n**Total classified:** {len(df):,}\n"
 
-    # Top genes per archetype
     report += "\n## Top Genes per Archetype\n"
 
     for archetype in ARCHETYPE_NAMES.values():
@@ -1429,13 +1346,11 @@ def generate_report(
         for _, row in top.iterrows():
             report += f"| {row['gene']} | {row['Coverage']:.4f} | {row['Spatial_Score']:.4f} | {int(row['spatial_sign'])} |\n"
 
-    # Reliability checks
     report += "\n## Reliability Checks\n"
 
     if "subsample_stability" in reliability:
         ss = reliability["subsample_stability"]
         report += f"""
-### Subsample Stability (70% splits)
 - **Spearman correlation:** {ss.get("spearman_r", "N/A"):.3f}
 - **Median |ΔS|:** {ss.get("median_delta_s", "N/A"):.4f}
 - **Genes tested:** {ss.get("n_genes_tested", "N/A")}
@@ -1444,13 +1359,11 @@ def generate_report(
     if reliability.get("cross_embedding"):
         ce = reliability["cross_embedding"]
         report += f"""
-### Cross-Embedding Invariance
 - **UMAP vs t-SNE Spearman:** {ce.get("spearman_r", "N/A"):.3f}
 - **Genes tested:** {ce.get("n_genes_tested", "N/A")}
 """
 
     report += """
-## Output Files
 
 - `runs_all_genes.csv`: Complete per-gene results
 - `classification.csv`: Gene-to-archetype mapping
@@ -1459,7 +1372,6 @@ def generate_report(
 - `figures/`: Publication-ready figures
 - `examples/`: Per-archetype example gene plots
 
-## Figures
 
 1. **fig_CS_scatter**: All genes in C-S space with quadrant boundaries
 2. **fig_CS_marginals**: Histograms of C and S distributions
@@ -1473,13 +1385,11 @@ def generate_report(
     logger.info(f"Report saved to {outdir / 'report.md'}")
 
 
-# Main pipeline
 
 
 def main():
     args = parse_args()
 
-    # Enable profiling if requested
     if args.profile:
         logger.info("Profiling enabled")
         for func_name in dir():
@@ -1507,7 +1417,6 @@ def main():
     from biorsp.preprocess.context import discover_embedding_key, prepare_context
     from biorsp.utils.config import BioRSPConfig
 
-    # Auto-discover embedding key
     embedding_key = args.embedding_key
     if embedding_key is None:
         embedding_key = discover_embedding_key(adata)
@@ -1524,7 +1433,6 @@ def main():
         n_permutations=0,  # Stage A: no permutations
     )
 
-    # Prepare geometric context (once for all genes)
     stage_start = time.time()
     logger.info("Preparing geometric context...")
     adata_sub, context = prepare_context(
@@ -1552,7 +1460,6 @@ def main():
         expr_mode = "fixed"
     logger.info(f"Expression threshold: {expr_threshold} ({expr_mode})")
 
-    # Fast gene filtering
     stage_start = time.time()
     filtered_genes, filter_stats = fast_filter_genes(
         adata_sub,
@@ -1570,7 +1477,6 @@ def main():
     logger.info("Creating gene name mapping...")
     gene_name_mapping = create_gene_name_mapping(adata)
 
-    # Stage A: Score all genes (no permutations)
     logger.info(f"Scoring {len(filtered_genes):,} genes...")
     df = score_all_genes_parallel(
         adata_sub,
@@ -1585,13 +1491,10 @@ def main():
         h5ad_path=str(temp_h5ad) if temp_h5ad else str(args.h5ad),
     )
 
-    # Add gene names to dataframe
     df = add_gene_names_to_dataframe(df, gene_name_mapping)
 
-    # Derive thresholds
     thresholds_meta = {}
 
-    # c_cut
     if args.c_cut is not None:
         c_cut = args.c_cut
         thresholds_meta["c_cut_method"] = "user_specified"
@@ -1600,7 +1503,6 @@ def main():
         thresholds_meta["c_cut_method"] = "auto_derived"
     thresholds_meta["c_cut"] = c_cut
 
-    # s_cut
     if args.s_cut is not None:
         s_cut = args.s_cut
         thresholds_meta["s_cut_method"] = "user_specified"
@@ -1614,10 +1516,8 @@ def main():
 
     logger.info(f"Thresholds: c_cut={c_cut:.4f}, s_cut={s_cut:.4f}")
 
-    # Classify genes
     df = classify_genes(df, c_cut, s_cut)
 
-    # Stage B: Optional p-values for top genes
     if args.compute_pvalues:
         config_pval_dict = asdict(config)
         config_pval_dict["n_permutations"] = args.n_permutations
@@ -1631,13 +1531,11 @@ def main():
             n_permutations=args.n_permutations,
         )
 
-    # Reliability checks
     reliability = {}
     if not args.skip_reliability:
         stage_start = time.time()
         logger.info("Running reliability checks...")
 
-        # Sort genes by S for stability check
         top_s_genes = df.nlargest(500, "Spatial_Score")["gene"].tolist()
 
         reliability["subsample_stability"] = check_subsample_stability(
@@ -1658,10 +1556,8 @@ def main():
     stage_start = time.time()
     logger.info("Saving outputs...")
 
-    # Main results
     df.to_csv(outdir / "runs_all_genes.csv", index=False)
 
-    # Classification summary (include gene_name if available)
     class_cols = ["gene"]
     if "gene_name" in df.columns:
         class_cols.append("gene_name")
@@ -1669,11 +1565,9 @@ def main():
     class_df = df[class_cols]
     class_df.to_csv(outdir / "classification.csv", index=False)
 
-    # Thresholds
     with open(outdir / "derived_thresholds.json", "w") as f:
         json.dump(thresholds_meta, f, indent=2)
 
-    # Manifest
     manifest = {
         "h5ad_path": str(args.h5ad),
         "embedding_key": embedding_key,
@@ -1699,7 +1593,6 @@ def main():
     if args.profile:
         TIMINGS["output_saving"] = time.time() - stage_start
 
-    # Figures
     stage_start = time.time()
     logger.info("Generating figures...")
     plot_cs_scatter(df, c_cut, s_cut, outdir / "figures")
@@ -1709,16 +1602,13 @@ def main():
     if args.profile:
         TIMINGS["plotting"] = time.time() - stage_start
 
-    # Report
     generate_report(df, c_cut, s_cut, thresholds_meta, filter_stats, reliability, manifest, outdir)
 
-    # Cleanup temp files
     if temp_h5ad and temp_h5ad.exists():
         temp_h5ad.unlink()
 
     total_time = time.time() - start_time
 
-    # Summary
     logger.info("=" * 60)
     logger.info("PIPELINE COMPLETE")
     logger.info(f"Output directory: {outdir.resolve()}")

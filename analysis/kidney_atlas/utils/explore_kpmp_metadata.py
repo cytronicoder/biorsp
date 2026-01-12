@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Quick script to explore KPMP metadata structure."""
 
 import anndata as ad

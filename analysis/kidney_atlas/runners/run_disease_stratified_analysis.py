@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Disease-stratified BioRSP Analysis for KPMP Data
 
@@ -18,13 +17,11 @@ Key Features:
 - Optional cell type filtering (e.g., TAL cells only)
 
 Quick Examples:
-    # All cells, stratified by disease
     python run_disease_stratified_analysis.py \\
       --ref_data data/kpmp.h5ad \\
       --outdir results/disease_stratified \\
       --max_genes 100
 
-    # TAL cells only, stratified by disease
     python run_disease_stratified_analysis.py \\
       --ref_data data/kpmp.h5ad \\
       --outdir results/tal_disease_stratified \\
@@ -32,7 +29,6 @@ Quick Examples:
       --celltype_filter TAL \\
       --max_genes 100
 
-    # Full analysis with gene-gene relationships
     python run_disease_stratified_analysis.py \\
       --ref_data data/kpmp.h5ad \\
       --outdir results/disease_full \\
@@ -150,11 +146,9 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # All cells, disease stratification
   python run_disease_stratified_analysis.py --ref_data data/kpmp.h5ad \\
       --outdir results/disease_stratified --max_genes 100
 
-  # TAL cells only, disease stratification
   python run_disease_stratified_analysis.py --ref_data data/kpmp.h5ad \\
       --outdir results/tal_disease --celltype_key subclass.l1 \\
       --celltype_filter TAL --max_genes 100
@@ -696,14 +690,12 @@ def run_analysis_for_disease(
         config=config,
     )
 
-    # Add gene symbols and control flag
     df_results["gene_symbol"] = df_results["gene"].map(var_to_symbol)
     df_results["is_control"] = df_results["gene"].isin(control_vars)
 
     logger.info(f"  Scored: {len(df_results)} genes")
     analysis_meta["n_genes_scored"] = len(df_results)
 
-    # Classify genes
     logger.info("  Classifying genes...")
     df_classified = classify_genes(
         df_results,
@@ -711,10 +703,8 @@ def run_analysis_for_disease(
         s_cut=args.s_cut,
     )
 
-    # Convert archetype names to display names
     df_classified["Archetype"] = df_classified["Archetype"].map(ARCHETYPE_NAMES)
 
-    # Archetype summary
     archetype_counts = df_classified["Archetype"].value_counts().to_dict()
     logger.info(f"  Archetypes: {archetype_counts}")
     analysis_meta["archetype_counts"] = archetype_counts
@@ -723,11 +713,9 @@ def run_analysis_for_disease(
     df_classified.to_csv(results_file, index=False)
     logger.info(f"  Saved results to {results_file}")
 
-    # Gene-gene analysis (optional and filtered)
     if args.do_genegene:
         logger.info("  Computing gene-gene relationships (filtered)...")
 
-        # Filter to high-quality genes: coverage_geom >= 0.9 AND (significant OR high S)
         fdr_cut = 0.05
         filter_mask = (df_classified["coverage_geom"] >= 0.9) & (
             (df_classified["q_value"] < fdr_cut)
@@ -757,10 +745,8 @@ def run_analysis_for_disease(
     else:
         analysis_meta["n_gene_pairs"] = 0
 
-    # Generate comprehensive plots with validation
     logger.info("  Generating plots...")
 
-    # Extract actual cutoffs from classification (stored in attrs)
     cutoffs = {
         "c_cut": df_classified.attrs.get("c_cut", args.c_cut if args.c_cut else 0.10),
         "s_cut": df_classified.attrs.get(
@@ -772,16 +758,12 @@ def run_analysis_for_disease(
 
     analysis_meta["cutoffs"] = cutoffs
 
-    # C-S scatter plot with validation
     plot_cs_scatter(df_classified, cutoffs, outdir, strict=args.strict_plots, seed=config.seed)
 
-    # Marginal distributions
     plot_cs_marginals(df_classified, cutoffs, outdir, strict=args.strict_plots)
 
-    # Top genes tables
     plot_top_tables(df_classified, outdir, n_top=15)
 
-    # Gene exemplars for each archetype (select representatives)
     logger.info("  Generating gene exemplar plots...")
     exemplar_genes = select_exemplar_genes(df_classified, n_per_archetype=3)
 
@@ -826,12 +808,10 @@ def select_exemplar_genes(df: pd.DataFrame, n_per_archetype: int = 3) -> list[st
     for archetype in df["Archetype"].unique():
         archetype_df = df[df["Archetype"] == archetype].copy()
 
-        # Sort by control status first, then coverage_geom
         archetype_df = archetype_df.sort_values(
             by=["is_control", "coverage_geom"], ascending=[False, False]
         )
 
-        # Take top N
         selected = archetype_df.head(n_per_archetype)
         exemplars.extend(selected["gene"].tolist())
 
@@ -847,10 +827,8 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
         for archetype in df["Archetype"].unique():
             archetype_df = df[df["Archetype"] == archetype].copy()
 
-            # Sort by spatial_score (descending)
             top_genes = archetype_df.nlargest(n_top, "Spatial_Score")
 
-            # Select key columns
             table_data = top_genes[
                 [
                     "gene_symbol",
@@ -864,7 +842,6 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
 
             table_data.columns = ["Gene", "C", "S", "Cov Geom", "p-val", "q-val"]
 
-            # Format numbers
             for col in ["C", "S", "Cov Geom"]:
                 table_data[col] = table_data[col].apply(lambda x: f"{x:.3f}")
             for col in ["p-val", "q-val"]:
@@ -887,7 +864,6 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
             table.set_fontsize(10)
             table.scale(1, 2)
 
-            # Style header
             for (i, _j), cell in table.get_celld().items():
                 if i == 0:
                     cell.set_text_props(weight="bold", color="white")
@@ -996,10 +972,8 @@ def main():
                 f"No cells match labels {args.celltype_filter}.\nAvailable labels: {unique_labels}"
             )
 
-        # Filter adata
         adata = adata[celltype_mask].copy()
 
-        # Re-compute disease groups on filtered data
         disease_groups = get_disease_groups(adata, disease_key)
         run_meta["celltype_filter"] = args.celltype_filter
         run_meta["disease_groups_after_filter"] = {
@@ -1054,15 +1028,12 @@ def main():
     disease_results = {}
 
     for disease_name, indices in disease_groups.items():
-        # Subset data
         adata_disease = adata[indices].copy()
 
-        # Convert categorical columns to regular object dtype to avoid dtype interpretation issues
         for col in adata_disease.obs.columns:
             if hasattr(adata_disease.obs[col], "cat"):  # Check if categorical
                 adata_disease.obs[col] = adata_disease.obs[col].astype(str)
 
-        # Subsample if requested
         if args.subsample and args.subsample < adata_disease.n_obs:
             logger.info(f"  Subsampling {disease_name} to {args.subsample} cells")
             np.random.seed(args.seed)
@@ -1115,14 +1086,12 @@ def generate_readme(run_meta: dict, args: argparse.Namespace) -> str:
     """Generate README documentation for the analysis."""
     readme = f"""# Disease-Stratified BioRSP Analysis
 
-## Analysis Overview
 
 **Date**: {run_meta["timestamp"]}
 **Input**: {args.ref_data}
 **Total Cells**: {run_meta["n_cells_total"]:,}
 **Total Genes**: {run_meta["n_genes_total"]:,}
 
-## Disease Stratification
 
 **Disease Column**: {run_meta["disease_key"]}
 
@@ -1182,7 +1151,6 @@ def generate_readme(run_meta: dict, args: argparse.Namespace) -> str:
     └── ...
 ```
 
-## Usage
 
 Results can be compared across disease conditions to identify:
 - Disease-specific spatial patterns

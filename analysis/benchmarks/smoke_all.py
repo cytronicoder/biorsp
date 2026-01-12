@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Smoke test runner for BioRSP simulations.
 Runs all four benchmarks in quick mode to verify end-to-end functionality.

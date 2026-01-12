@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Create a visual comparison showing the difference in point density."""
 
 import matplotlib.pyplot as plt

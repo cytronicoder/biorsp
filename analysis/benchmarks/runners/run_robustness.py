@@ -55,7 +55,6 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
     condition_key = rng.condition_key(shape, N, pattern, distortion_kind, distortion_strength)
     gen = rng.make_rng(seed, "robustness", condition_key)
 
-    # Generate base data (same for baseline and distorted)
     coords_base, shape_meta = shapes.generate_coords(shape, N, gen)
 
     libsize = expression.simulate_library_size(
@@ -68,7 +67,6 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
         field, libsize, gen, expr_model="nb", params={"phi": 10.0, "abundance": 1e-3}
     )
 
-    # Score BASELINE (no distortion)
     adata_base = datasets.package_as_anndata(
         coords_base,
         counts[:, None],
@@ -90,9 +88,7 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
         baseline_c = row_base["Coverage"]
         baseline_abstain = row_base["abstain_flag"]
 
-    # Apply distortion and score DISTORTED
     if distortion_kind == "none" or distortion_strength == 0.0:
-        # No distortion - distorted == baseline
         distorted_s = baseline_s
         distorted_c = baseline_c
         distorted_abstain = baseline_abstain
@@ -103,7 +99,6 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
             coords_base, distortion_kind, distortion_strength, gen_dist, params={}
         )
 
-        # Handle subsampling specially (changes cell count)
         if distortion_kind == "subsample" and distortion_strength < 1.0:
             n_keep = int(N * distortion_strength)
             indices = gen_dist.choice(N, n_keep, replace=False)
@@ -329,7 +324,6 @@ def main():
     for (shape, N, pattern, distortion_kind, distortion_strength), group in runs_df.groupby(
         ["shape", "N", "pattern", "distortion_kind", "distortion_strength"]
     ):
-        # Use paired delta computation
         baseline_s = group["baseline_spatial_score"].values
         distorted_s = group["distorted_spatial_score"].values
 
@@ -348,7 +342,6 @@ def main():
 
         category = "invariance" if distortion_kind in INVARIANCE_DISTORTIONS else "sensitivity"
 
-        # Stability criterion: abs_delta_median < 0.05 or correlation > 0.9
         is_stable = (paired_stats["abs_delta_median"] < 0.05) or (paired_stats["correlation"] > 0.9)
 
         summary_rows.append(

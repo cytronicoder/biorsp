@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Smoke test for all RSP plotting examples.
 
 This script ensures that all plotting code examples can run without errors.
@@ -18,7 +17,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Use non-interactive backend
 matplotlib.use("Agg")
 
 from biorsp import BioRSPConfig, compute_rsp_radar, polar_coordinates
@@ -31,22 +29,18 @@ def create_synthetic_data(n_cells=500, seed=42):
     """Create synthetic spatial data for testing."""
     rng = np.random.default_rng(seed)
 
-    # Polar embedding
     r = np.sqrt(rng.random(n_cells))
     theta = rng.uniform(-np.pi, np.pi, n_cells)
     coords = np.column_stack([r * np.cos(theta), r * np.sin(theta)])
 
-    # Wedge pattern (niche)
     wedge_mask = np.abs(theta) < 0.6
     y_niche = np.zeros(n_cells)
     y_niche[wedge_mask] = 1.0
 
-    # Rim pattern
     rim_mask = r > 0.7
     y_rim = np.zeros(n_cells)
     y_rim[rim_mask] = 1.0
 
-    # Core pattern
     core_mask = r < 0.3
     y_core = np.zeros(n_cells)
     y_core[core_mask] = 1.0
@@ -82,12 +76,10 @@ def test_theta_conventions():
     config = BioRSPConfig(delta_deg=60, B=36)
     radar = compute_rsp_radar(r, theta, y, config=config)
 
-    # Math convention
     fig1, ax1 = plt.subplots(subplot_kw={"projection": "polar"})
     plot_radar(radar, ax=ax1, title="Math Conv", mode="signed", theta_convention="math")
     plt.close(fig1)
 
-    # Compass convention
     fig2, ax2 = plt.subplots(subplot_kw={"projection": "polar"})
     plot_radar(radar, ax=ax2, title="Compass Conv", mode="signed", theta_convention="compass")
     plt.close(fig2)
@@ -125,7 +117,6 @@ def test_radial_max_options():
     config = BioRSPConfig(delta_deg=60, B=36)
     radar = compute_rsp_radar(r, theta, y, config=config)
 
-    # Add outlier
     radar.rsp[0] = 10.0
 
     for radial_setting in [None, "max", 2.0]:
@@ -246,9 +237,7 @@ def test_wraparound_continuity():
     print("  Testing wrap-around continuity...")
 
     theta = np.linspace(0, 2 * np.pi, 20, endpoint=False)
-    # Pattern centered at theta=0 (crosses boundary)
     rsp = np.cos(theta) * 2.0 + 1.0
-    # Add NaN gap in middle to test segmentation
     rsp[9:12] = np.nan
 
     radar = RadarResult(

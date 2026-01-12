@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 One-Page Story Figure for BioRSP Methods Paper.
 
@@ -9,10 +8,8 @@ Generates a single-page figure panel (4 subpanels) that validates BioRSP's core 
 - Panel D: Gene-gene module recovery
 
 Usage:
-    # Quick mode (fast, minimal permutations)
     python run_story_onepager.py --mode quick --outdir outputs/story --seed 42
 
-    # Publication mode (comprehensive, more genes & permutations)
     python run_story_onepager.py --mode publication --seed 42
 
 Performance Tips:
@@ -47,7 +44,6 @@ if str(ROOT) not in sys.path:
 
 from biorsp import BioRSPConfig  # noqa: E402
 
-# Configuration
 
 MODE_CONFIGS = {
     "quick": {
@@ -79,7 +75,6 @@ MODE_CONFIGS = {
     },
 }
 
-# Default thresholds (will be overridden by calibration if available)
 DEFAULT_S_CUT = 0.15
 DEFAULT_C_CUT = 0.30
 
@@ -133,7 +128,6 @@ def run_story_benchmark(args):
         include_abstention_stress=True,
     )
 
-    # Package as AnnData
     adata_factorial = datasets.package_as_anndata(
         coords,
         X_factorial,
@@ -155,20 +149,16 @@ def run_story_benchmark(args):
     print(f"   Scored {len(results_df)} genes")
     print(f"   Abstention rate: {results_df['abstain_flag'].mean():.1%}")
 
-    # Step 4: Derive thresholds and classify (PRINCIPLED NULL CALIBRATION)
     print("[4/6] Classifying genes into archetypes (with principled null calibration)...")
 
-    # Use IID genes only (sparse_noise/housekeeping with organization_regime='iid')
     null_mask = results_df["Archetype"].isin(["sparse_noise", "housekeeping"])
     null_s = results_df.loc[
         null_mask & (results_df["organization_regime"] == "iid"), "Spatial_Score"
     ].values
 
-    # PRINCIPLED CALIBRATION: Use FPR-controlled threshold derivation
     fpr_target = 0.05 if args.mode == "publication" else 0.10  # 5% FPR for publication
 
     if len(null_s) >= 10:
-        # Use new principled function for FPR-controlled thresholds
         thresholds = metrics.derive_thresholds_principled(
             null_s_values=null_s,
             fpr_target=fpr_target,
@@ -199,7 +189,6 @@ def run_story_benchmark(args):
         print(f"   ⚠ Insufficient null samples ({len(null_s)}), using default thresholds")
         print(f"   Using default thresholds: S_cut={s_cut:.3f}, C_cut={c_cut:.2f}")
 
-    # PRINCIPLED CLASSIFICATION: Use classify_with_confidence for borderline detection
     valid_mask = ~results_df["abstain_flag"]
     results_df["pred_archetype"] = None
     results_df["confidence"] = None
@@ -215,7 +204,6 @@ def run_story_benchmark(args):
         results_df.loc[valid_mask, "pred_archetype"] = labels
         results_df.loc[valid_mask, "confidence"] = confidences
 
-        # Report confidence breakdown
         conf_counts = results_df.loc[valid_mask, "confidence"].value_counts()
         print(f"   Confidence breakdown: {conf_counts.to_dict()}")
 
@@ -223,7 +211,6 @@ def run_story_benchmark(args):
 
     eval_mask = valid_mask & results_df["pred_archetype"].notna()
 
-    # Confusion matrix
     y_true = results_df.loc[eval_mask, "Archetype"].values
     y_pred = results_df.loc[eval_mask, "pred_archetype"].values
 
@@ -234,8 +221,6 @@ def run_story_benchmark(args):
     print(f"   Overall accuracy: {class_metrics['accuracy']:.1%}")
     print(f"   Macro F1: {class_metrics['macro_f1']:.3f}")
 
-    # Marker recovery (structured genes = high S)
-    # True structured = organization_regime == "structured"
     is_structured = (results_df["organization_regime"] == "structured").values
     s_scores = results_df["Spatial_Score"].fillna(0).values
 
@@ -249,7 +234,6 @@ def run_story_benchmark(args):
         f"   Precision@20 for structured genes: {prec_curve[prec_curve['k'] == 20]['precision_at_k'].values[0]:.1%}"
     )
 
-    # Step 6: Gene-gene module recovery
     print("[6/6] Running gene-gene module analysis...")
 
     X_modules, var_names_modules, truth_edges_df, truth_genes_df = (
@@ -267,23 +251,19 @@ def run_story_benchmark(args):
         coords, X_modules, var_names_modules, obs_meta={"libsize": libsize}, embedding_key="X_sim"
     )
 
-    # Score pairs
     pairs_df = scoring.score_pairs(
         adata_modules, genes=var_names_modules, config=config, embedding_key="X_sim"
     )
 
     pairs_merged = truth_edges_df.merge(pairs_df, on=["gene_a", "gene_b"], how="left")
 
-    # PRINCIPLED MODULE METRICS: Use extended metrics with prevalence baseline
     valid_pairs = pairs_merged["similarity_profile"].notna()
     if valid_pairs.sum() > 0:
-        # Use extended metrics for prevalence-aware evaluation
         module_metrics = metrics.module_recovery_metrics_extended(
             predicted_scores=pairs_merged.loc[valid_pairs, "similarity_profile"].values,
             true_edges=pairs_merged.loc[valid_pairs, "is_true_edge"].astype(int).values,
         )
 
-        # Report with prevalence context
         prevalence = module_metrics["prevalence_baseline"]
         fold_enrichment = module_metrics["fold_enrichment_auprc"]
         print(
@@ -302,7 +282,6 @@ def run_story_benchmark(args):
         }
         print("   ⚠ No valid pairs for module recovery evaluation")
 
-    # Generate Figures
     print("\n" + "=" * 60)
     print("Generating figures...")
 
@@ -343,7 +322,6 @@ def run_story_benchmark(args):
     fig_combined = plt.figure(figsize=(14, 12))
     gs = fig_combined.add_gridspec(2, 2, hspace=0.3, wspace=0.25)
 
-    # Re-plot each panel in the grid
     ax_a = fig_combined.add_subplot(gs[0, 0])
     ax_b = fig_combined.add_subplot(gs[0, 1])
     ax_c = fig_combined.add_subplot(gs[1, 0])
@@ -438,12 +416,10 @@ def run_story_benchmark(args):
     io.save_figure(fig_combined, figures_dir, "fig_story_onepager.png", dpi=300)
     plt.close(fig_combined)
 
-    # Generate Diagnostic Figures (Sanity Checks)
     print("\nGenerating diagnostic figures...")
     diag_dir = figures_dir / "diagnostics"
     diag_dir.mkdir(exist_ok=True)
 
-    # 0. NULL CALIBRATION DIAGNOSTIC: Show null distribution and FPR-controlled threshold
     try:
         if len(null_s) >= 10:
             fig_null = plotting.plot_null_distribution(
@@ -475,7 +451,6 @@ def run_story_benchmark(args):
     except Exception as e:
         print(f"   ✗ Archetype examples failed: {e}")
 
-    # 2. Threshold Diagnostics: C and S distributions with cutoffs
     try:
         fig_thresh = plotting.plot_threshold_diagnostics(
             coverage=results_df.loc[eval_mask, "Coverage"].values,
@@ -490,7 +465,6 @@ def run_story_benchmark(args):
     except Exception as e:
         print(f"   ✗ Threshold diagnostics failed: {e}")
 
-    # 3. Support Diagnostics: S vs cell counts
     try:
         coverage_fg = results_df.loc[eval_mask, "Coverage"].values
         coverage_bg = 1.0 - coverage_fg  # Approximation
@@ -506,7 +480,6 @@ def run_story_benchmark(args):
     except Exception as e:
         print(f"   ✗ Support diagnostics failed: {e}")
 
-    # 4. Misclassification Audit: Scatter + CSV
     try:
         fig_misclass, misclass_df = plotting.plot_misclassified_scatter(
             coverage=results_df.loc[eval_mask, "Coverage"].values,
@@ -524,7 +497,6 @@ def run_story_benchmark(args):
             misclass_df.to_csv(diag_dir / "misclassified.csv", index=False)
             print(f"   ✓ Misclassification audit saved ({len(misclass_df)} genes)")
 
-            # Print summary of error types
             error_summary = misclass_df.groupby("error_type").size()
             print("      Error type breakdown:")
             for error_type, count in error_summary.items():
@@ -534,7 +506,6 @@ def run_story_benchmark(args):
     except Exception as e:
         print(f"   ✗ Misclassification audit failed: {e}")
 
-    # 5. Pattern Detectability: S by pattern type
     try:
         pattern_results = results_df.loc[
             eval_mask, ["pattern_variant", "Spatial_Score", "Archetype"]
@@ -554,13 +525,10 @@ def run_story_benchmark(args):
     except Exception as e:
         print(f"   ✗ Pattern detectability failed: {e}")
 
-    # Write outputs
     print("\nWriting outputs...")
 
-    # runs.csv
     results_df.to_csv(output_dir / "runs.csv", index=False)
 
-    # summary.csv
     summary_data = {
         "metric": [
             "accuracy",
@@ -604,7 +572,6 @@ def run_story_benchmark(args):
     summary_df = pd.DataFrame(summary_data)
     summary_df.to_csv(output_dir / "summary.csv", index=False)
 
-    # manifest.json
     elapsed = time.time() - start_time
     io.write_manifest(
         output_dir=output_dir,
@@ -619,7 +586,6 @@ def run_story_benchmark(args):
         biorsp_config=config,
     )
 
-    # report.md
     write_story_report(
         output_dir=output_dir,
         class_metrics=class_metrics,
@@ -631,7 +597,6 @@ def run_story_benchmark(args):
         elapsed=elapsed,
     )
 
-    # Caption file
     write_caption(figures_dir)
 
     print(f"\n{'=' * 60}")
@@ -641,7 +606,6 @@ def run_story_benchmark(args):
     print(f"  Figures saved to: {figures_dir}")
     print(f"{'=' * 60}")
 
-    # Return summary for testing
     return {
         "accuracy": class_metrics["accuracy"],
         "macro_f1": class_metrics["macro_f1"],
@@ -666,8 +630,6 @@ def write_story_report(
     acc_threshold = 0.60 if mode == "quick" else 0.80
     acc_pass = class_metrics["accuracy"] >= acc_threshold
 
-    # Note: AUPRC threshold is lower in quick mode because fewer permutations
-    # give noisier p-values, reducing co-patterning score precision
     auprc_threshold = 0.25 if mode == "quick" else 0.65
     auprc_pass = module_metrics.get("auprc", 0) >= auprc_threshold
 
@@ -677,12 +639,10 @@ Generated: {pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")}
 Mode: {mode}
 Runtime: {elapsed:.1f}s
 
-## Summary
 
 This report validates BioRSP's ability to classify genes into spatial archetypes
 and recover gene-gene co-patterning relationships using synthetic ground-truth data.
 
-## Results
 
 BioRSP classifies genes into a 2×2 grid based on:
 - **Coverage (C)**: Fraction of cells expressing the gene
@@ -706,7 +666,6 @@ BioRSP classifies genes into a 2×2 grid based on:
     for label, stats in class_metrics["per_class"].items():
         report += f"- {label}: Precision={stats['precision']:.2f}, Recall={stats['recall']:.2f}, F1={stats['f1']:.2f}\n"
 
-    # Precision@K
     prec_20 = prec_curve[prec_curve["k"] == 20]["precision_at_k"].values
     prec_20[0] if len(prec_20) > 0 else np.nan
 
@@ -732,7 +691,6 @@ Genes sharing the same spatial pattern (module) should have high co-patterning s
 - Precision@10: **{module_metrics["precision_at_10"]:.1%}**
 - Precision@50: **{module_metrics["precision_at_50"]:.1%}**
 
-## Interpretation
 
 **What to look at:**
 
@@ -748,7 +706,6 @@ Genes sharing the same spatial pattern (module) should have high co-patterning s
 4. **Panel D (Module Recovery)**: AUPRC > 0.5 indicates that co-patterning scores can
    distinguish genes in the same spatial module from unrelated genes.
 
-## Pass/Fail Summary
 
 | Check | Result |
 |-------|--------|

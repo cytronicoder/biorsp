@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Debug script for selection bias analysis.
 
 Tests that empty_fg_policy='zero' correctly handles empty sectors and avoids

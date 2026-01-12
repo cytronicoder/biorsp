@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Generate publication-quality End-to-End Workflow visualization.
 
 Creates a comprehensive 4-panel figure showing:
@@ -12,10 +11,8 @@ The figure illustrates the two-score BioRSP output:
 - Spatial organization score S_g (RMS magnitude of radar profile)
 
 Usage:
-    # With real data
     python scripts/make_end_to_end_workflow.py --adata data.h5ad --feature CD3D --out scripts/output/cd3d.png
 
-    # With demo data
     python scripts/make_end_to_end_workflow.py --feature Demo --out scripts/output/demo.png
 
 Requires:
@@ -127,12 +124,9 @@ def main():
 
     v = compute_vantage(coords, method="geometric_median")
 
-    # Distinguish biological threshold (coverage) from internal foreground (quantile)
-    # For this demo, we use a simple quantile threshold for both
     thresh = np.quantile(expr, args.q)
     y = (expr >= thresh).astype(float) if thresh > 0 else (expr > 0).astype(float)
 
-    # Compute coverage with same threshold (in real analysis, use _detect_threshold)
     coverage_expr = float(np.mean(expr >= thresh))
     foreground_fraction = float(np.mean(y))
 

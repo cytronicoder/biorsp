@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Regenerate all figures from existing classification.csv using updated plotting functions.
 This script reads the classification CSV and regenerates figures with new archetype names
@@ -36,7 +35,6 @@ def update_archetype_names(df: pd.DataFrame) -> pd.DataFrame:
     """Update archetype names from old to new naming scheme."""
     df = df.copy()
 
-    # Shim for legacy columns
     rename_map = {
         "coverage_expr": "Coverage",
         "spatial_score": "Spatial_Score",
@@ -46,7 +44,6 @@ def update_archetype_names(df: pd.DataFrame) -> pd.DataFrame:
     df.rename(columns=rename_map, inplace=True)
 
     if "Archetype" in df.columns:
-        # Only map values that are in the mapping, keep others
         df["Archetype"] = df["Archetype"].map(lambda x: ARCHETYPE_MAPPING.get(x, x))
     return df
 

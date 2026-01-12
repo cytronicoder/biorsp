@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Smoke test CLI for BioRSP plotting.
 
 Generates all plot types deterministically to validate:
@@ -20,7 +19,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Use non-interactive backend for headless environments
 matplotlib.use("Agg")
 
 from biorsp.core.engine import compute_rsp_radar
@@ -74,13 +72,11 @@ def test_embedding_plots(outdir: Path, coords: np.ndarray, expr: np.ndarray):
     v = compute_vantage(coords, method="geometric_median", seed=42)
 
     with publication_style():
-        # Basic embedding
         fig, ax = plt.subplots(figsize=(6, 6))
         plot_embedding(coords, c=expr, ax=ax, title="Expression", show_vantage=True, vantage=v)
         paths = save_figure(fig, outdir / "01_embedding_expression", close=True)
         print(f"  ✓ {paths[0].name}")
 
-        # Binary FG/BG
         fg_mask, _ = define_foreground(expr, mode="quantile", q=0.9)
         fig, ax = plt.subplots(figsize=(6, 6))
         plot_embedding(
@@ -89,7 +85,6 @@ def test_embedding_plots(outdir: Path, coords: np.ndarray, expr: np.ndarray):
         paths = save_figure(fig, outdir / "02_embedding_fg_bg", close=True)
         print(f"  ✓ {paths[0].name}")
 
-        # Subsampling + rasterization
         fig, ax = plt.subplots(figsize=(6, 6))
         plot_embedding(
             coords,
@@ -119,13 +114,11 @@ def test_radar_plots(outdir: Path, coords: np.ndarray, expr: np.ndarray, config:
     summaries = compute_scalar_summaries(radar)
 
     with publication_style():
-        # Signed mode (default)
         fig, ax = plt.subplots(figsize=(7, 7), subplot_kw={"projection": "polar"})
         plot_radar(radar, ax=ax, title="Signed RSP", mode="signed", theta_convention="math")
         paths = save_figure(fig, outdir / "04_radar_signed", close=True)
         print(f"  ✓ {paths[0].name}")
 
-        # Debug overlay
         fig, ax = plt.subplots(figsize=(7, 7), subplot_kw={"projection": "polar"})
         plot_radar(
             radar,
@@ -138,7 +131,6 @@ def test_radar_plots(outdir: Path, coords: np.ndarray, expr: np.ndarray, config:
         paths = save_figure(fig, outdir / "05_radar_debug", close=True)
         print(f"  ✓ {paths[0].name}")
 
-        # Compass convention
         fig, ax = plt.subplots(figsize=(7, 7), subplot_kw={"projection": "polar"})
         plot_radar(
             radar, ax=ax, title="Compass Convention", mode="signed", theta_convention="compass"
@@ -146,14 +138,12 @@ def test_radar_plots(outdir: Path, coords: np.ndarray, expr: np.ndarray, config:
         paths = save_figure(fig, outdir / "06_radar_compass", close=True)
         print(f"  ✓ {paths[0].name}")
 
-        # Absolute (split proximal/distal)
         fig = plot_radar_absolute(
             radar, title="Split Proximal/Distal", theta_convention="math", summaries=summaries
         )
         paths = save_figure(fig, outdir / "07_radar_absolute", close=True)
         print(f"  ✓ {paths[0].name}")
 
-    # Save metadata
     metadata = {
         "pattern": "rim_wedge",
         "config": {
@@ -178,7 +168,6 @@ def test_workflow_figures(outdir: Path, coords: np.ndarray, expr: np.ndarray, co
     v = compute_vantage(coords, method="geometric_median", seed=42)
     r, theta = polar_coordinates(coords, v)
 
-    # Compute coverage and foreground metrics
     thresh = 1.0 if np.allclose(expr, np.round(expr)) else 1e-6
     coverage_expr = float(np.mean(expr >= thresh))
 
@@ -187,7 +176,6 @@ def test_workflow_figures(outdir: Path, coords: np.ndarray, expr: np.ndarray, co
 
     theta_grid = np.linspace(-np.pi, np.pi, config.B, endpoint=False)
 
-    # Standard workflow
     make_end_to_end_figure(
         z=coords,
         y=fg_mask,
@@ -204,7 +192,6 @@ def test_workflow_figures(outdir: Path, coords: np.ndarray, expr: np.ndarray, co
     )
     print("  ✓ 08_workflow_standard.pdf")
 
-    # Debug mode workflow
     make_end_to_end_figure(
         z=coords,
         y=fg_mask,
@@ -221,7 +208,6 @@ def test_workflow_figures(outdir: Path, coords: np.ndarray, expr: np.ndarray, co
     )
     print("  ✓ 09_workflow_debug.pdf")
 
-    # Save metadata
     metadata = {
         "pattern": "rim_wedge",
         "Coverage": coverage_expr,
@@ -256,13 +242,11 @@ def main():
     print("=" * 60)
     print(f"Output: {outdir}")
 
-    # Generate data
     print("\nGenerating synthetic data...")
     coords, expr = generate_synthetic_data(n=1000, pattern="rim_wedge", seed=args.seed)
     print(f"  N = {len(coords)} cells")
     print(f"  Expression range: [{expr.min():.1f}, {expr.max():.1f}]")
 
-    # Config
     config = BioRSPConfig(
         delta_deg=30,
         B=24,
@@ -270,7 +254,6 @@ def main():
         seed=args.seed,
     )
 
-    # Run tests
     test_embedding_plots(outdir, coords, expr)
     test_radar_plots(outdir, coords, expr, config)
     test_workflow_figures(outdir, coords, expr, config)
@@ -280,7 +263,6 @@ def main():
     print("=" * 60)
     print(f"\nOutputs saved to: {outdir.absolute()}")
 
-    # Summary
     plot_files = list(outdir.glob("*.pdf")) + list(outdir.glob("*.png"))
     json_files = list(outdir.glob("*.json"))
     print("\nGenerated files:")

@@ -33,14 +33,11 @@ def create_wedge_at_angle(
     """
     theta = np.linspace(0, 2 * np.pi, n_sectors, endpoint=False)
 
-    # Create wedge using circular distance
     angular_dist = np.abs(np.angle(np.exp(1j * (theta - center_angle))))
     rsp = 2.0 * np.exp(-0.5 * (angular_dist / (width / 2)) ** 2)
 
-    # Add some noise
     rsp += 0.1 * np.random.randn(n_sectors)
 
-    # Ensure non-negative for this test
     rsp = np.maximum(rsp, 0.1)
 
     return RadarResult(
@@ -62,13 +59,10 @@ def create_wraparound_pattern(n_sectors: int = 36) -> RadarResult:
     """
     theta = np.linspace(0, 2 * np.pi, n_sectors, endpoint=False)
 
-    # Create pattern centered at theta=0 that wraps around
     rsp = np.cos(theta) * 1.5 + 0.5
 
-    # Add NaN gap to test segmentation
     rsp[n_sectors // 2 - 2 : n_sectors // 2 + 2] = np.nan
 
-    # Mark some sectors as zero-filled
     zero_mask = np.zeros(n_sectors, dtype=bool)
     zero_mask[n_sectors // 4] = True
 
@@ -91,7 +85,6 @@ def create_signed_pattern(n_sectors: int = 36) -> RadarResult:
     """
     theta = np.linspace(0, 2 * np.pi, n_sectors, endpoint=False)
 
-    # Proximal shift at 0, distal shift at pi
     rsp = 2.0 * np.cos(theta)
 
     return RadarResult(
@@ -112,7 +105,6 @@ def main():
 
     print("Generating debug plots for radar angle conventions and wrap-around...")
 
-    # Test 1: Wedge at theta=0 (east) with both conventions
     print("\n1. Testing wedge at theta=0 (east)...")
     radar_east = create_wedge_at_angle(center_angle=0.0)
 
@@ -140,7 +132,6 @@ def main():
     plt.close()
     print(f"   Saved: {output_dir / 'debug_wedge_conventions.png'}")
 
-    # Test 2: Wrap-around continuity
     print("\n2. Testing wrap-around continuity...")
     radar_wrap = create_wraparound_pattern()
 
@@ -157,7 +148,6 @@ def main():
     plt.close()
     print(f"   Saved: {output_dir / 'debug_wraparound.png'}")
 
-    # Test 3: Signed pattern with proper labels
     print("\n3. Testing signed pattern with proximal/distal labels...")
     radar_signed = create_signed_pattern()
 
@@ -187,7 +177,6 @@ def main():
     plt.close()
     print(f"   Saved: {output_dir / 'debug_signed_labels.png'}")
 
-    # Test 4: Robust radial scaling
     print("\n4. Testing robust radial scaling...")
     radar_outlier = create_wedge_at_angle(center_angle=np.pi / 2)
     radar_outlier.rsp[0] = 20.0  # Add outlier

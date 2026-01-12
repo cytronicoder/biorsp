@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Generate end-to-end schematic figure.
 Provides a one-glance workflow diagram that maps directly to the method text.

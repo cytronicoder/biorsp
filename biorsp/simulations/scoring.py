@@ -77,7 +77,6 @@ def score_dataset(
         if cached is not None:
             pass
 
-    # Call BioRSP public API
     results = score_genes(adata, genes, embedding_key=embedding_key, config=config)
 
     df = pd.DataFrame()
@@ -151,7 +150,6 @@ def score_pairs(
         if cached is not None:
             pass
 
-    # Call BioRSP public API
     results = score_gene_pairs(adata, genes, embedding_key=embedding_key, config=config)
 
     df = pd.DataFrame()

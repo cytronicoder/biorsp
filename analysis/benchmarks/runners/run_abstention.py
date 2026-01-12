@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Abstention/Failure Mode Evaluation.
 
@@ -226,12 +225,10 @@ Mode: {args.mode}
 Runtime: {elapsed:.1f}s
 Replicates per condition: {n_reps}
 
-## Summary
 
 BioRSP should abstain (return NaN or flag) when there is insufficient data
 to compute reliable spatial scores.
 
-## Results
 
 | Condition | Abstention Rate | Expected | Status |
 |-----------|-----------------|----------|--------|
@@ -246,7 +243,6 @@ to compute reliable spatial scores.
         )
 
     report += """
-## Interpretation
 
 - **Low coverage stress**: At very low coverage (1-2%), most cells don't express
   the gene, making spatial analysis unreliable. BioRSP should abstain.
@@ -257,7 +253,6 @@ to compute reliable spatial scores.
 - **Geometry stress**: Disconnected geometries may confuse center-based methods
   but shouldn't necessarily cause abstention.
 
-## Expected Behavior
 
 1. Normal conditions (N≥200, C≥5%): Should NOT abstain
 2. Very low coverage (C<3%): SHOULD abstain

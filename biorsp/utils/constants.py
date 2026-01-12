@@ -49,7 +49,6 @@ REASON_GENE_LOW_COVERAGE = "low_coverage"
 REASON_GENE_TOO_FEW_SECTORS = "too_few_valid_sectors"
 REASON_OK = "ok"
 
-# Minimum total cells per sector for geometry support
 MIN_TOTAL_PER_SECTOR_DEFAULT = 20
 
 __all__ = [

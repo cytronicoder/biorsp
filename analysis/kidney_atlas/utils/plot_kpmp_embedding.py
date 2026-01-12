@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Plot 2D embedding for KPMP AnnData object with auto-discovery and multiple variants.
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Cross-Embedding Stability Benchmark.
 
@@ -74,7 +73,6 @@ def generate_pca_embeddings(X_high_dim, n_embeddings, rng):
     """Fallback: PCA with added noise for variation."""
     from scipy.linalg import svd
 
-    # Center and PCA
     X_centered = X_high_dim - X_high_dim.mean(axis=0)
     U, s, Vt = svd(X_centered, full_matrices=False)
     coords_base = U[:, :2] * s[:2]
@@ -121,16 +119,13 @@ def run_stability(args):
         n_permutations=0,  # No permutations for speed
     )
 
-    # Generate base coordinates and gene panel
     print("\n[1/4] Generating base dataset...")
 
-    # Base 2D coordinates (ground truth spatial structure)
     coords_base, _ = shapes.generate_coords("disk", mode_cfg["n_cells"], gen)
     libsize = expression.simulate_library_size(
         mode_cfg["n_cells"], gen, model="lognormal", params={"mean": 2000, "sigma": 0.5}
     )
 
-    # Generate genes with factorial design (half structured, half iid)
     n_per_arch = mode_cfg["n_genes"] // 4
     X, var_names, truth_df = datasets.make_factorial_panel(
         coords=coords_base,
@@ -139,28 +134,23 @@ def run_stability(args):
         n_per_archetype=n_per_arch,
     )
 
-    # Generate multiple embeddings
     print("[2/4] Generating embeddings...")
 
     n_latent_dims = 20
     X_latent = np.zeros((mode_cfg["n_cells"], n_latent_dims))
 
-    # First 2 dims are the true spatial coords (scaled)
     X_latent[:, 0] = coords_base[:, 0]
     X_latent[:, 1] = coords_base[:, 1]
 
     for d in range(2, n_latent_dims):
         if d < 5:
-            # Correlated with spatial
             X_latent[:, d] = X_latent[:, d % 2] + gen.normal(0, 0.3, mode_cfg["n_cells"])
         else:
-            # Pure noise
             X_latent[:, d] = gen.normal(0, 1, mode_cfg["n_cells"])
 
     embeddings = generate_umap_embeddings(X_latent, mode_cfg["n_embeddings"], gen)
     print(f"   Generated {len(embeddings)} embeddings")
 
-    # Score genes on each embedding
     print("[3/4] Scoring genes on each embedding...")
 
     scores_list = []
@@ -178,7 +168,6 @@ def run_stability(args):
         s_scores = scores_df.set_index("gene").loc[var_names, "Spatial_Score"].values
         scores_list.append(s_scores)
 
-        # Classify
         c_scores = scores_df.set_index("gene").loc[var_names, "Coverage"].values
         labels = metrics.classify_by_quadrant(c_scores, s_scores)
         labels_list.append(labels)
@@ -196,7 +185,6 @@ def run_stability(args):
     print(f"  Label agreement: {stability.get('label_agreement', np.nan):.3f}")
     print(f"  Score std (mean): {stability['score_std_mean']:.3f}")
 
-    # Generate figures
     print("\nGenerating figures...")
 
     fig, axes = plt.subplots(1, 3, figsize=(14, 4))
@@ -259,7 +247,6 @@ def run_stability(args):
     io.save_figure(fig, output_dir, "fig_stability_embeddings.png")
     plt.close(fig)
 
-    # Save metrics
     with open(output_dir / "stability_metrics.json", "w") as f:
         json.dump(
             {
@@ -270,7 +257,6 @@ def run_stability(args):
             indent=2,
         )
 
-    # Report
     elapsed = time.time() - start_time
 
     stability_pass = stability["score_correlation"] >= 0.8
@@ -282,11 +268,9 @@ Runtime: {elapsed:.1f}s
 N embeddings: {mode_cfg["n_embeddings"]}
 N genes: {len(var_names)}
 
-## Summary
 
 BioRSP scores should be stable across different 2D embeddings of the same data.
 
-## Results
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
@@ -295,7 +279,6 @@ BioRSP scores should be stable across different 2D embeddings of the same data.
 | Label Agreement | {stability.get("label_agreement", np.nan):.3f} | ≥ 0.80 | - |
 | Score Std (per gene) | {stability["score_std_mean"]:.3f} | ≤ 0.10 | - |
 
-## Interpretation
 
 - **Score Correlation**: Pearson correlation of S scores between embeddings.
   High correlation (>0.9) indicates that spatial scores are robust to embedding variation.

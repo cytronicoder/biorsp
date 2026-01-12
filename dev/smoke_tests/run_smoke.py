@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Unified Smoke Test Runner for BioRSP.
 
@@ -17,7 +16,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Repository root
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -40,19 +38,14 @@ def main():
     print("BioRSP Unified Smoke Tests")
     print("=" * 60)
 
-    # 1. Basic Example
     run_command(["python", "examples/1_basic_scoring.py"], desc="Basic Scoring Example")
 
-    # 2. Advanced Example (if exists)
     adv_ex = ROOT / "examples/2_advanced_config.py"
     if adv_ex.exists():
         run_command(
             ["python", "examples/2_advanced_config.py"], desc="Advanced Configuration Example"
         )
 
-    # 3. Quick Benchmark
-    # We use runs/analysis/benchmarks/runners/run_archetypes.py
-    # Note: --mode quick --n_reps 1
     bench_cmd = [
         "python",
         "analysis/benchmarks/runners/run_archetypes.py",

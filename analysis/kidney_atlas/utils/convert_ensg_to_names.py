@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Utility script to convert ENSG IDs to gene names in pipeline outputs.
 

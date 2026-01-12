@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Batch runner for all BioRSP simulation benchmarks.
 
@@ -6,13 +5,10 @@ Runs all 4 benchmarks sequentially with optimized settings, tracking progress
 and aggregating runtime statistics.
 
 Usage:
-    # Full publication pipeline (~3-4 hours with 8 workers)
     python run_benchmarks.py --mode publication --n_workers 8
 
-    # Quick smoke test (~5 minutes)
     python run_benchmarks.py --mode quick --n_workers 4
 
-    # Custom configuration
     python run_benchmarks.py --mode publication --n_workers 8 --checkpoint_every 50 --resume
 """
 
@@ -94,13 +90,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Full publication pipeline
   python run_benchmarks.py --mode publication --n_workers 8
 
-  # Quick test
   python run_benchmarks.py --mode quick --n_workers 4
 
-  # Resume interrupted run
   python run_benchmarks.py --mode publication --n_workers 8 --resume
         """,
     )

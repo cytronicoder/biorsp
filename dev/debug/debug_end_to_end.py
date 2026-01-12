@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Debug script for end-to-end workflow visualization.
 
 Generates end-to-end figures for synthetic scenarios to verify the workflow

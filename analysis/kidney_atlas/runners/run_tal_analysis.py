@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Analyze how genes are spatially organized in Thick Ascending Limb (TAL) cells
 from the human kidney reference dataset.
@@ -19,7 +18,6 @@ Workflow:
 7. Generate publication-ready figures and data tables
 
 Quick Examples:
-    # Fast test run (2 minutes)
     python run_tal_analysis.py \\
       --ref_data data/kpmp.h5ad \\
       --outdir results/tal_pilot \\
@@ -27,7 +25,6 @@ Quick Examples:
       --max_genes 10 \\
       --n_permutations 100
 
-    # Full analysis (30-60 minutes)
     python run_tal_analysis.py \\
       --ref_data data/kpmp.h5ad \\
       --outdir results/tal_full \\
@@ -57,7 +54,6 @@ import pandas as pd
 import scipy.sparse
 from tqdm import tqdm
 
-# Prevent BLAS thread oversubscription when using multiple workers
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
@@ -91,7 +87,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# CLI Argument Parsing
 
 
 def parse_args() -> argparse.Namespace:
@@ -101,18 +96,15 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Pilot run (fast, for testing)
   python run_tal_analysis.py --ref_data data/kpmp.h5ad --outdir results/pilot \\
       --controls "SLC12A1,UMOD,EGF" --max_genes 10 --n_permutations 100
 
-  # Full run with gene-gene analysis
   python run_tal_analysis.py --ref_data data/kpmp.h5ad --outdir results/full \\
       --controls "SLC12A1,UMOD,EGF" --max_genes 500 --n_permutations 1000 \\
       --do_genegene --n_workers 4
 """,
     )
 
-    # Input/Output
     io_group = parser.add_argument_group("Input/Output")
     io_group.add_argument(
         "--ref_data",
@@ -127,7 +119,6 @@ Examples:
         help="Directory to save all results",
     )
 
-    # Cell selection
     cell_group = parser.add_argument_group("Cell Selection")
     cell_group.add_argument(
         "--celltype_key",
@@ -155,7 +146,6 @@ Examples:
         help="Subsample to N cells for faster testing (default: no subsampling)",
     )
 
-    # Gene selection
     gene_group = parser.add_argument_group("Gene Selection")
     gene_group.add_argument(
         "--controls",
@@ -181,7 +171,6 @@ Examples:
         help="Regex pattern for genes to exclude (default: MT/ribosomal)",
     )
 
-    # Scoring parameters
     scoring_group = parser.add_argument_group("Scoring Parameters")
     scoring_group.add_argument(
         "--embedding_key",
@@ -234,7 +223,6 @@ Examples:
         help="Number of permutations for p-value calculation (default: 200)",
     )
 
-    # Classification parameters
     class_group = parser.add_argument_group("Archetype Classification")
     class_group.add_argument(
         "--c_cut",
@@ -255,7 +243,6 @@ Examples:
         help="FDR threshold for significance (default: 0.05)",
     )
 
-    # Gene-gene analysis
     pair_group = parser.add_argument_group("Gene-Gene Analysis (Optional)")
     pair_group.add_argument(
         "--do_genegene",
@@ -269,7 +256,6 @@ Examples:
         help="Number of top genes for pairwise analysis (default: 50)",
     )
 
-    # Plotting
     plot_group = parser.add_argument_group("Plotting")
     plot_group.add_argument(
         "--top_k_plots",
@@ -285,7 +271,6 @@ Examples:
         help="Radar plot mode: 'signed' (proximal/distal color) or 'absolute' (split panels)",
     )
 
-    # Runtime
     runtime_group = parser.add_argument_group("Runtime")
     runtime_group.add_argument(
         "--n_workers",
@@ -310,7 +295,6 @@ Examples:
     return parser.parse_args()
 
 
-# Data Loading and Utilities
 
 
 def compute_file_checksum(path: str, algorithm: str = "sha256") -> str:
@@ -388,7 +372,6 @@ def build_symbol_mappings(adata: anndata.AnnData) -> tuple[dict[str, str], dict[
     return var_to_symbol, symbol_to_var
 
 
-# Gene Selection
 
 
 def select_genes(
@@ -422,7 +405,6 @@ def select_genes(
         "exclude_pattern": exclude_pattern,
     }
 
-    # Parse controls
     control_vars = []
     control_symbols = []
     missing_controls = []
@@ -491,7 +473,6 @@ def select_genes(
     return genes_to_analyze, control_vars, selection_info
 
 
-# Plotting Functions
 
 
 def plot_gene_panel(
@@ -518,11 +499,9 @@ def plot_gene_panel(
 
     coords = adata.obsm[embedding_key][:, :2]
 
-    # Coverage mask (biological threshold)
     t_g = gene_result.get("expr_threshold_value", 1.0)
     coverage_mask = expr >= t_g
 
-    # Internal foreground (quantile-based for radar)
     q_thresh = np.quantile(expr, config.foreground_quantile)
     fg_mask = expr >= q_thresh if q_thresh > 0 else expr > 0
 
@@ -543,8 +522,6 @@ def plot_gene_panel(
         ax_emb = fig.add_subplot(gs[0, 0])
         ax_radar = fig.add_subplot(gs[0, 1], projection="polar")
 
-    # --- Embedding panel ---
-    # Plot all cells colored by expression
     sc = ax_emb.scatter(
         coords[:, 0],
         coords[:, 1],
@@ -556,7 +533,6 @@ def plot_gene_panel(
     )
     plt.colorbar(sc, ax=ax_emb, label="Expression", shrink=0.6)
 
-    # Outline coverage-positive cells
     if np.any(coverage_mask):
         ax_emb.scatter(
             coords[coverage_mask, 0],
@@ -569,14 +545,12 @@ def plot_gene_panel(
             label=f"Coverage (x ≥ {t_g:.2g})",
         )
 
-    # Mark vantage point
     ax_emb.scatter(center[0], center[1], c="black", marker="X", s=150, zorder=10, label="Vantage")
 
     ax_emb.set_title(f"{symbol}\n(TAL Cells)", fontsize=14)
     ax_emb.axis("off")
     ax_emb.legend(loc="lower left", fontsize=9)
 
-    # --- Radar panel(s) ---
     if plot_mode == "absolute":
         plot_radar(
             radar,
@@ -652,7 +626,6 @@ def plot_archetype_scatter(
     if s_cut is None:
         s_cut = df.attrs.get("s_cut", 0.05)  # Default from classify_genes
 
-    # Plot all genes
     if "Archetype" in df.columns:
         archetype_colors = {
             "localized_program": "#e41a1c",
@@ -681,11 +654,9 @@ def plot_archetype_scatter(
             edgecolors="none",
         )
 
-    # Draw quadrant lines
     ax.axvline(c_cut, color="gray", linestyle="--", alpha=0.5, linewidth=1)
     ax.axhline(s_cut, color="gray", linestyle="--", alpha=0.5, linewidth=1)
 
-    # Label control genes
     symbol_col = "gene_symbol" if "gene_symbol" in df.columns else "gene"
     for _, row in df.iterrows():
         sym = row.get(symbol_col, row["gene"])
@@ -700,7 +671,6 @@ def plot_archetype_scatter(
                 color="red",
             )
 
-    # Quadrant labels
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
     ax.text(
@@ -792,7 +762,6 @@ def plot_gene_pairs_heatmap(
             matrix[i, j] = row["copattern_score"]
             matrix[j, i] = row["copattern_score"]
 
-    # Plot
     fig, ax = plt.subplots(figsize=(12, 10))
     symbols = [var_to_symbol.get(g, g) for g in all_genes]
 
@@ -866,14 +835,12 @@ def main():
 
     adata_tal = adata[tal_mask].copy()
 
-    # Subsample if requested
     if args.subsample and args.subsample < adata_tal.n_obs:
         logger.info(f"Subsampling to {args.subsample} cells (seed={args.seed})")
         np.random.seed(args.seed)
         idx = np.random.choice(adata_tal.n_obs, args.subsample, replace=False)
         adata_tal = adata_tal[idx].copy()
 
-    # Record donor distribution
     if args.donor_key in adata_tal.obs.columns:
         donor_counts = adata_tal.obs[args.donor_key].value_counts().to_dict()
         run_meta["donor_distribution"] = donor_counts
@@ -911,11 +878,9 @@ def main():
 
     logger.info("[Stage 5] Running BioRSP scoring...")
 
-    # Determine stratify key (convert categorical to string to avoid numpy dtype issues)
     stratify_key = None
     if args.donor_key in adata_tal.obs.columns:
         donor_col = adata_tal.obs[args.donor_key]
-        # Convert categorical to string for stratification
         if hasattr(donor_col, "cat"):
             adata_tal.obs[args.donor_key] = donor_col.astype(str)
         stratify_key = args.donor_key
@@ -938,7 +903,6 @@ def main():
     logger.info(f"  threshold_mode={config.expr_threshold_mode}, empty_fg={config.empty_fg_policy}")
     logger.info(f"  n_permutations={config.n_permutations}, seed={config.seed}")
 
-    # Call score_genes
     df_results = score_genes(
         adata_tal,
         genes=genes_to_analyze,
@@ -946,7 +910,6 @@ def main():
         config=config,
     )
 
-    # Add gene symbols
     df_results["gene_symbol"] = df_results["gene"].map(var_to_symbol)
     df_results["is_control"] = df_results["gene"].isin(control_vars)
 
@@ -961,7 +924,6 @@ def main():
         fdr_cut=args.fdr_cut,
     )
 
-    # Record classification cutoffs
     run_meta["classification"] = {
         "c_cut": df_classified.attrs.get("c_cut", args.c_cut),
         "s_cut": df_classified.attrs.get("s_cut"),
@@ -975,15 +937,12 @@ def main():
 
     logger.info("[Stage 7] Saving results...")
 
-    # Sort by spatial_score (primary), coverage_expr (secondary)
     df_sorted = df_classified.sort_values(["Spatial_Score", "Coverage"], ascending=[False, False])
 
-    # Main results CSV
     csv_path = outdir / "tal_gene_results.csv"
     df_sorted.to_csv(csv_path, index=False)
     logger.info(f"Saved: {csv_path}")
 
-    # Top genes list (significant only if q-values exist)
     txt_path = outdir / "tal_top_genes.txt"
     if "q_value" in df_sorted.columns and not df_sorted["q_value"].isna().all():
         sig_df = df_sorted[df_sorted["q_value"] < args.fdr_cut]
@@ -1006,7 +965,6 @@ def main():
     if args.do_genegene:
         logger.info("[Stage 8] Running gene-gene relationship analysis...")
 
-        # Select top genes for pairwise analysis
         if "q_value" in df_sorted.columns and not df_sorted["q_value"].isna().all():
             pair_candidates = df_sorted[df_sorted["q_value"] < args.fdr_cut]["gene"].tolist()
         else:
@@ -1028,7 +986,6 @@ def main():
             logger.info(f"Saved: {pairs_path} ({len(df_pairs)} pairs)")
             run_meta["n_gene_pairs"] = len(df_pairs)
 
-            # Plot heatmap
             heatmap_path = outdir / "tal_gene_pairs_heatmap.png"
             plot_gene_pairs_heatmap(df_pairs, var_to_symbol, heatmap_path)
         else:
@@ -1042,7 +999,6 @@ def main():
     plots_dir = outdir / "plots"
     plots_dir.mkdir(exist_ok=True)
 
-    # Archetype scatter (primary story figure)
     scatter_path = outdir / "tal_archetypes_scatter.png"
     plot_archetype_scatter(
         df_sorted,
@@ -1052,7 +1008,6 @@ def main():
         outpath=scatter_path,
     )
 
-    # Per-gene plots for top genes + controls
     top_for_plots = df_sorted.head(args.top_k_plots)["gene"].tolist()
     plot_genes = list(set(top_for_plots + control_vars))
 
@@ -1096,7 +1051,6 @@ def main():
         json.dump(run_meta, f, indent=2, default=str)
     logger.info(f"Saved: {meta_path}")
 
-    # Summary
     logger.info("=" * 60)
     logger.info("Analysis complete!")
     logger.info(f"  Duration: {run_meta['duration_seconds']:.1f} seconds")

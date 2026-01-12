@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Generate Polar Re-parameterization Diagnostic Figure.
 
 This figure illustrates how BioRSP transforms Cartesian coordinates (x,y)

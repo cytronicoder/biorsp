@@ -387,7 +387,6 @@ def main():
         )
         io.save_figure(fig, output_dir, f"archetypes_scatter_{shape}.png")
 
-    # Confusion matrix
     fig = plotting.plot_confusion_matrix_styled(
         cm_df,
         title="Archetype Classification",
@@ -395,7 +394,6 @@ def main():
     )
     io.save_figure(fig, output_dir, "archetypes_confusion_matrix.png")
 
-    # Generate example panels for each archetype
     print("Generating archetype example panels...")
     examples_dir = output_dir / "examples"
     examples_dir.mkdir(parents=True, exist_ok=True)
@@ -404,7 +402,6 @@ def main():
     for archetype in labels_order:
         arch_runs = runs_df[runs_df["true_archetype"] == archetype]
         if len(arch_runs) > 0:
-            # Use median-score example for representative visualization
             median_idx = (
                 (arch_runs["Spatial_Score"] - arch_runs["Spatial_Score"].median()).abs().idxmin()
             )
@@ -422,36 +419,30 @@ def main():
                 }
             )
 
-    # Save example metadata
     if example_data:
         example_df = pd.DataFrame(example_data)
         example_df.to_csv(examples_dir / "example_metadata.csv", index=False)
         print(f"✓ Saved example metadata to {examples_dir / 'example_metadata.csv'}")
 
-    # Generate misclassified diagnostics
     print("Generating misclassification diagnostics...")
     misclass_mask = runs_df["predicted_archetype"] != runs_df["true_archetype"]
     misclass_df = runs_df[misclass_mask].copy()
 
     if len(misclass_df) > 0:
-        # Sort by confidence (distance from threshold)
         misclass_df["s_margin"] = np.abs(misclass_df["Spatial_Score"] - s_cut)
         misclass_df["c_margin"] = np.abs(misclass_df["Coverage"] - c_cut)
         misclass_df["total_margin"] = misclass_df["s_margin"] + misclass_df["c_margin"]
         misclass_df = misclass_df.sort_values("total_margin", ascending=True)
 
-        # Save top misclassifications
         debug_dir = output_dir / "diagnostics"
         debug_dir.mkdir(parents=True, exist_ok=True)
 
-        # Take worst 12 misclassifications (closest to boundary = most informative)
         worst_misclass = misclass_df.head(12)
         worst_misclass.to_csv(debug_dir / "misclassified.csv", index=False)
         print(
             f"✓ Saved {len(worst_misclass)} misclassification diagnostics to {debug_dir / 'misclassified.csv'}"
         )
 
-        # Summary of misclassification patterns
         misclass_summary = (
             misclass_df.groupby(["true_archetype", "predicted_archetype"])
             .size()

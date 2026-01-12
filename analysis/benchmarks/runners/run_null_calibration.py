@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Null Calibration for Deriving Thresholds.
 
@@ -91,18 +90,15 @@ def run_calibration(args):
         for rep in range(mode_cfg["n_reps"]):
             gen = rng.make_rng(args.seed + rep, "calibration", null_type)
 
-            # Generate data
             coords, _ = shapes.generate_coords("disk", mode_cfg["n_cells"], gen)
             libsize = expression.simulate_library_size(
                 mode_cfg["n_cells"], gen, model="lognormal", params={"mean": 2000, "sigma": 0.5}
             )
 
-            # Generate null expression
             counts, _ = expression.generate_confounded_null(
                 coords, libsize, gen, null_type=null_type, params={}
             )
 
-            # Package and score
             adata = datasets.package_as_anndata(
                 coords, counts[:, None], var_names=["null_gene"], embedding_key="X_sim"
             )
@@ -129,7 +125,6 @@ def run_calibration(args):
 
     results_df = pd.DataFrame(all_results)
 
-    # Derive thresholds
     valid_s = results_df.loc[~results_df["abstain_flag"], "Spatial_Score"].values
     valid_c = results_df.loc[~results_df["abstain_flag"], "Coverage"].values
 
@@ -145,7 +140,6 @@ def run_calibration(args):
     print(f"  C_cut: {thresholds['c_cut']:.4f}")
     print(f"  Based on {thresholds['n_samples']} valid null samples")
 
-    # KS test for p-value uniformity (if p-values computed)
     if "p_value" in results_df.columns:
         p_vals = results_df["p_value"].dropna().values
         if len(p_vals) > 10:
@@ -154,7 +148,6 @@ def run_calibration(args):
             thresholds["ks_pval"] = float(ks_pval)
             print(f"  KS test for uniformity: stat={ks_stat:.4f}, p={ks_pval:.4f}")
 
-    # Save outputs
     results_df.to_csv(output_dir / "null_distribution.csv", index=False)
 
     with open(output_dir / "thresholds.json", "w") as f:
@@ -162,7 +155,6 @@ def run_calibration(args):
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 
-    # S distribution
     axes[0].hist(valid_s, bins=30, alpha=0.7, edgecolor="black")
     axes[0].axvline(
         thresholds["s_cut"],
@@ -176,7 +168,6 @@ def run_calibration(args):
     axes[0].set_title("Null Distribution of S")
     axes[0].legend()
 
-    # C distribution
     axes[1].hist(valid_c, bins=30, alpha=0.7, edgecolor="black", color="green")
     axes[1].axvline(
         thresholds["c_cut"],
@@ -194,7 +185,6 @@ def run_calibration(args):
     io.save_figure(fig, output_dir, "fig_null_distributions.png")
     plt.close(fig)
 
-    # Report
     elapsed = time.time() - start_time
 
     report = f"""# Null Calibration Report
@@ -202,7 +192,6 @@ def run_calibration(args):
 Mode: {args.mode}
 Runtime: {elapsed:.1f}s
 
-## Derived Thresholds
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
@@ -210,13 +199,11 @@ Runtime: {elapsed:.1f}s
 | C_cut | {thresholds["c_cut"]:.4f} | 30th percentile of null C |
 | N samples | {thresholds["n_samples"]} | Valid null samples |
 
-## Interpretation
 
 - Genes with S > S_cut are likely to have true spatial structure
 - Genes with C < C_cut are considered "low coverage"
 - These thresholds define the quadrant boundaries for classification
 
-## Usage
 
 Load thresholds in other scripts:
 ```python

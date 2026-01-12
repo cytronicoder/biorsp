@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Debug QQ quantile generation to see what's actually happening."""
 
 import matplotlib.pyplot as plt

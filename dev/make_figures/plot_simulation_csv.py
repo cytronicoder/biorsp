@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Plot simulation results from CSV files with robust schema validation.
 
 This script provides a command-line interface for plotting various types of
@@ -10,7 +9,6 @@ Usage:
 
     python scripts/plot_simulation_csv.py --input-dir results/sim --outdir scripts/output --which calibration,power
 
-    # Legacy mode (single CSV)
     python scripts/plot_simulation_csv.py results/sim/calibration.csv scripts/output/out --plot_type calibration
 
 Requires:

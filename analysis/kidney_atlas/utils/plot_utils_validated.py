@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Validated plotting utilities for disease-stratified BioRSP analysis.
 
@@ -25,7 +24,6 @@ from biorsp.preprocess.normalization import normalize_radii
 
 logger = logging.getLogger(__name__)
 
-# Archetype colors (using display names)
 ARCHETYPE_COLORS = {
     "I: Ubiquitous": "#4DBEEE",
     "II: Gradient": "#77AC30",
@@ -75,7 +73,6 @@ def validate_archetype_quadrants(
         c = row["Coverage"]
         s = row["Spatial_Score"]
 
-        # Determine expected quadrant using SAME logic as classify_genes
         high_c = c >= c_cut
         high_s = row.get("q_value", 1.0) < fdr_cut and s > 0 if s_method == "fdr" else s >= s_cut
 
@@ -136,13 +133,10 @@ def plot_cs_scatter(
         s_cut = cutoffs["s_cut"]
         s_method = cutoffs.get("s_cut_method", "unknown")
 
-        # Validate BEFORE plotting
         mismatches = validate_archetype_quadrants(df, cutoffs, strict=strict, outdir=outdir)
 
-        # Create plot
         fig, ax = plt.subplots(figsize=(10, 10))
 
-        # Downsample if needed
         if len(df) > max_points:
             rng = np.random.default_rng(seed)
             idx = rng.choice(len(df), size=max_points, replace=False)
@@ -150,7 +144,6 @@ def plot_cs_scatter(
         else:
             plot_df = df.copy()
 
-        # Plot by archetype
         for archetype, color in ARCHETYPE_COLORS.items():
             mask = plot_df["Archetype"] == archetype
             if not mask.any():
@@ -165,11 +158,9 @@ def plot_cs_scatter(
                 rasterized=True,
             )
 
-        # Quadrant lines (MUST match classification cutoffs exactly)
         ax.axvline(c_cut, color="gray", linestyle="--", linewidth=1.5, alpha=0.7, zorder=1000)
         ax.axhline(s_cut, color="gray", linestyle="--", linewidth=1.5, alpha=0.7, zorder=1000)
 
-        # Labels
         ax.set_xlabel("Coverage Score $C$ (expr $\\geq t_g$)", fontsize=16)
         ax.set_ylabel("Spatial Bias Score $S$", fontsize=16)
 
@@ -181,7 +172,6 @@ def plot_cs_scatter(
 
         ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=12, frameon=True)
 
-        # Dynamic axis limits
         x_max = min(1.02, plot_df["Coverage"].max() * 1.1)
         y_max = plot_df["Spatial_Score"].quantile(0.99) * 1.2
         ax.set_xlim(-0.02, x_max)
@@ -217,7 +207,6 @@ def plot_cs_marginals(
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-        # Coverage histogram
         axes[0].hist(df["Coverage"], bins=50, color="steelblue", alpha=0.7, edgecolor="black")
         axes[0].axvline(
             c_cut,
@@ -232,7 +221,6 @@ def plot_cs_marginals(
         axes[0].legend(fontsize=12)
         axes[0].grid(axis="y", alpha=0.3)
 
-        # Spatial score histogram
         axes[1].hist(df["Spatial_Score"], bins=50, color="coral", alpha=0.7, edgecolor="black")
         axes[1].axvline(
             s_cut,
@@ -309,15 +297,12 @@ def plot_gene_exemplar(
         gene_symbol = var_to_symbol.get(gene, gene)
         archetype = gene_row["Archetype"]
 
-        # Extract expression
         idx = adata.var_names.get_loc(gene)
         x = adata.X[:, idx].toarray().flatten() if hasattr(adata.X, "toarray") else adata.X[:, idx]
 
-        # Coverage mask (for C score)
         coverage_mask = x >= coverage_threshold
         n_coverage = coverage_mask.sum()
 
-        # Internal foreground mask (for S score)
         y_fg, fg_info = define_foreground(
             x,
             mode=config.foreground_mode,
@@ -329,16 +314,13 @@ def plot_gene_exemplar(
 
         coords = adata.obsm[embedding_key]
 
-        # Create figure with 3 panels
         fig = plt.figure(figsize=(18, 5))
         ax1 = plt.subplot(1, 3, 1)
         ax2 = plt.subplot(1, 3, 2)
         ax3 = plt.subplot(1, 3, 3)
 
-        # Panel 1: Embedding with dual masks
         ax1.scatter(coords[:, 0], coords[:, 1], c="lightgray", s=1, alpha=0.3, rasterized=True)
 
-        # Coverage-positive cells (colored by archetype)
         if n_coverage > 0:
             color = ARCHETYPE_COLORS.get(archetype, "purple")
             ax1.scatter(
@@ -351,7 +333,6 @@ def plot_gene_exemplar(
                 rasterized=True,
             )
 
-        # Internal FG cells (outlined in black)
         if y_fg is not None and np.any(y_fg):
             fg_mask = y_fg if y_fg.dtype == bool else y_fg > 0.5
             ax1.scatter(
@@ -372,7 +353,6 @@ def plot_gene_exemplar(
         ax1.legend(loc="best", fontsize=10)
         ax1.set_aspect("equal")
 
-        # Panel 2: Radar plot
         if y_fg is not None:
             center = compute_vantage(
                 coords,
@@ -405,7 +385,6 @@ def plot_gene_exemplar(
             )
             ax2.axis("off")
 
-        # Panel 3: Metadata table
         ax3.axis("off")
         metadata_text = [
             f"Gene: {gene_symbol}",
@@ -428,7 +407,6 @@ def plot_gene_exemplar(
         exemplar_dir = outdir / "exemplars"
         exemplar_dir.mkdir(exist_ok=True)
 
-        # Sanitize filename
         safe_name = gene_symbol.replace("/", "_").replace(":", "_")
         outfile = exemplar_dir / f"exemplar_{safe_name}.png"
         plt.savefig(outfile, dpi=200, bbox_inches="tight")

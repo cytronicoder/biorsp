@@ -27,7 +27,6 @@ def publication_style():
     Usage:
         with publication_style():
             fig, ax = plt.subplots()
-            # ... plotting code ...
             save_figure(fig, "output.pdf")
     """
     original_params = dict(plt.rcParams)

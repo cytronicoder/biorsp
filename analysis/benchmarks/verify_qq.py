@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Verify QQ plot enhancements are working."""
 
 import numpy as np
@@ -6,16 +5,13 @@ from PIL import Image
 
 from biorsp.simulations import metrics, plotting
 
-# Generate test data
 np.random.seed(42)
 p_values = np.random.uniform(0, 1, 1000)
 
-# Generate QQ plot with new code
 expected, observed = metrics.qq_quantiles(p_values)
 fig = plotting.plot_qq(expected, observed, title="Enhanced QQ Plot Verification")
 fig.savefig("outputs/test_qq_verification.png", dpi=100, bbox_inches="tight")
 
-# Load and check
 img = Image.open("outputs/test_qq_verification.png")
 width, height = img.size
 
