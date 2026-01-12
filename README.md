@@ -1,50 +1,52 @@
 # BioRSP: Biological Radar Spatial Profiling
 
-BioRSP is a framework for quantifying spatial gene expression patterns using radar-based geometric profiling. It decomposes gene expression into interpretable metrics: Coverage, Spatial Score, and Directionality, identifying distinct spatial archetypes (e.g., Basal, Patchy, Gradient).
+BioRSP allows you to quantify how "spatially organized" a gene is without defining clusters first. It calculates two key metrics for every gene:
 
-## Key Features
+1.  **Coverage (C)**: How widely is the gene expressed?
+2.  **Spatial Score (S)**: How polarized/directed is the expression pattern in the tissue embedding?
 
-- **Permutation-based Inference**: Robust statistical significance testing for spatial coherence.
-- **Archetype Classification**: Automatically categorizes genes into spatial patterns.
-- **Standardized Metrics**: 
-  - **Coverage**: Fraction of cells expressing the gene.
-  - **Spatial Score**: Magnitude of spatial organization (0-1).
-  - **Directionality**: Direction of expression gradient.
+By combining these, BioRSP classifies genes into **Archetypes**:
+-   **Housekeeping**: High Coverage, Low Spatial Score -> Ubiquitous
+-   **Regional Program**: High Coverage, High Spatial Score -> Gradients/Zonation
+-   **Niche Marker**: Low Coverage, High Spatial Score -> Focal/Patchy
+-   **Sparse Noise**: Low Coverage, Low Spatial Score -> Random
 
-## Quickstart
+## Installation
 
 ```bash
-pip install biorsp-swordfish
+pip install .
 ```
 
+## Quick Start
+
 ```python
-import scanpy as sc
 from biorsp import score_genes, classify_genes
+import scanpy as sc
 
-# Load your AnnData (must have spatial coordinates)
-adata = sc.read_h5ad("my_data.h5ad")
+# Load data
+adata = sc.datasets.pbmc3k_processed()
 
-# Score genes (uses 'X_umap' or 'spatial' by default)
-df = score_genes(adata, genes=adata.var_names, embedding_key="X_umap")
+# Score genes based on UMAP embedding
+scores = score_genes(adata, adata.var_names, embedding_key="X_umap")
+results = classify_genes(scores)
 
-# Classify into archetypes
-df = classify_genes(df, fdr_cut=0.05)
-
-# Inspect results
-print(df[["Coverage", "Spatial_Score", "Archetype"]].head())
+print(results.head())
 ```
 
 ## Documentation
 
-- **[Introduction](docs/1_start_here/intro.md)**: What is BioRSP?
-- **[Quickstart Guide](docs/1_start_here/quickstart.md)**: Detailed getting started steps.
-- **[Interpretation](docs/1_start_here/interpretation.md)**: Understanding Coverage vs Spatial Score.
-- **[Concepts](docs/2_concepts/)**: Deep dive into geometry and scoring logic.
-- **[Guides](docs/3_guides/)**: Tutorials for custom data and QC.
+-   [Start Here](docs/1_start_here/intro.md)
+-   [Quickstart](docs/1_start_here/quickstart.md)
+-   [Guides](docs/3_guides/run_custom_data.md)
+-   [Benchmarks](analysis/benchmarks/README.md)
 
-## Project Structure
+## Repository Structure
 
-- `biorsp/`: Core package source.
-- `analysis/`: Analysis workflows and case studies (e.g., Kidney Atlas).
-- `dev/`: Developer tools and smoke tests.
-- `examples/`: Minimal example scripts.
+-   `biorsp/`: Core library code.
+-   `analysis/`: Reproducible analysis workflows (Benchmarks, Kidney Atlas).
+-   `dev/`: Developer tools and smoke tests.
+-   `examples/`: Runnable scripts to learn the API.
+
+## Citation
+
+Please cite [Paper Reference] if you use BioRSP.

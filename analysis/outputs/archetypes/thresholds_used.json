@@ -1,0 +1,7 @@
+{
+  "s_cut": 0.07321570534019609,
+  "c_cut": 0.3,
+  "derived_from": "iid_runs",
+  "overall_accuracy": 0.975,
+  "macro_f1": 0.974937343358396
+}

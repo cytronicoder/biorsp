@@ -1,0 +1,2 @@
+benchmark,shape,N,null_type,permutation_scheme,n_reps,fpr_05,fpr_05_ci_low,fpr_05_ci_high,fpr_01,fpr_01_ci_low,fpr_01_ci_high,ks_stat,ks_pval,abstain_rate,calibrated,schema_version
+calibration,disk,1000,iid,global,100,0.03,0.010254338223414816,0.08452078080402699,0.03,0.010254338223414816,0.08452078080402699,0.08346534653465348,0.4640997587081487,0.0,True,2.0

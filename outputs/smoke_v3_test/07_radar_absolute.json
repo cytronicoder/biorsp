@@ -1,0 +1,19 @@
+{
+  "pattern": "rim_wedge",
+  "config": {
+    "delta_deg": 30,
+    "B": 24,
+    "empty_fg_policy": "zero"
+  },
+  "metrics": {
+    "spatial_score": 0.03993266944807163,
+    "r_mean_bg": -0.008151222017916888,
+    "coverage_bg": 1.0
+  },
+  "normalization": {
+    "median_r": 0.7068404138265385,
+    "iqr_r": 0.3781878917308603,
+    "eps": 1e-08,
+    "n_non_finite": 0
+  }
+}

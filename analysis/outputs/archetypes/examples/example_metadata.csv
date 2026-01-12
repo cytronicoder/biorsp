@@ -1,0 +1,5 @@
+Archetype,coverage,Spatial_Score,seed,shape,N,coverage_regime,organization_regime
+housekeeping,0.755,0.05636445951151487,5019,disk,2000,high,iid
+regional_program,0.722,0.20141765449526441,5008,disk,2000,high,structured
+sparse_noise,0.1675,0.05651413917438915,5030,disk,2000,low,iid
+niche_marker,0.1515,0.12538561700824327,5022,disk,2000,low,structured

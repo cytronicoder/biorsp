@@ -13,21 +13,12 @@ These metrics classify genes into interpretable archetypes:
 P-values are computed via permutation-based null distributions.
 """
 
-from biorsp import simulations
 from biorsp._version import __version__
 from biorsp.api import classify_genes, score_gene_pairs, score_genes
-from biorsp.core import (
-    FeatureResult,
-    PairwiseResult,
-    RunSummary,
-    ScalarSummaries,
-    assess_adequacy,
-    assign_feature_types,
-    compute_p_value,
-    compute_pairwise_relationships,
-    compute_rsp_radar,
-    compute_scalar_summaries,
-)
+from biorsp.utils.config import BioRSPConfig
+
+__all__ = ["score_genes", "classify_genes", "score_gene_pairs", "BioRSPConfig", "__version__"]
+
 from biorsp.main import run
 from biorsp.plotting import (
     plot_embedding,

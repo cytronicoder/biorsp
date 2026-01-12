@@ -1,0 +1,5 @@
+shape,N,coverage_regime,organization_regime,true_archetype,Spatial_Score_mean,Spatial_Score_std,Coverage_mean,Coverage_std,n_expr_cells_mean,classification_accuracy,abstain_rate,n_reps,schema_version
+disk,2000,high,iid,housekeeping,0.05846485041580048,0.011279711425442703,0.7433,0.03487214743411518,1486.6,0.9,0.0,10,2.0
+disk,2000,high,structured,regional_program,0.2068979603253976,0.011336749815180151,0.7515,0.02168204582393254,1503.0,1.0,0.0,10,2.0
+disk,2000,low,iid,sparse_noise,0.05782991117882689,0.007741987699441243,0.1237,0.028341371408831532,247.4,1.0,0.0,10,2.0
+disk,2000,low,structured,niche_marker,0.12402624945076998,0.013437298642366684,0.11620000000000001,0.03386427156885098,232.4,1.0,0.0,10,2.0

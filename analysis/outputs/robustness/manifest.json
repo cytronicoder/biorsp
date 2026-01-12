@@ -1,0 +1,44 @@
+{
+  "schema_version": "2.0",
+  "benchmark": "robustness",
+  "timestamp": "2026-01-12T18:38:26.370459",
+  "git_commit": "7968cd1",
+  "n_replicates": 30,
+  "runtime_seconds": 4.035588979721069,
+  "parameters": {
+    "outdir": "/Users/cytronicoder/Documents/GitHub/biorsp-swordfish/analysis/outputs/robustness",
+    "seed": 1000,
+    "n_reps": 5,
+    "N": [
+      2000
+    ],
+    "shape": [
+      "disk"
+    ],
+    "pattern": [
+      "wedge"
+    ],
+    "distortion_kind": [
+      "none",
+      "rotate"
+    ],
+    "n_permutations": 100,
+    "mode": "quick",
+    "n_jobs": 2,
+    "n_workers": 2,
+    "checkpoint_every": 25,
+    "resume": false,
+    "permutation_scope": "none"
+  },
+  "biorsp_config": {
+    "B": 72,
+    "delta_deg": 60.0,
+    "n_permutations": 0,
+    "min_coverage_fg": null,
+    "min_coverage_geom": null,
+    "min_sector_coverage": null,
+    "empty_fg_policy": "zero",
+    "stratification_keys": null,
+    "adequacy_thresholds": null
+  }
+}

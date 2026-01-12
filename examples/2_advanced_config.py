@@ -10,9 +10,10 @@ handling edge cases.
 import numpy as np
 import scanpy as sc
 
-from biorsp import BioRSPConfig, score_genes
+from biorsp import BioRSPConfig, classify_genes, score_genes
 
 # 1. Setup Data
+np.random.seed(42)  # For data generation
 n_cells = 500
 adata = sc.AnnData(np.random.poisson(1, (n_cells, 20)))
 adata.var_names = [f"Gene_{i}" for i in range(20)]
@@ -23,14 +24,14 @@ adata.obs["cell_type"] = np.random.choice(["TypeA", "TypeB"], n_cells)
 # 2. Configure Analysis
 # See docs/2_concepts/inference.md for parameter details
 config = BioRSPConfig(
-    fdr_level=0.01,  # Stricter FDR control
     n_permutations=500,  # Custom permutation count
-    seed=42,  # Reproducibility
-    min_cells_detection=10,  # Ignore genes with fewer than 10 cells
-    score_method="vantage",  # Use vantage point scoring (default)
+    seed=42,             # Reproducibility
+    min_fg_total=10,     # Ignore genes with fewer than 10 foreground cells
+    delta_deg=30.0,      # Wider sectors (default 20)
+    foreground_quantile=0.95, # Stricter foreground definition
 )
 
-print(f"Running with config: {config}")
+print("Running with customized config...")
 
 # 3. Run Analysis on a Subset
 # We only score cells labeled "TypeA"
@@ -43,5 +44,12 @@ results = score_genes(
     config=config,
 )
 
+# 4. Classify with custom FDR
+classified = classify_genes(
+    results, 
+    fdr_cut=0.01, # Stricter FDR control
+    c_cut=0.15    # Higher coverage threshold
+)
+
 print("\nResults for TypeA cells:")
-print(results[["Coverage", "Spatial_Score", "Archetype"]])
+print(classified[["Coverage", "Spatial_Score", "Directionality", "Archetype"]])
