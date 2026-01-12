@@ -460,13 +460,13 @@ def classify_genes_impl(
             high_s = row["spatial_score"] >= s_cut
 
         if high_c and high_s:
-            return "II: Gradient"
+            return "Gradient"
         elif high_c and not high_s:
-            return "I: Ubiquitous"
+            return "Ubiquitous"
         elif not high_c and high_s:
-            return "III: Patchy"
+            return "Patchy"
         else:
-            return "IV: Basal"
+            return "Basal"
 
     df["archetype"] = df.apply(classify, axis=1)
 

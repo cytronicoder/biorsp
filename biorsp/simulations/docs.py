@@ -230,8 +230,8 @@ def interpret_archetypes(summary_df: pd.DataFrame) -> str:
     lines.append("### What does this mean?")
     lines.append(
         "\nArchetypes represent distinct gene expression patterns: "
-        "**I: Ubiquitous** (uniform), **III: Patchy** (spatially restricted), "
-        "**II: Gradient** (broad domains), **IV: Basal** (sparse). "
+        "**Ubiquitous** (uniform), **Patchy** (spatially restricted), "
+        "**Gradient** (broad domains), **Basal** (sparse). "
         "We test whether BioRSP's Coverage (C) and Spatial Bias Score (S) can distinguish these patterns.\n"
     )
 

@@ -151,7 +151,7 @@ def run_story_benchmark(args):
 
     print("[4/6] Classifying genes into archetypes (with principled null calibration)...")
 
-    null_mask = results_df["Archetype"].isin(["IV: Basal", "I: Ubiquitous"])
+    null_mask = results_df["Archetype"].isin(["Basal", "Ubiquitous"])
     null_s = results_df.loc[
         null_mask & (results_df["organization_regime"] == "iid"), "Spatial_Bias_Score"
     ].values
@@ -215,7 +215,7 @@ def run_story_benchmark(args):
     y_pred = results_df.loc[eval_mask, "pred_archetype"].values
 
     class_metrics = metrics.compute_classification_metrics(
-        y_true, y_pred, labels=["I: Ubiquitous", "II: Gradient", "IV: Basal", "III: Patchy"]
+        y_true, y_pred, labels=["Ubiquitous", "Gradient", "Basal", "Patchy"]
     )
 
     print(f"   Overall accuracy: {class_metrics['accuracy']:.1%}")
@@ -327,7 +327,7 @@ def run_story_benchmark(args):
     ax_c = fig_combined.add_subplot(gs[1, 0])
     ax_d = fig_combined.add_subplot(gs[1, 1])
 
-    for arch in ["I: Ubiquitous", "II: Gradient", "IV: Basal", "III: Patchy"]:
+    for arch in ["Ubiquitous", "Gradient", "Basal", "Patchy"]:
         mask = (results_df.loc[eval_mask, "Archetype"] == arch).values
         if mask.sum() > 0:
             ax_a.scatter(
@@ -362,10 +362,10 @@ def run_story_benchmark(args):
     ax_b.set_xticks(range(len(cm.columns)))
     ax_b.set_yticks(range(len(cm.index)))
     short_labels = {
-        "I: Ubiquitous": "Ubiq.",
-        "II: Gradient": "Regional",
-        "IV: Basal": "Sparse",
-        "III: Patchy": "Niche",
+        "Ubiquitous": "Ubiq.",
+        "Gradient": "Regional",
+        "Basal": "Sparse",
+        "Patchy": "Niche",
     }
     ax_b.set_xticklabels(
         [short_labels.get(c, c) for c in cm.columns], rotation=45, ha="right", fontsize=8
@@ -650,10 +650,10 @@ BioRSP classifies genes into a 2×2 grid based on:
 
 | Archetype | Description | Expected Region |
 |-----------|-------------|-----------------|
-| I: Ubiquitous | Ubiquitous expression | High C, Low S |
-| II: Gradient | Broad spatial domain | High C, High S |
+| Ubiquitous | Ubiquitous expression | High C, Low S |
+| Gradient | Broad spatial domain | High C, High S |
 | Sparse/Noisy | Rare/scattered | Low C, Low S |
-| III: Patchy | Localized expression | Low C, High S |
+| Patchy | Localized expression | Low C, High S |
 
 **Results:**
 - Overall Accuracy: **{class_metrics["accuracy"]:.1%}** {"✓ PASS" if acc_pass else "✗ FAIL"} (threshold: {acc_threshold:.0%})
@@ -698,7 +698,7 @@ Genes sharing the same spatial pattern (module) should have high co-patterning s
    black dashed lines are derived thresholds.
 
 2. **Panel B (Confusion Matrix)**: Diagonal should be bright (high recall). Off-diagonal
-   errors often occur between adjacent quadrants (e.g., regional↔I: Ubiquitous).
+   errors often occur between adjacent quadrants (e.g., regional↔Ubiquitous).
 
 3. **Panel C (Marker Recovery)**: Precision should be well above 50% (random) for top-ranked
    genes, indicating that S effectively identifies structured genes.
@@ -728,7 +728,7 @@ def write_caption(figures_dir: Path):
     caption = """Figure: BioRSP Method Validation Through Simulation
 
 (A) Coverage (C) vs Spatial Organization Score (S) for simulated genes with known ground truth.
-    Points are colored by true archetype: I: Ubiquitous (green), regional program (blue),
+    Points are colored by true archetype: Ubiquitous (green), regional program (blue),
     sparse/noisy (gray), and niche marker (orange). Dashed lines indicate classification
     thresholds derived from null simulations.
 

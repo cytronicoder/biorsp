@@ -17,17 +17,17 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 ARCHETYPE_MAPPING = {
-    "Ubiquitous Uniform": "I: Ubiquitous",
-    "Focal Marker": "III: Patchy",
-    "Regional Gradient": "II: Gradient",
-    "Rare Scattered": "IV: Basal",
+    "Ubiquitous Uniform": "Ubiquitous",
+    "Focal Marker": "Patchy",
+    "Regional Gradient": "Gradient",
+    "Rare Scattered": "Basal",
 }
 
 ARCHETYPE_COLORS = {
-    "I: Ubiquitous": "#4DBEEE",
-    "III: Patchy": "#D95319",
-    "II: Gradient": "#77AC30",
-    "IV: Basal": "#A2142F",
+    "Ubiquitous": "#4DBEEE",
+    "Patchy": "#D95319",
+    "Gradient": "#77AC30",
+    "Basal": "#A2142F",
 }
 
 
@@ -177,7 +177,7 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
 
     gene_col = "gene_name" if "gene_name" in df.columns else "gene"
 
-    for idx, archetype in enumerate(["I: Ubiquitous", "II: Gradient", "III: Patchy", "IV: Basal"]):
+    for idx, archetype in enumerate(["Ubiquitous", "Gradient", "Patchy", "Basal"]):
         ax = axes[idx]
         color = ARCHETYPE_COLORS[archetype]
 
@@ -259,7 +259,7 @@ def plot_archetype_examples(
         if len(subset) == 0:
             continue
 
-        if archetype == "III: Patchy" or archetype == "II: Gradient":
+        if archetype == "Patchy" or archetype == "Gradient":
             row = subset.nlargest(1, "Spatial_Bias_Score").iloc[0]
         else:
             c_mean = subset["Coverage"].mean()

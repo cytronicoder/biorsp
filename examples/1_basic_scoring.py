@@ -43,4 +43,4 @@ print(df[["Coverage", "Spatial_Bias_Score", "Directionality", "Archetype"]].head
 # - Coverage: Fraction of cells expressing the gene (biological)
 # - Spatial_Bias_Score: Magnitude of spatial coherence (0 to 1)
 # - Directionality: Direction of the gradient (-1 to 1) or NaN for non-directional
-# - Archetype: Classification (e.g., "IV: Basal", "III: Patchy", "Non-spatial")
+# - Archetype: Classification (e.g., "Basal", "Patchy", "Non-spatial")

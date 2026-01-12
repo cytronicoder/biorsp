@@ -5,7 +5,7 @@ from the human kidney reference dataset.
 Key Outputs:
 - Coverage Score (C_g): What fraction of TAL cells express this gene?
 - Spatial Bias Score (S_g): Does expression cluster in specific regions, or spread uniformly?
-- Archetype: Classification into spatial patterns (I: Ubiquitous, II: Gradient, III: Patchy, IV: Basal)
+- Archetype: Classification into spatial patterns (Ubiquitous, Gradient, Patchy, Basal)
 - Gene-Gene Relationships: Which genes show similar spatial patterns?
 
 Workflow:
@@ -629,7 +629,7 @@ def plot_archetype_scatter(
     if "Archetype" in df.columns:
         archetype_colors = {
             "localized_program": "#e41a1c",
-            "I: Ubiquitous_uniform": "#377eb8",
+            "Ubiquitous_uniform": "#377eb8",
             "niche_biomarker": "#4daf4a",
             "sparse_presence": "#999999",
         }
@@ -706,7 +706,7 @@ def plot_archetype_scatter(
     ax.text(
         xlim[1] - 0.02 * (xlim[1] - xlim[0]),
         ylim[0] + 0.05 * (ylim[1] - ylim[0]),
-        "I: Ubiquitous\n(high C, low S)",
+        "Ubiquitous\n(high C, low S)",
         fontsize=9,
         fontstyle="italic",
         alpha=0.7,

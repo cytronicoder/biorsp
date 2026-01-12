@@ -125,17 +125,17 @@ DISEASE_MAPPINGS = {
 }
 
 ARCHETYPE_NAMES = {
-    "I: Ubiquitous_uniform": "I: Ubiquitous",
-    "localized_program": "II: Gradient",
-    "niche_biomarker": "III: Patchy",
-    "sparse_presence": "IV: Basal",
+    "Ubiquitous_uniform": "Ubiquitous",
+    "localized_program": "Gradient",
+    "niche_biomarker": "Patchy",
+    "sparse_presence": "Basal",
 }
 
 ARCHETYPE_COLORS = {
-    "I: Ubiquitous": "#4DBEEE",
-    "II: Gradient": "#77AC30",
-    "III: Patchy": "#D95319",
-    "IV: Basal": "#A2142F",
+    "Ubiquitous": "#4DBEEE",
+    "Gradient": "#77AC30",
+    "Patchy": "#D95319",
+    "Basal": "#A2142F",
 }
 
 

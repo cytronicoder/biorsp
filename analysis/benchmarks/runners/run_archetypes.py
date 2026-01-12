@@ -2,10 +2,10 @@
 Archetype Recovery Benchmark for BioRSP Methods Paper.
 
 Evaluates the method's ability to detect and distinguish diverse spatial archetypes:
-1. I: Ubiquitous (high C, low S): uniform expression
-2. II: Gradient (high C, high S): broad spatial domains
-3. IV: Basal (low C, low S): random sparse expression
-4. III: Patchy (low C, high S): spatially restricted expression
+1. Ubiquitous (high C, low S): uniform expression
+2. Gradient (high C, high S): broad spatial domains
+3. Basal (low C, low S): random sparse expression
+4. Patchy (low C, high S): spatially restricted expression
 
 Uses 2×2 factorial design: coverage_regime × organization_regime
 with null-calibrated S thresholds and minimum expressing cells gating.
@@ -311,7 +311,7 @@ def main():
 
     true_labels = runs_df["true_archetype"].values
 
-    labels_order = ["I: Ubiquitous", "II: Gradient", "IV: Basal", "III: Patchy"]
+    labels_order = ["Ubiquitous", "Gradient", "Basal", "Patchy"]
     class_metrics = metrics.compute_classification_metrics(
         true_labels, gated_labels, labels=labels_order
     )

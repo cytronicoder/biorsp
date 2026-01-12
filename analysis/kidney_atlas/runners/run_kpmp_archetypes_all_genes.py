@@ -89,17 +89,17 @@ rcParams["pdf.fonttype"] = 42
 rcParams["ps.fonttype"] = 42
 
 ARCHETYPE_NAMES = {
-    (True, False): "I: Ubiquitous",  # High C, Low S
-    (False, True): "III: Patchy",  # Low C, High S
-    (True, True): "II: Gradient",  # High C, High S
-    (False, False): "IV: Basal",  # Low C, Low S
+    (True, False): "Ubiquitous",  # High C, Low S
+    (False, True): "Patchy",  # Low C, High S
+    (True, True): "Gradient",  # High C, High S
+    (False, False): "Basal",  # Low C, Low S
 }
 
 ARCHETYPE_COLORS = {
-    "I: Ubiquitous": "#4DBEEE",
-    "III: Patchy": "#D95319",
-    "II: Gradient": "#77AC30",
-    "IV: Basal": "#A2142F",
+    "Ubiquitous": "#4DBEEE",
+    "Patchy": "#D95319",
+    "Gradient": "#77AC30",
+    "Basal": "#A2142F",
 }
 
 

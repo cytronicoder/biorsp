@@ -25,10 +25,10 @@ from biorsp.preprocess.normalization import normalize_radii
 logger = logging.getLogger(__name__)
 
 ARCHETYPE_COLORS = {
-    "I: Ubiquitous": "#4DBEEE",
-    "II: Gradient": "#77AC30",
-    "III: Patchy": "#D95319",
-    "IV: Basal": "#A2142F",
+    "Ubiquitous": "#4DBEEE",
+    "Gradient": "#77AC30",
+    "Patchy": "#D95319",
+    "Basal": "#A2142F",
 }
 
 
@@ -77,13 +77,13 @@ def validate_archetype_quadrants(
         high_s = row.get("q_value", 1.0) < fdr_cut and s > 0 if s_method == "fdr" else s >= s_cut
 
         if high_c and high_s:
-            expected = "II: Gradient"
+            expected = "Gradient"
         elif high_c and not high_s:
-            expected = "I: Ubiquitous"
+            expected = "Ubiquitous"
         elif not high_c and high_s:
-            expected = "III: Patchy"
+            expected = "Patchy"
         else:
-            expected = "IV: Basal"
+            expected = "Basal"
 
         if archetype != expected:
             mismatches.append(

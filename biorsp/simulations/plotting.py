@@ -457,26 +457,26 @@ def plot_spatial_embedding(
 
 
 ARCHETYPE_COLORS = {
-    "i: ubiquitous": "#4CAF50",
-    "ii: gradient": "#2196F3",
-    "iv: basal": "#9E9E9E",
-    "iii: patchy": "#FF5722",
-    "I: Ubiquitous": "#4CAF50",
-    "II: Gradient": "#2196F3",
-    "IV: Basal": "#9E9E9E",
-    "III: Patchy": "#FF5722",
+    "ubiquitous": "#4CAF50",
+    "gradient": "#2196F3",
+    "basal": "#9E9E9E",
+    "patchy": "#FF5722",
+    "Ubiquitous": "#4CAF50",
+    "Gradient": "#2196F3",
+    "Basal": "#9E9E9E",
+    "Patchy": "#FF5722",
     "abstention_stress": "#000000",
 }
 
 ARCHETYPE_DESCRIPTIONS = {
-    "i: ubiquitous": "Ubiquitous expression\n(high C, low S)",
-    "ii: gradient": "Broad spatial domain\n(high C, high S)",
-    "iv: basal": "Scattered/rare\n(low C, low S)",
-    "iii: patchy": "Localized marker\n(low C, high S)",
-    "I: Ubiquitous": "Ubiquitous expression\n(high C, low S)",
-    "II: Gradient": "Broad spatial domain\n(high C, high S)",
-    "IV: Basal": "Scattered/rare\n(low C, low S)",
-    "III: Patchy": "Localized marker\n(low C, high S)",
+    "ubiquitous": "Ubiquitous expression\n(high C, low S)",
+    "gradient": "Broad spatial domain\n(high C, high S)",
+    "basal": "Scattered/rare\n(low C, low S)",
+    "patchy": "Localized marker\n(low C, high S)",
+    "Ubiquitous": "Ubiquitous expression\n(high C, low S)",
+    "Gradient": "Broad spatial domain\n(high C, high S)",
+    "Basal": "Scattered/rare\n(low C, low S)",
+    "Patchy": "Localized marker\n(low C, high S)",
 }
 
 
@@ -540,10 +540,10 @@ def plot_archetype_scatter(
     y_lim = ax.get_ylim()
 
     annotations = [
-        (c_cut / 2, s_cut / 2, "IV: Basal", "#9E9E9E"),
-        ((c_cut + x_lim[1]) / 2, s_cut / 2, "I: Ubiquitous", "#4CAF50"),
-        (c_cut / 2, (s_cut + y_lim[1]) / 2, "III: Patchy", "#FF5722"),
-        ((c_cut + x_lim[1]) / 2, (s_cut + y_lim[1]) / 2, "II: Gradient", "#2196F3"),
+        (c_cut / 2, s_cut / 2, "Basal", "#9E9E9E"),
+        ((c_cut + x_lim[1]) / 2, s_cut / 2, "Ubiquitous", "#4CAF50"),
+        (c_cut / 2, (s_cut + y_lim[1]) / 2, "Patchy", "#FF5722"),
+        ((c_cut + x_lim[1]) / 2, (s_cut + y_lim[1]) / 2, "Gradient", "#2196F3"),
     ]
 
     for x, y, label, color in annotations:

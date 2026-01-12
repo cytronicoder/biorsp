@@ -56,9 +56,9 @@ def main():
     print(df_classified[cols].to_string(index=False))
 
     print("\nInterpretation:")
-    print("- III: Patchy should have Low C, High S -> spatially restricted")
-    print("- I: Ubiquitous should have High C, Low S -> uniformly expressed")
-    print("- IV: Basal should have Low C, Low S -> sparse expression")
+    print("- Patchy should have Low C, High S -> spatially restricted")
+    print("- Ubiquitous should have High C, Low S -> uniformly expressed")
+    print("- Basal should have Low C, Low S -> sparse expression")
 
 
 if __name__ == "__main__":
