@@ -100,7 +100,7 @@ def run_calibration_condition(config_dict: dict, seed: int, config: BioRSPConfig
         base_row.update(
             {
                 "p_value": np.nan,
-                "Spatial_Score": np.nan,
+                "Spatial_Bias_Score": np.nan,
                 "Coverage": np.nan,
                 "coverage_bg": np.nan,
                 "coverage_fg": np.nan,
@@ -114,7 +114,7 @@ def run_calibration_condition(config_dict: dict, seed: int, config: BioRSPConfig
     base_row.update(
         {
             "p_value": row["p_value"],
-            "Spatial_Score": row["Spatial_Score"],
+            "Spatial_Bias_Score": row["Spatial_Bias_Score"],
             "Coverage": row["Coverage"],
             "coverage_bg": row.get("coverage_bg", np.nan),
             "coverage_fg": row.get("coverage_fg", np.nan),
@@ -299,7 +299,7 @@ def main():
         calibration_table.to_csv(calibration_path, index=False)
         print(f"✓ Exported calibration thresholds to: {calibration_path}")
 
-        s_values = iid_df["Spatial_Score"].dropna().values
+        s_values = iid_df["Spatial_Bias_Score"].dropna().values
         if len(s_values) >= 10:
             thresholds = metrics.derive_thresholds_principled(s_values, fpr_target=0.05)
             thresholds_path = output_dir / "derived_thresholds.json"

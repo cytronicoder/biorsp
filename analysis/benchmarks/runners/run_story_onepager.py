@@ -151,9 +151,9 @@ def run_story_benchmark(args):
 
     print("[4/6] Classifying genes into archetypes (with principled null calibration)...")
 
-    null_mask = results_df["Archetype"].isin(["sparse_noise", "housekeeping"])
+    null_mask = results_df["Archetype"].isin(["IV: Basal", "I: Ubiquitous"])
     null_s = results_df.loc[
-        null_mask & (results_df["organization_regime"] == "iid"), "Spatial_Score"
+        null_mask & (results_df["organization_regime"] == "iid"), "Spatial_Bias_Score"
     ].values
 
     fpr_target = 0.05 if args.mode == "publication" else 0.10  # 5% FPR for publication
@@ -196,7 +196,7 @@ def run_story_benchmark(args):
     if valid_mask.sum() > 0:
         labels, confidences = metrics.classify_with_confidence(
             coverage=results_df.loc[valid_mask, "Coverage"].values,
-            spatial_score=results_df.loc[valid_mask, "Spatial_Score"].values,
+            spatial_score=results_df.loc[valid_mask, "Spatial_Bias_Score"].values,
             s_cut=s_cut,
             c_cut=c_cut,
             margin=margin,
@@ -215,14 +215,14 @@ def run_story_benchmark(args):
     y_pred = results_df.loc[eval_mask, "pred_archetype"].values
 
     class_metrics = metrics.compute_classification_metrics(
-        y_true, y_pred, labels=["housekeeping", "regional_program", "sparse_noise", "niche_marker"]
+        y_true, y_pred, labels=["I: Ubiquitous", "II: Gradient", "IV: Basal", "III: Patchy"]
     )
 
     print(f"   Overall accuracy: {class_metrics['accuracy']:.1%}")
     print(f"   Macro F1: {class_metrics['macro_f1']:.3f}")
 
     is_structured = (results_df["organization_regime"] == "structured").values
-    s_scores = results_df["Spatial_Score"].fillna(0).values
+    s_scores = results_df["Spatial_Bias_Score"].fillna(0).values
 
     prec_curve = metrics.precision_at_k_curve(
         y_true=is_structured.astype(int),
@@ -287,7 +287,7 @@ def run_story_benchmark(args):
 
     fig_a = plotting.plot_archetype_scatter(
         coverage=results_df.loc[eval_mask, "Coverage"].values,
-        spatial_score=results_df.loc[eval_mask, "Spatial_Score"].values,
+        spatial_score=results_df.loc[eval_mask, "Spatial_Bias_Score"].values,
         true_archetypes=results_df.loc[eval_mask, "Archetype"].values,
         c_cut=c_cut,
         s_cut=s_cut,
@@ -327,12 +327,12 @@ def run_story_benchmark(args):
     ax_c = fig_combined.add_subplot(gs[1, 0])
     ax_d = fig_combined.add_subplot(gs[1, 1])
 
-    for arch in ["housekeeping", "regional_program", "sparse_noise", "niche_marker"]:
+    for arch in ["I: Ubiquitous", "II: Gradient", "IV: Basal", "III: Patchy"]:
         mask = (results_df.loc[eval_mask, "Archetype"] == arch).values
         if mask.sum() > 0:
             ax_a.scatter(
                 results_df.loc[eval_mask, "Coverage"].values[mask],
-                results_df.loc[eval_mask, "Spatial_Score"].values[mask],
+                results_df.loc[eval_mask, "Spatial_Bias_Score"].values[mask],
                 c=plotting.ARCHETYPE_COLORS.get(arch, "#888888"),
                 label=arch.replace("_", " ").title(),
                 s=40,
@@ -362,10 +362,10 @@ def run_story_benchmark(args):
     ax_b.set_xticks(range(len(cm.columns)))
     ax_b.set_yticks(range(len(cm.index)))
     short_labels = {
-        "housekeeping": "House.",
-        "regional_program": "Regional",
-        "sparse_noise": "Sparse",
-        "niche_marker": "Niche",
+        "I: Ubiquitous": "Ubiq.",
+        "II: Gradient": "Regional",
+        "IV: Basal": "Sparse",
+        "III: Patchy": "Niche",
     }
     ax_b.set_xticklabels(
         [short_labels.get(c, c) for c in cm.columns], rotation=45, ha="right", fontsize=8
@@ -454,7 +454,7 @@ def run_story_benchmark(args):
     try:
         fig_thresh = plotting.plot_threshold_diagnostics(
             coverage=results_df.loc[eval_mask, "Coverage"].values,
-            spatial_score=results_df.loc[eval_mask, "Spatial_Score"].values,
+            spatial_score=results_df.loc[eval_mask, "Spatial_Bias_Score"].values,
             true_archetypes=results_df.loc[eval_mask, "Archetype"].values,
             c_cut=c_cut,
             s_cut=s_cut,
@@ -471,7 +471,7 @@ def run_story_benchmark(args):
         fig_support = plotting.plot_support_diagnostics(
             coverage_fg=coverage_fg,
             coverage_bg=coverage_bg,
-            spatial_score=results_df.loc[eval_mask, "Spatial_Score"].values,
+            spatial_score=results_df.loc[eval_mask, "Spatial_Bias_Score"].values,
             true_archetypes=results_df.loc[eval_mask, "Archetype"].values,
         )
         io.save_figure(fig_support, diag_dir, "fig_support_diagnostics.png", dpi=150)
@@ -483,7 +483,7 @@ def run_story_benchmark(args):
     try:
         fig_misclass, misclass_df = plotting.plot_misclassified_scatter(
             coverage=results_df.loc[eval_mask, "Coverage"].values,
-            spatial_score=results_df.loc[eval_mask, "Spatial_Score"].values,
+            spatial_score=results_df.loc[eval_mask, "Spatial_Bias_Score"].values,
             true_archetypes=results_df.loc[eval_mask, "Archetype"].values,
             pred_archetypes=results_df.loc[eval_mask, "pred_archetype"].values,
             var_names=results_df.loc[eval_mask, "gene"].tolist(),
@@ -508,7 +508,7 @@ def run_story_benchmark(args):
 
     try:
         pattern_results = results_df.loc[
-            eval_mask, ["pattern_variant", "Spatial_Score", "Archetype"]
+            eval_mask, ["pattern_variant", "Spatial_Bias_Score", "Archetype"]
         ].copy()
         pattern_results = pattern_results[pattern_results["pattern_variant"] != "none"]
 
@@ -650,10 +650,10 @@ BioRSP classifies genes into a 2×2 grid based on:
 
 | Archetype | Description | Expected Region |
 |-----------|-------------|-----------------|
-| Housekeeping | Ubiquitous expression | High C, Low S |
-| Regional Program | Broad spatial domain | High C, High S |
+| I: Ubiquitous | Ubiquitous expression | High C, Low S |
+| II: Gradient | Broad spatial domain | High C, High S |
 | Sparse/Noisy | Rare/scattered | Low C, Low S |
-| Niche Marker | Localized expression | Low C, High S |
+| III: Patchy | Localized expression | Low C, High S |
 
 **Results:**
 - Overall Accuracy: **{class_metrics["accuracy"]:.1%}** {"✓ PASS" if acc_pass else "✗ FAIL"} (threshold: {acc_threshold:.0%})
@@ -698,7 +698,7 @@ Genes sharing the same spatial pattern (module) should have high co-patterning s
    black dashed lines are derived thresholds.
 
 2. **Panel B (Confusion Matrix)**: Diagonal should be bright (high recall). Off-diagonal
-   errors often occur between adjacent quadrants (e.g., regional↔housekeeping).
+   errors often occur between adjacent quadrants (e.g., regional↔I: Ubiquitous).
 
 3. **Panel C (Marker Recovery)**: Precision should be well above 50% (random) for top-ranked
    genes, indicating that S effectively identifies structured genes.
@@ -728,7 +728,7 @@ def write_caption(figures_dir: Path):
     caption = """Figure: BioRSP Method Validation Through Simulation
 
 (A) Coverage (C) vs Spatial Organization Score (S) for simulated genes with known ground truth.
-    Points are colored by true archetype: housekeeping (green), regional program (blue),
+    Points are colored by true archetype: I: Ubiquitous (green), regional program (blue),
     sparse/noisy (gray), and niche marker (orange). Dashed lines indicate classification
     thresholds derived from null simulations.
 

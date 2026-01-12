@@ -114,7 +114,7 @@ def run_calibration(args):
                         {
                             "null_type": null_type,
                             "replicate": rep,
-                            "Spatial_Score": row["Spatial_Score"],
+                            "Spatial_Bias_Score": row["Spatial_Bias_Score"],
                             "Coverage": row["Coverage"],
                             "p_value": row.get("p_value", np.nan),
                             "abstain_flag": row["abstain_flag"],
@@ -125,7 +125,7 @@ def run_calibration(args):
 
     results_df = pd.DataFrame(all_results)
 
-    valid_s = results_df.loc[~results_df["abstain_flag"], "Spatial_Score"].values
+    valid_s = results_df.loc[~results_df["abstain_flag"], "Spatial_Bias_Score"].values
     valid_c = results_df.loc[~results_df["abstain_flag"], "Coverage"].values
 
     thresholds = metrics.derive_thresholds_from_null(

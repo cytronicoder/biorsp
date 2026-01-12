@@ -52,4 +52,4 @@ classified = classify_genes(
 )
 
 print("\nResults for TypeA cells:")
-print(classified[["Coverage", "Spatial_Score", "Directionality", "Archetype"]])
+print(classified[["Coverage", "Spatial_Bias_Score", "Directionality", "Archetype"]])

@@ -435,13 +435,13 @@ def derive_s_cut_from_null(
 
 def derive_s_cut_simple(df: pd.DataFrame, quantile: float = 0.75) -> float:
     """Simple s_cut derivation based on distribution of observed S values."""
-    s_values = df["Spatial_Score"].dropna()
+    s_values = df["Spatial_Bias_Score"].dropna()
     if len(s_values) == 0:
         return 0.05
 
     low_c_mask = df["Coverage"] < 0.02
     if low_c_mask.sum() > 50:
-        null_proxy = df.loc[low_c_mask, "Spatial_Score"].dropna()
+        null_proxy = df.loc[low_c_mask, "Spatial_Bias_Score"].dropna()
         s_cut = float(np.percentile(null_proxy, 95)) if len(null_proxy) > 0 else 0.05
     else:
         s_cut = float(np.percentile(s_values, 50))
@@ -468,7 +468,7 @@ def classify_genes(
     df = df.copy()
 
     high_c = df["Coverage"] >= c_cut
-    high_s = df["Spatial_Score"] >= s_cut
+    high_s = df["Spatial_Bias_Score"] >= s_cut
 
     def get_archetype(hc, hs):
         return ARCHETYPE_NAMES.get((hc, hs), "Unknown")
@@ -803,7 +803,7 @@ def add_pvalues_to_top_genes(
     df["p_value"] = np.nan
     df["q_value"] = np.nan
 
-    top_genes = df.nlargest(topk, "Spatial_Score")["gene"].tolist()
+    top_genes = df.nlargest(topk, "Spatial_Bias_Score")["gene"].tolist()
 
     logger.info(f"Computing p-values for top {len(top_genes)} genes")
 
@@ -858,8 +858,8 @@ def check_subsample_stability(
     for gene in tqdm(test_genes, desc="Subsample stability"):
         r1 = score_gene_with_context(adata1, gene, context1, config)
         r2 = score_gene_with_context(adata2, gene, context2, config)
-        s1.append(r1.get("Spatial_Score", np.nan))
-        s2.append(r2.get("Spatial_Score", np.nan))
+        s1.append(r1.get("Spatial_Bias_Score", np.nan))
+        s2.append(r2.get("Spatial_Bias_Score", np.nan))
 
     s1, s2 = np.array(s1), np.array(s2)
     valid = ~(np.isnan(s1) | np.isnan(s2))
@@ -907,8 +907,8 @@ def check_cross_embedding(
     for gene in tqdm(test_genes, desc="Cross-embedding check"):
         r_umap = score_gene_with_context(adata, gene, ctx_umap, config)
         r_tsne = score_gene_with_context(adata, gene, ctx_tsne, config)
-        s_umap.append(r_umap.get("Spatial_Score", np.nan))
-        s_tsne.append(r_tsne.get("Spatial_Score", np.nan))
+        s_umap.append(r_umap.get("Spatial_Bias_Score", np.nan))
+        s_tsne.append(r_tsne.get("Spatial_Bias_Score", np.nan))
 
     s_umap, s_tsne = np.array(s_umap), np.array(s_tsne)
     valid = ~(np.isnan(s_umap) | np.isnan(s_tsne))
@@ -951,7 +951,7 @@ def plot_cs_scatter(
         mask = plot_df["Archetype"] == archetype
         ax.scatter(
             plot_df.loc[mask, "Coverage"],
-            plot_df.loc[mask, "Spatial_Score"],
+            plot_df.loc[mask, "Spatial_Bias_Score"],
             c=color,
             s=15,
             alpha=0.6,
@@ -972,7 +972,7 @@ def plot_cs_scatter(
     ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=13, frameon=True, borderpad=0.5)
 
     x_max = min(1.02, plot_df["Coverage"].max() * 1.1)
-    y_max = plot_df["Spatial_Score"].quantile(0.99) * 1.2
+    y_max = plot_df["Spatial_Bias_Score"].quantile(0.99) * 1.2
     lim = max(x_max, y_max)
     ax.set_xlim(-0.02, lim)
     ax.set_ylim(-0.01, lim)
@@ -1027,7 +1027,7 @@ def plot_cs_marginals(df: pd.DataFrame, c_cut: float, s_cut: float, outdir: Path
     ax.legend(fontsize=12)
 
     ax = axes[1]
-    ax.hist(df["Spatial_Score"], bins=50, color="darkorange", alpha=0.7, edgecolor="white")
+    ax.hist(df["Spatial_Bias_Score"], bins=50, color="darkorange", alpha=0.7, edgecolor="white")
     ax.axvline(
         s_cut,
         color="red",
@@ -1074,7 +1074,7 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
             continue
 
         if archetype == "Focal Marker" or archetype == "Regional Gradient":
-            subset = subset.nlargest(min(n_top, len(subset)), "Spatial_Score")
+            subset = subset.nlargest(min(n_top, len(subset)), "Spatial_Bias_Score")
         elif archetype == "Ubiquitous Uniform":
             subset = subset.nlargest(min(n_top, len(subset)), "Coverage")
         else:  # Rare Scattered
@@ -1082,7 +1082,7 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
 
         ax.axis("off")
 
-        display_cols = [gene_col, "Coverage", "Spatial_Score"]
+        display_cols = [gene_col, "Coverage", "Spatial_Bias_Score"]
         if "spatial_sign" in subset.columns:
             display_cols.append("spatial_sign")
             col_labels = ["Gene", "C", "S", "Sign"]
@@ -1146,12 +1146,12 @@ def plot_archetype_examples(
             continue
 
         if archetype == "Focal Marker" or archetype == "Regional Gradient":
-            row = subset.nlargest(1, "Spatial_Score").iloc[0]
+            row = subset.nlargest(1, "Spatial_Bias_Score").iloc[0]
         else:
             c_mean = subset["Coverage"].mean()
-            s_mean = subset["Spatial_Score"].mean()
+            s_mean = subset["Spatial_Bias_Score"].mean()
             dist = np.sqrt(
-                (subset["Coverage"] - c_mean) ** 2 + (subset["Spatial_Score"] - s_mean) ** 2
+                (subset["Coverage"] - c_mean) ** 2 + (subset["Spatial_Bias_Score"] - s_mean) ** 2
             )
             row = subset.iloc[dist.argmin()]
 
@@ -1339,7 +1339,7 @@ def generate_report(
         report += "|------|--------------|-------------|------|\n"
 
         if archetype in ["Focal Marker", "Regional Gradient"]:
-            top = subset.nlargest(10, "Spatial_Score")
+            top = subset.nlargest(10, "Spatial_Bias_Score")
         else:
             top = subset.nlargest(10, "Coverage")
 
@@ -1536,7 +1536,7 @@ def main():
         stage_start = time.time()
         logger.info("Running reliability checks...")
 
-        top_s_genes = df.nlargest(500, "Spatial_Score")["gene"].tolist()
+        top_s_genes = df.nlargest(500, "Spatial_Bias_Score")["gene"].tolist()
 
         reliability["subsample_stability"] = check_subsample_stability(
             adata_sub,
@@ -1561,7 +1561,7 @@ def main():
     class_cols = ["gene"]
     if "gene_name" in df.columns:
         class_cols.append("gene_name")
-    class_cols.extend(["Archetype", "Coverage", "Spatial_Score", "c_cut_used", "s_cut_used"])
+    class_cols.extend(["Archetype", "Coverage", "Spatial_Bias_Score", "c_cut_used", "s_cut_used"])
     class_df = df[class_cols]
     class_df.to_csv(outdir / "classification.csv", index=False)
 

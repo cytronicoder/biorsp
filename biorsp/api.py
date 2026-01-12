@@ -13,7 +13,7 @@ from biorsp.utils.config import BioRSPConfig
 
 COLUMN_MAP = {
     "coverage": "Coverage",
-    "spatial_score": "Spatial_Score",
+    "spatial_score": "Spatial_Bias_Score",
     "r_mean": "Directionality",
     "archetype": "Archetype",
 }
@@ -48,7 +48,7 @@ def score_genes(
     Returns
     -------
     pd.DataFrame
-        GeneScoreTable with standardized columns: Coverage, Spatial_Score, Directionality.
+        GeneScoreTable with standardized columns: Coverage, Spatial_Bias_Score, Directionality.
     """
     if config is None:
         config = BioRSPConfig(**kwargs)
@@ -71,7 +71,7 @@ def classify_genes(
     s_cut: Optional[float] = None,
     fdr_cut: float = 0.05,
 ) -> pd.DataFrame:
-    """Classify genes into archetypes based on Coverage and Spatial_Score.
+    """Classify genes into archetypes based on Coverage and Spatial_Bias_Score.
 
     Parameters
     ----------

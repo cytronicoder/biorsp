@@ -4,8 +4,8 @@ from the human kidney reference dataset.
 
 Key Outputs:
 - Coverage Score (C_g): What fraction of TAL cells express this gene?
-- Spatial Score (S_g): Does expression cluster in specific regions, or spread uniformly?
-- Archetype: Classification into spatial patterns (localized, housekeeping, niche, sparse)
+- Spatial Bias Score (S_g): Does expression cluster in specific regions, or spread uniformly?
+- Archetype: Classification into spatial patterns (I: Ubiquitous, II: Gradient, III: Patchy, IV: Basal)
 - Gene-Gene Relationships: Which genes show similar spatial patterns?
 
 Workflow:
@@ -568,7 +568,7 @@ def plot_gene_panel(
         )
 
     c_g = gene_result.get("Coverage", np.nan)
-    s_g = gene_result.get("Spatial_Score", np.nan)
+    s_g = gene_result.get("Spatial_Bias_Score", np.nan)
     sign = gene_result.get("spatial_sign", 0)
     r_mean = gene_result.get("Directionality", np.nan)
     cov_geom = gene_result.get("coverage_geom", np.nan)
@@ -629,7 +629,7 @@ def plot_archetype_scatter(
     if "Archetype" in df.columns:
         archetype_colors = {
             "localized_program": "#e41a1c",
-            "housekeeping_uniform": "#377eb8",
+            "I: Ubiquitous_uniform": "#377eb8",
             "niche_biomarker": "#4daf4a",
             "sparse_presence": "#999999",
         }
@@ -637,7 +637,7 @@ def plot_archetype_scatter(
             mask = df["Archetype"] == arch
             ax.scatter(
                 df.loc[mask, "Coverage"],
-                df.loc[mask, "Spatial_Score"],
+                df.loc[mask, "Spatial_Bias_Score"],
                 c=color,
                 label=arch.replace("_", " ").title(),
                 s=30,
@@ -647,7 +647,7 @@ def plot_archetype_scatter(
     else:
         ax.scatter(
             df["Coverage"],
-            df["Spatial_Score"],
+            df["Spatial_Bias_Score"],
             c="steelblue",
             s=30,
             alpha=0.7,
@@ -663,7 +663,7 @@ def plot_archetype_scatter(
         if sym in control_symbols:
             ax.annotate(
                 sym,
-                (row["Coverage"], row["Spatial_Score"]),
+                (row["Coverage"], row["Spatial_Bias_Score"]),
                 fontsize=9,
                 fontweight="bold",
                 xytext=(5, 5),
@@ -706,7 +706,7 @@ def plot_archetype_scatter(
     ax.text(
         xlim[1] - 0.02 * (xlim[1] - xlim[0]),
         ylim[0] + 0.05 * (ylim[1] - ylim[0]),
-        "Housekeeping/Uniform\n(high C, low S)",
+        "I: Ubiquitous\n(high C, low S)",
         fontsize=9,
         fontstyle="italic",
         alpha=0.7,
@@ -937,7 +937,7 @@ def main():
 
     logger.info("[Stage 7] Saving results...")
 
-    df_sorted = df_classified.sort_values(["Spatial_Score", "Coverage"], ascending=[False, False])
+    df_sorted = df_classified.sort_values(["Spatial_Bias_Score", "Coverage"], ascending=[False, False])
 
     csv_path = outdir / "tal_gene_results.csv"
     df_sorted.to_csv(csv_path, index=False)

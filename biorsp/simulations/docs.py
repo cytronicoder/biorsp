@@ -230,9 +230,9 @@ def interpret_archetypes(summary_df: pd.DataFrame) -> str:
     lines.append("### What does this mean?")
     lines.append(
         "\nArchetypes represent distinct gene expression patterns: "
-        "**Housekeeping** (ubiquitous), **Niche** (spatially restricted), "
-        "**Regional** (broad domains), **Scattered** (sparse). "
-        "We test whether BioRSP's Coverage (C) and Spatial Score (S) can distinguish these patterns.\n"
+        "**I: Ubiquitous** (uniform), **III: Patchy** (spatially restricted), "
+        "**II: Gradient** (broad domains), **IV: Basal** (sparse). "
+        "We test whether BioRSP's Coverage (C) and Spatial Bias Score (S) can distinguish these patterns.\n"
     )
 
     macro_f1 = summary_df["macro_f1"].mean() if "macro_f1" in summary_df.columns else None

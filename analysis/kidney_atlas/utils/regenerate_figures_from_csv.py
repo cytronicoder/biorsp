@@ -37,7 +37,7 @@ def update_archetype_names(df: pd.DataFrame) -> pd.DataFrame:
 
     rename_map = {
         "coverage_expr": "Coverage",
-        "spatial_score": "Spatial_Score",
+        "spatial_score": "Spatial_Bias_Score",
         "r_mean": "Directionality",
         "archetype": "Archetype",
     }
@@ -72,7 +72,7 @@ def plot_cs_scatter(
         mask = plot_df["Archetype"] == archetype
         ax.scatter(
             plot_df.loc[mask, "Coverage"],
-            plot_df.loc[mask, "Spatial_Score"],
+            plot_df.loc[mask, "Spatial_Bias_Score"],
             c=color,
             s=15,
             alpha=0.6,
@@ -93,7 +93,7 @@ def plot_cs_scatter(
     ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=13, frameon=True, borderpad=0.5)
 
     x_max = min(1.02, plot_df["Coverage"].max() * 1.1)
-    y_max = plot_df["Spatial_Score"].quantile(0.99) * 1.2
+    y_max = plot_df["Spatial_Bias_Score"].quantile(0.99) * 1.2
     lim = max(x_max, y_max)
     ax.set_xlim(-0.02, lim)
     ax.set_ylim(-0.01, lim)
@@ -148,7 +148,7 @@ def plot_cs_marginals(df: pd.DataFrame, c_cut: float, s_cut: float, outdir: Path
     ax.legend(fontsize=12)
 
     ax = axes[1]
-    ax.hist(df["Spatial_Score"], bins=50, color="darkorange", alpha=0.7, edgecolor="white")
+    ax.hist(df["Spatial_Bias_Score"], bins=50, color="darkorange", alpha=0.7, edgecolor="white")
     ax.axvline(
         s_cut,
         color="red",
@@ -181,7 +181,7 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
         ax = axes[idx]
         color = ARCHETYPE_COLORS[archetype]
 
-        subset = df[df["Archetype"] == archetype].nlargest(n_top, "Spatial_Score")
+        subset = df[df["Archetype"] == archetype].nlargest(n_top, "Spatial_Bias_Score")
 
         if len(subset) == 0:
             ax.text(0.5, 0.5, f"No genes in {archetype}", ha="center", va="center", fontsize=14)
@@ -194,7 +194,7 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
         for _, row in subset.iterrows():
             gene_name = row[gene_col]
             c = row["Coverage"]
-            s = row["Spatial_Score"]
+            s = row["Spatial_Bias_Score"]
             table_data.append([gene_name, f"{c:.3f}", f"{s:.3f}"])
 
         table = ax.table(
@@ -260,12 +260,12 @@ def plot_archetype_examples(
             continue
 
         if archetype == "III: Patchy" or archetype == "II: Gradient":
-            row = subset.nlargest(1, "Spatial_Score").iloc[0]
+            row = subset.nlargest(1, "Spatial_Bias_Score").iloc[0]
         else:
             c_mean = subset["Coverage"].mean()
-            s_mean = subset["Spatial_Score"].mean()
+            s_mean = subset["Spatial_Bias_Score"].mean()
             dist = np.sqrt(
-                (subset["Coverage"] - c_mean) ** 2 + (subset["Spatial_Score"] - s_mean) ** 2
+                (subset["Coverage"] - c_mean) ** 2 + (subset["Spatial_Bias_Score"] - s_mean) ** 2
             )
             row = subset.iloc[dist.argmin()]
 

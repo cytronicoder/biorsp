@@ -5,10 +5,10 @@ This package quantifies gene expression patterns through two complementary metri
 - Spatial Organization (S): Extent of directional clustering in the radar profile
 
 These metrics classify genes into interpretable archetypes:
-- Housekeeping (high C, low S): uniformly expressed across tissue
-- Regional Program (high C, high S): broad spatial domains
-- Niche Marker (low C, high S): spatially restricted expression
-- Sparse Noise (low C, low S): random sparse expression
+- I: Ubiquitous (high C, low S): uniformly expressed across tissue
+- II: Gradient (high C, high S): broad spatial domains
+- III: Patchy (low C, high S): spatially restricted expression
+- IV: Basal (low C, low S): random sparse expression
 
 P-values are computed via permutation-based null distributions.
 """

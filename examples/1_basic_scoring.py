@@ -37,10 +37,10 @@ df = classify_genes(df, fdr_cut=0.05)
 
 # 4. Inspect Results
 print("\nResults (Top 5):")
-print(df[["Coverage", "Spatial_Score", "Directionality", "Archetype"]].head())
+print(df[["Coverage", "Spatial_Bias_Score", "Directionality", "Archetype"]].head())
 
 # The columns are standardized:
 # - Coverage: Fraction of cells expressing the gene (biological)
-# - Spatial_Score: Magnitude of spatial coherence (0 to 1)
+# - Spatial_Bias_Score: Magnitude of spatial coherence (0 to 1)
 # - Directionality: Direction of the gradient (-1 to 1) or NaN for non-directional
 # - Archetype: Classification (e.g., "IV: Basal", "III: Patchy", "Non-spatial")

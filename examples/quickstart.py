@@ -52,13 +52,13 @@ def main():
 
     print("\nBioRSP Results Table:")
     print("---------------------")
-    cols = ["gene", "Coverage", "Spatial_Score", "spatial_sign", "Archetype"]
+    cols = ["gene", "Coverage", "Spatial_Bias_Score", "spatial_sign", "Archetype"]
     print(df_classified[cols].to_string(index=False))
 
     print("\nInterpretation:")
-    print("- Niche_Marker should have Low C, High S -> 'niche_biomarker'")
-    print("- Housekeeper should have High C, Low S -> 'housekeeping_uniform'")
-    print("- Noise should have Low C, Low S -> 'sparse_presence'")
+    print("- III: Patchy should have Low C, High S -> spatially restricted")
+    print("- I: Ubiquitous should have High C, Low S -> uniformly expressed")
+    print("- IV: Basal should have Low C, Low S -> sparse expression")
 
 
 if __name__ == "__main__":

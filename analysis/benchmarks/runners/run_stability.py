@@ -165,7 +165,7 @@ def run_stability(args):
             adata, genes=var_names, config=config, embedding_key="X_sim"
         )
 
-        s_scores = scores_df.set_index("gene").loc[var_names, "Spatial_Score"].values
+        s_scores = scores_df.set_index("gene").loc[var_names, "Spatial_Bias_Score"].values
         scores_list.append(s_scores)
 
         c_scores = scores_df.set_index("gene").loc[var_names, "Coverage"].values

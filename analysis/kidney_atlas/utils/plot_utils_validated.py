@@ -71,7 +71,7 @@ def validate_archetype_quadrants(
     for _idx, row in df.iterrows():
         archetype = row["Archetype"]
         c = row["Coverage"]
-        s = row["Spatial_Score"]
+        s = row["Spatial_Bias_Score"]
 
         high_c = c >= c_cut
         high_s = row.get("q_value", 1.0) < fdr_cut and s > 0 if s_method == "fdr" else s >= s_cut
@@ -93,7 +93,7 @@ def validate_archetype_quadrants(
                     "Archetype": archetype,
                     "expected": expected,
                     "Coverage": c,
-                    "Spatial_Score": s,
+                    "Spatial_Bias_Score": s,
                     "q_value": row.get("q_value", np.nan),
                     "p_value": row.get("p_value", np.nan),
                 }
@@ -150,7 +150,7 @@ def plot_cs_scatter(
                 continue
             ax.scatter(
                 plot_df.loc[mask, "Coverage"],
-                plot_df.loc[mask, "Spatial_Score"],
+                plot_df.loc[mask, "Spatial_Bias_Score"],
                 c=color,
                 s=15,
                 alpha=0.6,
@@ -173,7 +173,7 @@ def plot_cs_scatter(
         ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=12, frameon=True)
 
         x_max = min(1.02, plot_df["Coverage"].max() * 1.1)
-        y_max = plot_df["Spatial_Score"].quantile(0.99) * 1.2
+        y_max = plot_df["Spatial_Bias_Score"].quantile(0.99) * 1.2
         ax.set_xlim(-0.02, x_max)
         ax.set_ylim(-0.05, y_max)
 
@@ -221,7 +221,7 @@ def plot_cs_marginals(
         axes[0].legend(fontsize=12)
         axes[0].grid(axis="y", alpha=0.3)
 
-        axes[1].hist(df["Spatial_Score"], bins=50, color="coral", alpha=0.7, edgecolor="black")
+        axes[1].hist(df["Spatial_Bias_Score"], bins=50, color="coral", alpha=0.7, edgecolor="black")
         axes[1].axvline(
             s_cut,
             color="red",

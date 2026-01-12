@@ -173,10 +173,10 @@ def run_abstention(args):
                     row = scores_df.iloc[0]
                     if row["abstain_flag"]:
                         abstain_count += 1
-                    if pd.isna(row["Spatial_Score"]):
+                    if pd.isna(row["Spatial_Bias_Score"]):
                         nan_score_count += 1
                     else:
-                        valid_scores.append(row["Spatial_Score"])
+                        valid_scores.append(row["Spatial_Bias_Score"])
 
             except Exception as e:
                 print(f"  Rep {rep} error: {e}")

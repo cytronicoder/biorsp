@@ -55,8 +55,8 @@ def parse_args():
     parser.add_argument(
         "--metric",
         type=str,
-        choices=["Spatial_Score", "coverage_score", "p_value"],
-        default="Spatial_Score",
+        choices=["Spatial_Bias_Score", "coverage_score", "p_value"],
+        default="Spatial_Bias_Score",
         help="Metric to compare (default: spatial_score)",
     )
     return parser.parse_args()
@@ -86,7 +86,7 @@ def load_disease_results(results_dir: Path) -> Dict[str, pd.DataFrame]:
 
 
 def merge_disease_data(
-    disease_data: Dict[str, pd.DataFrame], metric: str = "Spatial_Score"
+    disease_data: Dict[str, pd.DataFrame], metric: str = "Spatial_Bias_Score"
 ) -> pd.DataFrame:
     """Merge results across diseases for comparison."""
     diseases = sorted(disease_data.keys())
@@ -102,7 +102,7 @@ def merge_disease_data(
 
 
 def compute_disease_changes(
-    merged: pd.DataFrame, diseases: List[str], metric: str = "Spatial_Score"
+    merged: pd.DataFrame, diseases: List[str], metric: str = "Spatial_Bias_Score"
 ) -> pd.DataFrame:
     """Compute changes relative to normal/reference condition."""
     reference = None
@@ -131,7 +131,7 @@ def compute_disease_changes(
 def identify_disease_specific_genes(
     merged: pd.DataFrame,
     diseases: List[str],
-    metric: str = "Spatial_Score",
+    metric: str = "Spatial_Bias_Score",
     threshold: float = 0.1,
 ) -> Dict[str, List[str]]:
     """Identify genes with disease-specific patterns."""
@@ -161,7 +161,7 @@ def identify_disease_specific_genes(
 def plot_disease_comparison(
     merged: pd.DataFrame,
     diseases: List[str],
-    metric: str = "Spatial_Score",
+    metric: str = "Spatial_Bias_Score",
     top_n: int = 20,
     outdir: Path = None,
 ):
@@ -265,7 +265,7 @@ def generate_report(
     merged: pd.DataFrame,
     disease_data: Dict[str, pd.DataFrame],
     diseases: List[str],
-    metric: str = "Spatial_Score",
+    metric: str = "Spatial_Bias_Score",
     outdir: Path = None,
 ):
     """Generate a text report summarizing the comparison."""

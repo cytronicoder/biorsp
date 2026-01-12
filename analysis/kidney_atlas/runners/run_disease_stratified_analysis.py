@@ -125,7 +125,7 @@ DISEASE_MAPPINGS = {
 }
 
 ARCHETYPE_NAMES = {
-    "housekeeping_uniform": "I: Ubiquitous",
+    "I: Ubiquitous_uniform": "I: Ubiquitous",
     "localized_program": "II: Gradient",
     "niche_biomarker": "III: Patchy",
     "sparse_presence": "IV: Basal",
@@ -719,7 +719,7 @@ def run_analysis_for_disease(
         fdr_cut = 0.05
         filter_mask = (df_classified["coverage_geom"] >= 0.9) & (
             (df_classified["q_value"] < fdr_cut)
-            | (df_classified["Spatial_Score"] >= df_classified.attrs.get("s_cut", 0))
+            | (df_classified["Spatial_Bias_Score"] >= df_classified.attrs.get("s_cut", 0))
         )
         filtered_genes = df_classified.loc[filter_mask, "gene"].tolist()
 
@@ -750,7 +750,7 @@ def run_analysis_for_disease(
     cutoffs = {
         "c_cut": df_classified.attrs.get("c_cut", args.c_cut if args.c_cut else 0.10),
         "s_cut": df_classified.attrs.get(
-            "s_cut", args.s_cut if args.s_cut else df_classified["Spatial_Score"].median()
+            "s_cut", args.s_cut if args.s_cut else df_classified["Spatial_Bias_Score"].median()
         ),
         "s_cut_method": df_classified.attrs.get("s_cut_method", "unknown"),
         "fdr_cut": 0.05,
@@ -827,13 +827,13 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
         for archetype in df["Archetype"].unique():
             archetype_df = df[df["Archetype"] == archetype].copy()
 
-            top_genes = archetype_df.nlargest(n_top, "Spatial_Score")
+            top_genes = archetype_df.nlargest(n_top, "Spatial_Bias_Score")
 
             table_data = top_genes[
                 [
                     "gene_symbol",
                     "Coverage",
-                    "Spatial_Score",
+                    "Spatial_Bias_Score",
                     "coverage_geom",
                     "p_value",
                     "q_value",

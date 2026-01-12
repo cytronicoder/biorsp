@@ -457,18 +457,26 @@ def plot_spatial_embedding(
 
 
 ARCHETYPE_COLORS = {
-    "housekeeping": "#4CAF50",
-    "regional_program": "#2196F3",
-    "sparse_noise": "#9E9E9E",
-    "niche_marker": "#FF5722",
+    "i: ubiquitous": "#4CAF50",
+    "ii: gradient": "#2196F3",
+    "iv: basal": "#9E9E9E",
+    "iii: patchy": "#FF5722",
+    "I: Ubiquitous": "#4CAF50",
+    "II: Gradient": "#2196F3",
+    "IV: Basal": "#9E9E9E",
+    "III: Patchy": "#FF5722",
     "abstention_stress": "#000000",
 }
 
 ARCHETYPE_DESCRIPTIONS = {
-    "housekeeping": "Ubiquitous expression\n(high C, low S)",
-    "regional_program": "Broad spatial domain\n(high C, high S)",
-    "sparse_noise": "Scattered/rare\n(low C, low S)",
-    "niche_marker": "Localized marker\n(low C, high S)",
+    "i: ubiquitous": "Ubiquitous expression\n(high C, low S)",
+    "ii: gradient": "Broad spatial domain\n(high C, high S)",
+    "iv: basal": "Scattered/rare\n(low C, low S)",
+    "iii: patchy": "Localized marker\n(low C, high S)",
+    "I: Ubiquitous": "Ubiquitous expression\n(high C, low S)",
+    "II: Gradient": "Broad spatial domain\n(high C, high S)",
+    "IV: Basal": "Scattered/rare\n(low C, low S)",
+    "III: Patchy": "Localized marker\n(low C, high S)",
 }
 
 
@@ -532,10 +540,10 @@ def plot_archetype_scatter(
     y_lim = ax.get_ylim()
 
     annotations = [
-        (c_cut / 2, s_cut / 2, "Sparse/Noisy", "#9E9E9E"),
-        ((c_cut + x_lim[1]) / 2, s_cut / 2, "Housekeeping", "#4CAF50"),
-        (c_cut / 2, (s_cut + y_lim[1]) / 2, "Niche Marker", "#FF5722"),
-        ((c_cut + x_lim[1]) / 2, (s_cut + y_lim[1]) / 2, "Regional", "#2196F3"),
+        (c_cut / 2, s_cut / 2, "IV: Basal", "#9E9E9E"),
+        ((c_cut + x_lim[1]) / 2, s_cut / 2, "I: Ubiquitous", "#4CAF50"),
+        (c_cut / 2, (s_cut + y_lim[1]) / 2, "III: Patchy", "#FF5722"),
+        ((c_cut + x_lim[1]) / 2, (s_cut + y_lim[1]) / 2, "II: Gradient", "#2196F3"),
     ]
 
     for x, y, label, color in annotations:
