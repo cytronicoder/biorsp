@@ -109,12 +109,10 @@ def _compute_spatial_score_from_radar(radar) -> Tuple[float, float, float, float
     Returns:
         Tuple of (spatial_score, r_mean, coverage_geom, coverage_contrast, coverage_forced_zero)
     """
-    # Use geom_supported_mask (geometry support)
     mask = radar.geom_supported_mask
     if mask is None or not np.any(mask):
         return 0.0, 0.0, 0.0, 0.0, 0.0
 
-    # rsp is RAW (unweighted). Apply weights here ONCE.
     valid_rsp = np.nan_to_num(radar.rsp[mask], nan=0.0)
     w = radar.sector_weights[mask]
 
@@ -122,12 +120,9 @@ def _compute_spatial_score_from_radar(radar) -> Tuple[float, float, float, float
     if sum_w <= 0:
         return 0.0, 0.0, 0.0, 0.0, 0.0
 
-    # S_g = weighted RMS of rsp
     s_g = float(np.sqrt(np.sum(w * valid_rsp**2) / sum_w))
-    # r_mean = weighted mean of rsp
     r_mean = float(np.sum(w * valid_rsp) / sum_w)
 
-    # Coverage metrics
     coverage_geom = float(np.mean(mask))
     coverage_contrast = (
         float(np.mean(radar.contrast_supported_mask))
@@ -195,7 +190,6 @@ def _permute_p_value(
             sector_weights=fixed_weights,  # Fixed weights
         )
 
-        # Compute S_g using fixed geometry mask
         if fixed_geom_mask is not None and np.any(fixed_geom_mask):
             valid_rsp = np.nan_to_num(radar_null.rsp[fixed_geom_mask], nan=0.0)
             w = (
@@ -291,11 +285,9 @@ def score_genes_impl(
             radar
         )
 
-        # QC warnings
         if cov_geom < 0.8:
             warnings.append("low_coverage_geom")
 
-        # Coverage FG: fraction of geom-supported sectors with sufficient FG
         geom_mask = radar.geom_supported_mask
         if geom_mask is not None and np.any(geom_mask):
             n_fg_sector = radar.counts_fg[geom_mask]
@@ -305,7 +297,6 @@ def score_genes_impl(
 
         gene_seed = (config.seed + hash(gene)) % (2**32)
 
-        # Use fixed geometry mask and weights for inference
         p_val, _, _, z_score, _ = _permute_p_value(
             r_norm,
             theta,

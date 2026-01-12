@@ -565,10 +565,8 @@ def module_recovery_metrics(
     metrics : dict
         'auprc', 'auroc', 'precision_at_10', 'precision_at_50'
     """
-    # AUPRC
     auprc_val = auprc(true_edges, predicted_scores)
 
-    # AUROC
     try:
         from sklearn.metrics import roc_auc_score
 
@@ -576,7 +574,6 @@ def module_recovery_metrics(
     except (ImportError, ValueError):
         auroc_val = np.nan
 
-    # Precision at K
     prec_10 = topk_precision(true_edges, predicted_scores, k=10)
     prec_50 = topk_precision(true_edges, predicted_scores, k=50)
 
@@ -611,7 +608,6 @@ def embedding_stability_metrics(
     """
     n_embeddings = len(scores_list)
 
-    # Score correlations
     correlations = []
     for i in range(n_embeddings):
         for j in range(i + 1, n_embeddings):
@@ -622,7 +618,6 @@ def embedding_stability_metrics(
                 corr = np.corrcoef(s1[mask], s2[mask])[0, 1]
                 correlations.append(corr)
 
-    # Score std per gene
     stacked = np.vstack(scores_list)
     score_std = np.nanstd(stacked, axis=0)
 
@@ -633,7 +628,6 @@ def embedding_stability_metrics(
         "n_embeddings": n_embeddings,
     }
 
-    # Label agreement
     if labels_list is not None and len(labels_list) == n_embeddings:
         agreements = []
         for i in range(n_embeddings):
@@ -645,7 +639,6 @@ def embedding_stability_metrics(
     return result
 
 
-# Principled Null Calibration (Issue A, B, F fixes)
 
 
 def compute_null_statistics(null_s_values: np.ndarray) -> dict:
@@ -722,7 +715,6 @@ def derive_thresholds_principled(
     null_stats = compute_null_statistics(null_s_values)
 
     if null_stats.get("warning"):
-        # Insufficient data - use conservative defaults
         return {
             "s_cut": 0.15,
             "c_cut": coverage_split,
@@ -734,12 +726,10 @@ def derive_thresholds_principled(
             "warning": "Insufficient null samples, using conservative defaults",
         }
 
-    # S_cut = (1 - fpr_target) quantile of null distribution
     quantile = 1.0 - fpr_target
     s_clean = null_s_values[~np.isnan(null_s_values)]
     s_cut = np.percentile(s_clean, quantile * 100)
 
-    # Margin = IQR/2 for uncertainty band
     margin = null_stats["iqr"] / 2.0
 
     empirical_fpr = np.mean(s_clean >= s_cut) if len(s_clean) > 0 else np.nan
@@ -889,7 +879,6 @@ def module_recovery_metrics_extended(
     }
 
 
-# Null-Calibrated Threshold Tables (Section C)
 
 
 def build_calibration_table(
@@ -1008,7 +997,6 @@ def lookup_calibrated_threshold(
     return float(subset[quantile].median())
 
 
-# Minimum Expressing Cells Gating (Section C.4)
 
 
 def compute_min_expr_cells(N: int, base: int = 30, fraction: float = 0.01) -> int:
@@ -1073,7 +1061,6 @@ def apply_expr_gating(
     return gated
 
 
-# Module Recovery with Clustering (Section D)
 
 
 def compute_module_ari_nmi(
@@ -1180,7 +1167,6 @@ def within_module_pair_classification(
     return module_recovery_metrics_extended(scores, labels)
 
 
-# Robustness Paired Deltas (Section E)
 
 
 def compute_paired_deltas(
@@ -1207,7 +1193,6 @@ def compute_paired_deltas(
     deltas = distorted_scores - baseline_scores
     abs_deltas = np.abs(deltas)
 
-    # Correlation between baseline and distorted
     valid_mask = ~(np.isnan(baseline_scores) | np.isnan(distorted_scores))
     if valid_mask.sum() >= 3:
         corr = np.corrcoef(baseline_scores[valid_mask], distorted_scores[valid_mask])[0, 1]

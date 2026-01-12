@@ -146,7 +146,6 @@ def compute_scalar_summaries(
     peak_extremal = valid_rsp[extremal_idx]
     peak_extremal_angle = valid_centers[extremal_idx]
 
-    # Weighted anisotropy if weights available
     weights = getattr(radar, "sector_weights", None)
     if weights is not None and np.sum(weights[valid_mask]) > 0:
         w = weights[valid_mask]
@@ -165,7 +164,6 @@ def compute_scalar_summaries(
     counts_bg = getattr(radar, "counts_bg", np.zeros(B))
     counts_fg = getattr(radar, "counts_fg", np.zeros(B))
 
-    # Use geom_supported_mask if available, else fall back to counts_bg > 0
     geom_mask = getattr(radar, "geom_supported_mask", None)
     if geom_mask is not None:
         coverage_geom = float(np.mean(geom_mask))

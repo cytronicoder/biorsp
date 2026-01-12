@@ -338,7 +338,6 @@ def compute_rsp_radar(
     if sector_indices is None:
         sector_indices = get_sector_indices(theta, n_sectors, config.delta_deg)
 
-    # Initialize arrays
     rsp_values = np.full(n_sectors, np.nan)
     counts_fg = np.zeros(n_sectors)
     counts_bg = np.zeros(n_sectors)
@@ -347,13 +346,10 @@ def compute_rsp_radar(
     denom_scales = np.zeros(n_sectors)
     invalid_reasons = [REASON_OK] * n_sectors
 
-    # Mask arrays
     geom_supported_mask = np.zeros(n_sectors, dtype=bool)
     contrast_supported_mask = np.zeros(n_sectors, dtype=bool)
     forced_zero_mask = np.zeros(n_sectors, dtype=bool)
 
-    # Step 1: Compute geometry support (total density + scale) for each sector
-    # This is gene-independent and based only on total cell counts
     min_total = getattr(config, "min_total_per_sector", config.min_bg_sector)
 
     for b in range(n_sectors):
@@ -376,7 +372,6 @@ def compute_rsp_radar(
         geom_supported_mask[b] = True
         invalid_reasons[b] = REASON_OK
 
-    # Compute global IQR floor
     y_bg_global = 1.0 - y
     global_sort_idx = np.argsort(r)
     r_global_sorted = r[global_sort_idx]
@@ -394,7 +389,6 @@ def compute_rsp_radar(
         header = f"{'Theta':>6} | {'nF':>6} | {'nB':>6} | {'nTot':>6} | {'Geom':>5} | {'Reason':>20} | {'Raw':>8}"
         print(header)
 
-    # Step 2: Compute RSP for each sector
     for b in range(n_sectors):
         if frozen_mask is not None and not frozen_mask[b]:
             if debug:
@@ -421,7 +415,6 @@ def compute_rsp_radar(
                 )
             continue
 
-        # Compute sector statistics
         res = sector_signed_stat(
             r,
             y,
@@ -442,7 +435,6 @@ def compute_rsp_radar(
         if res["status"] == "degenerate_scale":
             iqr_floor_hits[b] = True
 
-        # Check geometry support
         if not geom_supported_mask[b]:
             rsp_values[b] = np.nan
             if debug:
@@ -454,28 +446,23 @@ def compute_rsp_radar(
                 )
             continue
 
-        # Check contrast support (FG/BG counts)
         n_fg = res["nF"]
         n_bg = res["nB"]
         has_fg = n_fg >= config.min_fg_sector
         has_bg = n_bg >= config.min_bg_sector
 
         if has_fg and has_bg:
-            # Full contrast support
             contrast_supported_mask[b] = True
             rsp_values[b] = res["stat_raw"]  # RAW statistic, no weighting
             invalid_reasons[b] = REASON_OK
         elif n_fg == 0 and has_bg and config.empty_fg_policy == "zero":
-            # Forced zero: geometry-supported but empty FG
             forced_zero_mask[b] = True
             rsp_values[b] = 0.0
             invalid_reasons[b] = REASON_SECTOR_EMPTY_FG_FORCED_ZERO
         elif not has_fg:
-            # Low FG
             rsp_values[b] = np.nan
             invalid_reasons[b] = REASON_SECTOR_FG_TOO_SMALL
         else:
-            # Low BG
             rsp_values[b] = np.nan
             invalid_reasons[b] = REASON_SECTOR_BG_TOO_SMALL
 
@@ -487,18 +474,15 @@ def compute_rsp_radar(
                 f"{'True':>5} | {invalid_reasons[b]:>20} | {rsp_values[b]:8.3f}"
             )
 
-    # Step 3: Compute sector weights (for aggregation only, never applied to rsp)
     if sector_weights is not None:
         computed_weights = sector_weights.copy()
     else:
-        # Default: weights based on total counts, normalized
         max_total = np.max(counts_total)
         if max_total > 0:
             computed_weights = np.clip(counts_total / max_total, 0.0, 1.0)
         else:
             computed_weights = np.ones(n_sectors)
 
-        # Apply support weighting if configured
         if config.sector_weight_mode != "none":
             for b in range(n_sectors):
                 support_weight = compute_sector_weight(
@@ -509,7 +493,6 @@ def compute_rsp_radar(
                 )
                 computed_weights[b] *= support_weight
 
-    # Set weights to 0 for unsupported sectors
     computed_weights[~geom_supported_mask] = 0.0
 
     return RadarResult(

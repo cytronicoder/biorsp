@@ -325,15 +325,10 @@ def make_factorial_panel(
     """
     from .expression import generate_factorial_gene
 
-    # Define patterns that BioRSP's S score CAN detect (radial structure)
-    # regional_program: broad radial patterns (high coverage + radial structure)
     regional_program_patterns = ["core", "rim", "radial_gradient"]
-    # niche_marker: localized radial patterns (low coverage + radial structure)
     niche_marker_patterns = ["wedge_core", "wedge_rim"]
 
-    # Allow override but warn implicitly via docstring
     if pattern_variants is not None:
-        # User override - use their patterns for all structured genes
         regional_program_patterns = pattern_variants
         niche_marker_patterns = pattern_variants
 
@@ -343,7 +338,6 @@ def make_factorial_panel(
 
     gene_idx = 0
 
-    # 2x2 factorial: coverage × organization
     archetypes = [
         ("high", "iid"),  # housekeeping
         ("high", "structured"),  # regional_program
@@ -353,19 +347,15 @@ def make_factorial_panel(
 
     for cov_regime, org_regime in archetypes:
         for i in range(n_per_archetype):
-            # Select appropriate pattern based on archetype
             if org_regime == "structured":
                 if cov_regime == "high":
-                    # regional_program: use radial patterns (detectable by S)
                     patterns_for_archetype = regional_program_patterns
                 else:
-                    # niche_marker: use localized radial patterns
                     patterns_for_archetype = niche_marker_patterns
 
                 pattern_var = patterns_for_archetype[i % len(patterns_for_archetype)]
 
                 if pattern_var == "wedge":
-                    # WARNING: Pure wedge is NOT detectable by S
                     pattern_params = {
                         "angle_center": rng.uniform(-np.pi, np.pi),
                         "width_rad": rng.uniform(np.pi / 6, np.pi / 3),
@@ -419,10 +409,8 @@ def make_factorial_panel(
             )
             gene_idx += 1
 
-    # Optional: add extreme stress cases for abstention testing
     if include_abstention_stress:
         for i in range(5):
-            # Extremely low coverage (1-3%) - use wedge_core to maintain some structure
             counts, meta = generate_factorial_gene(
                 coords=coords,
                 libsize=libsize,
@@ -501,7 +489,6 @@ def make_module_panel_structured(
     """
     from .expression import generate_expression_targeted
 
-    # Generate distinct module patterns (wedges at different angles)
     if module_patterns is None:
         angles = np.linspace(0, 2 * np.pi, n_modules, endpoint=False)
         module_patterns = [("wedge", {"angle_center": a, "width_rad": np.pi / 4}) for a in angles]
@@ -510,7 +497,6 @@ def make_module_panel_structured(
     var_names = []
     truth_rows = []
 
-    # Generate module genes
     for mod_idx, (pattern, pattern_params) in enumerate(module_patterns):
         module_name = f"module_{mod_idx}"
 
@@ -544,7 +530,6 @@ def make_module_panel_structured(
                 }
             )
 
-    # Generate null genes (no spatial pattern)
     from .expression import generate_confounded_null
 
     for i in range(n_null_genes):
@@ -575,7 +560,6 @@ def make_module_panel_structured(
             gene_b = var_names[j]
             mod_a = truth_genes_df.iloc[i]["module"]
             mod_b = truth_genes_df.iloc[j]["module"]
-            # True edge if same module and not null
             is_true_edge = (mod_a == mod_b) and (mod_a != "null")
             edges.append(
                 {

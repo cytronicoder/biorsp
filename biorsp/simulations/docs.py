@@ -86,7 +86,6 @@ def interpret_calibration(summary_df: pd.DataFrame, alpha: float = 0.05) -> str:
         "We test this across different spatial shapes, distortions, and null models.\n"
     )
 
-    # Schema v2.0 uses fpr_05, older versions used fpr_0p05 or fpr_mean
     fpr_col = None
     for candidate in ["fpr_05", "fpr_0p05", "fpr_mean"]:
         if candidate in summary_df.columns:
@@ -120,7 +119,6 @@ def interpret_calibration(summary_df: pd.DataFrame, alpha: float = 0.05) -> str:
             f"\n⚠️ Some conditions show FPR up to {fpr_max:.3f}, indicating potential miscalibration."
         )
 
-    # Check for α=0.01 results (schema v2.0 uses fpr_01)
     fpr_01_col = None
     for candidate in ["fpr_01", "fpr_0p01"]:
         if candidate in summary_df.columns:

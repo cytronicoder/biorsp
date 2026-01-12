@@ -57,7 +57,6 @@ def plot_qq(
 
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
-    # Panel A: Significance region zoom
     ax = axes[0]
     mask = expected <= alpha
     exp_sig = expected[mask]
@@ -69,7 +68,6 @@ def plot_qq(
     ax.axvline(alpha, color="red", linestyle="--", alpha=0.3, linewidth=1.5, label=f"α={alpha}")
     ax.axhline(alpha, color="red", linestyle="--", alpha=0.3, linewidth=1.5)
 
-    # Permutation floor annotation
     if perm_floor is not None and perm_floor < alpha:
         ax.axhline(
             perm_floor,
@@ -90,7 +88,6 @@ def plot_qq(
     ax.grid(alpha=0.3)
     ax.set_aspect("equal")
 
-    # Panel B: Full range
     ax = axes[1]
     ax.plot([0, 1], [0, 1], "k--", alpha=0.5, linewidth=2, label="Perfect calibration")
     ax.scatter(expected, observed, s=10, alpha=0.6, color="#2196F3")
@@ -792,7 +789,6 @@ def compose_story_onepager(
             va="bottom",
         )
 
-    # Return the composed figure grid for now
     return fig
 
 
@@ -995,7 +991,6 @@ def plot_archetype_examples(
                 ax.axis("off")
                 ax.text(0.5, 0.5, "N/A", ha="center", va="center", transform=ax.transAxes)
 
-        # Row label
         axes[row_idx, 0].set_ylabel(archetype.replace("_", "\n"), fontsize=10, fontweight="bold")
         axes[row_idx, 0].yaxis.set_label_position("left")
 
@@ -1295,7 +1290,6 @@ def plot_misclassified_scatter(
     """
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Identify misclassified
     correct_mask = np.array(true_archetypes) == np.array(pred_archetypes)
     incorrect_mask = ~correct_mask
 
@@ -1332,7 +1326,6 @@ def plot_misclassified_scatter(
             linewidth=1.5,
             alpha=0.9,
         )
-        # Annotate
         ax.annotate(
             f"{gene}\n{true_arch}→{pred_arch}",
             (c_val, s_val),
@@ -1400,7 +1393,6 @@ def plot_pattern_detectability(
     """
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Group by pattern and compute stats
     pattern_groups = pattern_results.groupby("pattern_variant")["spatial_score"]
     patterns = []
     means = []
@@ -1416,7 +1408,6 @@ def plot_pattern_detectability(
     means = [means[i] for i in sort_idx]
     stds = [stds[i] for i in sort_idx]
 
-    # Color by detectability expectation
     detectable_patterns = {"core", "rim", "radial_gradient", "wedge_core", "wedge_rim"}
     colors = ["#4CAF50" if p in detectable_patterns else "#FF5722" for p in patterns]
 
@@ -1444,7 +1435,6 @@ def plot_pattern_detectability(
     return fig
 
 
-# Null Calibration and Exemplar Plots (Issue A, B, E fixes)
 
 
 def plot_null_distribution(
@@ -1485,7 +1475,6 @@ def plot_null_distribution(
     s_clean = null_s_values[~np.isnan(null_s_values)]
     empirical_fpr = np.mean(s_clean >= s_cut) if len(s_clean) > 0 else np.nan
 
-    # Left: Histogram with threshold
     ax = axes[0]
     n_bins = min(30, len(s_clean) // 3) if len(s_clean) > 10 else 10
     ax.hist(s_clean, bins=n_bins, color="#2196F3", alpha=0.7, edgecolor="black", density=True)
@@ -1512,7 +1501,6 @@ def plot_null_distribution(
     ax.legend(fontsize=9)
     ax.grid(alpha=0.3)
 
-    # Right: Empirical CDF with threshold
     ax = axes[1]
     sorted_s = np.sort(s_clean)
     cdf = np.arange(1, len(sorted_s) + 1) / len(sorted_s)
@@ -1648,7 +1636,6 @@ def plot_exemplar_panel(
     if confidence is not None:
         metrics_text.extend(["", f"Confidence: {confidence.upper()}"])
 
-    # Classification result
     high_c = coverage >= c_cut
     high_s = spatial_score >= s_cut
     if high_c and high_s:
@@ -1723,7 +1710,6 @@ def plot_precision_with_baseline(
     k_vals = precision_df["k"].values
     prec_vals = precision_df["precision_at_k"].values
 
-    # Left: Precision with baseline
     ax = axes[0]
     ax.bar(range(len(k_vals)), prec_vals, color="#2196F3", alpha=0.8, edgecolor="black")
     ax.axhline(
@@ -1746,7 +1732,6 @@ def plot_precision_with_baseline(
     ax.legend(fontsize=9)
     ax.grid(axis="y", alpha=0.3)
 
-    # Right: Fold enrichment
     ax = axes[1]
     fold_vals = prec_vals / prevalence_baseline if prevalence_baseline > 0 else prec_vals
     ax.bar(range(len(k_vals)), fold_vals, color="#4CAF50", alpha=0.8, edgecolor="black")
@@ -1800,7 +1785,6 @@ def plot_genegene_distributions(
     """
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
-    # Left: Overlapping histograms
     ax = axes[0]
     bins = np.linspace(
         min(within_module_scores.min(), between_module_scores.min()),
@@ -1831,7 +1815,6 @@ def plot_genegene_distributions(
     ax.legend(fontsize=9)
     ax.grid(alpha=0.3)
 
-    # Right: Box/violin plot
     ax = axes[1]
     data = [between_module_scores, within_module_scores]
     positions = [0, 1]
@@ -1970,7 +1953,6 @@ def plot_archetype_example_panel(
     theta = np.arctan2(dy, dx)
     r = np.sqrt(dx**2 + dy**2)
 
-    # Bin by angle and compute mean radius
     n_bins = 12
     theta_bins = np.linspace(-np.pi, np.pi, n_bins + 1)
     theta_centers = (theta_bins[:-1] + theta_bins[1:]) / 2
@@ -1986,7 +1968,6 @@ def plot_archetype_example_panel(
         fg_r_mean.append(r[fg_mask].mean() if fg_mask.sum() > 0 else np.nan)
         bg_r_mean.append(r[bg_mask].mean() if bg_mask.sum() > 0 else np.nan)
 
-    # Close the loop for polar plot
     theta_plot = np.concatenate([theta_centers, [theta_centers[0]]])
     fg_r_plot = np.array(fg_r_mean + [fg_r_mean[0]])
     bg_r_plot = np.array(bg_r_mean + [bg_r_mean[0]])
@@ -2125,7 +2106,6 @@ def plot_null_calibration_panel(
         label=f"S_cut={s_cut:.3f} (FPR={empirical_fpr:.1%})",
     )
 
-    # Shade rejection region
     ax.axvspan(s_cut, ax.get_xlim()[1], alpha=0.2, color="red", label="Reject region")
 
     ax.set_xlabel("Spatial Score (S)", fontsize=10)
@@ -2153,7 +2133,6 @@ def plot_null_calibration_panel(
         label=f"S_cut: {1 - fpr_at_cut:.1%} null below",
     )
 
-    # Target quantile line
     target_quantile = 1 - fpr_target
     ax.axhline(
         target_quantile,
@@ -2224,7 +2203,6 @@ def plot_genegene_example_panel(
 
     ax = axes[1]
 
-    # Sort genes by module
     module_order = np.argsort(true_modules)
     reordered = similarity_matrix[module_order][:, module_order]
     reordered_names = [gene_names[i] for i in module_order]
@@ -2258,7 +2236,6 @@ def plot_genegene_example_panel(
         except ImportError:
             ari, nmi = np.nan, np.nan
 
-        # Contingency matrix
         unique_true = np.unique(true_modules)
         unique_pred = np.unique(predicted_clusters)
         contingency = np.zeros((len(unique_true), len(unique_pred)))
@@ -2342,7 +2319,6 @@ def plot_robustness_example_panel(
 
     ax = axes[0]
 
-    # Sample subset for visualization if too many points
     n_plot = min(500, len(baseline_coords))
     idx = np.random.choice(len(baseline_coords), n_plot, replace=False)
 
@@ -2378,11 +2354,9 @@ def plot_robustness_example_panel(
 
     ax.scatter(b_valid, d_valid, c="#4CAF50", s=30, alpha=0.6, edgecolors="black", linewidth=0.5)
 
-    # Identity line
     lims = [min(b_valid.min(), d_valid.min()), max(b_valid.max(), d_valid.max())]
     ax.plot(lims, lims, "k--", alpha=0.5, linewidth=2, label="y=x")
 
-    # Correlation
     if len(b_valid) >= 3:
         corr = np.corrcoef(b_valid, d_valid)[0, 1]
         ax.text(
@@ -2416,7 +2390,6 @@ def plot_robustness_example_panel(
         label=f"Median: {np.median(deltas):.3f}",
     )
 
-    # IQR shading
     q25, q75 = np.percentile(deltas, [25, 75])
     ax.axvspan(q25, q75, alpha=0.2, color="blue", label=f"IQR: [{q25:.3f}, {q75:.3f}]")
 
@@ -2469,7 +2442,6 @@ def compose_archetype_examples_grid(
     archetype_order = ["housekeeping", "regional_program", "sparse_noise", "niche_marker"]
 
     for col, target_archetype in enumerate(archetype_order):
-        # Find matching example
         ex = None
         for d in example_data:
             if d["archetype"] == target_archetype:
@@ -2504,7 +2476,6 @@ def compose_archetype_examples_grid(
         ax.set_xticks([])
         ax.set_yticks([])
 
-        # Color-code border based on classification
         border_color = (
             "green"
             if (

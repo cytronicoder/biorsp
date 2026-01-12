@@ -29,7 +29,6 @@ import pandas as pd
 
 SCHEMA_VERSION = "2.0"
 
-# Schema v2.0: Updated to include permutation_scheme and remove density_confounded
 REQUIRED_COLUMNS = {
     "calibration": {
         "runs": [

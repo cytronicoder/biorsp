@@ -111,7 +111,6 @@ def compute_pairwise_relationships(
                 else np.isfinite(r2)
             )
 
-            # Shared support mask
             shared_mask = mask1 & mask2
             shared_frac = float(np.mean(shared_mask))
 
@@ -136,13 +135,11 @@ def compute_pairwise_relationships(
                 )
                 continue
 
-            # Shared weights: geometric mean
             shared_weights = (
                 np.sqrt(w1 * w2) if w1 is not None and w2 is not None else np.ones_like(r1)
             )
             shared_weights[~shared_mask] = 0.0
 
-            # Weighted correlation on shared mask
             corr = _weighted_corr(r1, r2, shared_weights)
             comp = _weighted_corr(r1, -r2, shared_weights)
 

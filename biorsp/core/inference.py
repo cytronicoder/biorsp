@@ -88,7 +88,6 @@ def _permutation_worker(
     is_valid = not np.any(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
     empty_count = np.sum(valid_mask & ((radar_perm.counts_fg == 0) | (radar_perm.counts_bg == 0)))
 
-    # Compute S_g using fixed mask and weights
     return (
         compute_anisotropy(radar_perm.rsp, valid_mask, sector_weights),
         int(empty_count),
@@ -201,7 +200,6 @@ def compute_p_value(
             empty_sector_count=0,
         )
 
-    # Compute observed S_g using fixed mask and weights
     observed_stat = compute_anisotropy(radar_obs.rsp, valid_mask, radar_obs.sector_weights)
 
     null_stats = []

@@ -289,9 +289,6 @@ def generate_confounded_null(
     params = params or {}
 
     if null_type == "iid":
-        # IID null: expression probability is constant across all cells
-        # No spatial structure, no covariate dependence
-        # Valid permutation: global shuffle
         base_prob = params.get("base_prob", 0.1)
         field = np.full(len(coords), base_prob)
         counts = generate_expression_from_field(field, libsize, rng, expr_model="nb", params=params)
@@ -304,18 +301,12 @@ def generate_confounded_null(
         return counts, meta
 
     elif null_type == "depth_confounded":
-        # Depth-confounded null: expression probability scales with library size
-        # Library size can vary spatially (e.g., deeper sequencing near center)
-        # BUT conditional on library size, expression is spatially independent
-        # Valid permutation: stratified shuffle within depth quantile bins
         depth_effect = params.get("depth_effect", 0.5)
         n_bins = params.get("n_depth_bins", 5)
 
-        # Create depth bins for stratified permutation
         libsize_norm = (libsize - libsize.min()) / (libsize.max() - libsize.min() + 1e-9)
         depth_bins = np.digitize(libsize_norm, np.linspace(0, 1, n_bins + 1)[1:-1])
 
-        # Expression probability proportional to library size
         field = 0.1 + depth_effect * libsize_norm
         counts = generate_expression_from_field(field, libsize, rng, expr_model="nb", params=params)
         meta = {
@@ -329,9 +320,6 @@ def generate_confounded_null(
         return counts, meta
 
     elif null_type == "density_confounded":
-        # WARNING: This creates TRUE spatial signal and should NOT be used for
-        # calibration. It is included here for backward compatibility but will
-        # raise a warning. Use in archetypes benchmark instead.
         import warnings
 
         warnings.warn(
@@ -355,9 +343,6 @@ def generate_confounded_null(
         return counts, meta
 
     elif null_type == "mask_stress":
-        # Mask stress null: same as IID but with very low prevalence
-        # Tests BioRSP's behavior when many sectors are masked
-        # Valid permutation: global shuffle
         base_prob = params.get("base_prob", 0.01)  # Very low prevalence
         field = np.full(len(coords), base_prob)
         counts = generate_expression_from_field(field, libsize, rng, expr_model="nb", params=params)
@@ -468,14 +453,11 @@ def generate_expression_targeted(
     pattern_params = pattern_params or {}
     expr_params = expr_params or {}
 
-    # Generate base signal field
     field = generate_signal_field(coords, pattern, pattern_params)
 
-    # We adjust the "abundance" parameter to hit target prevalence
     expr_params.get("phi", 10.0)
     base_abundance = expr_params.get("abundance", 1e-3)
 
-    # Binary search for abundance that achieves target coverage
     lo, hi = 1e-6, 1e-1
     best_abundance = base_abundance
     best_diff = 1.0
@@ -608,7 +590,6 @@ def generate_factorial_gene(
         pattern_params=eff_params,
     )
 
-    # Derive ground-truth archetype label (2x2 naming)
     archetype_map = {
         ("high", "iid"): "housekeeping",
         ("high", "structured"): "regional_program",
@@ -679,21 +660,16 @@ def generate_factorial_gene_with_beta(
     """
     pattern_params = pattern_params or {}
 
-    # Generate spatial modulation field (raw, unnormalized)
     field_raw = generate_signal_field(coords, pattern_mechanism, pattern_params)
 
-    # Zero-center the field to decouple prevalence from spatial effect
     field_centered = field_raw - np.mean(field_raw)
 
-    # Apply logistic model: logit(p_i) = logit(base_p) + beta * f_centered_i
-    # Clip base_prevalence to avoid log(0)
     base_p_clip = np.clip(base_prevalence, 1e-6, 1 - 1e-6)
     logit_base = np.log(base_p_clip / (1 - base_p_clip))
 
     logit_p = logit_base + spatial_beta * field_centered
     p_spatial = 1.0 / (1.0 + np.exp(-logit_p))
 
-    # Generate counts using the spatially-modulated probability
     counts = generate_expression_from_field(
         p_spatial, libsize, rng, expr_model="nb", params={"phi": 10.0, "abundance": 1e-3}
     )

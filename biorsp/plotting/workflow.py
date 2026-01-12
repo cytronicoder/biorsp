@@ -45,9 +45,7 @@ def interpret_pattern(
     if S_g < 0.1:
         return "Diffuse / Weak signal"
 
-    # Δ-dependent interpretation
     if delta_deg >= 90:
-        # Conservative: only global core/rim bias allowed
         if abs(R_mean) < 0.15:
             return "Global mixed signal"
         elif R_mean > 0:
@@ -55,7 +53,6 @@ def interpret_pattern(
         else:
             return "Global rim bias"
     elif delta_deg >= 60:
-        # Moderate directionality - cautious localization
         if abs(R_mean) < 0.15:
             return "Mixed / Sector-level variation"
         elif R_mean > 0:
@@ -63,7 +60,6 @@ def interpret_pattern(
         else:
             return "Sector localization (rim-biased)"
     else:
-        # High directionality - can claim wedge localization
         if abs(R_mean) < 0.15:
             return "Localized mixed pattern"
         elif R_mean > 0:
@@ -149,11 +145,9 @@ def make_end_to_end_figure(
         print("No valid sectors. Cannot generate figure.")
         return
 
-    # Use geom_supported_mask (geometry support)
     mask_geom = res.geom_supported_mask if res.geom_supported_mask is not None else valid_mask
     weights = res.sector_weights if res.sector_weights is not None else np.ones(len(res.rsp))
 
-    # Compute S_g and R_mean using geometry mask and weights ONCE
     w_valid = weights[mask_geom]
     sum_w = np.sum(w_valid)
     if sum_w > 0:

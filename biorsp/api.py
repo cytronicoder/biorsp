@@ -61,6 +61,7 @@ def score_genes(
             config = replace(config, **updates)
 
     df = score_genes_impl(adata, genes, embedding_key, subset, config)
+
     return df.rename(columns=COLUMN_MAP)
 
 
@@ -89,7 +90,9 @@ def classify_genes(
         DataFrame with an additional 'Archetype' column.
     """
     internal_df = df.rename(columns=INTERNAL_MAP)
+
     out = classify_genes_impl(internal_df, c_cut, s_cut, fdr_cut)
+
     return out.rename(columns=COLUMN_MAP)
 
 

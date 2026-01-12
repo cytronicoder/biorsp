@@ -109,7 +109,6 @@ def compute_robustness_score(
         radar_sub = compute_rsp_radar(r_sub, theta_sub, y_sub, config=config)
         rsp_sub = radar_sub.rsp
 
-        # Use geom_supported_mask for comparison
         mask_full = (
             radar_full.geom_supported_mask
             if radar_full.geom_supported_mask is not None
