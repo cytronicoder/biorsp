@@ -14,8 +14,8 @@ Contract:
 
 import numpy as np
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_rsp_radar
-from biorsp.utils.config import BioRSPConfig
 
 
 def test_forced_zero_sectors_are_numeric_zeros():

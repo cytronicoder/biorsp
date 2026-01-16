@@ -1,8 +1,8 @@
 import numpy as np
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.adequacy import assess_adequacy
 from biorsp.core.engine import compute_rsp_radar
-from biorsp.core.typing import BioRSPConfig
 
 
 def test_compute_rsp_accepts_adequacy_object():

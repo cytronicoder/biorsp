@@ -9,13 +9,11 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from biorsp import (
-    BioRSPConfig,
-    compute_p_value,
-    compute_rsp_radar,
-    compute_scalar_summaries,
-)
+from biorsp.api import BioRSPConfig
+from biorsp.core.engine import compute_rsp_radar
 from biorsp.core.geometry import geometric_median
+from biorsp.core.inference import compute_p_value
+from biorsp.core.summaries import compute_scalar_summaries
 
 
 @dataclass

@@ -17,8 +17,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from biorsp import BioRSPConfig, compute_rsp_radar, compute_vantage, polar_coordinates
-from biorsp.core.geometry import get_sector_indices
+from biorsp.api import BioRSPConfig
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.geometry import compute_vantage, get_sector_indices, polar_coordinates
 from biorsp.preprocess.foreground import define_foreground
 from biorsp.preprocess.normalization import normalize_radii
 

@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.qc import compute_gene_qc, compute_sector_qc, kish_effective_sample_size
-from biorsp.utils.config import BioRSPConfig
 from biorsp.utils.constants import (
     REASON_GENE_LOW_COVERAGE,
     REASON_GENE_TOO_FEW_SECTORS,

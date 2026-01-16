@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -33,7 +33,7 @@ def test_simlib_submodules():
 def test_benchmarks_scripts_import():
     """Test importing benchmarks scripts."""
 
-    from benchmarks import (
+    from analysis.benchmarks.runners import (
         run_archetypes,
         run_calibration,
         run_genegene,

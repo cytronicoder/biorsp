@@ -457,14 +457,29 @@ def compute_rsp_radar(
             invalid_reasons[b] = REASON_OK
         elif n_fg == 0 and has_bg and config.empty_fg_policy == "zero":
             forced_zero_mask[b] = True
+            contrast_supported_mask[b] = True
             rsp_values[b] = 0.0
             invalid_reasons[b] = REASON_SECTOR_EMPTY_FG_FORCED_ZERO
         elif not has_fg:
-            rsp_values[b] = np.nan
-            invalid_reasons[b] = REASON_SECTOR_FG_TOO_SMALL
+            if config.empty_fg_policy == "zero" and geom_supported_mask[b]:
+                # Geometry-supported but insufficient FG: force zero
+                forced_zero_mask[b] = True
+                rsp_values[b] = 0.0
+                invalid_reasons[b] = REASON_SECTOR_FG_TOO_SMALL
+            else:
+                # Not geometry-supported or policy is nan
+                rsp_values[b] = np.nan
+                invalid_reasons[b] = REASON_SECTOR_FG_TOO_SMALL
         else:
-            rsp_values[b] = np.nan
-            invalid_reasons[b] = REASON_SECTOR_BG_TOO_SMALL
+            # Insufficient background
+            if config.empty_fg_policy == "zero" and geom_supported_mask[b]:
+                # Geometry-supported but insufficient BG: force zero
+                forced_zero_mask[b] = True
+                rsp_values[b] = 0.0
+                invalid_reasons[b] = REASON_SECTOR_BG_TOO_SMALL
+            else:
+                rsp_values[b] = np.nan
+                invalid_reasons[b] = REASON_SECTOR_BG_TOO_SMALL
 
         if debug:
             theta_rad = -np.pi + b * (2 * np.pi / n_sectors)

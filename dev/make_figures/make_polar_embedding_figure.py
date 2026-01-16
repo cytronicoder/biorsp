@@ -83,6 +83,10 @@ def setup_args():
         default=[0.0, np.pi / 2, -np.pi / 2],
         help="Example angles (radians) to show as wedges in Panels A/B",
     )
+    parser.add_argument(
+        "--smoke", action="store_true", help="Run in fast smoke test mode with demo data"
+    )
+    parser.add_argument("--outdir", type=str, help="Output directory for smoke test mode")
     return parser.parse_args()
 
 
@@ -107,7 +111,17 @@ def main():
     args = setup_args()
     np.random.seed(args.seed)
 
-    outpath = Path(args.out)
+    if args.smoke:
+        if args.outdir:
+            outpath = Path(args.outdir) / "polar_reparameterization.png"
+        else:
+            outpath = Path("polar_reparameterization.png")
+        # Force demo data in smoke mode
+        args.adata = None
+        args.coords_csv = None
+    else:
+        outpath = Path(args.out)
+
     outpath.parent.mkdir(parents=True, exist_ok=True)
 
     if args.adata:

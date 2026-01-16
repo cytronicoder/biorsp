@@ -23,6 +23,8 @@ import numpy as np
 import pandas as pd
 
 from biorsp import BioRSPConfig
+from biorsp.plotting.panels import generate_standard_panels
+from biorsp.plotting.spec import PlotSpec
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -80,7 +82,7 @@ def run_archetype_condition(config_dict: dict, seed: int, config: BioRSPConfig) 
             "true_archetype": expr_meta["Archetype"],
             "pattern_variant": pattern_variant,
             "p_value": np.nan,
-            "Spatial_Bias_Score": np.nan,
+            "Spatial_Score": np.nan,
             "Coverage": np.nan,
             "n_expr_cells": expr_meta.get("n_expr_cells", 0),
             "abstain_flag": True,
@@ -96,7 +98,7 @@ def run_archetype_condition(config_dict: dict, seed: int, config: BioRSPConfig) 
         "true_archetype": expr_meta["Archetype"],
         "pattern_variant": pattern_variant,
         "p_value": row["p_value"],
-        "Spatial_Bias_Score": row["Spatial_Bias_Score"],
+        "Spatial_Score": row["Spatial_Score"],
         "Coverage": row["Coverage"],
         "n_expr_cells": expr_meta.get("n_expr_cells", 0),
         "abstain_flag": row["abstain_flag"],
@@ -276,7 +278,7 @@ def main():
     if s_cut is None:
         iid_runs = runs_df[runs_df["organization_regime"] == "iid"]
         if len(iid_runs) >= 10:
-            s_values = iid_runs["Spatial_Bias_Score"].dropna().values
+            s_values = iid_runs["Spatial_Score"].dropna().values
             thresholds = metrics.derive_thresholds_principled(s_values, fpr_target=0.05)
             s_cut = thresholds["s_cut"]
             print(
@@ -289,7 +291,7 @@ def main():
     c_cut = args.c_cut
 
     coverage = runs_df["Coverage"].values
-    spatial_score = runs_df["Spatial_Bias_Score"].values
+    spatial_score = runs_df["Spatial_Score"].values
     n_expr_cells = runs_df["n_expr_cells"].values
     N_values = runs_df["N"].values
 
@@ -317,7 +319,7 @@ def main():
     )
 
     accuracy = class_metrics["accuracy"]
-    cm_df = class_metrics["confusion_matrix"]
+    # cm_df = class_metrics["confusion_matrix"]  # Unused, kept for reference
 
     print(f"\n📊 Classification Results (S_cut={s_cut:.4f}, C_cut={c_cut:.2f}):")
     print(f"   Overall Accuracy: {accuracy:.1%}")
@@ -337,8 +339,8 @@ def main():
                 "coverage_regime": cov_regime,
                 "organization_regime": org_regime,
                 "true_archetype": true_arch,
-                "Spatial_Score_mean": group["Spatial_Bias_Score"].mean(),
-                "Spatial_Score_std": group["Spatial_Bias_Score"].std(),
+                "Spatial_Score_mean": group["Spatial_Score"].mean(),
+                "Spatial_Score_std": group["Spatial_Score"].std(),
                 "Coverage_mean": group["Coverage"].mean(),
                 "Coverage_std": group["Coverage"].std(),
                 "n_expr_cells_mean": group["n_expr_cells"].mean(),
@@ -361,15 +363,22 @@ def main():
     with open(output_dir / "thresholds_used.json", "w") as f:
         json.dump(thresholds_used, f, indent=2)
 
-    print("\nGenerating plots...")
+    print("\nGenerating plots using standardized plotting API...")
 
+    # Create PlotSpec with validated cutoffs
+    spec = PlotSpec(c_cut=c_cut, s_cut=s_cut)
+
+    # Ensure archetype classification is applied (will add "Archetype" column)
+    runs_df = spec.classify_dataframe(runs_df, inplace=True)
+
+    # Generate per-shape scatter plots (legacy, can be deprecated later)
     for shape in args.shape:
         subset = runs_df[runs_df["shape"] == shape]
 
         try:
             validation.validate_dataframe_for_plot(
                 subset,
-                required_columns=["Coverage", "Spatial_Bias_Score", "true_archetype"],
+                required_columns=["Coverage", "Spatial_Score", "true_archetype"],
                 min_rows=1,
                 name=f"archetype scatter plot for {shape}",
             )
@@ -379,7 +388,7 @@ def main():
 
         fig = plotting.plot_archetype_scatter(
             coverage=subset["Coverage"].values,
-            spatial_score=subset["Spatial_Bias_Score"].values,
+            spatial_score=subset["Spatial_Score"].values,
             true_archetypes=subset["true_archetype"].values,
             c_cut=c_cut,
             s_cut=s_cut,
@@ -387,12 +396,17 @@ def main():
         )
         io.save_figure(fig, output_dir, f"archetypes_scatter_{shape}.png")
 
-    fig = plotting.plot_confusion_matrix_styled(
-        cm_df,
-        title="Archetype Classification",
-        accuracy=accuracy,
+    # Generate standardized panels (Panel A and B with consistent naming)
+    print("Generating standardized panels (A: scatter, B: confusion)...")
+    figures_dir = output_dir / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    generate_standard_panels(
+        df=runs_df,
+        spec=spec,
+        outdir=figures_dir,
+        mode="simulation",
     )
-    io.save_figure(fig, output_dir, "archetypes_confusion_matrix.png")
 
     print("Generating archetype example panels...")
     examples_dir = output_dir / "examples"
@@ -403,16 +417,14 @@ def main():
         arch_runs = runs_df[runs_df["true_archetype"] == archetype]
         if len(arch_runs) > 0:
             median_idx = (
-                (arch_runs["Spatial_Bias_Score"] - arch_runs["Spatial_Bias_Score"].median())
-                .abs()
-                .idxmin()
+                (arch_runs["Spatial_Score"] - arch_runs["Spatial_Score"].median()).abs().idxmin()
             )
             ex_row = arch_runs.loc[median_idx]
             example_data.append(
                 {
                     "Archetype": archetype,
                     "coverage": ex_row["Coverage"],
-                    "Spatial_Bias_Score": ex_row["Spatial_Bias_Score"],
+                    "Spatial_Score": ex_row["Spatial_Score"],
                     "seed": ex_row.get("seed", args.seed),
                     "shape": ex_row["shape"],
                     "N": ex_row["N"],
@@ -431,7 +443,7 @@ def main():
     misclass_df = runs_df[misclass_mask].copy()
 
     if len(misclass_df) > 0:
-        misclass_df["s_margin"] = np.abs(misclass_df["Spatial_Bias_Score"] - s_cut)
+        misclass_df["s_margin"] = np.abs(misclass_df["Spatial_Score"] - s_cut)
         misclass_df["c_margin"] = np.abs(misclass_df["Coverage"] - c_cut)
         misclass_df["total_margin"] = misclass_df["s_margin"] + misclass_df["c_margin"]
         misclass_df = misclass_df.sort_values("total_margin", ascending=True)
@@ -473,6 +485,15 @@ def main():
         runtime_seconds=runtime,
         biorsp_config=config,
     )
+
+    # Add plot specification to manifest
+    manifest_path = output_dir / "manifest.json"
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+    manifest["plot_spec"] = spec.to_dict()
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+    print("Updated manifest with plot specification")
 
     print("\n✅ Archetype benchmark complete!")
     print(f"   Output directory: {output_dir}")

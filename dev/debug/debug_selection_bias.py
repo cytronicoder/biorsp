@@ -4,12 +4,14 @@ Tests that empty_fg_policy='zero' correctly handles empty sectors and avoids
 selection bias. Compares global_rim vs wedge_rim scenarios.
 
 Usage:
-    python scripts/debug_selection_bias.py
+    python dev/debug/debug_selection_bias.py
+    python dev/debug/debug_selection_bias.py --smoke --outdir /tmp/test
 
 Requires:
     Package installation: pip install -e .
 """
 
+import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -61,21 +63,32 @@ def make_synthetic_data(scenario="wedge"):
     return z, is_fg
 
 
-def run_debug_session():
+def run_debug_session(outdir=None, smoke=False):
     """Run selection bias debug session.
 
     Key test: Under empty_fg_policy='zero', wedge_rim should have smaller
     |R_mean| than global_rim, since fewer sectors have foreground.
     This verifies the selection bias fix.
+
+    Args:
+        outdir: Output directory. If None, uses scripts/debug/
+        smoke: If True, run in fast smoke test mode (fewer scenarios/policies)
     """
     print("Running Selection Bias Debug Session...")
     print("Testing empty_fg_policy behavior for rim patterns.\n")
 
-    debug_dir = Path("scripts") / "debug"
+    if outdir:
+        debug_dir = Path(outdir)
+    else:
+        debug_dir = Path("scripts") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 
-    scenarios = ["global_rim", "wedge_rim", "null"]
-    policies = ["nan", "zero"]
+    if smoke:
+        scenarios = ["global_rim", "wedge_rim"]  # Skip null in smoke mode
+        policies = ["zero"]  # Only test the fixed policy
+    else:
+        scenarios = ["global_rim", "wedge_rim", "null"]
+        policies = ["nan", "zero"]
 
     results_table = []
 
@@ -163,4 +176,16 @@ def run_debug_session():
 
 
 if __name__ == "__main__":
-    run_debug_session()
+    parser = argparse.ArgumentParser(
+        description="Debug selection bias with synthetic data",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--smoke",
+        action="store_true",
+        help="Run in fast smoke test mode (fewer scenarios/policies)",
+    )
+    parser.add_argument("--outdir", type=str, help="Output directory for figures")
+    args = parser.parse_args()
+
+    run_debug_session(outdir=args.outdir, smoke=args.smoke)

@@ -4,12 +4,14 @@ Generates end-to-end figures for synthetic scenarios to verify the workflow
 is functioning correctly. This is a developer/debugging tool.
 
 Usage:
-    python scripts/debug_end_to_end.py
+    python dev/debug/debug_end_to_end.py
+    python dev/debug/debug_end_to_end.py --smoke --outdir /tmp/test
 
 Requires:
     Package installation: pip install -e .
 """
 
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -61,14 +63,25 @@ def make_synthetic_data(scenario="wedge"):
     return z, is_fg
 
 
-def run_debug_session():
-    """Run debug session for all synthetic scenarios."""
+def run_debug_session(outdir=None, smoke=False):
+    """Run debug session for all synthetic scenarios.
+
+    Args:
+        outdir: Output directory. If None, uses scripts/debug/
+        smoke: If True, run in fast smoke test mode (fewer scenarios)
+    """
     print("Running Debug Session for End-to-End Workflow...")
 
-    debug_dir = Path("scripts") / "debug"
+    if outdir:
+        debug_dir = Path(outdir)
+    else:
+        debug_dir = Path("scripts") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 
-    scenarios = ["wedge_core", "wedge_rim", "global_rim", "null"]
+    if smoke:
+        scenarios = ["wedge_core"]  # Only one scenario for smoke test
+    else:
+        scenarios = ["wedge_core", "wedge_rim", "global_rim", "null"]
 
     for sc in scenarios:
         print(f"\n--- Running Scenario: {sc} ---")
@@ -85,4 +98,14 @@ def run_debug_session():
 
 
 if __name__ == "__main__":
-    run_debug_session()
+    parser = argparse.ArgumentParser(
+        description="Debug end-to-end workflow with synthetic data",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--smoke", action="store_true", help="Run in fast smoke test mode (fewer scenarios)"
+    )
+    parser.add_argument("--outdir", type=str, help="Output directory for figures")
+    args = parser.parse_args()
+
+    run_debug_session(outdir=args.outdir, smoke=args.smoke)

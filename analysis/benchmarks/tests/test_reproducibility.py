@@ -66,7 +66,7 @@ def test_schema_version_in_outputs():
                 "replicate": [0],
                 "seed": [42],
                 "p_value": [0.5],
-                "Spatial_Bias_Score": [0.1],
+                "Spatial_Score": [0.1],
                 "Coverage": [0.2],
                 "abstain_flag": [False],
                 "permutation_scheme": ["test"],

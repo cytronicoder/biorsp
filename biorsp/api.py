@@ -5,6 +5,7 @@ This module provides the primary entry points for gene scoring and gene-pair ana
 
 from typing import List, Optional, Union
 
+import numpy as np
 import pandas as pd
 from anndata import AnnData
 
@@ -13,11 +14,42 @@ from biorsp.utils.config import BioRSPConfig
 
 COLUMN_MAP = {
     "coverage": "Coverage",
-    "spatial_score": "Spatial_Bias_Score",
+    "spatial_score": "Spatial_Score",
     "r_mean": "Directionality",
     "archetype": "Archetype",
 }
 INTERNAL_MAP = {v: k for k, v in COLUMN_MAP.items()}
+PUBLIC_COLUMNS = ["Coverage", "Spatial_Score", "Directionality", "Archetype"]
+LEGACY_COLUMNS = {
+    "coverage_expr",
+    "pct_cells",
+    "alpha",
+    "anisotropy",
+    "rms",
+    "S_g",
+    "class",
+    "type",
+}
+
+
+def _standardize_gene_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename to public schema, drop legacy columns, and ensure required fields exist."""
+    df = df.rename(columns=COLUMN_MAP)
+
+    # Drop legacy/banned fields if present
+    df = df.drop(columns=[c for c in LEGACY_COLUMNS if c in df.columns], errors="ignore")
+
+    for col in PUBLIC_COLUMNS:
+        if col not in df.columns:
+            df[col] = np.nan
+
+    ordered = []
+    if "gene" in df.columns:
+        ordered.append("gene")
+    ordered.extend([c for c in PUBLIC_COLUMNS if c not in ordered])
+
+    remaining = [c for c in df.columns if c not in ordered]
+    return df[ordered + remaining]
 
 
 def score_genes(
@@ -48,7 +80,7 @@ def score_genes(
     Returns
     -------
     pd.DataFrame
-        GeneScoreTable with standardized columns: Coverage, Spatial_Bias_Score, Directionality.
+        GeneScoreTable with standardized columns: Coverage, Spatial_Score, Directionality.
     """
     if config is None:
         config = BioRSPConfig(**kwargs)
@@ -62,7 +94,7 @@ def score_genes(
 
     df = score_genes_impl(adata, genes, embedding_key, subset, config)
 
-    return df.rename(columns=COLUMN_MAP)
+    return _standardize_gene_table(df)
 
 
 def classify_genes(
@@ -71,7 +103,7 @@ def classify_genes(
     s_cut: Optional[float] = None,
     fdr_cut: float = 0.05,
 ) -> pd.DataFrame:
-    """Classify genes into archetypes based on Coverage and Spatial_Bias_Score.
+    """Classify genes into archetypes based on Coverage and Spatial_Score.
 
     Parameters
     ----------
@@ -93,7 +125,7 @@ def classify_genes(
 
     out = classify_genes_impl(internal_df, c_cut, s_cut, fdr_cut)
 
-    return out.rename(columns=COLUMN_MAP)
+    return _standardize_gene_table(out)
 
 
 def score_gene_pairs(

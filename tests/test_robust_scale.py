@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_rsp_radar, sector_signed_stat
-from biorsp.utils.config import BioRSPConfig
 
 
 def test_pooled_vs_bg_scale_stability():

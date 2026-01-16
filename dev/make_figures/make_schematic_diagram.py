@@ -89,6 +89,7 @@ def draw_arrow(ax, x1, y1, x2, y2, pad=0.12):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outdir", type=str, default="scripts/output")
+    parser.add_argument("--smoke", action="store_true", help="Run in smoke test mode")
     args = parser.parse_args()
 
     outdir = Path(args.outdir)
@@ -196,7 +197,8 @@ def main():
         ),
     )
 
-    save_figure(fig, Path(outdir) / "fig_schematic_diagram.pdf")
+    # Save both PDF and PNG formats
+    save_figure(fig, Path(outdir) / "fig_schematic_diagram", formats=["pdf", "png"])
 
 
 if __name__ == "__main__":

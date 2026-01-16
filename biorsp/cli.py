@@ -6,13 +6,14 @@ Commands:
 
 import argparse
 
-from biorsp import BioRSPConfig, run
+from biorsp.api import BioRSPConfig
 from biorsp.io.loaders import (
     align_inputs,
     load_expression_matrix,
     load_spatial_coords,
     load_umi_counts,
 )
+from biorsp.main import run
 from biorsp.utils.constants import (
     B_DEFAULT,
     DELTA_DEG_DEFAULT,

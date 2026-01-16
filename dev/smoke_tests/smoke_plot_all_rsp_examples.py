@@ -19,7 +19,9 @@ import numpy as np
 
 matplotlib.use("Agg")
 
-from biorsp import BioRSPConfig, compute_rsp_radar, polar_coordinates
+from biorsp.api import BioRSPConfig
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.geometry import polar_coordinates
 from biorsp.core.summaries import compute_scalar_summaries
 from biorsp.core.typing import RadarResult
 from biorsp.plotting.radar import plot_radar, plot_radar_absolute

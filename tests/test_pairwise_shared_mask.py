@@ -14,9 +14,9 @@ Contract:
 import numpy as np
 import pytest
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_rsp_radar
 from biorsp.core.pairwise import _weighted_corr, compute_pairwise_relationships
-from biorsp.utils.config import BioRSPConfig
 
 
 @pytest.fixture
@@ -133,6 +133,49 @@ def test_opposite_patterns_negative_correlation(two_gene_data):
         assert (
             synergy[0].correlation < 0.0
         ), f"Opposite patterns should be negatively correlated, got {synergy[0].correlation}"
+
+
+def test_pairwise_drops_non_shared_supported_sectors(two_gene_data):
+    """Pairwise similarity must ignore sectors unsupported by either gene."""
+    r, theta, y1, y2, _ = two_gene_data
+    config = BioRSPConfig(B=12, delta_deg=45, seed=42)
+
+    radar1 = compute_rsp_radar(r, theta, y1, config=config)
+    radar2 = compute_rsp_radar(r, theta, y2, config=config)
+
+    mask1 = (
+        radar1.geom_supported_mask
+        if radar1.geom_supported_mask is not None
+        else np.isfinite(radar1.rsp)
+    )
+    mask2 = (
+        radar2.geom_supported_mask
+        if radar2.geom_supported_mask is not None
+        else np.isfinite(radar2.rsp)
+    )
+
+    # Force a few sectors in gene2 to be unsupported and extreme so they would bias correlation
+    mask2 = mask2.copy()
+    mask2[:2] = False
+    radar2.geom_supported_mask = mask2
+    radar2.rsp = radar2.rsp.copy()
+    radar2.rsp[:2] = 10.0
+
+    radar_by_feature = {"gene1": radar1, "gene2": radar2}
+    synergy, _ = compute_pairwise_relationships(radar_by_feature)
+
+    shared_mask = mask1 & mask2
+    shared_weights = np.sqrt(radar1.sector_weights * radar2.sector_weights)
+    shared_weights[~shared_mask] = 0.0
+    expected_corr = _weighted_corr(radar1.rsp, radar2.rsp, shared_weights)
+
+    if synergy and np.isfinite(expected_corr):
+        np.testing.assert_allclose(
+            synergy[0].correlation,
+            expected_corr,
+            rtol=1e-12,
+            err_msg="Pairwise correlation must use only shared supported sectors",
+        )
 
 
 def test_weighted_corr_basic():

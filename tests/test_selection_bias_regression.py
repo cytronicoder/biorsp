@@ -15,10 +15,10 @@ This test prevents regression of the selection bias fix.
 import numpy as np
 import pandas as pd
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_rsp_radar
 from biorsp.core.geometry import polar_coordinates
 from biorsp.core.summaries import compute_scalar_summaries
-from biorsp.utils.config import BioRSPConfig
 
 
 def make_synthetic_rim_pattern(scenario: str, seed: int = 42) -> tuple:

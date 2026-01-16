@@ -7,7 +7,7 @@ import pytest
 
 TEST_DIR = Path(__file__).resolve().parent
 SIM_ROOT = TEST_DIR.parent
-BENCHMARKS_DIR = SIM_ROOT / "benchmarks"
+BENCHMARKS_DIR = SIM_ROOT / "runners"
 OUTPUT_DIR = SIM_ROOT / "outputs" / "test"
 
 

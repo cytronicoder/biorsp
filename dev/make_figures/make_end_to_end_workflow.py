@@ -41,6 +41,10 @@ def setup_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
+        "--smoke", action="store_true", help="Run in smoke test mode with synthetic data"
+    )
+    parser.add_argument("--outdir", type=str, help="Output directory (for smoke test mode)")
+    parser.add_argument(
         "--adata", type=str, help="Path to AnnData h5ad file (optional, uses demo data if omitted)"
     )
     parser.add_argument(
@@ -94,7 +98,17 @@ def main():
     args = setup_args()
     np.random.seed(args.seed)
 
-    outpath = Path(args.out)
+    # Handle smoke mode
+    if args.smoke:
+        if args.outdir:
+            outpath = Path(args.outdir) / f"end_to_end_{args.feature}.png"
+        else:
+            outpath = Path("end_to_end.png")
+        # Force demo data in smoke mode
+        args.adata = None
+    else:
+        outpath = Path(args.out)
+
     outpath.parent.mkdir(parents=True, exist_ok=True)
 
     if args.adata:
@@ -145,7 +159,7 @@ def main():
         outpath=str(outpath),
         feature_name=args.feature,
         seed=args.seed,
-        coverage_expr=coverage_expr,
+        coverage=coverage_expr,
         expr_threshold=thresh,
         foreground_fraction=foreground_fraction,
     )

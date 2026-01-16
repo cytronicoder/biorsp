@@ -13,9 +13,9 @@ Contract:
 import numpy as np
 import pytest
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_anisotropy, compute_rsp_radar
 from biorsp.core.summaries import compute_scalar_summaries
-from biorsp.utils.config import BioRSPConfig
 
 
 @pytest.fixture

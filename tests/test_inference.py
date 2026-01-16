@@ -1,7 +1,8 @@
 import numpy as np
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.inference import compute_p_value
-from biorsp.core.typing import BioRSPConfig, RadarResult
+from biorsp.core.typing import RadarResult
 
 
 def test_permutation_missing_sectors_treated_as_zero(monkeypatch):

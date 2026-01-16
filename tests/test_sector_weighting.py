@@ -1,8 +1,8 @@
 import numpy as np
 import pytest
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_anisotropy, compute_rsp_radar, sector_signed_stat
-from biorsp.utils.config import BioRSPConfig
 from biorsp.utils.helpers import compute_sector_weight
 
 

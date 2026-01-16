@@ -1,8 +1,8 @@
 import numpy as np
 
+from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_rsp_radar
 from biorsp.core.inference import compute_p_value
-from biorsp.core.typing import BioRSPConfig
 
 
 def test_mask_stability_across_permutations():
