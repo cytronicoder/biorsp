@@ -384,7 +384,7 @@ def main():
 
         fig = plotting.plot_archetype_scatter(
             coverage=subset["Coverage"].values,
-            spatial_score=subset["Spatial_Bias_Score"].values,
+            spatial_bias_score=subset["Spatial_Bias_Score"].values,
             true_archetypes=subset["true_archetype"].values,
             c_cut=c_cut,
             s_cut=s_cut,
