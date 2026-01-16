@@ -58,16 +58,10 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
-from biorsp import (
-    BioRSPConfig,
-    classify_genes,
-    compute_rsp_radar,
-    plot_radar,
-    polar_coordinates,
-    score_gene_pairs,
-    score_genes,
-)
-from biorsp.core.geometry import compute_vantage
+from biorsp.api import BioRSPConfig, classify_genes, score_gene_pairs, score_genes
+from biorsp.core.engine import compute_rsp_radar
+from biorsp.core.geometry import compute_vantage, polar_coordinates
+from biorsp.plotting.radar import plot_radar
 
 warnings.filterwarnings("ignore", message=".*dtype argument is deprecated.*")
 warnings.filterwarnings("ignore", category=FutureWarning, module="legacy_api_wrap")
@@ -618,20 +612,31 @@ def plot_archetype_scatter(
     if s_cut is None:
         s_cut = df.attrs.get("s_cut", 0.05)  # Default from classify_genes
 
+    # Import standardized colors from PlotSpec (single source of truth)
+    from biorsp.plotting.spec import ARCHETYPE_COLORS
+
     if "Archetype" in df.columns:
-        archetype_colors = {
-            "localized_program": "#e41a1c",
-            "Ubiquitous_uniform": "#377eb8",
-            "niche_biomarker": "#4daf4a",
-            "sparse_presence": "#999999",
+        # Map legacy archetype names to canonical names
+        archetype_name_map = {
+            "localized_program": "Gradient",
+            "Ubiquitous_uniform": "Ubiquitous",
+            "niche_biomarker": "Patchy",
+            "sparse_presence": "Basal",
+            # Also support canonical names directly
+            "Gradient": "Gradient",
+            "Ubiquitous": "Ubiquitous",
+            "Patchy": "Patchy",
+            "Basal": "Basal",
         }
-        for arch, color in archetype_colors.items():
-            mask = df["Archetype"] == arch
+        for arch_raw in df["Archetype"].unique():
+            canonical = archetype_name_map.get(arch_raw, arch_raw)
+            color = ARCHETYPE_COLORS.get(canonical, "#888888")
+            mask = df["Archetype"] == arch_raw
             ax.scatter(
                 df.loc[mask, "Coverage"],
                 df.loc[mask, "Spatial_Bias_Score"],
                 c=color,
-                label=arch.replace("_", " ").title(),
+                label=canonical,
                 s=30,
                 alpha=0.7,
                 edgecolors="none",

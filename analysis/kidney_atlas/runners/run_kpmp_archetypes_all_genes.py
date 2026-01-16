@@ -32,6 +32,8 @@ from scipy.stats import spearmanr
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
+from biorsp.plotting.spec import ARCHETYPE_COLORS, ARCHETYPE_ORDER  # noqa: E402
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 try:
@@ -95,12 +97,8 @@ ARCHETYPE_NAMES = {
     (False, False): "Basal",  # Low C, Low S
 }
 
-ARCHETYPE_COLORS = {
-    "Ubiquitous": "#4DBEEE",
-    "Patchy": "#D95319",
-    "Gradient": "#77AC30",
-    "Basal": "#A2142F",
-}
+# NOTE: ARCHETYPE_COLORS is now imported from biorsp.plotting.spec (at top of file)
+# This ensures consistent colors across all BioRSP plots
 
 
 def parse_args() -> argparse.Namespace:
@@ -929,7 +927,11 @@ def plot_cs_scatter(
     else:
         plot_df = df.copy()
 
-    for archetype, color in ARCHETYPE_COLORS.items():
+    # Use canonical order for consistent legend appearance
+    for archetype in ARCHETYPE_ORDER:
+        if archetype not in ARCHETYPE_COLORS:
+            continue
+        color = ARCHETYPE_COLORS[archetype]
         mask = plot_df["Archetype"] == archetype
         ax.scatter(
             plot_df.loc[mask, "Coverage"],
@@ -1036,7 +1038,9 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
 
     gene_col = "gene_name" if "gene_name" in df.columns else "gene"
 
-    for idx, (archetype, color) in enumerate(ARCHETYPE_COLORS.items()):
+    # Use canonical ordering for consistent 2x2 grid layout
+    for idx, archetype in enumerate(ARCHETYPE_ORDER):
+        color = ARCHETYPE_COLORS.get(archetype, "#888888")
         ax = axes[idx]
         subset = df[df["Archetype"] == archetype].copy()
 

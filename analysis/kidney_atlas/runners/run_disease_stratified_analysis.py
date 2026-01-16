@@ -131,12 +131,10 @@ ARCHETYPE_NAMES = {
     "sparse_presence": "Basal",
 }
 
-ARCHETYPE_COLORS = {
-    "Ubiquitous": "#4DBEEE",
-    "Gradient": "#77AC30",
-    "Patchy": "#D95319",
-    "Basal": "#A2142F",
-}
+# Import standardized colors from PlotSpec (single source of truth)
+
+# NOTE: ARCHETYPE_COLORS is now imported from biorsp.plotting.spec
+# This ensures consistent colors across all BioRSP plots
 
 
 def parse_args() -> argparse.Namespace:
