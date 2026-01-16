@@ -80,9 +80,9 @@ from .expression import (
     simulate_library_size,
 )
 from .geometry import compute_polar, radial_density_proxy
-from .io import REQUIRED_COLUMNS  # noqa: F401
-from .io import SCHEMA_VERSION  # noqa: F401
-from .io import (
+from .io import (  # noqa: F401
+    REQUIRED_COLUMNS,
+    SCHEMA_VERSION,
     ensure_output_dir,
     load_manifest,
     load_runs_csv,
@@ -196,6 +196,8 @@ __all__ = [
     "plot_stability_summary",
     "ARCHETYPE_COLORS",
     "ARCHETYPE_DESCRIPTIONS",
+    "REQUIRED_COLUMNS",
+    "SCHEMA_VERSION",
     "serialize_biorsp_config",
     "validate_output_schema",
     "ensure_output_dir",
