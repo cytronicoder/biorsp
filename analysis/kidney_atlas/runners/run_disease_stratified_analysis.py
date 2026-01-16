@@ -131,8 +131,6 @@ ARCHETYPE_NAMES = {
     "sparse_presence": "Basal",
 }
 
-# Import standardized colors from PlotSpec (single source of truth)
-
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
@@ -888,8 +886,8 @@ def main():
     if args.smoke:
         logger.info("=== SMOKE TEST MODE ===")
         args.max_genes = 50
-        args.n_permutations = 0  # Skip permutations for speed
-        args.debug_plots = True  # Enable debug plots
+        args.n_permutations = 0
+        args.debug_plots = True
         logger.info("Overrides: max_genes=50, n_permutations=0, debug_plots=True")
 
     outdir = Path(args.outdir)
@@ -1011,7 +1009,7 @@ def main():
         empty_fg_policy=args.empty_fg_policy,
         n_permutations=args.n_permutations,
         seed=args.seed,
-        stratify_key=args.donor_key,  # Stratify by donor within each disease
+        stratify_key=args.donor_key,
     )
 
     run_meta["config"] = asdict(config)
@@ -1026,7 +1024,7 @@ def main():
         adata_disease = adata[indices].copy()
 
         for col in adata_disease.obs.columns:
-            if hasattr(adata_disease.obs[col], "cat"):  # Check if categorical
+            if hasattr(adata_disease.obs[col], "cat"):
                 adata_disease.obs[col] = adata_disease.obs[col].astype(str)
 
         if args.subsample and args.subsample < adata_disease.n_obs:

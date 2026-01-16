@@ -36,7 +36,6 @@ def _standardize_gene_table(df: pd.DataFrame) -> pd.DataFrame:
     """Rename to public schema, drop legacy columns, and ensure required fields exist."""
     df = df.rename(columns=COLUMN_MAP)
 
-    # Drop legacy/banned fields if present
     df = df.drop(columns=[c for c in LEGACY_COLUMNS if c in df.columns], errors="ignore")
 
     for col in PUBLIC_COLUMNS:

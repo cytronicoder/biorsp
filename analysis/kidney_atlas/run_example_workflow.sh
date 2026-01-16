@@ -1,21 +1,17 @@
 #!/bin/bash
-# Example workflow for disease-stratified BioRSP analysis
-# This script demonstrates the complete analysis pipeline
 
-set -e  # Exit on error
+set -e
 
 echo "=========================================="
 echo "Disease-Stratified BioRSP Analysis Workflow"
 echo "=========================================="
 echo ""
 
-# Configuration
 DATA_FILE="data/kpmp.h5ad"
 BASE_DIR="results/example_workflow"
 CELLTYPE="TAL"
 CELLTYPE_KEY="subclass.l1"
 
-# Check if data exists
 if [ ! -f "$DATA_FILE" ]; then
     echo "ERROR: Data file not found: $DATA_FILE"
     echo "Please download or specify the correct path to your KPMP h5ad file"
@@ -41,7 +37,6 @@ echo "✓ Pilot test complete!"
 echo "  Results: ${BASE_DIR}/pilot/"
 echo ""
 
-# Review pilot results
 echo "Step 2: Review pilot results"
 echo "----------------------------------------"
 cat "${BASE_DIR}/pilot/README.md"

@@ -34,7 +34,6 @@ class TestSmartIndexDetection:
         """Test loading expression matrix with cell IDs as first column."""
         csv_path = tmp_path / "expr_with_ids.csv"
 
-        # Create CSV with cell IDs
         data = pd.DataFrame(
             {
                 "cell_id": ["cell_001", "cell_002", "cell_003"],
@@ -44,10 +43,8 @@ class TestSmartIndexDetection:
         )
         data.to_csv(csv_path, index=False)
 
-        # Load
         df = load_expression_matrix(str(csv_path))
 
-        # Should detect cell_id as index
         assert df.index.name == "cell_id"
         assert list(df.index) == ["cell_001", "cell_002", "cell_003"]
         assert list(df.columns) == ["gene_A", "gene_B"]
@@ -56,7 +53,6 @@ class TestSmartIndexDetection:
         """Test loading expression matrix with only numeric columns."""
         csv_path = tmp_path / "expr_no_ids.csv"
 
-        # Create CSV with only numeric data (no IDs)
         data = pd.DataFrame(
             {
                 "gene_A": [1.5, 2.3, 0.0],
@@ -65,10 +61,8 @@ class TestSmartIndexDetection:
         )
         data.to_csv(csv_path, index=False)
 
-        # Load
         df = load_expression_matrix(str(csv_path))
 
-        # Should use default integer index
         assert list(df.columns) == ["gene_A", "gene_B"]
         assert len(df) == 3
 
@@ -80,14 +74,11 @@ class TestLoadUMICounts:
         """Test loading UMI counts from CSV with single numeric column (no IDs)."""
         csv_path = tmp_path / "umi_no_ids.csv"
 
-        # Single numeric column, no IDs
         data = pd.DataFrame({"umi": [100, 200, 300]})
         data.to_csv(csv_path, index=False)
 
-        # Load
         counts = load_umi_counts(str(csv_path))
 
-        # Should return ndarray
         assert isinstance(counts, np.ndarray)
         assert len(counts) == 3
         np.testing.assert_array_equal(counts, [100, 200, 300])
@@ -96,7 +87,6 @@ class TestLoadUMICounts:
         """Test loading UMI counts with cell IDs."""
         csv_path = tmp_path / "umi_with_ids.csv"
 
-        # Cell IDs + UMI column
         data = pd.DataFrame(
             {
                 "cell_id": ["cell_A", "cell_B", "cell_C"],
@@ -105,10 +95,8 @@ class TestLoadUMICounts:
         )
         data.to_csv(csv_path, index=False)
 
-        # Load
         counts = load_umi_counts(str(csv_path))
 
-        # Should return Series with cell IDs as index
         assert isinstance(counts, pd.Series)
         assert list(counts.index) == ["cell_A", "cell_B", "cell_C"]
         assert list(counts.values) == [150, 250, 350]
@@ -142,7 +130,6 @@ class TestLoadSpatialCoords:
 
         coords_df = load_spatial_coords(str(csv_path))
 
-        # Should detect cell_id as index
         assert list(coords_df.index) == ["cell_1", "cell_2", "cell_3"]
         assert list(coords_df.columns) == ["x", "y"]
         assert coords_df.shape == (3, 2)
@@ -178,7 +165,6 @@ class TestLoadSpatialCoords:
 
         coords_df = load_spatial_coords(str(csv_path))
 
-        # Should standardize to lowercase
         assert list(coords_df.columns) == ["x", "y"]
 
     def test_load_spatial_with_nan_raises(self, tmp_path):
@@ -202,26 +188,21 @@ class TestAlignInputs:
 
     def test_align_order_mismatch(self):
         """Test that align_inputs corrects order mismatches."""
-        # Create expression with order: A, B, C
         expr = pd.DataFrame(
             {"gene1": [1, 2, 3], "gene2": [4, 5, 6]}, index=["cell_A", "cell_B", "cell_C"]
         )
 
-        # Create coords with different order: C, A, B
         coords = pd.DataFrame(
             {"x": [30, 10, 20], "y": [3, 1, 2]}, index=["cell_C", "cell_A", "cell_B"]
         )
 
-        # Align
         aligned_expr, aligned_coords, _, report = align_inputs(
             expr, coords, how="inner", verbose=False
         )
 
-        # Should have same order now
         assert list(aligned_expr.index) == list(aligned_coords.index)
         assert aligned_expr.index.equals(aligned_coords.index)
 
-        # Should have all 3 cells
         assert len(aligned_expr) == 3
         assert report["n_overlap"] == 3
 
@@ -231,7 +212,7 @@ class TestAlignInputs:
 
         coords = pd.DataFrame(
             {"x": [30, 40], "y": [3, 4]},
-            index=["cell_X", "cell_Y"],  # No overlap
+            index=["cell_X", "cell_Y"],
         )
 
         with pytest.raises(ValueError, match="Insufficient overlap"):

@@ -46,7 +46,6 @@ def test_radar_uses_u_space_by_default():
     theta = np.zeros(4)
     y = np.array([1, 1, 0, 0])
 
-    # With only 4 data points, we need to lower min_total_per_sector
     config = BioRSPConfig(
         B=1, delta_deg=360, min_fg_sector=1, min_bg_sector=1, min_total_per_sector=1
     )

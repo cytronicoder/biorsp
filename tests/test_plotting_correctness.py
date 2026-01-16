@@ -31,27 +31,22 @@ def generate_test_data(n=500, pattern="rim_wedge", seed=42):
     """
     rng = np.random.default_rng(seed)
 
-    # Create spatial embedding
     r_true = np.sqrt(rng.random(n))
     theta_true = 2 * np.pi * rng.random(n) - np.pi
     coords = np.column_stack([r_true * np.cos(theta_true), r_true * np.sin(theta_true)])
 
     if pattern == "rim_wedge":
-        # Localized rim pattern at theta ~ 0
-        # High expression in rim (r > 0.6) AND near theta=0
         prob_base = 0.05
         prob_spatial = 0.85 * (r_true > 0.6) * np.exp(-0.5 * (theta_true / 0.5) ** 2)
         prob = np.clip(prob_base + prob_spatial, 0, 1)
-        expr = rng.binomial(10, prob).astype(float)  # Counts
+        expr = rng.binomial(10, prob).astype(float)
 
-        # True coverage: fraction with expr >= 1
         true_coverage = np.mean(expr >= 1)
         return coords, expr, true_coverage, "wedge_rim"
 
     elif pattern == "core_global":
-        # Global core bias (all angles, but closer to center)
         prob_base = 0.05
-        prob_spatial = 0.7 * (r_true < 0.5)  # Core cells (all directions)
+        prob_spatial = 0.7 * (r_true < 0.5)
         prob = np.clip(prob_base + prob_spatial, 0, 1)
         expr = rng.binomial(10, prob).astype(float)
 
@@ -66,29 +61,23 @@ def test_coverage_vs_foreground_distinction():
     """Test that Coverage != internal foreground fraction."""
     coords, expr, true_coverage, _ = generate_test_data(n=500, pattern="rim_wedge")
 
-    # Detect threshold
-    # Note: config object not used here (just computing threshold directly)
     is_integers = np.allclose(expr, np.round(expr))
     thresh = 1.0 if is_integers else 1e-6
 
     coverage = float(np.mean(expr >= thresh))
 
-    # Define internal foreground (quantile-based, for spatial scoring)
     fg_mask, fg_info = define_foreground(expr, mode="quantile", q=0.9)
     foreground_fraction = float(np.mean(fg_mask))
 
-    # Critical assertion: these should differ
     assert coverage != foreground_fraction, (
         f"Coverage ({coverage:.3f}) should differ from "
         f"foreground_fraction ({foreground_fraction:.3f})"
     )
 
-    # Coverage should be higher (more lenient threshold)
     assert (
         coverage > foreground_fraction
     ), "Coverage (biological threshold) should be >= internal FG (quantile)"
 
-    # Coverage must align with fraction above biological threshold
     assert np.isclose(coverage, true_coverage, atol=1e-3)
 
 
@@ -99,11 +88,9 @@ def test_workflow_matches_scoring():
 
     coords, expr, _, _ = generate_test_data(n=500, pattern="rim_wedge")
 
-    # Create AnnData
     adata = AnnData(X=expr.reshape(-1, 1), obsm={"X_spatial": coords})
     adata.var_names = ["test_gene"]
 
-    # Score using public API
     config = BioRSPConfig(
         delta_deg=30,
         B=24,
@@ -130,11 +117,9 @@ def test_workflow_matches_scoring():
         set(results.columns)
     ), "Legacy columns leaked into public output"
 
-    # Results uses integer index, gene name in 'gene' column
     api_coverage = results.loc[0, "Coverage"]
     api_spatial = results.loc[0, "Spatial_Bias_Score"]
 
-    # Manually compute for workflow
     v = compute_vantage(coords, method="geometric_median")
     r, theta = polar_coordinates(coords, v)
     r_norm, _ = normalize_radii(r)
@@ -156,14 +141,11 @@ def test_workflow_matches_scoring():
         print("  ⊘ SKIPPED (no geom-supported sectors)")
         return
 
-    # Contract: weights are not normalized, use proper weighted mean
-    # Also handle NaN values in rsp (convert to 0 as done in scoring)
     w = radar.sector_weights[mask_geom]
     rsp_masked = np.nan_to_num(radar.rsp[mask_geom], nan=0.0)
     sum_w = np.sum(w)
     S_g_manual = float(np.sqrt(np.sum(w * rsp_masked**2) / sum_w)) if sum_w > 0 else 0.0
 
-    # Critical assertions
     assert np.isclose(
         coverage_manual, api_coverage, atol=0.01
     ), f"Manual coverage ({coverage_manual:.3f}) should match API ({api_coverage:.3f})"
@@ -187,27 +169,21 @@ def test_empty_fg_zero_fill_correctness():
     r, theta = polar_coordinates(coords, v)
     r_norm, _ = normalize_radii(r)
 
-    # Very restrictive foreground (will have empty sectors)
     fg_mask, fg_info = define_foreground(expr, mode="quantile", q=0.95)
 
-    # If foreground definition failed, use a manual threshold
     if fg_mask is None:
         fg_mask = (expr >= np.quantile(expr, 0.95)).astype(float)
 
     radar = compute_rsp_radar(r_norm, theta, fg_mask, config=config)
 
-    # Check that forced_zero_mask exists and is tracked
     assert hasattr(radar, "forced_zero_mask"), "RadarResult must have forced_zero_mask"
     assert radar.forced_zero_mask is not None, "forced_zero_mask should be populated"
 
-    # Sectors marked as forced-zero should have RSP = 0
     if np.any(radar.forced_zero_mask):
         forced_zero_rsp = radar.rsp[radar.forced_zero_mask]
         assert np.all(forced_zero_rsp == 0), "Forced-zero sectors must have RSP = 0"
-        # Zeroed sectors must not introduce NaNs and contribute zero to Spatial_Bias_Score numerator
         assert np.all(np.isfinite(forced_zero_rsp)), "Forced-zero sectors must be finite"
 
-    # geom_supported_mask should distinguish valid from invalid
     assert hasattr(radar, "geom_supported_mask"), "RadarResult must have geom_supported_mask"
     if radar.geom_supported_mask is not None and np.any(radar.geom_supported_mask):
         assert np.all(
@@ -217,7 +193,6 @@ def test_empty_fg_zero_fill_correctness():
 
 def test_delta_interpretation_rules():
     """Test that interpretation respects Δ-dependent rules."""
-    # Test Δ ≥ 90° → no wedge claims
     interp_90 = interpret_pattern(S_g=0.5, R_mean=0.3, coverage_geom=0.9, delta_deg=90)
     assert (
         "wedge" not in interp_90.lower()
@@ -226,11 +201,9 @@ def test_delta_interpretation_rules():
         "global" in interp_90.lower() or "sector" in interp_90.lower()
     ), f"Δ=90° should use global/sector terms, got: {interp_90}"
 
-    # Test Δ < 60° → can claim wedge
     interp_45 = interpret_pattern(S_g=0.5, R_mean=0.3, coverage_geom=0.9, delta_deg=45)
     assert "wedge" in interp_45.lower(), f"Δ=45° should allow wedge claims, got: {interp_45}"
 
-    # Test low coverage_geom → unreliable
     interp_low_cov = interpret_pattern(S_g=0.5, R_mean=0.3, coverage_geom=0.3, delta_deg=45)
     assert (
         "coverage" in interp_low_cov.lower() or "unreliable" in interp_low_cov.lower()
@@ -258,13 +231,11 @@ def test_rsp_plot_sector_types():
 
     radar = compute_rsp_radar(r_norm, theta, fg_mask, config=config)
 
-    # Plot should not crash
     fig, ax = plt.subplots(subplot_kw={"projection": "polar"})
     ax = plot_radar(radar, ax=ax, theta_convention="math", debug_overlay=False)
 
     assert ax is not None, "plot_radar should return axes"
 
-    # Check that plot includes expected elements
     assert len(ax.lines) > 0 or len(ax.collections) > 0, "Plot should have drawn something"
 
     plt.close(fig)
@@ -283,7 +254,6 @@ def test_radial_normalization_required():
     v = compute_vantage(coords)
     r, theta = polar_coordinates(coords, v)
 
-    # Compute with raw radii
     fg_mask, _ = define_foreground(expr, mode="quantile", q=0.9)
     if fg_mask is None:
         fg_mask = (expr >= np.quantile(expr, 0.9)).astype(float)
@@ -292,16 +262,12 @@ def test_radial_normalization_required():
 
     radar_raw = compute_rsp_radar(r, theta, fg_mask, config=config)
 
-    # Compute with normalized radii
     r_norm, _ = normalize_radii(r)
     radar_norm = compute_rsp_radar(r_norm, theta, fg_mask, config=config)
 
-    # Both should produce valid results
     assert radar_raw.rsp is not None, "Raw radii should produce valid radar"
     assert radar_norm.rsp is not None, "Normalized radii should produce valid radar"
 
-    # Results may be similar due to internal sector-level normalization,
-    # but both workflows should succeed
     mask = np.isfinite(radar_raw.rsp) & np.isfinite(radar_norm.rsp)
     assert np.sum(mask) > 0, "Should have some valid sectors in both cases"
 
@@ -327,7 +293,6 @@ def test_uniform_expression_has_zero_spatial_score():
 
 
 if __name__ == "__main__":
-    # Run tests manually
     print("Running plotting correctness tests...\n")
 
     print("Test 1: Coverage vs Foreground distinction")

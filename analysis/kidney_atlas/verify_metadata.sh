@@ -1,6 +1,4 @@
 #!/bin/bash
-# Quick validation of KPMP metadata structure
-# This confirms the expected disease, cell type, and donor columns exist
 
 cd "$(dirname "$0")"
 
@@ -17,7 +15,6 @@ fi
 echo "✓ Data file exists: data/kpmp.h5ad"
 echo ""
 
-# Run the exploration script
 python3 explore_kpmp_metadata.py
 
 echo ""

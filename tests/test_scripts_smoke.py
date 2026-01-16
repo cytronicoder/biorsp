@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pytest
 
-# Find repo root by looking for pyproject.toml
 _test_file = Path(__file__).resolve()
 _search_path = _test_file.parent
 while _search_path != _search_path.parent:
@@ -25,12 +24,10 @@ while _search_path != _search_path.parent:
         break
     _search_path = _search_path.parent
 else:
-    # Fallback to tests/..
     ROOT_DIR = _test_file.parent.parent
 
 EXAMPLES_DIR = ROOT_DIR / "examples"
 
-# Import the manifest
 sys.path.insert(0, str(ROOT_DIR / "dev"))
 from scripts_manifest import get_all_scripts  # noqa: E402
 
@@ -95,14 +92,11 @@ def test_script_smoke(script_info, tmp_path):
         f"Update dev/scripts_manifest.py if the script was moved or removed."
     )
 
-    # Build command with smoke args
     cmd = [sys.executable, str(script_path)] + args_smoke
 
-    # If args include --smoke, add --outdir to tmp_path
     if "--smoke" in args_smoke:
         cmd.extend(["--outdir", str(tmp_path)])
 
-    # Run script
     result = subprocess.run(
         cmd,
         capture_output=True,
@@ -120,14 +114,12 @@ def test_script_smoke(script_info, tmp_path):
         f"Stderr: {result.stderr}"
     )
 
-    # Check expected outputs if specified
     for pattern in expected_outputs:
         matches = list(tmp_path.glob(pattern))
         assert len(matches) > 0, (
             f"Script {script_id} did not create expected output matching '{pattern}' in {tmp_path}\n"
             f"Files created: {list(tmp_path.iterdir())}"
         )
-        # Verify files are non-empty
         for fpath in matches:
             assert (
                 fpath.stat().st_size > 1000

@@ -195,7 +195,6 @@ def main():
         ),
     )
 
-    # Save both PDF and PNG formats
     save_figure(fig, Path(outdir) / "fig_schematic_diagram", formats=["pdf", "png"])
 
 

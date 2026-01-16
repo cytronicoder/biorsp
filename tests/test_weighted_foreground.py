@@ -49,7 +49,6 @@ def test_radar_weighted_mode():
 
     y = np.array([0, 0, 0, 1, 1, 1], dtype=float)
 
-    # With only 6 data points, we need to lower min_total_per_sector
     res_bin = compute_rsp_radar(
         r,
         theta,

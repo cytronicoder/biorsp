@@ -53,7 +53,6 @@ def load_results_dataframe(manifest_path: Path) -> pd.DataFrame:
     """
     manifest_dir = manifest_path.parent
 
-    # Try common filenames in order of preference
     candidates = [
         "runs.csv",
         "results.csv",
@@ -68,7 +67,6 @@ def load_results_dataframe(manifest_path: Path) -> pd.DataFrame:
             logger.info(f"Loading results from {csv_path}")
             return pd.read_csv(csv_path)
 
-    # Also check figures subdirectory
     figures_dir = manifest_dir / "figures"
     if figures_dir.exists():
         for candidate in candidates:
@@ -98,18 +96,15 @@ def detect_mode(df: pd.DataFrame, manifest: dict) -> str:
     mode : str
         "simulation" or "kidney"
     """
-    # Check for ground truth columns
     if "true_archetype" in df.columns:
         return "simulation"
 
-    # Check manifest benchmark name
     benchmark = manifest.get("benchmark", "")
     if any(kw in benchmark.lower() for kw in ["simulation", "archetype", "calibration", "story"]):
         return "simulation"
     if any(kw in benchmark.lower() for kw in ["kpmp", "kidney", "tal", "disease"]):
         return "kidney"
 
-    # Fallback: check for cell type columns
     if "cell_type" in df.columns or "condition" in df.columns:
         return "kidney"
 
@@ -144,13 +139,11 @@ def replot_from_manifest(
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest not found: {manifest_path}")
 
-    # Load manifest
     with open(manifest_path) as f:
         manifest = json.load(f)
 
     logger.info(f"Loaded manifest: benchmark={manifest.get('benchmark', 'unknown')}")
 
-    # Load PlotSpec from manifest
     try:
         spec = load_spec_from_manifest(str(manifest_path))
         logger.info(f"Loaded PlotSpec from manifest: c_cut={spec.c_cut}, s_cut={spec.s_cut}")
@@ -158,38 +151,31 @@ def replot_from_manifest(
         logger.warning("No plot_spec in manifest, using defaults")
         spec = PlotSpec()
 
-    # Load results DataFrame
     df = load_results_dataframe(manifest_path)
     logger.info(f"Loaded {len(df)} rows from results CSV")
 
-    # Standardize column names if needed
     column_renames = {}
     if "Spatial_Bias_Score" in df.columns and "Spatial_Bias_Score" not in df.columns:
         column_renames["Spatial_Bias_Score"] = spec.spatial_col
     if column_renames:
         df = df.rename(columns=column_renames)
 
-    # Detect mode
     mode = detect_mode(df, manifest)
     logger.info(f"Detected mode: {mode}")
 
-    # Setup output directory
     output_dir = Path(outdir) if outdir else manifest_path.parent / "replot"
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Output directory: {output_dir}")
 
-    # Classify genes if needed
     if spec.archetype_col not in df.columns:
         logger.info("Classifying genes using PlotSpec...")
         df = spec.classify_dataframe(df, inplace=False)
 
-    # Generate panels
     if mode == "simulation":
         _replot_simulation_panels(df, spec, output_dir, dpi)
     else:
         _replot_kidney_panels(df, spec, output_dir, dpi, group_by)
 
-    # Write replot manifest
     replot_manifest = {
         "source_manifest": str(manifest_path),
         "plot_spec": spec.to_dict(),
@@ -213,7 +199,6 @@ def _replot_simulation_panels(
     """Generate simulation-specific panels."""
     import matplotlib.pyplot as plt
 
-    # Panel A: Archetype Scatter
     color_by = "true_archetype" if "true_archetype" in df.columns else spec.archetype_col
     fig_a = plot_archetype_scatter(df, spec, color_by=color_by)
 
@@ -226,7 +211,6 @@ def _replot_simulation_panels(
     save_panel_with_caption(fig_a, output_dir / "A_archetype_scatter.png", caption_a, dpi=dpi)
     plt.close(fig_a)
 
-    # Panel B: Confusion Matrix (if ground truth available)
     if "true_archetype" in df.columns:
         fig_b = plot_confusion_matrix(df, spec)
         caption_b = (
@@ -251,7 +235,6 @@ def _replot_kidney_panels(
     """Generate kidney-specific panels."""
     import matplotlib.pyplot as plt
 
-    # Panel A: Archetype Scatter
     fig_a = plot_archetype_scatter(df, spec)
 
     caption_a = (
@@ -262,7 +245,6 @@ def _replot_kidney_panels(
     save_panel_with_caption(fig_a, output_dir / "A_archetype_scatter.png", caption_a, dpi=dpi)
     plt.close(fig_a)
 
-    # Panel B: Composition bar (if grouping column available)
     if group_by and group_by in df.columns:
         fig_b = plot_composition_bar(df, spec, group_by=group_by)
         caption_b = (
@@ -274,7 +256,6 @@ def _replot_kidney_panels(
         )
         plt.close(fig_b)
     else:
-        # Try to auto-detect grouping column
         candidate_cols = ["condition", "disease", "cell_type", "cluster", "sample"]
         for col in candidate_cols:
             if col in df.columns and df[col].nunique() >= 2:

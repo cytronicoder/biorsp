@@ -59,7 +59,7 @@ def generate_umap_embeddings(X_high_dim, n_embeddings, rng):
     for i in range(n_embeddings):
         reducer = umap.UMAP(
             n_components=2,
-            n_neighbors=15 + i * 5,  # Vary neighborhood
+            n_neighbors=15 + i * 5,
             min_dist=0.1 + i * 0.05,
             random_state=42 + i * 100,
         )
@@ -116,7 +116,7 @@ def run_stability(args):
     config = BioRSPConfig(
         B=72,
         delta_deg=60.0,
-        n_permutations=0,  # No permutations for speed
+        n_permutations=0,
     )
 
     print("\n[1/4] Generating base dataset...")

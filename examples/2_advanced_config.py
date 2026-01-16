@@ -12,39 +12,32 @@ import scanpy as sc
 
 from biorsp import BioRSPConfig, classify_genes, score_genes
 
-# 1. Setup Data
-np.random.seed(42)  # For data generation
+np.random.seed(42)
 n_cells = 500
 adata = sc.AnnData(np.random.poisson(1, (n_cells, 20)))
 adata.var_names = [f"Gene_{i}" for i in range(20)]
 adata.obsm["X_umap"] = np.random.randn(n_cells, 2)
-# Add cell type metadata for subsetting
 adata.obs["cell_type"] = np.random.choice(["TypeA", "TypeB"], n_cells)
 
-# 2. Configure Analysis
-# See docs/2_concepts/inference.md for parameter details
 config = BioRSPConfig(
-    n_permutations=500,  # Custom permutation count
-    seed=42,  # Reproducibility
-    min_fg_total=10,  # Ignore genes with fewer than 10 foreground cells
-    delta_deg=30.0,  # Wider sectors (default 20)
-    foreground_quantile=0.95,  # Stricter foreground definition
+    n_permutations=500,
+    seed=42,
+    min_fg_total=10,
+    delta_deg=30.0,
+    foreground_quantile=0.95,
 )
 
 print("Running with customized config...")
 
-# 3. Run Analysis on a Subset
-# We only score cells labeled "TypeA"
 subset_genes = ["Gene_0", "Gene_1", "Gene_2"]
 results = score_genes(
     adata,
     genes=subset_genes,
     embedding_key="X_umap",
-    subset={"cell_type": "TypeA"},  # Filter to specific cell type
+    subset={"cell_type": "TypeA"},
     config=config,
 )
 
-# 4. Classify with custom FDR
 classified = classify_genes(
     results,
     fdr_cut=0.01,

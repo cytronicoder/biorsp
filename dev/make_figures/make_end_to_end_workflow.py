@@ -98,13 +98,11 @@ def main():
     args = setup_args()
     np.random.seed(args.seed)
 
-    # Handle smoke mode
     if args.smoke:
         if args.outdir:
             outpath = Path(args.outdir) / f"end_to_end_{args.feature}.png"
         else:
             outpath = Path("end_to_end.png")
-        # Force demo data in smoke mode
         args.adata = None
     else:
         outpath = Path(args.out)

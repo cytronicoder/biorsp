@@ -27,20 +27,16 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-# Canonical archetype color mapping (Material Design palette)
-# These colors MUST match across all plots to avoid confusion
 ARCHETYPE_COLORS = {
     "Ubiquitous": "#4CAF50",  # Green - high C, low S (widespread, no bias)
     "Gradient": "#2196F3",  # Blue - high C, high S (broad spatial domain)
     "Basal": "#9E9E9E",  # Gray - low C, low S (scattered/rare, no pattern)
     "Patchy": "#FF5722",  # Red-Orange - low C, high S (localized marker)
-    # Special cases
     "Unknown": "#BDBDBD",  # Light gray for unclassified
     "Abstention": "#000000",  # Black for abstained scores
     "abstention_stress": "#000000",  # Black for simulation stress-test genes
 }
 
-# Reader-friendly descriptions for each archetype
 ARCHETYPE_DESCRIPTIONS = {
     "Ubiquitous": "Widespread expression, no spatial bias\n(High Coverage, Low Spatial Bias Score)",
     "Gradient": "Broad spatial domain or gradient\n(High Coverage, High Spatial Bias Score)",
@@ -48,11 +44,8 @@ ARCHETYPE_DESCRIPTIONS = {
     "Patchy": "Localized spatial marker\n(Low Coverage, High Spatial Bias Score)",
 }
 
-# Canonical legend order (for consistent subplot layouts)
 ARCHETYPE_ORDER = ["Ubiquitous", "Gradient", "Patchy", "Basal"]
 
-# Quadrant annotation positions (for scatter plots)
-# Format: (rel_x, rel_y, label, alignment)
 QUADRANT_ANNOTATIONS = [
     (0.25, 0.25, "Basal", ("center", "center")),  # Bottom-left
     (0.75, 0.25, "Ubiquitous", ("center", "center")),  # Bottom-right
@@ -94,7 +87,6 @@ class PlotSpec:
     spatial_col: str = "Spatial_Bias_Score"
     archetype_col: str = "Archetype"
     min_expr_cells: int = 10
-    # Color and description mappings (immutable)
     colors: Dict[str, str] = field(default_factory=lambda: ARCHETYPE_COLORS.copy())
     descriptions: Dict[str, str] = field(default_factory=lambda: ARCHETYPE_DESCRIPTIONS.copy())
     order: List[str] = field(default_factory=lambda: ARCHETYPE_ORDER.copy())
@@ -131,11 +123,9 @@ class PlotSpec:
         if n_expr_cells is not None and n_expr_cells < self.min_expr_cells:
             return "Abstention"
 
-        # Handle NaN values
         if np.isnan(coverage) or np.isnan(spatial_bias_score):
             return "Abstention"
 
-        # Quadrant classification (deterministic)
         high_c = coverage >= self.c_cut
         high_s = spatial_bias_score >= self.s_cut
 
@@ -171,13 +161,11 @@ class PlotSpec:
         if not inplace:
             df = df.copy()
 
-        # Check for required columns
         if self.coverage_col not in df.columns:
             raise ValueError(f"Missing required column: {self.coverage_col}")
         if self.spatial_col not in df.columns:
             raise ValueError(f"Missing required column: {self.spatial_col}")
 
-        # Apply classification
         n_expr_col = "n_expr_cells" if "n_expr_cells" in df.columns else None
         abstain_col = "abstain_flag" if "abstain_flag" in df.columns else None
 
@@ -267,7 +255,6 @@ class PlotSpec:
         issues = []
         warnings = []
 
-        # Check required columns
         required = [self.coverage_col, self.spatial_col]
         issues.extend(
             f"Missing required column: {col}" for col in required if col not in df.columns
@@ -276,7 +263,6 @@ class PlotSpec:
         if issues:
             return {"status": "FAIL", "issues": issues, "warnings": warnings}
 
-        # Check value ranges
         c_vals = df[self.coverage_col]
         s_vals = df[self.spatial_col]
 
@@ -286,7 +272,6 @@ class PlotSpec:
         if (s_vals < 0).any():
             warnings.append(f"{self.spatial_col} has negative values")
 
-        # Check for excessive NaNs
         c_nan_frac = c_vals.isna().sum() / len(c_vals)
         s_nan_frac = s_vals.isna().sum() / len(s_vals)
         if c_nan_frac > 0.5:

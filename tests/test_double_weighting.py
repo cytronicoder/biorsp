@@ -24,12 +24,9 @@ def synthetic_data():
     rng = np.random.default_rng(42)
     n_cells = 1000
 
-    # Uniform angular distribution
     theta = rng.uniform(-np.pi, np.pi, n_cells)
-    # Radial distribution
     r = rng.uniform(0.1, 1.0, n_cells)
 
-    # Create a wedge pattern: FG cells concentrated in one angular sector
     wedge_center = 0.0
     wedge_width = np.pi / 4
     fg_prob = np.where(np.abs(theta - wedge_center) < wedge_width, 0.7, 0.1)
@@ -45,20 +42,12 @@ def test_rsp_is_unweighted(synthetic_data):
 
     radar = compute_rsp_radar(r, theta, y, config=config)
 
-    # The raw rsp should NOT be pre-multiplied by weights
-    # Check that rsp values can be > 1 (which would be impossible if weighted)
-    # or check the magnitude is consistent with the statistic definition
-
-    # For a proper RSP, values should typically be in reasonable range
     valid_rsp = radar.rsp[np.isfinite(radar.rsp)]
     assert len(valid_rsp) > 0, "Should have some valid RSP values"
 
-    # Weights are proportional to sector density, not normalized to sum=1
-    # They represent sector-level reliability, not probability weights
     mask = radar.geom_supported_mask
     if mask is not None and np.any(mask):
         w = radar.sector_weights[mask]
-        # Weights should be positive
         assert np.all(w >= 0), "Weights should be non-negative"
 
 
@@ -69,8 +58,6 @@ def test_s_g_computed_once(synthetic_data):
 
     radar = compute_rsp_radar(r, theta, y, config=config)
 
-    # Compute S_g manually with weights applied once
-    # Use np.isfinite mask as that's what compute_anisotropy uses when valid_mask is True
     valid_mask = np.isfinite(radar.rsp)
     if np.any(valid_mask):
         rsp = radar.rsp[valid_mask]
@@ -80,14 +67,12 @@ def test_s_g_computed_once(synthetic_data):
             else np.ones_like(rsp)
         )
 
-        # Manual S_g = sqrt(sum(w * rsp^2) / sum(w))
         sum_w = np.sum(w)
         if sum_w > 0:
             manual_s_g = np.sqrt(np.sum(w * rsp**2) / sum_w)
         else:
             manual_s_g = np.sqrt(np.mean(rsp**2))
 
-        # Use compute_anisotropy which should give same result
         aniso = compute_anisotropy(radar.rsp, valid_mask, weights=radar.sector_weights)
 
         np.testing.assert_allclose(
@@ -109,16 +94,11 @@ def test_double_weighting_would_reduce_score(synthetic_data):
     rsp = radar.rsp[mask]
     w = radar.sector_weights[mask]
 
-    # Correct S_g (weights applied once)
     s_g_correct = np.sqrt(np.sum(w * rsp**2) / np.sum(w))
 
-    # Double-weighted would be (if rsp was already multiplied by w)
-    # s_g_double = sqrt(sum(w * (w * rsp)^2) / sum(w))
-    rsp_double = w * rsp  # simulate pre-weighted rsp
+    rsp_double = w * rsp
     s_g_double = np.sqrt(np.sum(w * rsp_double**2) / np.sum(w))
 
-    # Double weighting reduces the score (since w < 1 typically)
-    # The ratio should NOT be 1.0
     if s_g_correct > 0:
         ratio = s_g_double / s_g_correct
         assert (
@@ -134,7 +114,6 @@ def test_scalar_summaries_uses_correct_anisotropy(synthetic_data):
     radar = compute_rsp_radar(r, theta, y, config=config)
     summaries = compute_scalar_summaries(radar)
 
-    # compute_scalar_summaries uses np.isfinite(rsp) as valid_mask
     valid_mask = np.isfinite(radar.rsp)
     if np.any(valid_mask):
         rsp = radar.rsp[valid_mask]
@@ -169,11 +148,9 @@ def test_weights_stored_separately():
     config = BioRSPConfig(B=8, delta_deg=45, seed=42)
     radar = compute_rsp_radar(r, theta, y, config=config)
 
-    # Weights should exist and be separate from rsp
     assert radar.sector_weights is not None, "sector_weights should exist"
     assert len(radar.sector_weights) == len(radar.rsp), "Same length as rsp"
 
-    # Weights should be positive where valid
     mask = radar.geom_supported_mask
     if mask is not None and np.any(mask):
         assert np.all(radar.sector_weights[mask] >= 0), "Weights should be non-negative"

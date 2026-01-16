@@ -610,19 +610,16 @@ def plot_archetype_scatter(
     fig, ax = plt.subplots(figsize=(10, 8))
 
     if s_cut is None:
-        s_cut = df.attrs.get("s_cut", 0.05)  # Default from classify_genes
+        s_cut = df.attrs.get("s_cut", 0.05)
 
-    # Import standardized colors from PlotSpec (single source of truth)
     from biorsp.plotting.spec import ARCHETYPE_COLORS
 
     if "Archetype" in df.columns:
-        # Map legacy archetype names to canonical names
         archetype_name_map = {
             "localized_program": "Gradient",
             "Ubiquitous_uniform": "Ubiquitous",
             "niche_biomarker": "Patchy",
             "sparse_presence": "Basal",
-            # Also support canonical names directly
             "Gradient": "Gradient",
             "Ubiquitous": "Ubiquitous",
             "Patchy": "Patchy",

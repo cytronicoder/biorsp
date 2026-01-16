@@ -11,7 +11,6 @@ def test_radar_simple():
 
     r = np.ones_like(theta)
 
-    # Should run without error using full API (r, theta, y)
     config = BioRSPConfig(B=360, delta_deg=20.0)
     result = compute_rsp_radar(r, theta, y, config=config)
     assert len(result.rsp) == 360

@@ -53,7 +53,6 @@ Sweeps:
 
 __version__ = "3.0.0"
 
-# Import canonical plot specification
 from biorsp.plotting.spec import ARCHETYPE_COLORS, ARCHETYPE_DESCRIPTIONS
 
 from .cache import GeometryCache, clear_cache, get_cache

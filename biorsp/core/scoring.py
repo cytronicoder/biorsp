@@ -187,7 +187,7 @@ def _permute_p_value(
             config=config,
             sector_indices=sector_indices,
             sector_sort_indices=sector_sort_indices,
-            sector_weights=fixed_weights,  # Fixed weights
+            sector_weights=fixed_weights,
         )
 
         if fixed_geom_mask is not None and np.any(fixed_geom_mask):

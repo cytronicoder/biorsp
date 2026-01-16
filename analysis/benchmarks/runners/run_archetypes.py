@@ -364,13 +364,10 @@ def main():
 
     print("\nGenerating plots using standardized plotting API...")
 
-    # Create PlotSpec with validated cutoffs
     spec = PlotSpec(c_cut=c_cut, s_cut=s_cut)
 
-    # Ensure archetype classification is applied (will add "Archetype" column)
     runs_df = spec.classify_dataframe(runs_df, inplace=True)
 
-    # Generate per-shape scatter plots (legacy, can be deprecated later)
     for shape in args.shape:
         subset = runs_df[runs_df["shape"] == shape]
 
@@ -395,7 +392,6 @@ def main():
         )
         io.save_figure(fig, output_dir, f"archetypes_scatter_{shape}.png")
 
-    # Generate standardized panels (Panel A and B with consistent naming)
     print("Generating standardized panels (A: scatter, B: confusion)...")
     figures_dir = output_dir / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -487,7 +483,6 @@ def main():
         biorsp_config=config,
     )
 
-    # Add plot specification to manifest
     manifest_path = output_dir / "manifest.json"
     with open(manifest_path) as f:
         manifest = json.load(f)

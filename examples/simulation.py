@@ -401,8 +401,6 @@ def analyze_gene(
         min_bg_sector=config.min_bg_sector,
     )
 
-    # Note: compute_rsp_radar now returns NaNs for inadequate sectors.
-
     summaries = compute_scalar_summaries(radar)
 
     adequate_mask = ~np.isnan(radar.rsp)

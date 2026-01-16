@@ -423,7 +423,7 @@ def compute_rsp_radar(
             sign_tol=config.sign_tol,
             scale_mode=config.scale_mode,
             min_scale=config.min_scale,
-            weight_mode="none",  # Never apply weights inside engine
+            weight_mode="none",
             weight_k=config.sector_weight_k,
             config=config,
             sort_idx=sector_sort_indices[b] if sector_sort_indices else None,
@@ -453,7 +453,7 @@ def compute_rsp_radar(
 
         if has_fg and has_bg:
             contrast_supported_mask[b] = True
-            rsp_values[b] = res["stat_raw"]  # RAW statistic, no weighting
+            rsp_values[b] = res["stat_raw"]
             invalid_reasons[b] = REASON_OK
         elif n_fg == 0 and has_bg and config.empty_fg_policy == "zero":
             forced_zero_mask[b] = True
@@ -462,18 +462,14 @@ def compute_rsp_radar(
             invalid_reasons[b] = REASON_SECTOR_EMPTY_FG_FORCED_ZERO
         elif not has_fg:
             if config.empty_fg_policy == "zero" and geom_supported_mask[b]:
-                # Geometry-supported but insufficient FG: force zero
                 forced_zero_mask[b] = True
                 rsp_values[b] = 0.0
                 invalid_reasons[b] = REASON_SECTOR_FG_TOO_SMALL
             else:
-                # Not geometry-supported or policy is nan
                 rsp_values[b] = np.nan
                 invalid_reasons[b] = REASON_SECTOR_FG_TOO_SMALL
         else:
-            # Insufficient background
             if config.empty_fg_policy == "zero" and geom_supported_mask[b]:
-                # Geometry-supported but insufficient BG: force zero
                 forced_zero_mask[b] = True
                 rsp_values[b] = 0.0
                 invalid_reasons[b] = REASON_SECTOR_BG_TOO_SMALL

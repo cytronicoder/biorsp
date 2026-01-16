@@ -924,7 +924,6 @@ def plot_cs_scatter(
     else:
         plot_df = df.copy()
 
-    # Use canonical order for consistent legend appearance
     for archetype in ARCHETYPE_ORDER:
         if archetype not in ARCHETYPE_COLORS:
             continue
@@ -1035,7 +1034,6 @@ def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
 
     gene_col = "gene_name" if "gene_name" in df.columns else "gene"
 
-    # Use canonical ordering for consistent 2x2 grid layout
     for idx, archetype in enumerate(ARCHETYPE_ORDER):
         color = ARCHETYPE_COLORS.get(archetype, "#888888")
         ax = axes[idx]

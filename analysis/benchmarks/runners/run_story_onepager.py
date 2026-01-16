@@ -52,7 +52,7 @@ MODE_CONFIGS = {
         "n_modules": 3,
         "genes_per_module": 8,
         "n_null_genes": 10,
-        "n_permutations": 0,  # No permutations = ~10x faster
+        "n_permutations": 0,
         "shape": "disk",
     },
     "validation": {
@@ -61,7 +61,7 @@ MODE_CONFIGS = {
         "n_modules": 4,
         "genes_per_module": 12,
         "n_null_genes": 20,
-        "n_permutations": 100,  # Moderate permutations for p-values
+        "n_permutations": 100,
         "shape": "disk",
     },
     "publication": {
@@ -70,12 +70,11 @@ MODE_CONFIGS = {
         "n_modules": 5,
         "genes_per_module": 15,
         "n_null_genes": 30,
-        "n_permutations": 500,  # Full permutations for robust statistics
+        "n_permutations": 500,
         "shape": "disk",
     },
 }
 
-# Use PlotSpec as single source of truth for default cutoffs
 _DEFAULT_SPEC = PlotSpec()
 
 
@@ -156,13 +155,13 @@ def run_story_benchmark(args):
         null_mask & (results_df["organization_regime"] == "iid"), "Spatial_Bias_Score"
     ].values
 
-    fpr_target = 0.05 if args.mode == "publication" else 0.10  # 5% FPR for publication
+    fpr_target = 0.05 if args.mode == "publication" else 0.10
 
     if len(null_s) >= 10:
         thresholds = metrics.derive_thresholds_principled(
             null_s_values=null_s,
             fpr_target=fpr_target,
-            coverage_split=0.30,  # Standard C_cut
+            coverage_split=0.30,
         )
         s_cut = thresholds["s_cut"]
         c_cut = thresholds["c_cut"]
@@ -175,7 +174,6 @@ def run_story_benchmark(args):
         print(f"   Borderline margin: ±{margin:.3f}")
         print(f"   Empirical FPR at S_cut: {thresholds['empirical_fpr']:.1%}")
     else:
-        # Use PlotSpec defaults (single source of truth)
         s_cut = _DEFAULT_SPEC.s_cut
         c_cut = _DEFAULT_SPEC.c_cut
         margin = 0.02  # Default margin
@@ -328,7 +326,6 @@ def run_story_benchmark(args):
     ax_c = fig_combined.add_subplot(gs[1, 0])
     ax_d = fig_combined.add_subplot(gs[1, 1])
 
-    # Create spec with derived thresholds for consistent coloring
     story_spec = PlotSpec(c_cut=c_cut, s_cut=s_cut)
 
     for arch in story_spec.get_legend_order():
@@ -588,7 +585,6 @@ def run_story_benchmark(args):
         n_replicates=1,
         runtime_seconds=elapsed,
         biorsp_config=config,
-        # Store plot_spec for reproducible re-plotting
         plot_spec=story_spec.to_dict(),
     )
 

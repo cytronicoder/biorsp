@@ -1,7 +1,5 @@
-############################## Config #########################################
-container: "docker://satijalab/azimuth-references:human_kidney-1.0.0" 
+container: "docker://satijalab/azimuth-references:human_kidney-1.0.0"
 
-############################## All  ###########################################
 rule all:
     input:
         "reference/ref.Rds",
@@ -9,7 +7,6 @@ rule all:
         "reference/kidney_demo_stewart.rds",
         "vitessce/vitessce_ref.h5ad"
 
-############################## Reference #######################################
 rule download:
     input:
         "links/dropbox_links.txt"
@@ -59,7 +56,6 @@ rule export:
         Rscript {input.script} {input.ob} {output} > logs/export.Rout 2>&1
         """
 
-############################## Demo ############################################
 rule download_demo:
     params:
         data = "https://cellgeni.cog.sanger.ac.uk/kidneycellatlas/Mature_Full_v3.h5ad",

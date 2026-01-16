@@ -38,7 +38,6 @@ def test_nan_gaps_logic():
     fig2, ax2 = plt.subplots(subplot_kw={"projection": "polar"})
     plot_radar(res2, ax=ax2, mode="proximal")
 
-    # Note: plot_radar adds gray ticks for NaNs, so we filter them out.
     rsp_lines2 = [line for line in ax2.get_lines() if line.get_color() != "gray"]
     assert len(rsp_lines2) == 1
     plt.close(fig2)

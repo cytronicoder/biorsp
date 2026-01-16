@@ -28,17 +28,14 @@ from biorsp.plotting.spec import (
 )
 
 __all__ = [
-    # Embedding
     "compute_embedding",
     "plot_embedding",
-    # Radar
     "plot_localization_scatter",
     "plot_phenotype_map",
     "plot_radar",
     "plot_radar_absolute",
     "plot_radar_split",
     "plot_summary",
-    # Standardized panels
     "PlotSpec",
     "ARCHETYPE_COLORS",
     "ARCHETYPE_DESCRIPTIONS",

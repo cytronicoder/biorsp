@@ -113,7 +113,6 @@ def main():
             outpath = Path(args.outdir) / "polar_reparameterization.png"
         else:
             outpath = Path("polar_reparameterization.png")
-        # Force demo data in smoke mode
         args.adata = None
         args.coords_csv = None
     else:

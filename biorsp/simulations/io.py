@@ -293,11 +293,9 @@ def write_manifest(
         "biorsp_config": config_dict,
     }
 
-    # Add plot_spec if provided (for standardized re-plotting)
     if plot_spec is not None:
         manifest["plot_spec"] = plot_spec
 
-    # Add any extra metadata
     manifest.update(extra_metadata)
 
     filepath = output_dir / filename

@@ -162,7 +162,6 @@ def plot_debug_sector_counts(
 
     theta_deg = np.degrees(theta_centers)
 
-    # Panel 1: Foreground counts
     ax = axes[0]
     ax.plot(theta_deg, counts_fg, "o-", color=COLORS["fg_cells"], label="nF (Foreground)")
     ax.fill_between(theta_deg, 0, counts_fg, color=COLORS["fg_cells"], alpha=0.3)
@@ -171,7 +170,6 @@ def plot_debug_sector_counts(
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # Panel 2: Background counts
     ax = axes[1]
     ax.plot(theta_deg, counts_bg, "o-", color=COLORS["bg_cells"], label="nB (Background)")
     ax.fill_between(theta_deg, 0, counts_bg, color=COLORS["bg_cells"], alpha=0.3)
@@ -179,7 +177,6 @@ def plot_debug_sector_counts(
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # Panel 3: Validity mask
     ax = axes[2]
     ax.plot(theta_deg, valid_mask.astype(int), "r-", drawstyle="steps-mid", linewidth=2)
     ax.fill_between(theta_deg, 0, valid_mask.astype(int), color="red", alpha=0.2, step="mid")
@@ -222,7 +219,6 @@ def plot_debug_cutoff_consistency(
     """
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Ensure classification
     if spec.archetype_col not in df.columns:
         df = spec.classify_dataframe(df, inplace=False)
 
@@ -230,25 +226,19 @@ def plot_debug_cutoff_consistency(
     c_col = spec.coverage_col
     s_col = spec.spatial_col
 
-    # Draw shaded quadrants
     xlim = (0, df[c_col].max() * 1.1)
     ylim = (0, df[s_col].max() * 1.15)
 
-    # Basal quadrant (low C, low S)
     ax.fill_between([xlim[0], c_cut], ylim[0], s_cut, color=spec.get_color("Basal"), alpha=0.15)
 
-    # Ubiquitous quadrant (high C, low S)
     ax.fill_between(
         [c_cut, xlim[1]], ylim[0], s_cut, color=spec.get_color("Ubiquitous"), alpha=0.15
     )
 
-    # Patchy quadrant (low C, high S)
     ax.fill_between([xlim[0], c_cut], s_cut, ylim[1], color=spec.get_color("Patchy"), alpha=0.15)
 
-    # Gradient quadrant (high C, high S)
     ax.fill_between([c_cut, xlim[1]], s_cut, ylim[1], color=spec.get_color("Gradient"), alpha=0.15)
 
-    # Draw cutoff lines
     ax.axvline(
         c_cut,
         color="black",
@@ -266,7 +256,6 @@ def plot_debug_cutoff_consistency(
         label=f"S cutoff = {s_cut:.2f}",
     )
 
-    # Plot points colored by archetype
     for archetype in spec.get_legend_order():
         mask = df[spec.archetype_col] == archetype
         if not mask.any():
@@ -342,26 +331,22 @@ def save_debug_plots(
 
     logger.info(f"Generating debug plots for {case_name}...")
 
-    # Point cloud
     fig = plot_debug_pointcloud(coords, vantage, title=f"Point Cloud: {case_name}")
     fig.savefig(debug_dir / f"debug_pointcloud_{case_name}.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-    # Foreground mask
     fig = plot_debug_foreground_mask(
         coords, fg_mask, vantage, title=f"Foreground Mask: {case_name}"
     )
     fig.savefig(debug_dir / f"debug_foreground_mask_{case_name}.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-    # Sector counts
     fig = plot_debug_sector_counts(
         theta_centers, counts_fg, counts_bg, valid_mask, title=f"Sector Counts: {case_name}"
     )
     fig.savefig(debug_dir / f"debug_sector_counts_{case_name}.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
 
-    # Cutoff consistency
     if df is not None and len(df) > 0:
         fig = plot_debug_cutoff_consistency(df, spec, title=f"Cutoff Consistency: {case_name}")
         fig.savefig(

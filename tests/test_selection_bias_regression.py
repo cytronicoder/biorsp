@@ -144,7 +144,6 @@ def test_selection_bias_parameter_sweep():
             wedge_val < global_val
         ), f"Delta={delta}: Expected |R_mean_wedge| < |R_mean_global|, got {wedge_val:.3f} >= {global_val:.3f}"
 
-    # Optional: save results for inspection
     try:
         from pathlib import Path
 
@@ -152,7 +151,7 @@ def test_selection_bias_parameter_sweep():
         outdir.mkdir(parents=True, exist_ok=True)
         df.to_csv(outdir / "selection_bias_sweep.csv", index=False)
     except Exception:
-        pass  # Don't fail test if can't save
+        pass
 
 
 def test_empty_fg_policy_comparison():
@@ -165,7 +164,6 @@ def test_empty_fg_policy_comparison():
     r_iqr = max(np.percentile(r, 75) - np.percentile(r, 25), 1e-8)
     r_norm = (r - r_med) / r_iqr
 
-    # Compare two policies
     config_zero = BioRSPConfig(B=36, delta_deg=180.0, empty_fg_policy="zero")
     config_nan = BioRSPConfig(B=36, delta_deg=180.0, empty_fg_policy="nan")
 
@@ -175,15 +173,12 @@ def test_empty_fg_policy_comparison():
     summ_zero = compute_scalar_summaries(res_zero)
     summ_nan = compute_scalar_summaries(res_nan)
 
-    # Policy='nan' should exclude empty sectors, potentially inflating |R_mean|
-    # Policy='zero' should include them as zero, reducing |R_mean|
     assert (
         summ_zero.coverage_geom >= summ_nan.coverage_geom
     ), "Policy='zero' should have >= coverage_geom than policy='nan'"
 
 
 if __name__ == "__main__":
-    # Run tests
     test_selection_bias_wedge_vs_global_rim()
     test_selection_bias_parameter_sweep()
     test_empty_fg_policy_comparison()
