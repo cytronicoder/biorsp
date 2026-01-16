@@ -43,6 +43,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from biorsp import BioRSPConfig  # noqa: E402
+from biorsp.plotting.spec import PlotSpec  # noqa: E402
 
 MODE_CONFIGS = {
     "quick": {
@@ -74,8 +75,8 @@ MODE_CONFIGS = {
     },
 }
 
-DEFAULT_S_CUT = 0.15
-DEFAULT_C_CUT = 0.30
+# Use PlotSpec as single source of truth for default cutoffs
+_DEFAULT_SPEC = PlotSpec()
 
 
 def run_story_benchmark(args):
@@ -174,18 +175,19 @@ def run_story_benchmark(args):
         print(f"   Borderline margin: ±{margin:.3f}")
         print(f"   Empirical FPR at S_cut: {thresholds['empirical_fpr']:.1%}")
     else:
-        s_cut = DEFAULT_S_CUT
-        c_cut = DEFAULT_C_CUT
+        # Use PlotSpec defaults (single source of truth)
+        s_cut = _DEFAULT_SPEC.s_cut
+        c_cut = _DEFAULT_SPEC.c_cut
         margin = 0.02  # Default margin
         thresholds = {
             "s_cut": s_cut,
             "c_cut": c_cut,
             "margin": margin,
             "n_samples": 0,
-            "warning": "Using defaults",
+            "warning": "Using PlotSpec defaults",
         }
         null_stats = None
-        print(f"   ⚠ Insufficient null samples ({len(null_s)}), using default thresholds")
+        print(f"   ⚠ Insufficient null samples ({len(null_s)}), using PlotSpec defaults")
         print(f"   Using default thresholds: S_cut={s_cut:.3f}, C_cut={c_cut:.2f}")
 
     valid_mask = ~results_df["abstain_flag"]
@@ -326,13 +328,16 @@ def run_story_benchmark(args):
     ax_c = fig_combined.add_subplot(gs[1, 0])
     ax_d = fig_combined.add_subplot(gs[1, 1])
 
-    for arch in ["Ubiquitous", "Gradient", "Basal", "Patchy"]:
+    # Create spec with derived thresholds for consistent coloring
+    story_spec = PlotSpec(c_cut=c_cut, s_cut=s_cut)
+
+    for arch in story_spec.get_legend_order():
         mask = (results_df.loc[eval_mask, "Archetype"] == arch).values
         if mask.sum() > 0:
             ax_a.scatter(
                 results_df.loc[eval_mask, "Coverage"].values[mask],
                 results_df.loc[eval_mask, "Spatial_Bias_Score"].values[mask],
-                c=plotting.ARCHETYPE_COLORS.get(arch, "#888888"),
+                c=story_spec.get_color(arch),
                 label=arch.replace("_", " ").title(),
                 s=40,
                 alpha=0.7,
@@ -583,6 +588,8 @@ def run_story_benchmark(args):
         n_replicates=1,
         runtime_seconds=elapsed,
         biorsp_config=config,
+        # Store plot_spec for reproducible re-plotting
+        plot_spec=story_spec.to_dict(),
     )
 
     write_story_report(

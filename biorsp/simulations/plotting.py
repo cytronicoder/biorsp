@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
 
+from biorsp.plotting.spec import ARCHETYPE_COLORS  # noqa: E402
+
 logger = logging.getLogger(__name__)
 
 
@@ -456,28 +458,9 @@ def plot_spatial_embedding(
     return fig
 
 
-ARCHETYPE_COLORS = {
-    "ubiquitous": "#4CAF50",
-    "gradient": "#2196F3",
-    "basal": "#9E9E9E",
-    "patchy": "#FF5722",
-    "Ubiquitous": "#4CAF50",
-    "Gradient": "#2196F3",
-    "Basal": "#9E9E9E",
-    "Patchy": "#FF5722",
-    "abstention_stress": "#000000",
-}
+# NOTE: ARCHETYPE_COLORS and ARCHETYPE_DESCRIPTIONS are imported from
+# biorsp.plotting.spec at the top of the file to ensure consistent colors
 
-ARCHETYPE_DESCRIPTIONS = {
-    "ubiquitous": "Ubiquitous expression\n(high C, low S)",
-    "gradient": "Broad spatial domain\n(high C, high S)",
-    "basal": "Scattered/rare\n(low C, low S)",
-    "patchy": "Localized marker\n(low C, high S)",
-    "Ubiquitous": "Ubiquitous expression\n(high C, low S)",
-    "Gradient": "Broad spatial domain\n(high C, high S)",
-    "Basal": "Scattered/rare\n(low C, low S)",
-    "Patchy": "Localized marker\n(low C, high S)",
-}
 
 
 def plot_archetype_scatter(

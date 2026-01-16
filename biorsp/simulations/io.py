@@ -37,7 +37,7 @@ REQUIRED_COLUMNS = {
             "null_type",
             "permutation_scheme",
             "p_value",
-            "Spatial_Bias_Score",
+            "Spatial_Score",
             "Coverage",
             "abstain_flag",
         ],
@@ -61,7 +61,7 @@ REQUIRED_COLUMNS = {
             "coverage_regime",
             "organization_regime",
             "true_archetype",
-            "Spatial_Bias_Score",
+            "Spatial_Score",
             "Coverage",
             "abstain_flag",
         ],
@@ -71,7 +71,7 @@ REQUIRED_COLUMNS = {
             "coverage_regime",
             "organization_regime",
             "true_archetype",
-            "Spatial_Bias_Score_mean",
+            "Spatial_Score_mean",
             "Coverage_mean",
             "classification_accuracy",
             "abstain_rate",
@@ -248,6 +248,8 @@ def write_manifest(
     runtime_seconds: float,
     biorsp_config: Optional[Any] = None,
     filename: str = "manifest.json",
+    plot_spec: Optional[Dict] = None,
+    **extra_metadata,
 ) -> None:
     """
     Write manifest JSON with complete metadata.
@@ -268,6 +270,10 @@ def write_manifest(
         BioRSP configuration object (will be serialized)
     filename : str, optional
         Filename
+    plot_spec : Dict, optional
+        Plot specification dictionary for reproducible re-plotting
+    **extra_metadata
+        Additional key-value pairs to include in manifest
     """
 
     git_commit = get_git_commit()
@@ -286,6 +292,13 @@ def write_manifest(
         "parameters": params,
         "biorsp_config": config_dict,
     }
+
+    # Add plot_spec if provided (for standardized re-plotting)
+    if plot_spec is not None:
+        manifest["plot_spec"] = plot_spec
+
+    # Add any extra metadata
+    manifest.update(extra_metadata)
 
     filepath = output_dir / filename
     with open(filepath, "w") as f:
