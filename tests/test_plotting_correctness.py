@@ -2,7 +2,7 @@
 
 Tests ensure:
 1. Coverage differs from internal FG fraction (public schema)
-2. Workflow figure reports same C and Spatial_Score as scoring function
+2. Workflow figure reports same C and Spatial_Bias_Score as scoring function
 3. Wedge patterns don't claim directionality when empty_fg_policy="zero"
 4. RSP plots handle all sector types correctly
 """
@@ -113,7 +113,7 @@ def test_workflow_matches_scoring():
     )
     results = score_genes(adata, ["test_gene"], embedding_key="X_spatial", config=config)
 
-    required_columns = {"Coverage", "Spatial_Score", "Directionality", "Archetype"}
+    required_columns = {"Coverage", "Spatial_Bias_Score", "Directionality", "Archetype"}
     banned_columns = {
         "coverage_expr",
         "pct_cells",
@@ -132,7 +132,7 @@ def test_workflow_matches_scoring():
 
     # Results uses integer index, gene name in 'gene' column
     api_coverage = results.loc[0, "Coverage"]
-    api_spatial = results.loc[0, "Spatial_Score"]
+    api_spatial = results.loc[0, "Spatial_Bias_Score"]
 
     # Manually compute for workflow
     v = compute_vantage(coords, method="geometric_median")
@@ -204,7 +204,7 @@ def test_empty_fg_zero_fill_correctness():
     if np.any(radar.forced_zero_mask):
         forced_zero_rsp = radar.rsp[radar.forced_zero_mask]
         assert np.all(forced_zero_rsp == 0), "Forced-zero sectors must have RSP = 0"
-        # Zeroed sectors must not introduce NaNs and contribute zero to Spatial_Score numerator
+        # Zeroed sectors must not introduce NaNs and contribute zero to Spatial_Bias_Score numerator
         assert np.all(np.isfinite(forced_zero_rsp)), "Forced-zero sectors must be finite"
 
     # geom_supported_mask should distinguish valid from invalid
@@ -307,7 +307,7 @@ def test_radial_normalization_required():
 
 
 def test_uniform_expression_has_zero_spatial_score():
-    """Uniform expression should yield zero Spatial_Score under public API."""
+    """Uniform expression should yield zero Spatial_Bias_Score under public API."""
     pytest.importorskip("anndata")
     from anndata import AnnData
 
@@ -321,9 +321,9 @@ def test_uniform_expression_has_zero_spatial_score():
     config = BioRSPConfig(B=24, delta_deg=30, expr_threshold_mode="detect")
     results = score_genes(adata, ["flat_gene"], embedding_key="X_spatial", config=config)
 
-    assert "Spatial_Score" in results.columns
+    assert "Spatial_Bias_Score" in results.columns
     assert results.loc[0, "Coverage"] == pytest.approx(1.0, rel=0, abs=1e-6)
-    assert results.loc[0, "Spatial_Score"] == pytest.approx(0.0, abs=1e-6)
+    assert results.loc[0, "Spatial_Bias_Score"] == pytest.approx(0.0, abs=1e-6)
 
 
 if __name__ == "__main__":

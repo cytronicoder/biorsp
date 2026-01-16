@@ -3,7 +3,7 @@ Example 1: Basic Scoring Workflow
 =================================
 
 This example demonstrates how to run BioRSP on an AnnData object
-to obtain Coverage, Spatial Score, Directionality, and Archetype classifications.
+to obtain Coverage, Spatial Bias Score, Directionality, and Archetype classifications.
 """
 
 import numpy as np

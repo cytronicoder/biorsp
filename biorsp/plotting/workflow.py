@@ -12,7 +12,6 @@ from biorsp.plotting.style import (
     add_panel_label,
     get_column_width,
     save_figure,
-    set_publication_style,
 )
 from biorsp.preprocess.normalization import normalize_radii
 from biorsp.utils.config import BioRSPConfig
@@ -166,7 +165,6 @@ def make_end_to_end_figure(
     theta_star = res.centers[peak_idx]
     R_star = res.rsp[peak_idx]
 
-    set_publication_style()
     fig = plt.figure(figsize=(get_column_width("double"), 7), constrained_layout=True)
     gs = GridSpec(2, 2, figure=fig)
 

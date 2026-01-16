@@ -49,7 +49,7 @@ def load_results_dataframe(manifest_path: Path) -> pd.DataFrame:
     Returns
     -------
     df : pd.DataFrame
-        Results DataFrame with Coverage, Spatial_Score columns
+        Results DataFrame with Coverage, Spatial_Bias_Score columns
     """
     manifest_dir = manifest_path.parent
 
@@ -164,7 +164,7 @@ def replot_from_manifest(
 
     # Standardize column names if needed
     column_renames = {}
-    if "Spatial_Bias_Score" in df.columns and "Spatial_Score" not in df.columns:
+    if "Spatial_Bias_Score" in df.columns and "Spatial_Bias_Score" not in df.columns:
         column_renames["Spatial_Bias_Score"] = spec.spatial_col
     if column_renames:
         df = df.rename(columns=column_renames)
@@ -218,7 +218,7 @@ def _replot_simulation_panels(
     fig_a = plot_archetype_scatter(df, spec, color_by=color_by)
 
     caption_a = (
-        f"Panel A: Coverage vs Spatial Score scatter plot. "
+        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={spec.c_cut:.2f}, S={spec.s_cut:.2f}. "
         f"Each point represents one gene or simulation replicate. "
         f"Colors indicate archetype classification."
@@ -255,7 +255,7 @@ def _replot_kidney_panels(
     fig_a = plot_archetype_scatter(df, spec)
 
     caption_a = (
-        f"Panel A: Coverage vs Spatial Score scatter plot. "
+        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={spec.c_cut:.2f}, S={spec.s_cut:.2f}. "
         f"Colors indicate predicted archetype classification."
     )

@@ -6,7 +6,7 @@ benchmarks and kidney case studies. Each function produces a specific panel
 with consistent styling, axes, labels, and semantics.
 
 Panel naming convention:
-- A_archetype_scatter.png: Coverage vs Spatial Score scatter with quadrants
+- A_archetype_scatter.png: Coverage vs Spatial Bias Score scatter with quadrants
 - B_confusion_or_composition.png: Confusion matrix (sim) or composition bar (kidney)
 - C_examples_per_archetype.png: Example spatial patterns for each archetype
 - D_pairwise_or_module.png: Gene-gene pairs (sim) or modules (kidney)
@@ -27,11 +27,9 @@ from biorsp.plotting.spec import PlotSpec
 from biorsp.plotting.style import (
     get_column_width,
     save_figure,
-    set_publication_style,
 )
 
 logger = logging.getLogger(__name__)
-set_publication_style()
 
 
 def plot_archetype_scatter(
@@ -45,7 +43,7 @@ def plot_archetype_scatter(
     ax: Optional[plt.Axes] = None,
 ) -> Figure:
     """
-    Create Panel A: Archetype scatter plot (Coverage vs Spatial Score).
+    Create Panel A: Archetype scatter plot (Coverage vs Spatial Bias Score).
 
     This is the primary figure showing the (C, S) distribution with quadrant
     boundaries and archetype coloring. The cutoff lines MUST match the
@@ -54,7 +52,7 @@ def plot_archetype_scatter(
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with Coverage, Spatial_Score, and Archetype columns
+        DataFrame with Coverage, Spatial_Bias_Score, and Archetype columns
     spec : PlotSpec
         Plot specification with cutoffs and colors
     title : str
@@ -170,7 +168,7 @@ def plot_archetype_scatter(
             )
 
     ax.set_xlabel("Coverage (C)", fontsize=11)
-    ax.set_ylabel("Spatial Score (S)", fontsize=11)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_title(title, fontsize=12, fontweight="bold")
 
     ax.legend(loc="upper right", framealpha=0.95, fontsize=9, edgecolor="gray")
@@ -422,7 +420,7 @@ def generate_standard_panels(
     Parameters
     ----------
     df : pd.DataFrame
-        Results DataFrame with Coverage, Spatial_Score, Archetype columns
+        Results DataFrame with Coverage, Spatial_Bias_Score, Archetype columns
     spec : PlotSpec
         Plot specification
     outdir : Path
@@ -449,7 +447,7 @@ def generate_standard_panels(
     fig_a = plot_archetype_scatter(df, spec, color_by=color_by)
 
     caption_a = (
-        f"Panel A: Coverage vs Spatial Score scatter plot. "
+        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={spec.c_cut:.2f}, S={spec.s_cut:.2f}. "
         f"Each point represents one gene or simulation replicate. "
         f"Colors indicate archetype classification."
@@ -542,7 +540,7 @@ def plot_examples_panel(
     gene_to_idx = {g: i for i, g in enumerate(gene_names)}
 
     for i, archetype in enumerate(archetypes):
-        # Select representative examples (highest spatial score for Patchy/Gradient,
+        # Select representative examples (highest spatial bias score for Patchy/Gradient,
         # highest coverage for Ubiquitous, lowest for Basal)
         if archetype in ["Patchy", "Gradient"]:
             sort_col = spec.spatial_col
@@ -774,7 +772,7 @@ def plot_marker_recovery_panel(
 
     ax.set_xticks(range(len(k_values)))
     ax.set_xticklabels([f"Top {int(k)}" for k in k_values], fontsize=9)
-    ax.set_xlabel("Genes Ranked by Spatial Score", fontsize=11)
+    ax.set_xlabel("Genes Ranked by Spatial Bias Score", fontsize=11)
     ax.set_ylabel("Precision", fontsize=11)
     ax.set_title(title, fontsize=12, fontweight="bold")
     ax.set_ylim(0, 1.1)
@@ -871,7 +869,7 @@ def generate_full_panel_suite(
         fig_c = plot_marker_recovery_panel(precision_df)
         caption_c = (
             "Panel C: Precision@K for structured gene recovery. "
-            "Genes are ranked by spatial score; bars show fraction that are truly structured."
+            "Genes are ranked by spatial bias score; bars show fraction that are truly structured."
         )
         save_panel_with_caption(fig_c, outdir / "C_marker_recovery.png", caption_c)
         plt.close(fig_c)

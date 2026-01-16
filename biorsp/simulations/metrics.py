@@ -925,7 +925,7 @@ def build_calibration_table(
 
     rows = []
     for (shape, N, c_bin), group in df.groupby(["shape", "N", "C_bin"], observed=True):
-        s_values = group["Spatial_Score"].dropna().values
+        s_values = group["Spatial_Bias_Score"].dropna().values
         if len(s_values) < 5:
             continue
 

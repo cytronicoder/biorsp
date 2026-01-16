@@ -9,9 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
-from biorsp.plotting.style import COLORS, get_column_width, save_figure, set_publication_style
-
-set_publication_style()
+from biorsp.plotting.style import COLORS, get_column_width, save_figure
 
 
 def draw_box(ax, x, y, width, height, text, title="", color="skyblue", alpha=0.3):

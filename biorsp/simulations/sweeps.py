@@ -189,7 +189,7 @@ def run_replicates_parallel_simple(
     n_workers: int = 1,
 ) -> pd.DataFrame:
     """
-    Simplified parallel version for backward compatibility.
+    Simplified parallel version.
 
     Use run_replicates() for full features (checkpointing, resume).
     """

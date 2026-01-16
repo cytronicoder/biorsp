@@ -712,7 +712,7 @@ def plot_archetype_scatter(
     )
 
     ax.set_xlabel("Coverage ($C_g$): Fraction of cells expressing", fontsize=12)
-    ax.set_ylabel("Spatial Score ($S_g$): Radial organization magnitude", fontsize=12)
+    ax.set_ylabel("Spatial Bias Score ($S_g$): Radial organization magnitude", fontsize=12)
     ax.set_title("Gene Archetype Landscape\n(TAL Cells)", fontsize=14)
 
     if "Archetype" in df.columns:
@@ -956,7 +956,7 @@ def main():
             f.write(
                 f"{row.get('gene_symbol', row['gene'])}\t"
                 f"{row['Coverage']:.4f}\t"
-                f"{row['Spatial_Score']:.4f}\t"
+                f"{row['Spatial_Bias_Score']:.4f}\t"
                 f"{row.get('Archetype', 'N/A')}\n"
             )
     logger.info(f"Saved: {txt_path}")

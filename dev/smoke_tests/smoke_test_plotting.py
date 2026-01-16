@@ -152,7 +152,7 @@ def test_radar_plots(outdir: Path, coords: np.ndarray, expr: np.ndarray, config:
             "empty_fg_policy": config.empty_fg_policy,
         },
         "metrics": {
-            "Spatial_Score": float(summaries.anisotropy),
+            "Spatial_Bias_Score": float(summaries.anisotropy),
             "Directionality": float(summaries.r_mean),
             "coverage_geom": float(summaries.coverage_geom),
         },

@@ -11,9 +11,9 @@ The fraction of cells in the region of interest (ROI) that express the gene abov
 - **Low (<0.05)**: Rare cell types or noise.
 - **High (>0.8)**: Ubiquitous housekeeping genes.
 
-## 2. Spatial Score
+## 2. Spatial Bias Score
 
-_Column: `Spatial_Score`_
+_Column: `Spatial_Bias_Score`_
 
 A measure of how "organized" the expression is, ranging from 0 to 1 (or higher for very strong signals).
 
@@ -21,7 +21,7 @@ A measure of how "organized" the expression is, ranging from 0 to 1 (or higher f
 - **0.1 - 0.2**: Weak spatial pattern.
 - **> 0.2**: Strong spatial pattern.
 
-**Note**: A gene with high Coverage but low Spatial Score is likely ubiquitous and uniform (not spatially variable).
+**Note**: A gene with high Coverage but low Spatial Bias Score is likely ubiquitous and uniform (not spatially variable).
 
 ## 3. Directionality
 
@@ -38,7 +38,7 @@ _Column: `Archetype`_
 
 Classifications derived from the metrics above:
 
-- **I: Ubiquitous**: High Coverage, Low Spatial Score.
-- **II: Gradient**: High Spatial Score, High Directionality.
-- **III: Patchy**: Low Coverage, High Spatial Score.
+- **I: Ubiquitous**: High Coverage, Low Spatial Bias Score.
+- **II: Gradient**: High Spatial Bias Score, High Directionality.
+- **III: Patchy**: Low Coverage, High Spatial Bias Score.
 - **IV: Basal/Edge**: Geometry-specific patterns.

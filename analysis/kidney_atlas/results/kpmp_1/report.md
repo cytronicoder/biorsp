@@ -24,7 +24,7 @@
 - **Value used:** 0.0598
 - **Method:** auto_derived
 
-### Spatial Score Cutoff (s_cut)
+### Spatial Bias Score Cutoff (s_cut)
 - **Value used:** 0.2121
 - **Method:** distribution_derived
 

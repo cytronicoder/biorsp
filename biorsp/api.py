@@ -14,12 +14,12 @@ from biorsp.utils.config import BioRSPConfig
 
 COLUMN_MAP = {
     "coverage": "Coverage",
-    "spatial_score": "Spatial_Score",
+    "spatial_score": "Spatial_Bias_Score",
     "r_mean": "Directionality",
     "archetype": "Archetype",
 }
 INTERNAL_MAP = {v: k for k, v in COLUMN_MAP.items()}
-PUBLIC_COLUMNS = ["Coverage", "Spatial_Score", "Directionality", "Archetype"]
+PUBLIC_COLUMNS = ["Coverage", "Spatial_Bias_Score", "Directionality", "Archetype"]
 LEGACY_COLUMNS = {
     "coverage_expr",
     "pct_cells",
@@ -80,7 +80,7 @@ def score_genes(
     Returns
     -------
     pd.DataFrame
-        GeneScoreTable with standardized columns: Coverage, Spatial_Score, Directionality.
+        GeneScoreTable with standardized columns: Coverage, Spatial_Bias_Score, Directionality.
     """
     if config is None:
         config = BioRSPConfig(**kwargs)
@@ -103,7 +103,7 @@ def classify_genes(
     s_cut: Optional[float] = None,
     fdr_cut: float = 0.05,
 ) -> pd.DataFrame:
-    """Classify genes into archetypes based on Coverage and Spatial_Score.
+    """Classify genes into archetypes based on Coverage and Spatial_Bias_Score.
 
     Parameters
     ----------
@@ -112,7 +112,7 @@ def classify_genes(
     c_cut : float, optional
          Coverage cutoff. If None, defaults to 0.10.
     s_cut : float, optional
-         Spatial Score cutoff. If None, determined automatically.
+         Spatial Bias Score cutoff. If None, determined automatically.
     fdr_cut : float, optional
          FDR cutoff used if 'q_value' is present and s_cut is None.
 

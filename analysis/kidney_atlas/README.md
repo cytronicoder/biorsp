@@ -90,7 +90,7 @@ All analyses generate:
 
 1. **Gene Results Table** (`gene_scores.csv`)
    - Coverage: Fraction of cells expressing each gene
-   - Spatial Score: Degree of spatial clustering
+   - Spatial Bias Score: Degree of spatial clustering
    - Statistical significance (p-values, q-values)
    - Archetype classification
 
@@ -181,7 +181,7 @@ This gives you robust statistics and optional gene-gene discovery. Expect 30-60 
 | Score | What It Measures | How to Interpret |
 |-------|-----------------|------------------|
 | **Coverage** ($C_g$) | How many cells express this gene? | 0 = nobody expresses it, 1 = everybody expresses it |
-| **Spatial Score** ($S_g$) | Is expression clustered in regions, or spread out? | 0 = evenly distributed, higher values = more clustered |
+| **Spatial Bias Score** ($S_g$) | Is expression clustered in regions, or spread out? | 0 = evenly distributed, higher values = more clustered |
 
 **Simple Example**: If SLC12A1 has C_g=0.9 and S_g=0.25, that means ~90% of TAL cells express it, and the expression shows moderate spatial clustering (not perfectly uniform).
 
@@ -211,25 +211,25 @@ Genes naturally fall into four categories based on coverage and spatial organiza
 
 ### What Each Quadrant Means
 
-**Localized Programs** (High Coverage + High Spatial Score)
+**Localized Programs** (High Coverage + High Spatial Bias Score)
 - These genes are the cell type's "signature programs"
 - Found in most cells of the tissue region, but expression clusters in specific zones
 - Example: SLC12A1 (Na-K-2Cl cotransporter) in proximal TAL
 - **Interpretation**: Core TAL functional program that varies by micro-location
 
-**Housekeeping Genes** (High Coverage + Low Spatial Score)
+**Housekeeping Genes** (High Coverage + Low Spatial Bias Score)
 - Widely expressed across all cells, no location preference
 - Likely involved in basic cellular function needed everywhere
 - Example: EEF1A1 (elongation factor) or ribosomal proteins
 - **Interpretation**: General cell maintenance—less informative about tissue organization
 
-**Niche Biomarkers** (Low Coverage + High Spatial Score)
+**Niche Biomarkers** (Low Coverage + High Spatial Bias Score)
 - Expressed in just a fraction of cells, but those cells cluster together
 - Potential markers of specialized sub-populations or functional niches
 - Could indicate cell-cell interaction zones
 - **Interpretation**: May reveal micro-anatomical structure or cell state transitions
 
-**Sparse Genes** (Low Coverage + Low Spatial Score)
+**Sparse Genes** (Low Coverage + Low Spatial Bias Score)
 - Rarely expressed and scattered randomly
 - Likely either noise, very rare cell states, or genes needing specific stimuli
 - **Interpretation**: Less reliable for understanding tissue organization

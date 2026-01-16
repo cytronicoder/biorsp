@@ -83,11 +83,7 @@ def score_dataset(
 
     df["gene"] = results.get("gene", genes)
     df["Coverage"] = results.get("Coverage", np.nan)
-    # Prefer Spatial_Score but fall back to legacy Spatial_Bias_Score for older runs
-    spatial_score = results.get("Spatial_Score", results.get("Spatial_Bias_Score", np.nan))
-    df["Spatial_Score"] = spatial_score
-    # Provide legacy column for downstream scripts that still expect the old name
-    df["Spatial_Bias_Score"] = spatial_score
+    df["Spatial_Bias_Score"] = results.get("Spatial_Bias_Score", np.nan)
     df["Directionality"] = results.get("Directionality", 0.0)
     df["coverage_geom"] = results.get("coverage_geom", np.nan)
     df["coverage_fg"] = results.get("coverage_fg", np.nan)
@@ -98,9 +94,9 @@ def score_dataset(
         df["Archetype"] = results["Archetype"]
 
     if "abstain" not in results.columns:
-        df["abstain_flag"] = pd.isna(df["Spatial_Score"]) | (df["coverage_geom"] < 0.1)
+        df["abstain_flag"] = pd.isna(df["Spatial_Bias_Score"]) | (df["coverage_geom"] < 0.1)
         df["abstain_reason"] = "ok"
-        df.loc[pd.isna(df["Spatial_Score"]), "abstain_reason"] = "no_spatial_score"
+        df.loc[pd.isna(df["Spatial_Bias_Score"]), "abstain_reason"] = "no_spatial_score"
         df.loc[df["coverage_geom"] < 0.1, "abstain_reason"] = "low_geom_support"
     else:
         df["abstain_flag"] = results["abstain"]

@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
 
-from biorsp.plotting.spec import ARCHETYPE_COLORS  # noqa: E402
+from biorsp.plotting.spec import ARCHETYPE_COLORS
 
 logger = logging.getLogger(__name__)
 
@@ -460,7 +460,7 @@ def plot_spatial_embedding(
 
 def plot_archetype_scatter(
     coverage: np.ndarray,
-    spatial_score: np.ndarray,
+    spatial_bias_score: np.ndarray,
     true_archetypes: np.ndarray,
     c_cut: float = 0.30,
     s_cut: float = 0.15,
@@ -483,7 +483,7 @@ def plot_archetype_scatter(
     c_cut : float
         Coverage threshold for quadrant boundary
     s_cut : float
-        Spatial score threshold for quadrant boundary
+        Spatial bias score threshold for quadrant boundary
     title : str
         Plot title
     figsize : tuple
@@ -502,7 +502,7 @@ def plot_archetype_scatter(
         color = ARCHETYPE_COLORS.get(archetype, "#888888")
         ax.scatter(
             coverage[mask],
-            spatial_score[mask],
+            spatial_bias_score[mask],
             c=color,
             label=archetype,
             s=40,
@@ -538,14 +538,14 @@ def plot_archetype_scatter(
         )
 
     ax.set_xlabel("Coverage (C)", fontsize=11)
-    ax.set_ylabel("Spatial Score (S)", fontsize=11)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_title(title, fontsize=12, fontweight="bold")
 
     ax.legend(loc="upper right", framealpha=0.9, fontsize=9)
     ax.grid(True, alpha=0.3)
 
     ax.set_xlim(0, min(1.0, coverage.max() * 1.1))
-    ax.set_ylim(0, min(1.0, spatial_score.max() * 1.2))
+    ax.set_ylim(0, min(1.0, spatial_bias_score.max() * 1.2))
 
     plt.tight_layout()
     return fig
@@ -656,7 +656,7 @@ def plot_marker_recovery(
 
     ax.set_xticks(range(len(k_vals)))
     ax.set_xticklabels([f"Top {k}" for k in k_vals], fontsize=9)
-    ax.set_xlabel("Ranked by Spatial Score (S)", fontsize=10)
+    ax.set_xlabel("Ranked by Spatial Bias Score (S)", fontsize=10)
     ax.set_ylabel("Precision\n(% true structured genes)", fontsize=10)
     ax.set_title(title, fontsize=11, fontweight="bold")
 
@@ -998,7 +998,7 @@ def plot_threshold_diagnostics(
 
     Shows:
     - Left: Coverage (C) distribution by archetype with c_cut line
-    - Center: Spatial Score (S) distribution by archetype with s_cut line
+    - Center: Spatial Bias Score (S) distribution by archetype with s_cut line
     - Right: Joint density with quadrant boundaries
 
     Purpose: Verify that thresholds separate archetypes as intended.
@@ -1059,9 +1059,9 @@ def plot_threshold_diagnostics(
             density=True,
         )
     ax.axvline(s_cut, color="red", linestyle="--", linewidth=2, label=f"s_cut={s_cut:.2f}")
-    ax.set_xlabel("Spatial Score (S)", fontsize=11)
+    ax.set_xlabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_ylabel("Density", fontsize=11)
-    ax.set_title("Spatial Score Distribution by Archetype", fontsize=11)
+    ax.set_title("Spatial Bias Score Distribution by Archetype", fontsize=11)
     ax.legend(fontsize=8, loc="upper right")
     ax.grid(alpha=0.3)
 
@@ -1120,7 +1120,7 @@ def plot_threshold_diagnostics(
     )
 
     ax.set_xlabel("Coverage (C)", fontsize=11)
-    ax.set_ylabel("Spatial Score (S)", fontsize=11)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_title("Joint Distribution with Thresholds", fontsize=11)
     ax.legend(fontsize=8, loc="upper right")
     ax.grid(alpha=0.3)
@@ -1182,7 +1182,7 @@ def plot_support_diagnostics(
             alpha=0.6,
         )
     ax.set_xlabel("Foreground Coverage (fraction or count)", fontsize=10)
-    ax.set_ylabel("Spatial Score (S)", fontsize=10)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=10)
     ax.set_title("S vs Foreground Support", fontsize=11)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
@@ -1200,7 +1200,7 @@ def plot_support_diagnostics(
             alpha=0.6,
         )
     ax.set_xlabel("Geometry Coverage (fraction)", fontsize=10)
-    ax.set_ylabel("Spatial Score (S)", fontsize=10)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=10)
     ax.set_title("S vs Geometry Support", fontsize=11)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
@@ -1219,7 +1219,7 @@ def plot_support_diagnostics(
             alpha=0.6,
         )
     ax.set_xlabel("FG/BG Ratio", fontsize=10)
-    ax.set_ylabel("Spatial Score (S)", fontsize=10)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=10)
     ax.set_title("S vs FG/BG Ratio", fontsize=11)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
@@ -1337,7 +1337,7 @@ def plot_misclassified_scatter(
     ax.axhline(s_cut, color="red", linestyle="--", linewidth=2, alpha=0.7)
 
     ax.set_xlabel("Coverage (C)", fontsize=11)
-    ax.set_ylabel("Spatial Score (S)", fontsize=11)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_title(
         f"Misclassification Audit\n({incorrect_mask.sum()}/{len(true_archetypes)} misclassified = {incorrect_mask.mean():.1%})",
         fontsize=12,
@@ -1399,7 +1399,7 @@ def plot_pattern_detectability(
 
     ax.barh(patterns, means, xerr=stds, color=colors, alpha=0.7, capsize=3)
 
-    ax.set_xlabel("Spatial Score (S)", fontsize=11)
+    ax.set_xlabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_ylabel("Pattern Type", fontsize=11)
     ax.set_title(title, fontsize=12, fontweight="bold")
     ax.axvline(0.15, color="red", linestyle="--", linewidth=2, label="s_cut threshold")
@@ -1479,7 +1479,7 @@ def plot_null_distribution(
             label=f"Borderline zone (±{margin:.3f})",
         )
 
-    ax.set_xlabel("Spatial Score (S)", fontsize=11)
+    ax.set_xlabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_ylabel("Density", fontsize=11)
     ax.set_title("Null Distribution", fontsize=11)
     ax.legend(fontsize=9)
@@ -1498,7 +1498,7 @@ def plot_null_distribution(
         label=f"1 - FPR_target = {1 - fpr_target:.0%}",
     )
 
-    ax.set_xlabel("Spatial Score (S)", fontsize=11)
+    ax.set_xlabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_ylabel("Cumulative Probability", fontsize=11)
     ax.set_title("CDF with Threshold", fontsize=11)
     ax.legend(fontsize=9)
@@ -1607,7 +1607,7 @@ def plot_exemplar_panel(
         f"Archetype: {archetype.replace('_', ' ').title()}",
         "",
         f"Coverage (C): {coverage:.1%}",
-        f"Spatial Score (S): {spatial_score:.3f}",
+        f"Spatial Bias Score (S): {spatial_score:.3f}",
         "",
         "Thresholds:",
         f"  C_cut: {c_cut:.2f}",
@@ -1986,7 +1986,7 @@ def plot_archetype_example_panel(
 Archetype: {archetype}
 
 Coverage (C): {coverage:.3f}
-Spatial Score (S): {spatial_score:.3f}
+Spatial Bias Score (S): {spatial_score:.3f}
 
 Classification:
   C threshold: {c_cut:.2f}
@@ -2092,7 +2092,7 @@ def plot_null_calibration_panel(
 
     ax.axvspan(s_cut, ax.get_xlim()[1], alpha=0.2, color="red", label="Reject region")
 
-    ax.set_xlabel("Spatial Score (S)", fontsize=10)
+    ax.set_xlabel("Spatial Bias Score (S)", fontsize=10)
     ax.set_ylabel("Density", fontsize=10)
     ax.set_title("S Distribution", fontsize=11)
     ax.legend(fontsize=8, loc="upper right")
@@ -2126,7 +2126,7 @@ def plot_null_calibration_panel(
         label=f"Target: {target_quantile:.0%} quantile",
     )
 
-    ax.set_xlabel("Spatial Score (S)", fontsize=10)
+    ax.set_xlabel("Spatial Bias Score (S)", fontsize=10)
     ax.set_ylabel("Cumulative Probability", fontsize=10)
     ax.set_title(f"Empirical CDF\nTarget FPR={fpr_target:.0%}", fontsize=11)
     ax.legend(fontsize=8, loc="lower right")

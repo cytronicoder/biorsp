@@ -32,15 +32,12 @@ try:
         COLORS,
         add_panel_label,
         get_column_width,
-        set_publication_style,
     )
 except ImportError as e:
     print("ERROR: Cannot import biorsp. Please install the package first:")
     print("  pip install -e .")
     print(f"Details: {e}")
     exit(1)
-
-set_publication_style()
 
 
 def setup_args():

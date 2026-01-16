@@ -347,7 +347,7 @@ def run_story_benchmark(args):
     ax_a.axvline(c_cut, color="black", linestyle="--", linewidth=1.5, alpha=0.7)
     ax_a.axhline(s_cut, color="black", linestyle="--", linewidth=1.5, alpha=0.7)
     ax_a.set_xlabel("Coverage (C)")
-    ax_a.set_ylabel("Spatial Score (S)")
+    ax_a.set_ylabel("Spatial Bias Score (S)")
     ax_a.set_title("A. Archetype Classification", fontweight="bold")
     ax_a.legend(loc="upper right", fontsize=8)
     ax_a.grid(True, alpha=0.3)
@@ -652,7 +652,7 @@ and recover gene-gene co-patterning relationships using synthetic ground-truth d
 
 BioRSP classifies genes into a 2×2 grid based on:
 - **Coverage (C)**: Fraction of cells expressing the gene
-- **Spatial Score (S)**: Degree of spatial organization
+- **Spatial Bias Score (S)**: Degree of spatial organization
 
 | Archetype | Description | Expected Region |
 |-----------|-------------|-----------------|
@@ -677,7 +677,7 @@ BioRSP classifies genes into a 2×2 grid based on:
 
     report += """
 
-Top genes ranked by Spatial Score (S) should be enriched for truly structured genes.
+Top genes ranked by Spatial Bias Score (S) should be enriched for truly structured genes.
 
 | Top K | Precision | True Structured |
 |-------|-----------|-----------------|

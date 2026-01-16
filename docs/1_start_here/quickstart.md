@@ -25,7 +25,7 @@ if "X_umap" not in adata.obsm:
     sc.tl.umap(adata)
 
 # 2. Score Genes
-# This calculates Coverage (C) and Spatial Score (S)
+# This calculates Coverage (C) and Spatial Bias Score (S)
 genes = ["CD3D", "MS4A1", "CST3"]
 scores = score_genes(adata, genes, embedding_key="X_umap")
 
@@ -33,7 +33,7 @@ scores = score_genes(adata, genes, embedding_key="X_umap")
 # Categorizes genes into: Housekeeping, Regional Program, Niche Marker, or Sparse Noise
 results = classify_genes(scores)
 
-print(results[["Coverage", "Spatial_Score", "Archetype"]])
+print(results[["Coverage", "Spatial_Bias_Score", "Archetype"]])
 ```
 
 ## Understanding the Output
@@ -41,7 +41,7 @@ print(results[["Coverage", "Spatial_Score", "Archetype"]])
 | Column | Description |
 |--------|-------------|
 | **Coverage** | Fraction of cells where the gene is expressed. (0.0 to 1.0) |
-| **Spatial_Score** | Magnitude of directional bias. Higher = more spatially coherent. |
+| **Spatial_Bias_Score** | Magnitude of directional bias. Higher = more spatially coherent. |
 | **Directionality** | Signed value indicating orientation (if applicable). |
 | **Archetype** | Biological classification of the pattern. |
 

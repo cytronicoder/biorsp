@@ -2,7 +2,7 @@
 
 These tests enforce the current public specification:
 - Coverage is defined by biological thresholding, independent of foreground quantiles.
-- Empty foreground sectors with empty_fg_policy='zero' contribute zero to Spatial_Score and stay finite.
+- Empty foreground sectors with empty_fg_policy='zero' contribute zero to Spatial_Bias_Score and stay finite.
 """
 
 import numpy as np
@@ -41,7 +41,7 @@ def test_coverage_not_affected_by_foreground_quantile():
 
 
 def test_empty_foreground_zero_policy_keeps_spatial_score_zero():
-    """When the foreground is empty, Spatial_Score should be zero and finite under zero policy."""
+    """When the foreground is empty, Spatial_Bias_Score should be zero and finite under zero policy."""
     rng = np.random.default_rng(2024)
     theta = rng.uniform(-np.pi, np.pi, 120)
     r = rng.uniform(0.1, 1.0, 120)

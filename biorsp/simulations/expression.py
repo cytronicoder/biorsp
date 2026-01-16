@@ -66,7 +66,7 @@ def generate_signal_field(
     Represents relative expression probability or intensity.
 
     NOTE ON BIORSP DETECTABILITY:
-    BioRSP's Spatial Score (S) measures *radial* organization - the shift in
+    BioRSP's Spatial Bias Score (S) measures *radial* organization - the shift in
     mean radius between foreground (expressing) and background (non-expressing)
     cells. Patterns that induce radial contrast are detectable:
 

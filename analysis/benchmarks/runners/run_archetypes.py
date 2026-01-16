@@ -82,7 +82,7 @@ def run_archetype_condition(config_dict: dict, seed: int, config: BioRSPConfig) 
             "true_archetype": expr_meta["Archetype"],
             "pattern_variant": pattern_variant,
             "p_value": np.nan,
-            "Spatial_Score": np.nan,
+            "Spatial_Bias_Score": np.nan,
             "Coverage": np.nan,
             "n_expr_cells": expr_meta.get("n_expr_cells", 0),
             "abstain_flag": True,
@@ -98,7 +98,7 @@ def run_archetype_condition(config_dict: dict, seed: int, config: BioRSPConfig) 
         "true_archetype": expr_meta["Archetype"],
         "pattern_variant": pattern_variant,
         "p_value": row["p_value"],
-        "Spatial_Score": row["Spatial_Score"],
+        "Spatial_Bias_Score": row["Spatial_Bias_Score"],
         "Coverage": row["Coverage"],
         "n_expr_cells": expr_meta.get("n_expr_cells", 0),
         "abstain_flag": row["abstain_flag"],
@@ -278,7 +278,7 @@ def main():
     if s_cut is None:
         iid_runs = runs_df[runs_df["organization_regime"] == "iid"]
         if len(iid_runs) >= 10:
-            s_values = iid_runs["Spatial_Score"].dropna().values
+            s_values = iid_runs["Spatial_Bias_Score"].dropna().values
             thresholds = metrics.derive_thresholds_principled(s_values, fpr_target=0.05)
             s_cut = thresholds["s_cut"]
             print(
@@ -291,7 +291,7 @@ def main():
     c_cut = args.c_cut
 
     coverage = runs_df["Coverage"].values
-    spatial_score = runs_df["Spatial_Score"].values
+    spatial_score = runs_df["Spatial_Bias_Score"].values
     n_expr_cells = runs_df["n_expr_cells"].values
     N_values = runs_df["N"].values
 
@@ -338,8 +338,8 @@ def main():
                 "coverage_regime": cov_regime,
                 "organization_regime": org_regime,
                 "true_archetype": true_arch,
-                "Spatial_Score_mean": group["Spatial_Score"].mean(),
-                "Spatial_Score_std": group["Spatial_Score"].std(),
+                "Spatial_Bias_Score_mean": group["Spatial_Bias_Score"].mean(),
+                "Spatial_Bias_Score_std": group["Spatial_Bias_Score"].std(),
                 "Coverage_mean": group["Coverage"].mean(),
                 "Coverage_std": group["Coverage"].std(),
                 "n_expr_cells_mean": group["n_expr_cells"].mean(),
@@ -377,7 +377,7 @@ def main():
         try:
             validation.validate_dataframe_for_plot(
                 subset,
-                required_columns=["Coverage", "Spatial_Score", "true_archetype"],
+                required_columns=["Coverage", "Spatial_Bias_Score", "true_archetype"],
                 min_rows=1,
                 name=f"archetype scatter plot for {shape}",
             )
@@ -387,7 +387,7 @@ def main():
 
         fig = plotting.plot_archetype_scatter(
             coverage=subset["Coverage"].values,
-            spatial_score=subset["Spatial_Score"].values,
+            spatial_score=subset["Spatial_Bias_Score"].values,
             true_archetypes=subset["true_archetype"].values,
             c_cut=c_cut,
             s_cut=s_cut,
@@ -416,14 +416,16 @@ def main():
         arch_runs = runs_df[runs_df["true_archetype"] == archetype]
         if len(arch_runs) > 0:
             median_idx = (
-                (arch_runs["Spatial_Score"] - arch_runs["Spatial_Score"].median()).abs().idxmin()
+                (arch_runs["Spatial_Bias_Score"] - arch_runs["Spatial_Bias_Score"].median())
+                .abs()
+                .idxmin()
             )
             ex_row = arch_runs.loc[median_idx]
             example_data.append(
                 {
                     "Archetype": archetype,
                     "coverage": ex_row["Coverage"],
-                    "Spatial_Score": ex_row["Spatial_Score"],
+                    "Spatial_Bias_Score": ex_row["Spatial_Bias_Score"],
                     "seed": ex_row.get("seed", args.seed),
                     "shape": ex_row["shape"],
                     "N": ex_row["N"],
@@ -442,7 +444,7 @@ def main():
     misclass_df = runs_df[misclass_mask].copy()
 
     if len(misclass_df) > 0:
-        misclass_df["s_margin"] = np.abs(misclass_df["Spatial_Score"] - s_cut)
+        misclass_df["s_margin"] = np.abs(misclass_df["Spatial_Bias_Score"] - s_cut)
         misclass_df["c_margin"] = np.abs(misclass_df["Coverage"] - c_cut)
         misclass_df["total_margin"] = misclass_df["s_margin"] + misclass_df["c_margin"]
         misclass_df = misclass_df.sort_values("total_margin", ascending=True)

@@ -19,10 +19,9 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from biorsp.plotting.spec import PlotSpec
-from biorsp.plotting.style import COLORS, set_publication_style
+from biorsp.plotting.style import COLORS
 
 logger = logging.getLogger(__name__)
-set_publication_style()
 
 
 def plot_debug_pointcloud(
@@ -208,7 +207,7 @@ def plot_debug_cutoff_consistency(
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame with Coverage, Spatial_Score, Archetype columns
+        DataFrame with Coverage, Spatial_Bias_Score, Archetype columns
     spec : PlotSpec
         Plot specification with cutoffs
     title : str
@@ -285,7 +284,7 @@ def plot_debug_cutoff_consistency(
         )
 
     ax.set_xlabel("Coverage (C)", fontsize=11)
-    ax.set_ylabel("Spatial Score (S)", fontsize=11)
+    ax.set_ylabel("Spatial Bias Score (S)", fontsize=11)
     ax.set_title(title, fontsize=12, fontweight="bold")
     ax.legend(loc="upper right", framealpha=0.95)
     ax.grid(True, alpha=0.3)

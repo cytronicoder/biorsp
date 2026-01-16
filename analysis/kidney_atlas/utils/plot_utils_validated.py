@@ -232,7 +232,7 @@ def plot_cs_marginals(
         )
         axes[1].set_xlabel("Spatial Bias Score $S$", fontsize=14)
         axes[1].set_ylabel("Count", fontsize=14)
-        axes[1].set_title("Spatial Score Distribution", fontsize=16)
+        axes[1].set_title("Spatial Bias Score Distribution", fontsize=16)
         axes[1].legend(fontsize=12)
         axes[1].grid(axis="y", alpha=0.3)
 
@@ -392,7 +392,7 @@ def plot_gene_exemplar(
             f"Archetype: {archetype}",
             "",
             f"Coverage $C$: {gene_row['Coverage']:.3f}",
-            f"Spatial $S$: {gene_row['Spatial_Score']:.3f}",
+            f"Spatial $S$: {gene_row['Spatial_Bias_Score']:.3f}",
             f"Coverage Geom: {gene_row.get('coverage_geom', 0):.3f}",
             f"$p$-value: {gene_row.get('p_value', np.nan):.2e}",
             f"$q$-value: {gene_row.get('q_value', np.nan):.2e}",

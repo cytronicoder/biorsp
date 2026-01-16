@@ -59,37 +59,6 @@ def publication_style():
         plt.rcParams.update(original_params)
 
 
-def set_publication_style():
-    """Sets matplotlib rcParams for Cell Press Patterns standards.
-
-    DEPRECATED: Use publication_style() context manager instead to avoid
-    global state mutations.
-    """
-    plt.rcParams.update(
-        {
-            "font.size": 9,
-            "axes.titlesize": 11,
-            "axes.labelsize": 10,
-            "xtick.labelsize": 9,
-            "ytick.labelsize": 9,
-            "legend.fontsize": 8,
-            "figure.titlesize": 12,
-            "font.family": "sans-serif",
-            "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-            "pdf.fonttype": 42,
-            "ps.fonttype": 42,
-            "lines.linewidth": 1.5,
-            "lines.markersize": 4,
-            "axes.linewidth": 0.8,
-            "figure.constrained_layout.use": True,
-            "savefig.bbox": "tight",
-            "savefig.dpi": 600,
-            "savefig.transparent": False,
-            "savefig.facecolor": "white",
-        }
-    )
-
-
 def add_panel_label(ax, label, x=-0.15, y=1.15):
     """Adds a bold panel label (A, B, C, D) to an axis with increased padding."""
     ax.text(

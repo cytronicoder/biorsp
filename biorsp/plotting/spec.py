@@ -15,7 +15,7 @@ Key responsibilities:
 Usage:
     >>> from biorsp.plotting.spec import PlotSpec
     >>> spec = PlotSpec(c_cut=0.30, s_cut=0.15)
-    >>> archetype = spec.classify(coverage=0.45, spatial_score=0.08)
+    >>> archetype = spec.classify(coverage=0.45, spatial_bias_score=0.08)
     >>> color = spec.get_color(archetype)
     >>> print(f"{archetype}: {color}")
     Ubiquitous: #4CAF50
@@ -34,11 +34,6 @@ ARCHETYPE_COLORS = {
     "Gradient": "#2196F3",  # Blue - high C, high S (broad spatial domain)
     "Basal": "#9E9E9E",  # Gray - low C, low S (scattered/rare, no pattern)
     "Patchy": "#FF5722",  # Red-Orange - low C, high S (localized marker)
-    # Legacy lowercase support (will be deprecated)
-    "ubiquitous": "#4CAF50",
-    "gradient": "#2196F3",
-    "basal": "#9E9E9E",
-    "patchy": "#FF5722",
     # Special cases
     "Unknown": "#BDBDBD",  # Light gray for unclassified
     "Abstention": "#000000",  # Black for abstained scores
@@ -47,15 +42,10 @@ ARCHETYPE_COLORS = {
 
 # Reader-friendly descriptions for each archetype
 ARCHETYPE_DESCRIPTIONS = {
-    "Ubiquitous": "Widespread expression, no spatial bias\n(High Coverage, Low Spatial Score)",
-    "Gradient": "Broad spatial domain or gradient\n(High Coverage, High Spatial Score)",
-    "Basal": "Sparse/scattered expression\n(Low Coverage, Low Spatial Score)",
-    "Patchy": "Localized spatial marker\n(Low Coverage, High Spatial Score)",
-    # Legacy lowercase support
-    "ubiquitous": "Ubiquitous expression\n(high C, low S)",
-    "gradient": "Broad spatial domain\n(high C, high S)",
-    "basal": "Scattered/rare\n(low C, low S)",
-    "patchy": "Localized marker\n(low C, high S)",
+    "Ubiquitous": "Widespread expression, no spatial bias\n(High Coverage, Low Spatial Bias Score)",
+    "Gradient": "Broad spatial domain or gradient\n(High Coverage, High Spatial Bias Score)",
+    "Basal": "Sparse/scattered expression\n(Low Coverage, Low Spatial Bias Score)",
+    "Patchy": "Localized spatial marker\n(Low Coverage, High Spatial Bias Score)",
 }
 
 # Canonical legend order (for consistent subplot layouts)
@@ -91,7 +81,7 @@ class PlotSpec:
     coverage_col : str
         Column name for coverage in DataFrames (default: "Coverage")
     spatial_col : str
-        Column name for spatial score (default: "Spatial_Score")
+        Column name for spatial bias score (default: "Spatial_Bias_Score")
     archetype_col : str
         Column name for archetype labels (default: "Archetype")
     min_expr_cells : int
@@ -101,7 +91,7 @@ class PlotSpec:
     c_cut: float = 0.30
     s_cut: float = 0.15
     coverage_col: str = "Coverage"
-    spatial_col: str = "Spatial_Score"
+    spatial_col: str = "Spatial_Bias_Score"
     archetype_col: str = "Archetype"
     min_expr_cells: int = 10
     # Color and description mappings (immutable)
@@ -112,7 +102,7 @@ class PlotSpec:
     def classify(
         self,
         coverage: float,
-        spatial_score: float,
+        spatial_bias_score: float,
         n_expr_cells: Optional[int] = None,
         abstain_flag: bool = False,
     ) -> str:
@@ -123,7 +113,7 @@ class PlotSpec:
         ----------
         coverage : float
             Coverage score (fraction of cells above threshold)
-        spatial_score : float
+        spatial_bias_score : float
             Spatial organization score (weighted RMS)
         n_expr_cells : int, optional
             Number of expressing cells (for abstention check)
@@ -142,12 +132,12 @@ class PlotSpec:
             return "Abstention"
 
         # Handle NaN values
-        if np.isnan(coverage) or np.isnan(spatial_score):
+        if np.isnan(coverage) or np.isnan(spatial_bias_score):
             return "Abstention"
 
         # Quadrant classification (deterministic)
         high_c = coverage >= self.c_cut
-        high_s = spatial_score >= self.s_cut
+        high_s = spatial_bias_score >= self.s_cut
 
         if high_c and not high_s:
             return "Ubiquitous"
@@ -169,7 +159,7 @@ class PlotSpec:
         Parameters
         ----------
         df : pd.DataFrame
-            DataFrame with Coverage and Spatial_Score columns
+            DataFrame with Coverage and Spatial_Bias_Score columns
         inplace : bool
             If True, modify df in place; otherwise return copy
 
@@ -194,7 +184,7 @@ class PlotSpec:
         def classify_row(row):
             return self.classify(
                 coverage=row[self.coverage_col],
-                spatial_score=row[self.spatial_col],
+                spatial_bias_score=row[self.spatial_col],
                 n_expr_cells=row[n_expr_col] if n_expr_col else None,
                 abstain_flag=row[abstain_col] if abstain_col else False,
             )
@@ -328,7 +318,7 @@ class PlotSpec:
             c_cut=d.get("c_cut", 0.30),
             s_cut=d.get("s_cut", 0.15),
             coverage_col=d.get("coverage_col", "Coverage"),
-            spatial_col=d.get("spatial_col", "Spatial_Score"),
+            spatial_col=d.get("spatial_col", "Spatial_Bias_Score"),
             archetype_col=d.get("archetype_col", "Archetype"),
             min_expr_cells=d.get("min_expr_cells", 10),
         )

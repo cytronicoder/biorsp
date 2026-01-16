@@ -247,7 +247,7 @@ def interpret_archetypes(summary_df: pd.DataFrame) -> str:
     lines.append("\n### Recommended actions\n")
     if macro_f1 and macro_f1 > 0.7:
         lines.append("- BioRSP metrics effectively distinguish archetype categories.")
-        lines.append("- Use Coverage and Spatial Score for gene stratification.")
+        lines.append("- Use Coverage and Spatial Bias Score for gene stratification.")
     else:
         lines.append("- Archetype boundaries may overlap; consider multi-dimensional analysis.")
         lines.append("- Review confusion matrix to identify specific misclassifications.")

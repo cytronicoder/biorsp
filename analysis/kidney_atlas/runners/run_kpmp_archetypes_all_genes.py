@@ -1195,7 +1195,7 @@ def plot_archetype_examples(
         plot_radar(
             radar,
             ax=ax_radar,
-            title=f"C={gene_row['Coverage']:.3f}, S={gene_row['Spatial_Score']:.3f}",
+            title=f"C={gene_row['Coverage']:.3f}, S={gene_row['Spatial_Bias_Score']:.3f}",
             mode="signed",
             theta_convention="math",
             color="b",
@@ -1325,7 +1325,7 @@ def generate_report(
             top = subset.nlargest(10, "Coverage")
 
         for _, row in top.iterrows():
-            report += f"| {row['gene']} | {row['Coverage']:.4f} | {row['Spatial_Score']:.4f} | {int(row['spatial_sign'])} |\n"
+            report += f"| {row['gene']} | {row['Coverage']:.4f} | {row['Spatial_Bias_Score']:.4f} | {int(row['spatial_sign'])} |\n"
 
     report += "\n## Reliability Checks\n"
 

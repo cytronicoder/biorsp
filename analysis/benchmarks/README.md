@@ -48,7 +48,7 @@ All benchmarks and analyses are now unified in `benchmarks/`:
 
 **`run_story_onepager.py`** - One-page validation figure demonstrating BioRSP's core functionality:
 
-- **Panel A**: 2×2 archetype classification based on Coverage (C) and Spatial Score (S)
+- **Panel A**: 2×2 archetype classification based on Coverage (C) and Spatial Bias Score (S)
 - **Panel B**: Confusion matrix for 4-class classification accuracy
 - **Panel C**: Marker recovery showing precision@K for structured genes
 - **Panel D**: Gene-gene module detection via co-patterning scores

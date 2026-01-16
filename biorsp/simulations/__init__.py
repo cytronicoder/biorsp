@@ -53,6 +53,9 @@ Sweeps:
 
 __version__ = "3.0.0"
 
+# Import canonical plot specification
+from biorsp.plotting.spec import ARCHETYPE_COLORS, ARCHETYPE_DESCRIPTIONS
+
 from .cache import GeometryCache, clear_cache, get_cache
 from .datasets import (
     make_factorial_panel,
@@ -114,8 +117,6 @@ from .metrics import (
     topk_precision,
 )
 from .plotting import (
-    ARCHETYPE_COLORS,
-    ARCHETYPE_DESCRIPTIONS,
     plot_abstention_summary,
     plot_archetype_scatter,
     plot_confusion_matrix,

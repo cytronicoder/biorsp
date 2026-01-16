@@ -342,7 +342,7 @@ def plot_archetype_examples(
         plot_radar(
             radar,
             ax=ax_radar,
-            title=f"C={gene_row['Coverage']:.3f}, S={gene_row['Spatial_Score']:.3f}",
+            title=f"C={gene_row['Coverage']:.3f}, S={gene_row['Spatial_Bias_Score']:.3f}",
             mode="signed",
             theta_convention="math",
             color="b",

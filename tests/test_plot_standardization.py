@@ -71,7 +71,7 @@ def test_plotspec_dataframe_classification():
         {
             "gene": ["A", "B", "C", "D"],
             "Coverage": [0.50, 0.10, 0.50, 0.10],
-            "Spatial_Score": [0.10, 0.10, 0.20, 0.20],
+            "Spatial_Bias_Score": [0.10, 0.10, 0.20, 0.20],
         }
     )
 
@@ -101,22 +101,22 @@ def test_plotspec_dataframe_validation():
     spec = PlotSpec()
 
     # Valid DataFrame
-    df_valid = pd.DataFrame({"Coverage": [0.5], "Spatial_Score": [0.2]})
+    df_valid = pd.DataFrame({"Coverage": [0.5], "Spatial_Bias_Score": [0.2]})
     result = spec.validate_dataframe(df_valid)
     assert result["status"] in ["PASS", "WARNING"]
     assert len(result["issues"]) == 0
 
     # Missing Coverage column
-    df_invalid = pd.DataFrame({"Spatial_Score": [0.2]})
+    df_invalid = pd.DataFrame({"Spatial_Bias_Score": [0.2]})
     result = spec.validate_dataframe(df_invalid)
     assert result["status"] == "FAIL"
     assert any("Coverage" in issue for issue in result["issues"])
 
-    # Missing Spatial_Score column
+    # Missing Spatial_Bias_Score column
     df_invalid = pd.DataFrame({"Coverage": [0.5]})
     result = spec.validate_dataframe(df_invalid)
     assert result["status"] == "FAIL"
-    assert any("Spatial_Score" in issue for issue in result["issues"])
+    assert any("Spatial_Bias_Score" in issue for issue in result["issues"])
 
 
 def test_plotspec_to_from_dict():
@@ -224,7 +224,7 @@ def test_panel_examples_with_data():
         {
             "gene": gene_names,
             "Coverage": np.random.rand(n_genes),
-            "Spatial_Score": np.random.rand(n_genes),
+            "Spatial_Bias_Score": np.random.rand(n_genes),
         }
     )
     df = spec.classify_dataframe(df)

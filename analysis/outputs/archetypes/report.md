@@ -27,7 +27,7 @@
 
 ## Summary Statistics
 
-| shape   |    N | coverage_regime   | organization_regime   | true_archetype   |   Spatial_Score_mean |   Spatial_Score_std |   Coverage_mean |   Coverage_std |   n_expr_cells_mean |   classification_accuracy |   abstain_rate |   n_reps |
+| shape   |    N | coverage_regime   | organization_regime   | true_archetype   |   Spatial_Bias_Score_mean |   Spatial_Bias_Score_std |   Coverage_mean |   Coverage_std |   n_expr_cells_mean |   classification_accuracy |   abstain_rate |   n_reps |
 |:--------|-----:|:------------------|:----------------------|:-----------------|---------------------:|--------------------:|----------------:|---------------:|--------------------:|--------------------------:|---------------:|---------:|
 | disk    | 2000 | high              | iid                   | housekeeping     |            0.0584649 |          0.0112797  |          0.7433 |      0.0348721 |              1486.6 |                       0.9 |              0 |       10 |
 | disk    | 2000 | high              | structured            | regional_program |            0.206898  |          0.0113367  |          0.7515 |      0.021682  |              1503   |                       1   |              0 |       10 |
@@ -38,7 +38,7 @@
 
 ### What does this mean?
 
-Archetypes represent distinct gene expression patterns: **Housekeeping** (ubiquitous), **Niche** (spatially restricted), **Regional** (broad domains), **Scattered** (sparse). We test whether BioRSP's Coverage (C) and Spatial Score (S) can distinguish these patterns.
+Archetypes represent distinct gene expression patterns: **Housekeeping** (ubiquitous), **Niche** (spatially restricted), **Regional** (broad domains), **Scattered** (sparse). We test whether BioRSP's Coverage (C) and Spatial Bias Score (S) can distinguish these patterns.
 
 
 ### Recommended actions

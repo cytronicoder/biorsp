@@ -1,7 +1,7 @@
 """
 Robustness Benchmark for BioRSP Methods Paper.
 
-Evaluates the stability of BioRSP metrics (Spatial Score S, Coverage C) under:
+Evaluates the stability of BioRSP metrics (Spatial Bias Score S, Coverage C) under:
 
 INVARIANCES (expected to be robust):
 1. Rotation - Should not affect radial statistics
@@ -84,7 +84,7 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
         baseline_abstain = True
     else:
         row_base = results_base.iloc[0]
-        baseline_s = row_base["Spatial_Score"]
+        baseline_s = row_base["Spatial_Bias_Score"]
         baseline_c = row_base["Coverage"]
         baseline_abstain = row_base["abstain_flag"]
 
@@ -123,7 +123,7 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
             distorted_abstain = True
         else:
             row_dist = results_dist.iloc[0]
-            distorted_s = row_dist["Spatial_Score"]
+            distorted_s = row_dist["Spatial_Bias_Score"]
             distorted_c = row_dist["Coverage"]
             distorted_abstain = row_dist["abstain_flag"]
 

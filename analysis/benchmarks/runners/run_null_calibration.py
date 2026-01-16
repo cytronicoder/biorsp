@@ -163,7 +163,7 @@ def run_calibration(args):
         linewidth=2,
         label=f"S_cut = {thresholds['s_cut']:.3f}",
     )
-    axes[0].set_xlabel("Spatial Score (S)")
+    axes[0].set_xlabel("Spatial Bias Score (S)")
     axes[0].set_ylabel("Count")
     axes[0].set_title("Null Distribution of S")
     axes[0].legend()

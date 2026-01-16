@@ -12,7 +12,7 @@ This document tracks the standardization of plotting across simulation benchmark
 
 **Current Outputs:**
 
-- `runs.csv`: Contains Coverage, Spatial_Score, true_archetype, predicted archetype (via classification)
+- `runs.csv`: Contains Coverage, Spatial_Bias_Score, true_archetype, predicted archetype (via classification)
 - `summary.csv`: Aggregated metrics
 - `manifest.json`: Run parameters, git hash, timestamp
 - `report.md`: Pass/fail assessment
@@ -25,13 +25,13 @@ This document tracks the standardization of plotting across simulation benchmark
 
 **Coverage Definition:** `row["Coverage"]` from public API (percent of cells above quantile threshold)
 
-**Spatial Score Definition:** `row["Spatial_Score"]` from public API (weighted RMS of radar profile)
+**Spatial Bias Score Definition:** `row["Spatial_Bias_Score"]` from public API (weighted RMS of radar profile)
 
 **Archetype Classification:** Implicit via cutoffs (c_cut=0.30, s_cut from calibration file)
 
 **Issues Identified:**
 
-- ✅ Uses standard column names (Coverage, Spatial_Score)
+- ✅ Uses standard column names (Coverage, Spatial_Bias_Score)
 - ✅ Has archetype color mapping (ARCHETYPE_COLORS)
 - ❌ Example panels not generated for each archetype
 - ❌ Debug plots not standardized (no sector counts, no mask visualization)
@@ -49,7 +49,7 @@ This document tracks the standardization of plotting across simulation benchmark
 
 **Coverage Definition:** Uses quantile-based foreground (default q=0.9 internally)
 
-**Spatial Score Definition:** Weighted RMS from public API
+**Spatial Bias Score Definition:** Weighted RMS from public API
 
 **Issues Identified:**
 
@@ -113,10 +113,10 @@ This document tracks the standardization of plotting across simulation benchmark
 - All use `Coverage` from public API
 - Definition: Fraction of cells above internal threshold (typically q=0.9 or biological threshold)
 
-### 2. Spatial Score Definition
+### 2. Spatial Bias Score Definition
 
 - **Status:** ✅ CONSISTENT across simulation scripts
-- All use `Spatial_Score` from public API
+- All use `Spatial_Bias_Score` from public API
 - Definition: Weighted RMS magnitude of radar profile over bg-supported sectors
 
 ### 3. Archetype Color Mapping
@@ -236,7 +236,7 @@ This document tracks the standardization of plotting across simulation benchmark
 
 - `gene` - gene name or replicate ID
 - `Coverage` - fraction of cells above threshold
-- `Spatial_Score` - weighted RMS magnitude
+- `Spatial_Bias_Score` - weighted RMS magnitude
 - `Directionality` - weighted mean sign (optional)
 - `Archetype` - predicted archetype label
 - `p_value` - permutation p-value (if computed)
