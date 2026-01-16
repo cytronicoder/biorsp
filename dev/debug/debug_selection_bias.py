@@ -77,10 +77,7 @@ def run_debug_session(outdir=None, smoke=False):
     print("Running Selection Bias Debug Session...")
     print("Testing empty_fg_policy behavior for rim patterns.\n")
 
-    if outdir:
-        debug_dir = Path(outdir)
-    else:
-        debug_dir = Path("scripts") / "debug"
+    debug_dir = Path(outdir) if outdir else Path("scripts") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 
     if smoke:

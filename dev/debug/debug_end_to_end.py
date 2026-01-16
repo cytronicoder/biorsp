@@ -72,16 +72,10 @@ def run_debug_session(outdir=None, smoke=False):
     """
     print("Running Debug Session for End-to-End Workflow...")
 
-    if outdir:
-        debug_dir = Path(outdir)
-    else:
-        debug_dir = Path("scripts") / "debug"
+    debug_dir = Path(outdir) if outdir else Path("scripts") / "debug"
     debug_dir.mkdir(parents=True, exist_ok=True)
 
-    if smoke:
-        scenarios = ["wedge_core"]  # Only one scenario for smoke test
-    else:
-        scenarios = ["wedge_core", "wedge_rim", "global_rim", "null"]
+    scenarios = ["wedge_core"] if smoke else ["wedge_core", "wedge_rim", "global_rim", "null"]
 
     for sc in scenarios:
         print(f"\n--- Running Scenario: {sc} ---")

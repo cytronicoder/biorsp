@@ -280,9 +280,7 @@ class PlotSpec:
         # Check required columns
         required = [self.coverage_col, self.spatial_col]
         issues.extend(
-            f"Missing required column: {col}"
-            for col in required
-            if col not in df.columns
+            f"Missing required column: {col}" for col in required if col not in df.columns
         )
 
         if issues:

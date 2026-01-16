@@ -133,9 +133,6 @@ ARCHETYPE_NAMES = {
 
 # Import standardized colors from PlotSpec (single source of truth)
 
-# NOTE: ARCHETYPE_COLORS is now imported from biorsp.plotting.spec
-# This ensures consistent colors across all BioRSP plots
-
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""

@@ -97,9 +97,6 @@ ARCHETYPE_NAMES = {
     (False, False): "Basal",  # Low C, Low S
 }
 
-# NOTE: ARCHETYPE_COLORS is now imported from biorsp.plotting.spec (at top of file)
-# This ensures consistent colors across all BioRSP plots
-
 
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""

@@ -458,11 +458,6 @@ def plot_spatial_embedding(
     return fig
 
 
-# NOTE: ARCHETYPE_COLORS and ARCHETYPE_DESCRIPTIONS are imported from
-# biorsp.plotting.spec at the top of the file to ensure consistent colors
-
-
-
 def plot_archetype_scatter(
     coverage: np.ndarray,
     spatial_score: np.ndarray,

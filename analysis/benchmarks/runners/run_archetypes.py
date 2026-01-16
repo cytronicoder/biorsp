@@ -319,7 +319,6 @@ def main():
     )
 
     accuracy = class_metrics["accuracy"]
-    # cm_df = class_metrics["confusion_matrix"]  # Unused, kept for reference
 
     print(f"\n📊 Classification Results (S_cut={s_cut:.4f}, C_cut={c_cut:.2f}):")
     print(f"   Overall Accuracy: {accuracy:.1%}")

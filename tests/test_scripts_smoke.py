@@ -32,7 +32,7 @@ EXAMPLES_DIR = ROOT_DIR / "examples"
 
 # Import the manifest
 sys.path.insert(0, str(ROOT_DIR / "dev"))
-from scripts_manifest import get_all_scripts
+from scripts_manifest import get_all_scripts  # noqa: E402
 
 
 def get_env():
