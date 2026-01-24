@@ -1,13 +1,16 @@
-.PHONY: format lint test clean install dev-install help
+.PHONY: format lint test test-quick test-slow test-plot clean install dev-install help
 
 help:
 	@echo "Available targets:"
-	@echo "  make format      - Format code with black and ruff"
-	@echo "  make lint        - Lint code with ruff"
-	@echo "  make test        - Run pytest tests"
-	@echo "  make clean       - Remove build artifacts"
-	@echo "  make install     - Install package"
-	@echo "  make dev-install - Install package in editable mode with dev dependencies"
+	@echo "  make format          - Format code with black and ruff"
+	@echo "  make lint            - Lint code with ruff"
+	@echo "  make test            - Run default test suite (not slow)"
+	@echo "  make test-quick      - Unit + integration subset"
+	@echo "  make test-slow       - Only slow-marked tests"
+	@echo "  make test-plot       - Plotting-focused subset"
+	@echo "  make clean           - Remove build artifacts"
+	@echo "  make install         - Install package"
+	@echo "  make dev-install     - Install package in editable mode with dev dependencies"
 
 format:
 	@echo "Running black..."
@@ -26,8 +29,20 @@ lint:
 	isort --check-only biorsp/ tests/ examples/ scripts/ benchmarks/
 
 test:
-	@echo "Running pytest..."
-	pytest tests/ -v
+	@echo "Running pytest (default, not slow)..."
+	pytest -q -m "not slow and not scientific" tests/
+
+test-quick:
+	@echo "Running quick tests (unit + integration)..."
+	pytest -q -m "unit or integration" tests/
+
+test-slow:
+	@echo "Running slow tests only..."
+	pytest -q -m "slow" tests/
+
+test-plot:
+	@echo "Running plotting tests..."
+	pytest -q -m "plotting" tests/
 
 clean:
 	@echo "Cleaning build artifacts..."

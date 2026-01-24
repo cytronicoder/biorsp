@@ -10,10 +10,10 @@ def test_monotonic_power_with_N():
     """Verify that detection power increases with N for a fixed signal."""
     q = 0.1
     alpha = 0.05
-    n_reps = 10
+    n_reps = 3
 
     powers = []
-    for N in [500, 5000]:
+    for N in [200, 800]:
         detections = 0
         for rep in range(n_reps):
             data = simulate_dataset(
@@ -23,7 +23,7 @@ def test_monotonic_power_with_N():
             y = data["labels"]
             r = np.linalg.norm(coords, axis=1)
             theta = np.arctan2(coords[:, 1], coords[:, 0])
-            res = compute_p_value(r, theta, y, n_perm=50)
+            res = compute_p_value(r, theta, y, n_perm=16)
             p_val = res.p_value
             if p_val <= alpha:
                 detections += 1

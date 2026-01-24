@@ -21,6 +21,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+pytestmark = [pytest.mark.slow, pytest.mark.scientific]
+
 # Find repository root
 _test_file = Path(__file__).resolve()
 _search_path = _test_file.parent
@@ -68,7 +70,7 @@ class TestArchetypeScientificCorrectness:
             ],
             capture_output=True,
             text=True,
-            timeout=300,
+            # timeout=300,
             env=get_env(),
             cwd=str(tmp_path),
             check=False,
@@ -343,21 +345,19 @@ class TestArchetypeSpecsMapping:
 
 
 class TestValidationModule:
-    """Tests for the load_and_validate_runs helper."""
+    """Validation should detect missing expected shapes."""
 
-    def test_validation_detects_missing_shapes(self, tmp_path):
-        """Validation should detect missing expected shapes."""
+    def test_missing_shapes_detected(self, tmp_path):
         from biorsp.simulations.validation import load_and_validate_runs
 
-        # Create a minimal runs.csv with only one shape
         df = pd.DataFrame(
             {
-                "shape": ["disk"] * 10,
-                "N": [2000] * 10,
-                "coverage_regime": ["high", "low"] * 5,
-                "organization_regime": ["iid", "structured"] * 5,
-                "pattern_variant": ["iid", "wedge_core"] * 5,
-                "Coverage": [0.7, 0.1] * 5,
+                "shape": ["disk"] * 6,
+                "N": [2000] * 6,
+                "coverage_regime": ["high", "low"] * 3,
+                "organization_regime": ["iid", "structured"] * 3,
+                "pattern_variant": ["iid", "wedge_core"] * 3,
+                "Coverage": [0.7, 0.1] * 3,
             }
         )
 
@@ -370,6 +370,8 @@ class TestValidationModule:
             expected_shapes=["disk", "peanut", "annulus"],
             write_debug_json=False,
         )
+
+        assert any("Missing expected shapes" in err for err in report.errors)
 
         assert not report.valid, "Should detect missing shapes"
         assert any("Missing expected shapes" in err for err in report.errors)

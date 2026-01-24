@@ -36,6 +36,8 @@ def get_env():
     """Get environment with workspace root in PYTHONPATH."""
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT_DIR) + os.pathsep + env.get("PYTHONPATH", "")
+    env.setdefault("BIORSP_DISABLE_PLOTTING", "1")
+    env.setdefault("OMP_NUM_THREADS", "1")
     return env
 
 

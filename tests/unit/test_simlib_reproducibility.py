@@ -1,6 +1,4 @@
-"""
-Tests for simulation reproducibility and schema validation.
-"""
+"""Tests for simulation reproducibility and schema validation."""
 
 import sys
 import tempfile
@@ -8,13 +6,15 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+
+def _ensure_root_on_path(project_root: Path) -> None:
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
 
 
-def test_rng_reproducibility():
+def test_rng_reproducibility(project_root: Path):
     """Test that same seed produces identical RNG streams."""
+    _ensure_root_on_path(project_root)
     from biorsp.simulations import rng
 
     gen1 = rng.make_rng(42, "test", "condition")
@@ -31,8 +31,9 @@ def test_rng_reproducibility():
     assert not (vals1 == vals3).all(), "Different tags should produce different results"
 
 
-def test_simulation_determinism():
+def test_simulation_determinism(project_root: Path):
     """Test that running simulation twice with same seed produces identical results."""
+    _ensure_root_on_path(project_root)
     from biorsp.simulations import expression, rng, shapes
 
     def run_single_sim(seed):
@@ -49,8 +50,9 @@ def test_simulation_determinism():
     assert (counts1 == counts2).all(), "Expression should be identical"
 
 
-def test_schema_version_in_outputs():
+def test_schema_version_in_outputs(project_root: Path):
     """Test that schema version is included in outputs."""
+    _ensure_root_on_path(project_root)
     import pandas as pd
 
     from biorsp.simulations import io
@@ -81,8 +83,9 @@ def test_schema_version_in_outputs():
         assert str(df_read["schema_version"].iloc[0]) == io.SCHEMA_VERSION
 
 
-def test_manifest_includes_biorsp_config():
+def test_manifest_includes_biorsp_config(project_root: Path):
     """Test that manifest includes serialized BioRSPConfig."""
+    _ensure_root_on_path(project_root)
     import json
     import tempfile
 
@@ -111,8 +114,9 @@ def test_manifest_includes_biorsp_config():
         assert manifest["biorsp_config"]["delta_deg"] == 60.0
 
 
-def test_schema_validation_catches_missing_columns():
+def test_schema_validation_catches_missing_columns(project_root: Path):
     """Test that schema validation raises on missing columns."""
+    _ensure_root_on_path(project_root)
     import pandas as pd
 
     from biorsp.simulations import io
@@ -123,8 +127,9 @@ def test_schema_validation_catches_missing_columns():
         io.validate_output_schema(df, "calibration", "runs")
 
 
-def test_condition_key_stability():
+def test_condition_key_stability(project_root: Path):
     """Test that condition_key produces stable identifiers."""
+    _ensure_root_on_path(project_root)
     from biorsp.simulations import rng
 
     key1 = rng.condition_key("disk", 1000, "iid")

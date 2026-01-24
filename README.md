@@ -35,16 +35,12 @@ print(results.head())
 
 ## Documentation
 
--   [Start Here](docs/1_start_here/intro.md)
--   [Quickstart](docs/1_start_here/quickstart.md)
--   [Guides](docs/3_guides/run_custom_data.md)
--   [Benchmarks](analysis/benchmarks/README.md)
+
+## Testing
+
+See [docs/testing.md](docs/testing.md) for quick vs full test commands, markers, and CI alignment tips.
 
 ## Repository Structure
-
--   `biorsp/`: Core library code.
--   `analysis/`: Reproducible analysis workflows (Benchmarks, Kidney Atlas).
--   `dev/`: Developer tools and smoke tests.
 -   `examples/`: Runnable scripts to learn the API.
 
 ## Citation

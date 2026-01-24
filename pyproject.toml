@@ -44,7 +44,15 @@ where = ["."]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q"
+addopts = "-ra -q -m 'not slow and not scientific'"
+testpaths = ["tests"]
+markers = [
+    "unit: fast, pure unit tests (<1s per file)",
+    "integration: filesystem/subprocess tests (<30s per file)",
+    "scientific: bounded statistical/scientific correctness checks",
+    "plotting: plot generation and rendering checks",
+    "slow: long-running or optional tests gated from default runs",
+]
 
 [tool.ruff]
 line-length = 100
