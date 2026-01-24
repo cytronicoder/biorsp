@@ -121,7 +121,7 @@ This report is an example output from a specific run. Values, thresholds, and fi
 
 ## Figures
 
-1. **fig_cs_scatter**: All genes in C–S space with quadrant boundaries
+1. **fig_cs_scatter**: All genes in C vs S space with quadrant boundaries
 2. **fig_CS_marginals**: Histograms of C and S distributions
 3. **fig_top_tables**: Top genes per archetype
 4. **fig_archetype_examples**: Representative gene visualizations
