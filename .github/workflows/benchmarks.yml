@@ -1,0 +1,72 @@
+name: Benchmarks / Scientific
+
+on:
+  workflow_dispatch:
+    inputs:
+      pytest-marker:
+        description: "Pytest marker expression (e.g., scientific, slow)"
+        required: false
+        default: "scientific"
+      seed:
+        description: "Base seed for deterministic runs"
+        required: false
+        default: "1337"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmarks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmarks:
+    name: Benchmarks (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+    env:
+      PYTHONHASHSEED: ${{ inputs.seed || '1337' }}
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+      MPLBACKEND: Agg
+      BIORSP_DISABLE_PLOTTING: "1"
+      PYTEST_SEED: ${{ inputs.seed || '1337' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          python -m pip install -e .
+
+      - name: Test environment info
+        run: |
+          python -V
+          pip freeze | head
+
+      - name: Run benchmarks / scientific tests
+        run: pytest -q -m "${{ inputs.pytest-marker }}" --durations=50 --junitxml=pytest.xml
+
+      - name: Upload artifacts (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmarks-py${{ matrix.python-version }}
+          path: |
+            pytest.xml
+            .pytest_cache
+            test_output
+            analysis/**/outputs/test
+          if-no-files-found: ignore
