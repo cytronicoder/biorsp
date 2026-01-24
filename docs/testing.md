@@ -19,3 +19,4 @@ Use the markers and make targets below to keep local runs aligned with CI.
 - Mirror CI selection: `pytest -q -m "not slow"` from repo root.
 - Run a single category: e.g., `pytest -q tests/scientific -m scientific`.
 - For CLI/runner tests, ensure dependencies are installed (`pip install -e ".[dev]"`).
+- Ensure dev tools are installed and pinned: `pip install -r requirements-dev.txt` and verify `black --version` (should be `black==25.12.0`).
