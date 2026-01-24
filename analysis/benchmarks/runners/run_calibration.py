@@ -1,50 +1,42 @@
-"""
-Calibration Benchmark for BioRSP Methods Paper.
-
-Schema Version: 2.0
-Last Updated: 2026-01-10
-
-Evaluates type I error control under various null hypotheses:
-1. IID Null (Standard) - True null, no spatial structure
-   Valid permutation: global shuffle
-2. Depth Confounded - Library size varies spatially but expression is IID|depth
-   Valid permutation: stratified shuffle within depth bins
-3. Mask Stress - Very low prevalence to stress sector masking
-   Valid permutation: global shuffle
-
-CRITICAL DESIGN DECISIONS:
-- density_confounded is NOT included here because it creates TRUE spatial signal
-  (expression ~ density). Use it in archetypes benchmark as a stress test.
-- For depth_confounded, ONLY stratified permutation produces calibrated p-values.
-  Global permutation will show FPR >> alpha (this is expected and demonstrates
-  the importance of matching permutation to null).
-- P-value resolution is limited by n_permutations: p_min = 1/(K+1).
-
-See KNOWN_ISSUES.md and SCHEMA.md for full documentation.
-
-Outputs: runs.csv, summary.csv, report.md, manifest.json, QQ plots, FPR grids
-"""
+"""Calibration benchmark with held-out evaluation and abstention handling."""
 
 import argparse
+import json
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from biorsp import BioRSPConfig
 
-ROOT = Path(__file__).resolve().parents[1]
+# Local benchmark helpers are imported where needed inside `main()` to avoid module-level
+# import-after-code issues (E402).
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-def run_calibration_condition(config_dict: dict, seed: int, config: BioRSPConfig) -> dict:
-    """
-    Run one calibration replicate.
+def run_calibration_condition(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
+    """Run a single calibration replicate.
 
-    Returns a row with all schema-required columns plus metadata.
+    Parameters
+    ----------
+    config_dict : dict
+        Condition configuration; keys include 'shape', 'N', and 'null_type'.
+    seed : int
+        Random seed for the replicate.
+    config : BioRSPConfig
+        Scoring configuration for BioRSP (e.g., B, delta_deg, n_permutations).
+
+    Returns
+    -------
+    dict
+        Row dictionary containing schema-required columns and metadata. May
+        contain abstention indicators (``abstain_flag``, ``abstain_reason``).
     """
     from biorsp.simulations import (
         datasets,
@@ -84,6 +76,7 @@ def run_calibration_condition(config_dict: dict, seed: int, config: BioRSPConfig
     results_df = scoring.score_dataset(adata, genes=["null_gene"], config=config)
     elapsed = time.time() - t0
 
+    perm_floor = 1.0 / (config.n_permutations + 1) if config.n_permutations > 0 else np.nan
     base_row = {
         "benchmark": "calibration",
         "shape": shape,
@@ -93,7 +86,11 @@ def run_calibration_condition(config_dict: dict, seed: int, config: BioRSPConfig
         "n_permutations": config.n_permutations,
         "config_B": config.B,
         "config_delta_deg": config.delta_deg,
+        "seed": seed,
         "time": elapsed,
+        "test_stat": np.nan,
+        "perm_floor": perm_floor,
+        "alpha": 0.05,
     }
 
     if len(results_df) == 0:
@@ -106,6 +103,7 @@ def run_calibration_condition(config_dict: dict, seed: int, config: BioRSPConfig
                 "coverage_fg": np.nan,
                 "abstain_flag": True,
                 "abstain_reason": "no_results",
+                "is_fp": False,
             }
         )
         return base_row
@@ -113,33 +111,62 @@ def run_calibration_condition(config_dict: dict, seed: int, config: BioRSPConfig
     row = results_df.iloc[0]
     base_row.update(
         {
-            "p_value": row["p_value"],
-            "Spatial_Bias_Score": row["Spatial_Bias_Score"],
-            "Coverage": row["Coverage"],
+            "p_value": row.get("p_value", np.nan),
+            "Spatial_Bias_Score": row.get("Spatial_Bias_Score", np.nan),
+            "Coverage": row.get("Coverage", np.nan),
             "coverage_bg": row.get("coverage_bg", np.nan),
             "coverage_fg": row.get("coverage_fg", np.nan),
-            "abstain_flag": row["abstain_flag"],
+            "abstain_flag": row.get("abstain_flag", False),
             "abstain_reason": row.get("abstain_reason", "ok"),
+            "test_stat": row.get("test_stat", np.nan),
         }
+    )
+    base_row["is_fp"] = bool(
+        (not base_row["abstain_flag"])
+        and np.isfinite(base_row["p_value"])
+        and base_row["p_value"] < base_row["alpha"]
     )
     return base_row
 
 
 def main():
+    """Run calibration benchmark CLI.
+
+    Parses command-line options, executes replicates across a condition grid,
+    derives thresholds, produces plots, and writes contract artifacts.
+    """
+    from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
+    from analysis.benchmarks.simlib.runner_harness import (
+        finalize_contract,
+        normalize_scores_df,
+        safe_metric_mask,
+        split_train_test,
+    )
+    from biorsp import BioRSPConfig
+    from biorsp.plotting.standard import make_standard_plot_set
     from biorsp.simulations import (
-        docs,
-        io,
         metrics,
         plotting,
         sweeps,
+        validation,
     )
 
-    parser = argparse.ArgumentParser(description="Calibration benchmark (schema v2.0)")
-    parser.add_argument("--outdir", type=str, default=str(ROOT / "outputs" / "calibration"))
+    parser = argparse.ArgumentParser(description="Calibration benchmark (held-out)")
+    parser.add_argument(
+        "--outdir",
+        type=str,
+        default=str(ROOT / "analysis" / "benchmarks" / "outputs"),
+        help="Base output directory",
+    )
+    parser.add_argument(
+        "--run_id", type=str, default=None, help="Run identifier (default: timestamp)"
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--n_reps", type=int, default=100)
-    parser.add_argument("--N", type=int, nargs="+", default=[500, 2000, 5000])
-    parser.add_argument("--shape", type=str, nargs="+", default=["disk", "annulus", "peanut"])
+    parser.add_argument("--N", type=int, nargs="+", default=[500, 1000, 2000])
+    parser.add_argument(
+        "--shape", type=str, nargs="+", default=["disk", "ellipse", "annulus", "peanut"]
+    )
     parser.add_argument(
         "--null_type",
         type=str,
@@ -166,20 +193,33 @@ def main():
     )
     args = parser.parse_args()
 
+    run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    config = BenchmarkContractConfig(
+        outdir=args.outdir,
+        benchmark="calibration",
+        run_id=run_id,
+        seed=args.seed,
+        mode=args.mode,
+    )
+    paths = init_run_dir(config)
+
+    start_time = time.time()
+
+    # Mode presets: adjust args for different run modes
     if args.mode == "quick":
         args.n_reps = 100
-        args.N = [1000]
-        args.shape = ["disk"]
-        args.null_type = ["iid"]
+        args.N = [500, 2000]  # Two sample sizes for quick validation
+        args.shape = ["disk", "peanut"]  # Two geometries: convex + non-convex
+        args.null_type = ["iid"]  # Focus on IID for quick calibration check
         args.n_permutations = 100
         args.permutation_scope = "all"
     elif args.mode == "validation":
-        args.n_reps = 30
-        args.N = [1000, 2000]
-        args.shape = ["disk", "annulus"]
+        args.n_reps = 50
+        args.N = [500, 1000, 2000]  # Three sample sizes
+        args.shape = ["disk", "ellipse", "annulus", "peanut"]  # Four geometries
         args.null_type = ["iid", "depth_confounded"]
         args.n_permutations = 250
-        args.permutation_scope = "topk"
+        args.permutation_scope = "all"
     elif args.mode == "publication":
         if args.n_reps == 50:
             args.n_reps = 50
@@ -187,20 +227,16 @@ def main():
             args.shape = ["disk", "annulus"]
             args.null_type = ["iid", "depth_confounded", "mask_stress"]
             args.n_permutations = 500
-            args.permutation_scope = "topk"
+            args.permutation_scope = "all"
         else:
             args.n_reps = max(args.n_reps, 100)
-
-            args.N = [500, 1000, 2000, 5000]
-
-            args.shape = ["disk", "annulus", "peanut"]
-
+            args.N = [500, 1000, 2000, 5000]  # Four sample sizes
+            args.shape = ["disk", "ellipse", "annulus", "peanut", "crescent"]  # Five geometries
             args.null_type = ["iid", "depth_confounded", "mask_stress"]
             args.n_permutations = 1000
             args.permutation_scope = "all"
 
-    output_dir = io.ensure_output_dir("calibration", base_dir=args.outdir.rsplit("/", 1)[0])
-    runs_csv_path = output_dir / "runs.csv"
+    runs_csv_path = paths["runs_csv"]
 
     from biorsp.simulations import checkpoint
 
@@ -210,31 +246,32 @@ def main():
         if len(skip_completed) > 0:
             print(f"Resume mode: found {len(skip_completed)} completed runs")
 
+    # Define checkpoint callback
+    def save_checkpoint(results: list) -> None:
+        """Save partial results to runs.csv for resumability."""
+        df_partial = pd.DataFrame(results)
+        df_partial.to_csv(runs_csv_path, index=False)
+
+    # Determine n_permutations based on permutation scope
     n_perms = args.n_permutations if args.permutation_scope != "none" else 0
-    config = BioRSPConfig(
-        B=72,
-        delta_deg=60.0,
-        n_permutations=n_perms,
+
+    # Create sweep grid
+    grid = sweeps.expand_grid(
+        shape=args.shape,
+        N=args.N,
+        null_type=args.null_type,
     )
 
-    configs = sweeps.expand_grid(shape=args.shape, N=args.N, null_type=args.null_type)
-
-    print(f"Running calibration benchmark: {len(configs)} conditions × {args.n_reps} reps")
-
-    start_time = time.time()
-
-    def save_checkpoint(results):
-        checkpoint.append_to_runs_csv(results, runs_csv_path, overwrite=False)
-        print(f"\n✓ Checkpoint saved ({len(results)} results)")
-
+    # BioRSP config for scoring
+    rsp_config = BioRSPConfig(B=72, delta_deg=60.0, n_permutations=n_perms)
     runs_df = sweeps.run_replicates(
         run_calibration_condition,
-        configs,
+        grid,
         args.n_reps,
         seed_start=args.seed,
         progress=True,
         n_jobs=args.n_workers,
-        fn_args=(config,),
+        fn_args=(rsp_config,),
         checkpoint_every=args.checkpoint_every,
         checkpoint_callback=save_checkpoint if args.checkpoint_every > 0 else None,
         skip_completed=skip_completed,
@@ -249,33 +286,99 @@ def main():
         else:
             runs_df = df_existing
 
-    io.write_runs_csv(runs_df, output_dir, benchmark="calibration")
+    if runs_df.empty:
+        raise RuntimeError("Calibration produced no runs; check configuration")
+
+    runs_df = normalize_scores_df(runs_df)
+    if "replicate" in runs_df.columns:
+        runs_df = runs_df.rename(columns={"replicate": "replicate_id"})
+    if "replicate_id" not in runs_df.columns:
+        runs_df["replicate_id"] = np.arange(len(runs_df))
+    runs_df["run_id"] = run_id
+    runs_df["benchmark"] = "calibration"
+    runs_df["mode"] = args.mode
+    runs_df["timestamp"] = datetime.now(timezone.utc).isoformat()
+    runs_df["status"] = np.where(runs_df.get("abstain_flag", False), "abstain", "ok")
+    runs_df["case_id"] = runs_df.apply(
+        lambda r: f"{r['shape']}-{r['N']}-{r['null_type']}-{int(r['seed'])}", axis=1
+    )
+
+    split = split_train_test(runs_df, group_cols=["case_id"], test_frac=0.25, seed=args.seed)
+    runs_df["split"] = "train"
+    runs_df.loc[split.test_idx, "split"] = "test"
+
+    train_df = runs_df.loc[split.train_idx]
+    test_df = runs_df.loc[split.test_idx]
+
+    # Derive thresholds on train only (use Spatial_Score quantiles per null_type)
+    threshold_rows = []
+    for (null_type, shape), group in train_df.groupby(["null_type", "shape"]):
+        mask = safe_metric_mask(group["Spatial_Score"])
+        s_cut = float(np.quantile(group.loc[mask, "Spatial_Score"], 0.95)) if mask.any() else np.nan
+        threshold_rows.append(
+            {
+                "alpha": 0.05,
+                "threshold": s_cut,
+                "n_train": int(mask.sum()),
+                "n_test": int(len(test_df[test_df["null_type"] == null_type])),
+                "seed": args.seed,
+                "null_type": null_type,
+                "shape": shape,
+                "density": np.nan,
+                "B": rsp_config.B,
+                "delta_deg": rsp_config.delta_deg,
+            }
+        )
+    calibration_thresholds = pd.DataFrame(threshold_rows)
+    thresholds_path = paths["root"] / "calibration_thresholds.csv"
+    calibration_thresholds.to_csv(thresholds_path, index=False)
+
+    derived_path = paths["root"] / "derived_thresholds.json"
+    with open(derived_path, "w") as f:
+        json.dump({"source": "train_quantile_0.95", "n_train": len(train_df)}, f, indent=2)
 
     summary_rows = []
-    for (shape, N, null_type), group in runs_df.groupby(["shape", "N", "null_type"]):
-        p_values = group["p_value"].values
+    figures = {}
 
+    # Evaluate on test
+    perm_floor = 1.0 / (args.n_permutations + 1) if args.n_permutations > 0 else None
+    for (null_type, shape), group in test_df.groupby(["null_type", "shape"]):
+        mask = safe_metric_mask(group["p_value"])
+        n_total = len(group)
+        n_tested = int(mask.sum())
+        n_abstained = n_total - n_tested
+        abstain_rate = n_abstained / n_total if n_total > 0 else np.nan
+
+        if n_tested == 0:
+            fig_empty, ax = plt.subplots(figsize=(5, 4))
+            ax.text(0.5, 0.5, "No finite p-values; all abstained", ha="center", va="center")
+            ax.axis("off")
+            figures[f"debug_{null_type}_{shape}_pvals"] = (
+                paths["root"] / "figures" / f"calibration_hist_{null_type}_{shape}.png"
+            )
+            fig_empty.savefig(
+                figures[f"debug_{null_type}_{shape}_pvals"], dpi=300, bbox_inches="tight"
+            )
+            plt.close(fig_empty)
+            continue
+
+        p_values = group.loc[mask, "p_value"].to_numpy()
         fpr_05, ci_low_05, ci_high_05 = metrics.fpr_with_ci(p_values, alpha=0.05)
         fpr_01, ci_low_01, ci_high_01 = metrics.fpr_with_ci(p_values, alpha=0.01)
         ks_stat, ks_pval = metrics.ks_uniform(p_values)
-        abstain_rate = group["abstain_flag"].mean()
-
-        perm_scheme = (
-            group["permutation_scheme"].iloc[0]
-            if "permutation_scheme" in group.columns
-            else "global"
-        )
-
-        calibrated = (ci_low_05 <= 0.05 <= ci_high_05) if not np.isnan(fpr_05) else False
 
         summary_rows.append(
             {
                 "benchmark": "calibration",
                 "shape": shape,
-                "N": N,
+                "N": group["N"].iloc[0],
                 "null_type": null_type,
-                "permutation_scheme": perm_scheme,
+                "permutation_scheme": group["permutation_scheme"].iloc[0],
                 "n_reps": len(group),
+                "n_total": n_total,
+                "n_tested": n_tested,
+                "n_abstained": n_abstained,
+                "abstain_rate": abstain_rate,
                 "fpr_05": fpr_05,
                 "fpr_05_ci_low": ci_low_05,
                 "fpr_05_ci_high": ci_high_05,
@@ -284,95 +387,133 @@ def main():
                 "fpr_01_ci_high": ci_high_01,
                 "ks_stat": ks_stat,
                 "ks_pval": ks_pval,
-                "abstain_rate": abstain_rate,
-                "calibrated": calibrated,
+                "metric": "fpr",
+                "group_keys": json.dumps({"null_type": null_type, "shape": shape}),
+                "mean": fpr_05,
+                "std": np.nan,
+                "n": n_tested,
+                "ci_low": ci_low_05,
+                "ci_high": ci_high_05,
+                "method": "wilson",
             }
         )
 
+        expected, observed = metrics.qq_quantiles(p_values)
+        fig = plotting.plot_qq(
+            expected,
+            observed,
+            title=f"QQ Plot: {null_type} ({shape})",
+            perm_floor=perm_floor,
+        )
+        fig_path = paths["root"] / "figures" / f"calibration_qq_{null_type}_{shape}.png"
+        fig_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(fig_path, dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        figures[f"qq_{null_type}_{shape}"] = fig_path
+
+        fig_hist, ax_hist = plt.subplots(figsize=(6, 4))
+        ax_hist.hist(p_values, bins=20, color="#2196F3", alpha=0.8, density=True)
+        ax_hist.axhline(1.0, color="black", linestyle="--", linewidth=1.0, label="Uniform")
+        ax_hist.set_title(
+            f"p-value histogram ({null_type}, {shape})\nn_tested={n_tested}, abstain={abstain_rate:.2f}"
+        )
+        ax_hist.set_xlabel("p-value")
+        ax_hist.set_ylabel("Density")
+        ax_hist.legend()
+        fig_hist.tight_layout()
+        hist_path = paths["root"] / "figures" / f"calibration_hist_{null_type}_{shape}.png"
+        fig_hist.savefig(hist_path, dpi=300, bbox_inches="tight")
+        plt.close(fig_hist)
+        figures[f"hist_{null_type}_{shape}"] = hist_path
+
     summary_df = pd.DataFrame(summary_rows)
-    io.write_summary_csv(summary_df, output_dir, benchmark="calibration")
 
-    iid_df = runs_df[runs_df["null_type"] == "iid"]
-    if len(iid_df) > 0:
-        calibration_table = metrics.build_calibration_table(iid_df)
-        calibration_path = output_dir / "calibration_thresholds.csv"
-        calibration_table.to_csv(calibration_path, index=False)
-        print(f"✓ Exported calibration thresholds to: {calibration_path}")
+    # Standard plot set if scores available
+    try:
+        std_figs = make_standard_plot_set(
+            scores_df=runs_df,
+            outdir=paths["root"],
+            thresholds={"C_cut": 0.3, "S_cut": 0.15},
+            truth_col=None,
+            pred_col="Archetype_pred" if "Archetype_pred" in runs_df.columns else None,
+            gene_col="gene" if "gene" in runs_df.columns else "gene",
+            title="Calibration scores",
+            debug=False,
+        )
+        figures.update(std_figs)
+    except Exception:
+        pass
 
-        s_values = iid_df["Spatial_Bias_Score"].dropna().values
-        if len(s_values) >= 10:
-            thresholds = metrics.derive_thresholds_principled(s_values, fpr_target=0.05)
-            thresholds_path = output_dir / "derived_thresholds.json"
-            import json
+    report_lines = [
+        f"# Calibration Benchmark ({args.mode})",
+        f"Run ID: {run_id}",
+        f"Replicates: {len(runs_df)}",
+        f"Train/Test split: {len(train_df)}/{len(test_df)}",
+    ]
+    if not summary_df.empty:
+        row = summary_df.iloc[0]
+        report_lines.append(
+            f"Example FPR@0.05 ({row['null_type']}, {row['shape']}): {row['fpr_05']:.3f}"
+        )
 
-            with open(thresholds_path, "w") as f:
-                export_thresholds = {k: v for k, v in thresholds.items() if k != "null_stats"}
-                export_thresholds["null_mean"] = thresholds.get("null_stats", {}).get("mean", None)
-                export_thresholds["null_std"] = thresholds.get("null_stats", {}).get("std", None)
-                export_thresholds["null_q95"] = thresholds.get("null_stats", {}).get("q95", None)
-                json.dump(export_thresholds, f, indent=2)
-            print(f"✓ Exported derived thresholds to: {thresholds_path}")
+    manifest = {
+        "benchmark": "calibration",
+        "config": config.to_dict(),
+        "n_rows": len(runs_df),
+        "n_train": len(train_df),
+        "n_test": len(test_df),
+        "calibration_thresholds": str(thresholds_path.relative_to(paths["root"])),
+    }
 
-    print("Generating plots...")
-
-    from biorsp.simulations import validation
-
-    perm_floor = 1.0 / (args.n_permutations + 1) if args.n_permutations > 0 else None
-
-    for null_type in args.null_type:
-        subset = runs_df[runs_df["null_type"] == null_type]
-        p_values = subset["p_value"].dropna().values
-        if len(p_values) > 0:
-            expected, observed = metrics.qq_quantiles(p_values)
-            fig = plotting.plot_qq(
-                expected,
-                observed,
-                title=f"QQ Plot: {null_type}",
-                perm_floor=perm_floor,
+    finalize_contract(
+        paths["root"],
+        runs_df=runs_df,
+        summary_df=(
+            summary_df
+            if not summary_df.empty
+            else pd.DataFrame(
+                [
+                    {
+                        "metric": "n_tested",
+                        "group_keys": json.dumps({"scope": "test"}),
+                        "mean": 0,
+                        "std": np.nan,
+                        "n": 1,
+                        "ci_low": 0,
+                        "ci_high": 0,
+                        "method": "count",
+                    }
+                ]
             )
-            io.save_figure(fig, output_dir, f"calibration_qq_{null_type}.png")
-        else:
-            print(f"Warning: No valid p-values for null_type={null_type}, skipping QQ plot")
-
-    if len(summary_df) > 0:
-        plot_df = summary_df.rename(columns={"fpr_05": "fpr"})
-        for shape in args.shape:
-            shape_df = plot_df[plot_df["shape"] == shape]
-            if len(shape_df) > 1:
-                try:
-                    validation.validate_dataframe_for_plot(
-                        shape_df, required_columns=["fpr", "N", "null_type"], min_rows=2
-                    )
-                    fig = plotting.plot_fpr_grid(
-                        shape_df,
-                        row_var="null_type",
-                        col_var="N",
-                        title=f"False Positive Rate (α=0.05): {shape}",
-                    )
-                    io.save_figure(fig, output_dir, f"calibration_fpr_grid_{shape}.png")
-                except validation.ValidationError as e:
-                    print(f"Skipping FPR grid for {shape}: {e}")
-
-    interpretation = docs.interpret_calibration(summary_df, alpha=0.05)
-    docs.write_report(
-        output_dir,
-        "calibration",
-        summary_df,
-        params=vars(args),
-        interpretation=interpretation,
+        ),
+        manifest=manifest,
+        report_md="\n".join(report_lines),
+        figures=figures,
     )
 
-    io.write_manifest(
-        output_dir,
-        benchmark_name="calibration",
-        params=vars(args),
-        n_replicates=args.n_reps * len(configs),
-        runtime_seconds=runtime,
-        biorsp_config=config,
+    print(f"✅ Calibration benchmark complete → {paths['root']}")
+
+    # Validate output data integrity
+    print("\nValidating output data...")
+    _, val_report = validation.load_and_validate_runs(
+        runs_csv_path,
+        benchmark="calibration",
+        expected_shapes=args.shape,
+        expected_N=args.N,
+        expected_null_types=args.null_type,
+        write_debug_json=True,
     )
+    if not val_report.valid:
+        print("⚠ Validation issues found:")
+        for err in val_report.errors:
+            print(f"  ERROR: {err}")
+    for warn in val_report.warnings:
+        print(f"  WARNING: {warn}")
+    if val_report.valid:
+        print("✓ Output validation passed")
 
     print("\n✅ Calibration benchmark complete!")
-    print(f"   Output directory: {output_dir}")
+    print(f"   Output directory: {paths['root']}")
     print(f"   Runtime: {runtime:.1f}s")
 
 

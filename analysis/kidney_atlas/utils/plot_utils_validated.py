@@ -5,6 +5,9 @@ This module provides plotting functions with scientific consistency validation:
 - Archetype scatter plots with quadrant-label validation
 - Gene exemplar plots showing both coverage and foreground masks
 - Debug plots for intermediate processing steps
+
+NOTE: This module now imports colors and spec from biorsp.plotting.spec
+for consistency with simulation benchmarks.
 """
 
 from __future__ import annotations
@@ -20,17 +23,11 @@ import pandas as pd
 from biorsp.api import BioRSPConfig
 from biorsp.core.engine import compute_rsp_radar
 from biorsp.core.geometry import compute_vantage, get_sector_indices, polar_coordinates
+from biorsp.plotting.spec import ARCHETYPE_COLORS
 from biorsp.preprocess.foreground import define_foreground
 from biorsp.preprocess.normalization import normalize_radii
 
 logger = logging.getLogger(__name__)
-
-ARCHETYPE_COLORS = {
-    "Ubiquitous": "#4DBEEE",
-    "Gradient": "#77AC30",
-    "Patchy": "#D95319",
-    "Basal": "#A2142F",
-}
 
 
 def validate_archetype_quadrants(

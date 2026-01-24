@@ -28,15 +28,18 @@ import pandas as pd
 
 from biorsp import BioRSPConfig
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+# Local helper imports are performed inside `main()` to avoid module-level import-after-code issues (E402).
 
 INVARIANCE_DISTORTIONS = {"none", "rotate", "jitter", "subsample"}
 
 
-def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> dict:
+def run_robustness_pair(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
     """Run paired robustness evaluation: baseline and distorted with same seed."""
+    # Local imports used by this function (moved here to avoid E402):
     from biorsp.simulations import (
         datasets,
         distortions,
@@ -134,6 +137,7 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
     )
 
     return {
+        "benchmark": "robustness",
         "shape": shape,
         "N": N,
         "pattern": pattern,
@@ -147,11 +151,14 @@ def run_robustness_pair(config_dict: dict, seed: int, config: BioRSPConfig) -> d
         "distorted_abstain": distorted_abstain,
         "delta_s": delta_s,
         "abs_delta_s": abs(delta_s) if not np.isnan(delta_s) else np.nan,
+        "abstain_flag": baseline_abstain or distorted_abstain,
         "time": elapsed,
     }
 
 
 def main():
+    from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
+    from analysis.benchmarks.simlib.runner_harness import finalize_contract
     from biorsp.simulations import (
         checkpoint,
         docs,
@@ -255,7 +262,11 @@ def main():
 
     n_perms = args.n_permutations if args.permutation_scope == "all" else 0
 
-    output_dir = io.ensure_output_dir("robustness", base_dir=args.outdir.rsplit("/", 1)[0])
+    output_dir = Path(args.outdir)
+    contract_cfg = BenchmarkContractConfig(require_runs_csv=True, require_summary_csv=True)
+    session_id = init_run_dir(
+        output_dir, clear_existing=not args.resume, contract_config=contract_cfg
+    )
 
     runs_csv_path = output_dir / "runs.csv"
     skip_completed = set()
@@ -404,6 +415,17 @@ def main():
                 except Exception as e:
                     print(f"⚠ Skipping plot for {dist_kind}: {e}")
 
+    # Quantitative assertions for invariance
+    invariance_df = summary_df[summary_df["category"] == "invariance"]
+    if len(invariance_df) > 0:
+        median_corr = invariance_df["correlation"].median()
+        median_delta = invariance_df["abs_delta_median"].median()
+        print("\n📊 Invariance Assertions:")
+        print(f"   Median correlation: {median_corr:.3f} (expect > 0.9)")
+        print(f"   Median abs delta: {median_delta:.3f} (expect < 0.05)")
+        assert median_corr > 0.85, f"Invariance correlation too low: {median_corr:.3f}"
+        assert median_delta < 0.10, f"Invariance delta too high: {median_delta:.3f}"
+
     interpretation = docs.interpret_robustness(summary_df)
     docs.write_report(
         output_dir,
@@ -411,6 +433,18 @@ def main():
         summary_df,
         params=vars(args),
         interpretation=interpretation,
+    )
+
+    # Finalize contract
+    finalize_contract(
+        output_dir=output_dir,
+        benchmark_name="robustness",
+        contract_config=contract_cfg,
+        session_id=session_id,
+        mode=args.mode,
+        n_conditions=len(configs) * args.n_reps,
+        n_completed=len(runs_df),
+        runtime_seconds=runtime,
     )
 
     io.write_manifest(

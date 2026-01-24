@@ -216,3 +216,183 @@ def test_panel_examples_with_data():
     import matplotlib.pyplot as plt
 
     plt.close(fig)
+
+
+def test_plotspec_classification_matches_archetype_colors():
+    """
+    CRITICAL TEST: Verify that all classify() outputs exist in ARCHETYPE_COLORS.
+
+    This ensures no mismatch between classification logic and plotting colors.
+    """
+    from biorsp.plotting.spec import ARCHETYPE_COLORS
+
+    spec = PlotSpec(c_cut=0.30, s_cut=0.15)
+
+    # Test all quadrant centers
+    test_points = [
+        (0.50, 0.05),  # High C, low S -> Ubiquitous
+        (0.50, 0.30),  # High C, high S -> Gradient
+        (0.10, 0.05),  # Low C, low S -> Basal
+        (0.10, 0.30),  # Low C, high S -> Patchy
+    ]
+
+    for c, s in test_points:
+        archetype = spec.classify(c, s)
+        assert archetype in ARCHETYPE_COLORS, (
+            f"Archetype '{archetype}' from classify(C={c}, S={s}) "
+            f"not found in ARCHETYPE_COLORS: {list(ARCHETYPE_COLORS.keys())}"
+        )
+
+    # Test boundary points (exact cutoffs)
+    boundary_points = [
+        (0.30, 0.15),  # At both cutoffs -> should be Gradient
+        (0.30, 0.05),  # At c_cut, below s_cut -> Ubiquitous
+        (0.10, 0.15),  # Below c_cut, at s_cut -> Patchy
+    ]
+
+    for c, s in boundary_points:
+        archetype = spec.classify(c, s)
+        assert (
+            archetype in ARCHETYPE_COLORS
+        ), f"Boundary archetype '{archetype}' not found in ARCHETYPE_COLORS"
+
+
+def test_story_generate_onepager_smoke():
+    """Smoke test for onepager generation with minimal data."""
+    import os
+    import tempfile
+
+    from biorsp.plotting.story import generate_onepager
+
+    spec = PlotSpec(c_cut=0.30, s_cut=0.15)
+
+    # Minimal DataFrame
+    df = pd.DataFrame(
+        {
+            "gene": ["A", "B", "C", "D", "E", "F", "G", "H"],
+            "Coverage": [0.5, 0.5, 0.1, 0.1, 0.4, 0.3, 0.2, 0.15],
+            "Spatial_Bias_Score": [0.05, 0.25, 0.05, 0.25, 0.1, 0.2, 0.08, 0.18],
+        }
+    )
+    df = spec.classify_dataframe(df)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Save runs.csv for generate_onepager
+        runs_csv_path = os.path.join(tmpdir, "runs.csv")
+        df.to_csv(runs_csv_path, index=False)
+
+        # Save manifest.json
+        import json
+
+        manifest = {"benchmark": "smoke_test", "plot_spec": spec.to_dict()}
+        manifest_path = os.path.join(tmpdir, "manifest.json")
+        with open(manifest_path, "w") as f:
+            json.dump(manifest, f)
+
+        # Generate onepager
+        fig, caption = generate_onepager(runs_csv_path, manifest_json=manifest_path, outdir=tmpdir)
+
+        assert fig is not None
+        assert caption is not None
+        assert len(caption) > 0
+
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+
+def test_make_figures_smoke():
+    """Smoke test for make_figures CLI components."""
+    import json
+    import os
+    import tempfile
+
+    from biorsp.plotting.make_figures import generate_panel_a
+
+    spec = PlotSpec(c_cut=0.30, s_cut=0.15)
+
+    # Create minimal runs.csv
+    df = pd.DataFrame(
+        {
+            "gene": ["A", "B", "C", "D"],
+            "Coverage": [0.5, 0.5, 0.1, 0.1],
+            "Spatial_Bias_Score": [0.05, 0.25, 0.05, 0.25],
+        }
+    )
+    df = spec.classify_dataframe(df)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        from pathlib import Path
+
+        tmpdir = Path(tmpdir)
+
+        # Save runs.csv
+        df.to_csv(tmpdir / "runs.csv", index=False)
+
+        # Save manifest
+        manifest = {
+            "benchmark": "test",
+            "plot_spec": spec.to_dict(),
+        }
+        with open(tmpdir / "manifest.json", "w") as f:
+            json.dump(manifest, f)
+
+        # Generate Panel A (kidney mode since no true_archetype column)
+        generate_panel_a(df, spec, tmpdir, run_type="kidney")
+
+        # Check file was saved
+        assert os.path.exists(tmpdir / "A_archetype_scatter.png")
+
+
+def test_kidney_standardized_plotting_smoke():
+    """Smoke test for kidney standardized plotting adapter."""
+    import os
+    import tempfile
+
+    # Skip if kidney adapter doesn't exist
+    try:
+        from analysis.kidney_atlas.utils.standardized_plotting import (
+            generate_kidney_panels,
+            save_kidney_manifest,
+        )
+    except ImportError:
+        import pytest
+
+        pytest.skip("Kidney standardized_plotting module not available")
+
+    spec = PlotSpec(c_cut=0.30, s_cut=0.15, spatial_col="Spatial_Score")
+
+    # Create minimal kidney-like DataFrame
+    df = pd.DataFrame(
+        {
+            "gene": ["NPHS1", "UMOD", "PODXL", "SLC12A1"],
+            "Coverage": [0.4, 0.35, 0.45, 0.25],
+            "Spatial_Score": [0.1, 0.2, 0.08, 0.3],
+            "condition": ["Control", "DKD", "Control", "AKI"],
+        }
+    )
+    df = spec.classify_dataframe(df)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        from pathlib import Path
+
+        tmpdir = Path(tmpdir)
+
+        # Generate panels
+        generate_kidney_panels(df, tmpdir, c_cut=0.30, s_cut=0.15)
+
+        # Check standard plots were created
+        assert (tmpdir / "fig_cs_scatter.png").exists()
+        assert (tmpdir / "fig_cs_marginals.png").exists()
+
+        # Save manifest with required arguments
+        save_kidney_manifest(
+            tmpdir,
+            params={"test_param": "value"},
+            n_genes=len(df),
+            n_cells=100,
+            c_cut=0.30,
+            s_cut=0.15,
+            runtime_seconds=1.0,
+        )
+        assert os.path.exists(tmpdir / "manifest.json")

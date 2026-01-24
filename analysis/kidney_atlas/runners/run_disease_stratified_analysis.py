@@ -74,6 +74,15 @@ from biorsp import (
     score_genes,
 )
 
+try:
+    from analysis.kidney_atlas.utils.standardized_plotting import (
+        generate_kidney_panels,
+    )
+
+    HAS_STANDARDIZED_PLOTTING = True
+except ImportError:
+    HAS_STANDARDIZED_PLOTTING = False
+
 warnings.filterwarnings("ignore", message=".*dtype argument is deprecated.*")
 warnings.filterwarnings("ignore", category=FutureWarning, module="legacy_api_wrap")
 
@@ -778,6 +787,24 @@ def run_analysis_for_disease(
 
     logger.info(f"  Generated {len(exemplar_genes)} exemplar plots")
     analysis_meta["n_exemplar_plots"] = len(exemplar_genes)
+
+    # Generate standardized plotting outputs
+    if HAS_STANDARDIZED_PLOTTING:
+        logger.info(f"  Generating standardized figures for {disease_name}...")
+        try:
+            c_cut = cutoffs["c_cut"]
+            s_cut = cutoffs["s_cut"]
+
+            generate_kidney_panels(
+                df_classified,
+                outdir,
+                c_cut=c_cut,
+                s_cut=s_cut,
+                group_by=config.stratify_key,
+            )
+            logger.info(f"  Standardized figures generated for {disease_name}")
+        except Exception as e:
+            logger.warning(f"  Could not generate standardized figures: {e}")
 
     manifest_file = outdir / "manifest.json"
     with open(manifest_file, "w") as f:

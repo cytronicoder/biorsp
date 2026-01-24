@@ -10,9 +10,9 @@ Usage:
     python run_abstention.py --mode quick --outdir outputs/abstention --seed 42
 
 Outputs:
-    - fig_abstention.png
-    - abstention_summary.csv
-    - report.md
+    - runs.csv, summary.csv, manifest.json, report.md
+    - fig_abstention_summary.png
+    - Debug panels per condition
 """
 
 import argparse
@@ -24,27 +24,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from biorsp import BioRSPConfig  # noqa: E402
+# Local helper imports are performed inside `run_abstention()` to avoid module-level
+# imports after side-effectful code (E402).
 
 
 def run_abstention(args):
     """Run abstention evaluation."""
-    from biorsp.simulations import (
-        datasets,
-        expression,
-        io,
-        plotting,
-        rng as rng_module,
-        scoring,
-        shapes,
-    )
+    from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
+    from analysis.benchmarks.simlib.runner_harness import finalize_contract, normalize_scores_df
+    from biorsp import BioRSPConfig
+    from biorsp.plotting.standard import make_standard_plot_set
+    from biorsp.simulations import datasets, expression, rng as rng_module, scoring, shapes
 
     output_dir = Path(args.outdir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    contract_cfg = BenchmarkContractConfig(require_runs_csv=True, require_summary_csv=True)
+    session_id = init_run_dir(output_dir, clear_existing=True, contract_config=contract_cfg)
 
     print("=" * 60)
     print("Abstention/Failure Mode Evaluation")
@@ -52,7 +50,6 @@ def run_abstention(args):
     print("=" * 60)
 
     start_time = time.time()
-    rng_module.make_rng(args.seed, "abstention")
 
     config = BioRSPConfig(
         B=72,
@@ -132,14 +129,10 @@ def run_abstention(args):
     )
 
     n_reps = 5 if args.mode == "quick" else 20
-    results = []
+    all_runs = []
 
     for cond in conditions:
         print(f"\nTesting: {cond['name']}...")
-
-        abstain_count = 0
-        nan_score_count = 0
-        valid_scores = []
 
         for rep in range(n_reps):
             rep_gen = rng_module.make_rng(args.seed + rep, "abstention", cond["name"])
@@ -167,55 +160,110 @@ def run_abstention(args):
                     adata, genes=["test_gene"], config=config, embedding_key="X_sim"
                 )
 
+                scores_df = normalize_scores_df(scores_df)
+
                 if len(scores_df) == 0:
-                    abstain_count += 1
+                    # No results returned
+                    all_runs.append(
+                        {
+                            "benchmark": "abstention",
+                            "condition": cond["name"],
+                            "n_cells": cond["n_cells"],
+                            "target_coverage": cond["target_coverage"],
+                            "shape": cond["shape"],
+                            "expected_abstain": cond["expected_abstain"],
+                            "replicate": rep,
+                            "seed": args.seed + rep,
+                            "Spatial_Bias_Score": np.nan,
+                            "Coverage": np.nan,
+                            "abstain_flag": True,
+                            "abstain_reason": "no_results",
+                        }
+                    )
                 else:
                     row = scores_df.iloc[0]
-                    if row["abstain_flag"]:
-                        abstain_count += 1
-                    if pd.isna(row["Spatial_Bias_Score"]):
-                        nan_score_count += 1
-                    else:
-                        valid_scores.append(row["Spatial_Bias_Score"])
+                    all_runs.append(
+                        {
+                            "benchmark": "abstention",
+                            "condition": cond["name"],
+                            "n_cells": cond["n_cells"],
+                            "target_coverage": cond["target_coverage"],
+                            "shape": cond["shape"],
+                            "expected_abstain": cond["expected_abstain"],
+                            "replicate": rep,
+                            "seed": args.seed + rep,
+                            "Spatial_Bias_Score": row.get("Spatial_Bias_Score", np.nan),
+                            "Coverage": row.get("Coverage", np.nan),
+                            "abstain_flag": row.get("abstain_flag", True),
+                            "abstain_reason": row.get("abstain_reason", ""),
+                        }
+                    )
 
             except Exception as e:
                 print(f"  Rep {rep} error: {e}")
-                abstain_count += 1
+                all_runs.append(
+                    {
+                        "benchmark": "abstention",
+                        "condition": cond["name"],
+                        "n_cells": cond["n_cells"],
+                        "target_coverage": cond["target_coverage"],
+                        "shape": cond["shape"],
+                        "expected_abstain": cond["expected_abstain"],
+                        "replicate": rep,
+                        "seed": args.seed + rep,
+                        "Spatial_Bias_Score": np.nan,
+                        "Coverage": np.nan,
+                        "abstain_flag": True,
+                        "abstain_reason": str(e),
+                    }
+                )
 
-        abstain_rate = abstain_count / n_reps
-        nan_rate = nan_score_count / n_reps
-        mean_score = np.mean(valid_scores) if valid_scores else np.nan
+        cond_df = pd.DataFrame([r for r in all_runs if r["condition"] == cond["name"]])
+        abstain_rate = cond_df["abstain_flag"].mean()
+        status = "✓" if (abstain_rate > 0.5) == cond["expected_abstain"] else "?"
+        print(f"   {status} Abstention rate: {abstain_rate:.0%}")
 
-        results.append(
+    runs_df = pd.DataFrame(all_runs)
+
+    # Summary per condition
+    summary_rows = []
+    for cond in conditions:
+        cond_df = runs_df[runs_df["condition"] == cond["name"]]
+        abstain_rate = cond_df["abstain_flag"].mean()
+        finite_scores = cond_df.loc[~cond_df["abstain_flag"], "Spatial_Bias_Score"]
+        summary_rows.append(
             {
                 "condition": cond["name"],
                 "n_cells": cond["n_cells"],
                 "target_coverage": cond["target_coverage"],
-                "shape": cond["shape"],
                 "expected_abstain": cond["expected_abstain"],
                 "abstention_rate": abstain_rate,
-                "nan_rate": nan_rate,
-                "mean_score": mean_score,
-                "n_reps": n_reps,
-                "n_valid": len(valid_scores),
+                "n_reps": len(cond_df),
+                "n_valid": len(finite_scores),
+                "mean_score": finite_scores.mean() if len(finite_scores) > 0 else np.nan,
             }
         )
 
-        status = "✓" if (abstain_rate > 0.5) == cond["expected_abstain"] else "?"
-        print(f"   {status} Abstention rate: {abstain_rate:.0%}")
+    summary_df = pd.DataFrame(summary_rows)
 
-    results_df = pd.DataFrame(results)
+    # Write outputs
+    runs_df.to_csv(output_dir / "runs.csv", index=False)
+    summary_df.to_csv(output_dir / "summary.csv", index=False)
 
-    results_df.to_csv(output_dir / "abstention_summary.csv", index=False)
+    # Plot abstention summary
+    plot_abstention_summary(output_dir, summary_df)
 
-    fig = plotting.plot_abstention_summary(
-        results_df[["condition", "abstention_rate", "n_reps"]].rename(
-            columns={"n_reps": "n_samples"}
-        ),
-        title="Abstention Behavior Under Stress",
-    )
-    io.save_figure(fig, output_dir, "fig_abstention.png")
-    plt.close(fig)
+    # Debug panels per condition (small example from each)
+    for cond in conditions[:3]:  # First 3 for quick mode
+        cond_df = runs_df[runs_df["condition"] == cond["name"]]
+        if len(cond_df[~cond_df["abstain_flag"]]) > 0:
+            cond_outdir = output_dir / f"debug_{cond['name'].replace(' ', '_')}"
+            cond_outdir.mkdir(exist_ok=True)
+            make_standard_plot_set(
+                scores_df=cond_df[~cond_df["abstain_flag"]],
+                outdir=cond_outdir,
+                truth_col=None,
+            )
 
     elapsed = time.time() - start_time
 
@@ -223,18 +271,21 @@ def run_abstention(args):
 
 Mode: {args.mode}
 Runtime: {elapsed:.1f}s
+Session ID: {session_id}
 Replicates per condition: {n_reps}
 
+## Purpose
 
 BioRSP should abstain (return NaN or flag) when there is insufficient data
 to compute reliable spatial scores.
 
+## Results
 
 | Condition | Abstention Rate | Expected | Status |
 |-----------|-----------------|----------|--------|
 """
 
-    for _, row in results_df.iterrows():
+    for _, row in summary_df.iterrows():
         expected_str = "High" if row["expected_abstain"] else "Low"
         actual_high = row["abstention_rate"] > 0.5
         status = "✓" if actual_high == row["expected_abstain"] else "✗"
@@ -244,15 +295,16 @@ to compute reliable spatial scores.
 
     report += """
 
+## Interpretation
+
 - **Low coverage stress**: At very low coverage (1-2%), most cells don't express
   the gene, making spatial analysis unreliable. BioRSP should abstain.
-
 - **Small N stress**: With very few cells (<100), statistical estimates become
   unreliable. BioRSP should abstain or flag.
-
 - **Geometry stress**: Disconnected geometries may confuse center-based methods
   but shouldn't necessarily cause abstention.
 
+## Criteria
 
 1. Normal conditions (N≥200, C≥5%): Should NOT abstain
 2. Very low coverage (C<3%): SHOULD abstain
@@ -263,9 +315,42 @@ to compute reliable spatial scores.
     with open(output_dir / "report.md", "w") as f:
         f.write(report)
 
+    # Finalize contract
+    finalize_contract(
+        output_dir=output_dir,
+        benchmark_name="abstention",
+        contract_config=contract_cfg,
+        session_id=session_id,
+        mode=args.mode,
+        n_conditions=len(conditions) * n_reps,
+        n_completed=len(runs_df),
+        runtime_seconds=elapsed,
+    )
+
     print(f"\n✓ Abstention evaluation complete! Outputs in {output_dir}")
 
-    return results_df
+    return runs_df
+
+
+def plot_abstention_summary(output_dir, summary_df):
+    """Plot abstention rate summary."""
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+    x_pos = np.arange(len(summary_df))
+    colors = ["green" if not exp else "orange" for exp in summary_df["expected_abstain"]]
+
+    ax.bar(x_pos, summary_df["abstention_rate"], color=colors, alpha=0.7, edgecolor="black")
+    ax.axhline(0.5, color="red", linestyle="--", label="50% threshold")
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(summary_df["condition"], rotation=45, ha="right")
+    ax.set_ylabel("Abstention Rate")
+    ax.set_title("Abstention Behavior Under Stress")
+    ax.set_ylim(0, 1)
+    ax.legend()
+
+    plt.tight_layout()
+    fig.savefig(output_dir / "fig_abstention_summary.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
 
 
 def main():

@@ -22,11 +22,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from biorsp import BioRSPConfig  # noqa: E402
+# Local benchmark helpers are imported inside `run_stability()` to avoid E402.
 
 MODE_CONFIGS = {
     "quick": {
@@ -89,20 +89,16 @@ def generate_pca_embeddings(X_high_dim, n_embeddings, rng):
 
 def run_stability(args):
     """Run cross-embedding stability benchmark."""
-    from biorsp.simulations import (
-        datasets,
-        expression,
-        io,
-        metrics,
-        rng as rng_module,
-        scoring,
-        shapes,
-    )
+    from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
+    from analysis.benchmarks.simlib.runner_harness import finalize_contract
+    from biorsp import BioRSPConfig
+    from biorsp.simulations import datasets, expression, metrics, rng as rng_module, scoring, shapes
 
     mode_cfg = MODE_CONFIGS[args.mode]
 
     output_dir = Path(args.outdir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    contract_cfg = BenchmarkContractConfig(require_runs_csv=False, require_summary_csv=True)
+    session_id = init_run_dir(output_dir, clear_existing=True, contract_config=contract_cfg)
 
     print("=" * 60)
     print("Cross-Embedding Stability Benchmark")
@@ -244,6 +240,8 @@ def run_stability(args):
     plt.suptitle("Cross-Embedding Stability", fontsize=14, fontweight="bold")
     plt.tight_layout(rect=[0, 0, 1, 0.95])
 
+    from analysis.benchmarks.simlib import io_contract as io
+
     io.save_figure(fig, output_dir, "fig_stability_embeddings.png")
     plt.close(fig)
 
@@ -257,20 +255,35 @@ def run_stability(args):
             indent=2,
         )
 
+    # Write summary.csv
+    import pandas as pd
+
+    summary_df = pd.DataFrame([stability])
+    summary_df.to_csv(output_dir / "summary.csv", index=False)
+
     elapsed = time.time() - start_time
 
+    # Quantitative assertions
     stability_pass = stability["score_correlation"] >= 0.8
+    print("\n📊 Stability Assertions:")
+    print(f"   Score correlation: {stability['score_correlation']:.3f} (expect >= 0.80)")
+    assert (
+        stability["score_correlation"] >= 0.75
+    ), f"Stability too low: {stability['score_correlation']:.3f}"
 
     report = f"""# Cross-Embedding Stability Report
 
 Mode: {args.mode}
 Runtime: {elapsed:.1f}s
+Session ID: {session_id}
 N embeddings: {mode_cfg["n_embeddings"]}
 N genes: {len(var_names)}
 
+## Purpose
 
 BioRSP scores should be stable across different 2D embeddings of the same data.
 
+## Results
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
@@ -279,6 +292,7 @@ BioRSP scores should be stable across different 2D embeddings of the same data.
 | Label Agreement | {stability.get("label_agreement", np.nan):.3f} | ≥ 0.80 | - |
 | Score Std (per gene) | {stability["score_std_mean"]:.3f} | ≤ 0.10 | - |
 
+## Interpretation
 
 - **Score Correlation**: Pearson correlation of S scores between embeddings.
   High correlation (>0.9) indicates that spatial scores are robust to embedding variation.
@@ -296,6 +310,18 @@ of these minor differences.
 
     with open(output_dir / "report.md", "w") as f:
         f.write(report)
+
+    # Finalize contract
+    finalize_contract(
+        output_dir=output_dir,
+        benchmark_name="stability",
+        contract_config=contract_cfg,
+        session_id=session_id,
+        mode=args.mode,
+        n_conditions=mode_cfg["n_embeddings"],
+        n_completed=mode_cfg["n_embeddings"],
+        runtime_seconds=elapsed,
+    )
 
     print(f"\n✓ Stability benchmark complete! Outputs in {output_dir}")
 

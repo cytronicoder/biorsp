@@ -58,6 +58,7 @@ python benchmarks/run_story_onepager.py --mode quick --seed 42
 ```
 
 **Supporting Analyses:**
+
 - **`run_null_calibration.py`**: Data-driven threshold derivation (S_cut, C_cut) from null simulations
 - **`run_stability.py`**: Cross-embedding stability—scores robust to different UMAP embeddings
 - **`run_abstention.py`**: Failure mode evaluation—correctly flags unreliable results under stress
@@ -69,13 +70,15 @@ python benchmarks/run_story_onepager.py --mode quick --seed 42
 **Objective**: Establish that p-values are uniformly distributed under true null hypotheses and that type I error is controlled at the nominal level (α = 0.05).
 
 **Design**: We simulate expression data under three null models:
+
 - **IID Null**: Standard null hypothesis with no spatial structure in expression
 - **Depth-Confounded**: Library size varies spatially (correlated with distance from tissue center), but expression remains spatially independent—tests robustness against technical gradients
 - **Mask Stress**: Extremely low gene prevalence (1-5% of cells) to stress-test the sector masking and background estimation procedures
 
 For each null model, we generate 100 independent replicates across varying sample sizes (N = 500, 1000, 2000 cells) and tissue geometries (disk, ellipse, crescent). Each replicate computes BioRSP metrics with 1000 permutations for p-value estimation.
 
-**Success Criteria**: 
+**Success Criteria**:
+
 - QQ plots of observed p-values vs. Uniform(0,1) should show near-perfect agreement
 - False positive rate at α = 0.05 should be 0.05 ± 0.01 (95% CI)
 - Calibration should hold across all geometries and sample sizes
@@ -85,6 +88,7 @@ For each null model, we generate 100 independent replicates across varying sampl
 **Objective**: Demonstrate that the (C, S) coordinate system effectively discriminates biologically-distinct spatial patterns and provides interpretable classification boundaries.
 
 **Design**: We simulate expression patterns representing four archetypal classes:
+
 - **Housekeeping** (uniform): Expected high coverage C, low spatial score S
 - **Niche Markers** (core/rim/wedge): Expected varied coverage, high S reflecting localization
 - **Regional Programs** (broad domains): Expected high C, moderate S
@@ -93,6 +97,7 @@ For each null model, we generate 100 independent replicates across varying sampl
 For each pattern × geometry combination, we generate 75 replicates with controlled prevalence and signal strength parameters. We then examine the distribution of (C, S) coordinates and compute separation metrics (silhouette scores, pairwise distances).
 
 **Success Criteria**:
+
 - Clear separation of archetype clusters in (C, S) space
 - Housekeeping patterns cluster at high C, low S
 - Localized patterns (wedge, core, rim) achieve S > 0.15
@@ -105,17 +110,20 @@ For each pattern × geometry combination, we generate 75 replicates with control
 **Design**: We apply six distortions to baseline spatial patterns:
 
 *Expected Invariances*:
+
 - **Rotation**: Arbitrary rotation of coordinates (S should be rotation-invariant)
 - **Jitter**: Small random positional noise (σ = 1-5% of tissue diameter)
 - **Subsampling**: Random removal of 20-50% of cells
 
 *Expected Sensitivities*:
+
 - **Anisotropic Scaling**: Stretching along one axis (breaks circular symmetry assumed by radial statistics)
 - **Swirl**: Radial-dependent angular warping (distorts radial patterns)
 
 For each distortion type and intensity level, we compute the correlation between original and distorted S values across 50 replicates.
 
 **Success Criteria**:
+
 - Invariant transformations: Pearson correlation r > 0.95 between original and distorted S
 - Sensitive transformations: Documented degradation curves showing where method breaks down
 - Clear documentation of failure modes for users
@@ -125,6 +133,7 @@ For each distortion type and intensity level, we compute the correlation between
 **Objective**: Validate that pairwise correlation and complementarity metrics correctly identify co-localized and mutually-exclusive spatial patterns.
 
 **Design**: We simulate four pairwise scenarios:
+
 - **Co-localization**: Both genes follow identical wedge pattern (angle_center = 0°) → expect high positive correlation
 - **Exclusion**: Genes occupy opposite wedges (0° vs 180°) → expect high complementarity score
 - **Orthogonal**: Genes occupy perpendicular wedges (0° vs 90°) → expect near-zero correlation
@@ -133,6 +142,7 @@ For each distortion type and intensity level, we compute the correlation between
 For each scenario, we generate 100 replicate pairs and compute Pearson correlation on radar profiles along with BioRSP's complementarity index.
 
 **Success Criteria**:
+
 - Co-localized pairs: correlation > 0.8
 - Exclusion pairs: complementarity > 0.7 or correlation < -0.3
 - Orthogonal pairs: |correlation| < 0.2
@@ -199,3 +209,113 @@ This generates publication-quality figure panels in `figures/` suitable for meth
 **Biological Realism**: Tissue geometries and expression patterns are grounded in spatial transcriptomics observations (e.g., kidney nephron structures, brain cortical layers, tumor microenvironments).
 
 For detailed parameter documentation and performance optimization guidelines, see `benchmarks/README.md`.
+
+---
+
+## Plot Standardization (January 2026)
+
+### Overview
+
+The simulation benchmarks and kidney case studies now share a unified plotting API to ensure consistent visual presentation across all analysis types. This standardization enables:
+
+- **Same conceptual figure set** regardless of whether the run is simulation or KPMP kidney data
+- **Consistent archetype colors and cutoff semantics** across all modules
+- **Reproducible figure regeneration** from saved outputs without recomputation
+
+### Standardized Figure Set
+
+All benchmark runs produce the following canonical figures:
+
+| Panel | Filename | Simulation Content | Kidney Content |
+|:------|:---------|:-------------------|:---------------|
+| **A** | `A_archetype_scatter.png` | C vs S scatter with true archetype colors | C vs S scatter with predicted archetype colors |
+| **B** | `B_confusion_or_composition.png` | Confusion matrix (true vs predicted) | Composition bar (by condition/cluster) |
+| **C** | `C_examples_per_archetype.png` | Spatial patterns per archetype | Representative genes per archetype |
+| **D** | `D_pairwise_or_module.png` | Gene-gene similarity distribution | Gene-gene pairs or modules |
+
+Each panel is accompanied by a `.txt` caption file describing the figure content.
+
+### Shared Plotting API
+
+All plotting is centralized in `biorsp/plotting/`:
+
+```python
+from biorsp.plotting import PlotSpec, generate_onepager, make_figures
+
+# Create specification with cutoffs
+spec = PlotSpec(c_cut=0.30, s_cut=0.15)
+
+# Classify genes
+df = spec.classify_dataframe(df)
+
+# Generate all panels
+from biorsp.plotting.panels import generate_standard_panels
+generate_standard_panels(df, spec, outdir="figures/", mode="simulation")
+```
+
+### CLI for Regenerating Figures
+
+Figures can be regenerated from saved outputs without rerunning benchmarks:
+
+```bash
+# Generate all panels from a run directory
+python -m biorsp.plotting.make_figures --indir outputs/archetypes
+
+# Include debug plots
+python -m biorsp.plotting.make_figures --indir outputs/archetypes --debug
+
+# Generate PDF format
+python -m biorsp.plotting.make_figures --indir outputs/archetypes --format pdf
+```
+
+### PlotSpec and Classification Consistency
+
+The `PlotSpec` class ensures quadrant cutoff lines exactly match classification logic:
+
+- **Coverage threshold (c_cut)**: Default 0.30, separates high/low coverage
+- **Spatial score threshold (s_cut)**: Derived from calibration or manual, separates high/low spatial organization
+- **Classification**: `spec.classify(coverage, spatial_score)` returns archetype label
+- **Quadrant bounds**: `spec.get_quadrant_bounds()` returns same thresholds used for plotting
+
+### Archetype Colors (Canonical)
+
+```python
+ARCHETYPE_COLORS = {
+    "Ubiquitous": "#4CAF50",  # Green - high C, low S
+    "Gradient": "#2196F3",     # Blue - high C, high S
+    "Basal": "#9E9E9E",        # Gray - low C, low S
+    "Patchy": "#FF5722",       # Red-Orange - low C, high S
+}
+```
+
+### Debug Plots
+
+When `--debug` flag is enabled, additional diagnostic plots are saved to `debug/`:
+
+- `debug_cutoff_consistency.png`: Verifies colors match quadrant assignments
+- `debug_score_distributions.png`: Score histograms with threshold markers
+- `debug_pointcloud_<case>.png`: Raw point cloud with vantage
+- `debug_foreground_mask_<case>.png`: Foreground/background visualization
+- `debug_sector_counts_<case>.png`: nF/nB vs theta with validity mask
+
+### Manifest and Provenance
+
+Each run saves `manifest.json` containing:
+
+```json
+{
+  "benchmark": "archetypes",
+  "timestamp": "2026-01-23T...",
+  "git_commit": "abc123...",
+  "plot_spec": {
+    "c_cut": 0.30,
+    "s_cut": 0.15,
+    "coverage_col": "Coverage",
+    "spatial_col": "Spatial_Bias_Score"
+  },
+  "params": {...},
+  "runtime_seconds": 123.4
+}
+```
+
+The `plot_spec` field ensures figures can be regenerated with identical cutoffs.

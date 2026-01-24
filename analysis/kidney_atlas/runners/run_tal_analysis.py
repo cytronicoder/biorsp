@@ -58,6 +58,17 @@ os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
+try:
+    from analysis.kidney_atlas.utils.standardized_plotting import (
+        generate_kidney_panels,
+        save_kidney_manifest,
+    )
+
+    HAS_STANDARDIZED_PLOTTING = True
+except ImportError:
+    HAS_STANDARDIZED_PLOTTING = False
+    print("Standardized plotting not available")
+
 from biorsp.api import BioRSPConfig, classify_genes, score_gene_pairs, score_genes
 from biorsp.core.engine import compute_rsp_radar
 from biorsp.core.geometry import compute_vantage, polar_coordinates
@@ -1046,6 +1057,34 @@ def main():
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(run_meta, f, indent=2, default=str)
     logger.info(f"Saved: {meta_path}")
+
+    # Generate standardized plotting outputs
+    if HAS_STANDARDIZED_PLOTTING:
+        logger.info("[Stage 10] Generating standardized figures...")
+        try:
+            c_cut = run_meta["classification"]["c_cut"]
+            s_cut = run_meta["classification"]["s_cut"]
+
+            generate_kidney_panels(
+                df_sorted,
+                outdir,
+                c_cut=c_cut,
+                s_cut=s_cut,
+                group_by="condition" if "condition" in df_sorted.columns else None,
+            )
+
+            save_kidney_manifest(
+                outdir,
+                params=vars(args),
+                n_genes=len(df_sorted),
+                n_cells=int(adata_tal.n_obs),
+                c_cut=c_cut,
+                s_cut=s_cut,
+                runtime_seconds=run_meta["duration_seconds"],
+            )
+            logger.info("Standardized figures generated")
+        except Exception as e:
+            logger.warning(f"Could not generate standardized figures: {e}")
 
     logger.info("=" * 60)
     logger.info("Analysis complete!")

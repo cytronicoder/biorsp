@@ -59,14 +59,21 @@ def run_script(script_name: str, out_name: str, args: list = None):
 
     assert result.returncode == 0, f"Script {script_name} failed"
 
-    assert (out_path / "runs.csv").exists()
-    assert (out_path / "summary.csv").exists()
-    assert (out_path / "manifest.json").exists()
-    assert (out_path / "report.md").exists()
+    root = out_path
+    contract_root = out_path / out_name
+    if contract_root.exists():
+        run_dirs = sorted(contract_root.iterdir())
+        if run_dirs:
+            root = run_dirs[-1]
+
+    assert (root / "runs.csv").exists()
+    assert (root / "summary.csv").exists()
+    assert (root / "manifest.json").exists()
+    assert (root / "report.md").exists()
 
     import pandas as pd
 
-    runs = pd.read_csv(out_path / "runs.csv")
+    runs = pd.read_csv(root / "runs.csv")
     assert len(runs) >= 2, f"Expected at least 2 runs, got {len(runs)}"
 
 

@@ -13,7 +13,6 @@ import argparse
 import json
 import logging
 import multiprocessing as mp
-import sys
 import time
 import warnings
 from dataclasses import asdict, dataclass
@@ -1394,6 +1393,20 @@ def main():
     from biorsp.preprocess.context import discover_embedding_key, prepare_context
     from biorsp.utils.config import BioRSPConfig
 
+    try:
+        import sys
+
+        sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+        from analysis.kidney_atlas.utils.standardized_plotting import (
+            generate_kidney_panels,
+            save_kidney_manifest,
+        )
+
+        HAS_STANDARDIZED_PLOTTING = True
+    except ImportError:
+        HAS_STANDARDIZED_PLOTTING = False
+        logger.warning("Standardized plotting not available")
+
     embedding_key = args.embedding_key
     if embedding_key is None:
         embedding_key = discover_embedding_key(adata)
@@ -1576,6 +1589,31 @@ def main():
     plot_cs_marginals(df, c_cut, s_cut, outdir / "figures")
     plot_top_tables(df, outdir / "figures")
     plot_archetype_examples(adata_sub, df, context, config, outdir, embedding_key)
+
+    # Generate standardized plotting outputs
+    if HAS_STANDARDIZED_PLOTTING:
+        logger.info("Generating standardized figures...")
+        try:
+            generate_kidney_panels(
+                df,
+                outdir,
+                c_cut=c_cut,
+                s_cut=s_cut,
+            )
+
+            save_kidney_manifest(
+                outdir,
+                params=vars(args),
+                n_genes=len(df),
+                n_cells=context.n_cells,
+                c_cut=c_cut,
+                s_cut=s_cut,
+                runtime_seconds=time.time() - start_time,
+            )
+            logger.info("Standardized figures generated")
+        except Exception as e:
+            logger.warning(f"Could not generate standardized figures: {e}")
+
     if args.profile:
         TIMINGS["plotting"] = time.time() - stage_start
 

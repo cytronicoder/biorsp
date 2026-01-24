@@ -6,7 +6,7 @@ Evaluates the ability to detect co-patterns and exclusion patterns:
 2. Exclusion (Opposite pattern) → High Complementarity
 3. Orthogonal (Different wedges) → Near 0 Correlation
 
-Outputs: runs.csv, summary.csv, report.md, manifest.json, PR curves
+Outputs: runs.csv, summary.csv, report.md, manifest.json, debug plots
 """
 
 import argparse
@@ -14,17 +14,20 @@ import sys
 import time
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from biorsp import BioRSPConfig
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+# Local helper imports are performed inside `main()` to avoid module-level import-after-code issues (E402).
 
-def run_genegene_condition(config_dict: dict, seed: int, config: BioRSPConfig) -> dict:
+
+def run_genegene_condition(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
     """Run one gene-gene replicate."""
     from biorsp.simulations import (
         datasets,
@@ -77,30 +80,43 @@ def run_genegene_condition(config_dict: dict, seed: int, config: BioRSPConfig) -
     t0 = time.time()
     pairs_df = scoring.score_pairs(adata, genes=["gene1", "gene2"], config=config)
     elapsed = time.time() - t0
+
+    # Normalize and handle abstention
     if len(pairs_df) == 0:
         return {
+            "benchmark": "genegene",
             "shape": shape,
             "N": N,
             "scenario": scenario,
             "similarity_profile": np.nan,
             "copattern_score": np.nan,
             "shared_mask_fraction": np.nan,
+            "abstain_flag": True,
+            "abstain_reason": "no_results",
             "time": elapsed,
         }
 
     row = pairs_df.iloc[0]
+    # Check if finite results
+    has_finite = pd.notna(row.get("similarity_profile", np.nan))
+
     return {
+        "benchmark": "genegene",
         "shape": shape,
         "N": N,
         "scenario": scenario,
         "similarity_profile": row["similarity_profile"],
         "copattern_score": row["copattern_score"],
         "shared_mask_fraction": row["shared_mask_fraction"],
+        "abstain_flag": not has_finite,
+        "abstain_reason": "" if has_finite else "undefined_similarity",
         "time": elapsed,
     }
 
 
 def main():
+    from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
+    from analysis.benchmarks.simlib.runner_harness import finalize_contract
     from biorsp.simulations import (
         checkpoint,
         docs,
@@ -186,7 +202,11 @@ def main():
     if args.permutation_scope == "all" or args.permutation_scope == "topk":
         n_perms = args.n_permutations
 
-    output_dir = io.ensure_output_dir("genegene", base_dir=args.outdir.rsplit("/", 1)[0])
+    output_dir = Path(args.outdir)
+    contract_cfg = BenchmarkContractConfig(require_runs_csv=True, require_summary_csv=True)
+    session_id = init_run_dir(
+        output_dir, clear_existing=not args.resume, contract_config=contract_cfg
+    )
 
     runs_csv_path = output_dir / "runs.csv"
     skip_completed = set()
@@ -258,9 +278,11 @@ def main():
     io.write_summary_csv(summary_df, output_dir, benchmark="genegene")
 
     print("Generating plots...")
-    figs_dir = ROOT / "outputs" / "figures"
-    figs_dir.mkdir(parents=True, exist_ok=True)
 
+    # Debug figure: joint scatter for example gene pairs
+    plot_genegene_debug(output_dir, runs_df, args)
+
+    # Main similarity distribution plot
     try:
         validation.validate_dataframe_for_plot(
             runs_df,
@@ -271,8 +293,6 @@ def main():
     except validation.ValidationError as e:
         print(f"⚠ Skipping plots: {e}")
     else:
-        import matplotlib.pyplot as plt
-
         fig, ax = plt.subplots(figsize=(10, 6))
         for scenario in args.scenario:
             subset = runs_df[runs_df["scenario"] == scenario]
@@ -296,6 +316,18 @@ def main():
         interpretation=interpretation,
     )
 
+    # Finalize contract
+    finalize_contract(
+        output_dir=output_dir,
+        benchmark_name="genegene",
+        contract_config=contract_cfg,
+        session_id=session_id,
+        mode=args.mode,
+        n_conditions=len(configs) * args.n_reps,
+        n_completed=len(runs_df),
+        runtime_seconds=runtime,
+    )
+
     io.write_manifest(
         output_dir,
         benchmark_name="genegene",
@@ -308,6 +340,46 @@ def main():
     print("\n✅ Gene-gene benchmark complete!")
     print(f"   Output directory: {output_dir}")
     print(f"   Runtime: {runtime:.1f}s")
+
+
+def plot_genegene_debug(output_dir, runs_df, args):
+    """Generate debug figure: joint scatter and similarity distributions."""
+    debug_dir = output_dir / "debug"
+    debug_dir.mkdir(exist_ok=True)
+
+    # Similarity distribution finite-only
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    for scenario in args.scenario:
+        subset = runs_df[runs_df["scenario"] == scenario]
+        vals = subset["similarity_profile"].dropna()
+        if len(vals) > 0:
+            ax.hist(vals, bins=20, alpha=0.5, label=f"{scenario} (n={len(vals)})")
+
+    ax.set_xlabel("Similarity Profile (finite only)")
+    ax.set_ylabel("Count")
+    ax.set_title("Gene-Gene Similarity Distribution (Abstention-Aware)")
+    ax.legend()
+    ax.grid(alpha=0.3)
+    plt.tight_layout()
+    fig.savefig(debug_dir / "fig_similarity_finite_only.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    # Abstention summary
+    abstain_counts = runs_df.groupby("scenario")["abstain_flag"].sum()
+    total_counts = runs_df.groupby("scenario").size()
+    abstain_rates = (abstain_counts / total_counts).fillna(0)
+
+    if len(abstain_rates) > 0 and abstain_rates.sum() > 0:
+        fig, ax = plt.subplots(1, 1, figsize=(8, 5))
+        abstain_rates.plot(kind="bar", ax=ax, color="orange", edgecolor="black")
+        ax.set_ylabel("Abstention Rate")
+        ax.set_xlabel("Scenario")
+        ax.set_title("Abstention Rate by Scenario")
+        ax.set_ylim(0, 1)
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
+        fig.savefig(debug_dir / "fig_abstention_summary.png", dpi=150, bbox_inches="tight")
+        plt.close(fig)
 
 
 if __name__ == "__main__":

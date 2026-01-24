@@ -1,8 +1,8 @@
 """
 Batch runner for all BioRSP simulation benchmarks.
 
-Runs all 4 benchmarks sequentially with optimized settings, tracking progress
-and aggregating runtime statistics.
+Runs all benchmarks sequentially with optimized settings, tracking progress
+and aggregating runtime statistics. Validates contract outputs strictly.
 
 Usage:
     python run_benchmarks.py --mode publication --n_workers 8
@@ -23,11 +23,54 @@ ROOT = Path(__file__).resolve().parent
 BENCHMARKS_DIR = ROOT
 
 BENCHMARKS = [
+    ("null_calibration", "run_null_calibration.py", {}),
     ("calibration", "run_calibration.py", {}),
     ("archetypes", "run_archetypes.py", {}),
+    ("abstention", "run_abstention.py", {}),
     ("genegene", "run_genegene.py", {"topk_perm": 500}),
     ("robustness", "run_robustness.py", {}),
+    ("stability", "run_stability.py", {}),
 ]
+
+
+def validate_benchmark_outputs(name: str, output_dir: Path) -> Tuple[bool, str]:
+    """Validate that benchmark outputs are complete and non-empty."""
+    required_files = {
+        "report.md": "report",
+        "manifest.json": "manifest",
+    }
+
+    # Most benchmarks need runs.csv and summary.csv
+    if name not in ["stability"]:
+        required_files["runs.csv"] = "runs"
+        required_files["summary.csv"] = "summary"
+
+    for filename, description in required_files.items():
+        filepath = output_dir / filename
+        if not filepath.exists():
+            return False, f"Missing {description} file: {filename}"
+
+        # Check file is non-empty
+        if filepath.stat().st_size == 0:
+            return False, f"Empty {description} file: {filename}"
+
+        # For CSV files, check they have content beyond header
+        if filename.endswith(".csv"):
+            try:
+                import pandas as pd
+
+                df = pd.read_csv(filepath)
+                if len(df) == 0:
+                    return False, f"Empty data in {filename}"
+            except Exception as e:
+                return False, f"Invalid CSV {filename}: {e}"
+
+    # Check for at least one figure
+    fig_files = list(output_dir.glob("fig_*.png"))
+    if len(fig_files) == 0:
+        return False, "No figures generated (missing fig_*.png)"
+
+    return True, "All outputs validated"
 
 
 def run_benchmark(
@@ -39,7 +82,9 @@ def run_benchmark(
     resume: bool,
     extra_flags: dict,
 ) -> Tuple[bool, float, str]:
-    """Run a single benchmark."""
+    """Run a single benchmark and validate outputs."""
+    output_dir = ROOT.parent / "outputs" / name
+
     cmd = [
         sys.executable,
         str(BENCHMARKS_DIR / script),
@@ -49,6 +94,8 @@ def run_benchmark(
         str(n_workers),
         "--checkpoint_every",
         str(checkpoint_every),
+        "--outdir",
+        str(output_dir),
     ]
 
     if resume:
@@ -68,8 +115,14 @@ def run_benchmark(
         elapsed = time.time() - start
 
         if result.returncode == 0:
-            print(f"\n✅ {name}: COMPLETED ({elapsed:.1f}s = {elapsed / 60:.1f}m)")
-            return True, elapsed, "success"
+            # Validate outputs
+            valid, msg = validate_benchmark_outputs(name, output_dir)
+            if valid:
+                print(f"\n✅ {name}: COMPLETED ({elapsed:.1f}s = {elapsed / 60:.1f}m)")
+                return True, elapsed, "success"
+            else:
+                print(f"\n❌ {name}: OUTPUT VALIDATION FAILED - {msg}")
+                return False, elapsed, f"validation_failed: {msg}"
         else:
             print(f"\n❌ {name}: FAILED (exit code {result.returncode})")
             return False, elapsed, f"exit_code_{result.returncode}"
