@@ -47,7 +47,7 @@ def parse_args():
         help="Generate comparison plots",
     )
     parser.add_argument(
-        "--top_n",
+        "--top-n",
         type=int,
         default=20,
         help="Number of top genes to show in plots (default: 20)",
@@ -249,7 +249,7 @@ def plot_disease_comparison(
 
                 ax.set_xlabel(f"{reference.replace('_', ' ').title()}", fontsize=10)
                 ax.set_ylabel(f"{disease.replace('_', ' ').title()}", fontsize=10)
-                ax.set_title(f"{disease.replace('_', ' ').title()} vs Reference", fontsize=12)
+                ax.set_title(f"{disease.replace('_', ' ').title()} vs. Reference", fontsize=12)
                 ax.grid(alpha=0.3)
 
                 ax_idx += 1

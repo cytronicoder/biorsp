@@ -3,7 +3,7 @@ CLI entry point for regenerating figures from BioRSP outputs.
 
 This module provides a command-line interface for re-plotting figures from
 completed benchmark runs without recomputation. It detects the run type
-(simulation vs kidney) and generates appropriate panels.
+(simulation vs. kidney) and generates appropriate panels.
 
 Usage:
     python -m biorsp.plotting.make_figures --indir <run_dir>
@@ -18,7 +18,7 @@ The tool will:
 4. Optionally generate debug plots
 
 Standard Panels:
-- A_archetype_scatter.png: Coverage vs Spatial Bias Score
+- A_archetype_scatter.png: Coverage vs. Spatial Bias Score
 - B_confusion_or_composition.png: Confusion matrix (sim) or composition bar (kidney)
 - C_examples_per_archetype.png: Representative spatial patterns
 - D_pairwise_or_module.png: Gene-gene pairs or modules
@@ -43,7 +43,17 @@ logger = logging.getLogger(__name__)
 
 
 def find_runs_csv(run_dir: Path) -> Path:
-    """Find the runs/results CSV file in a run directory."""
+    """Find the runs/results CSV file in a run directory.
+
+    Args:
+        run_dir: Run directory to search.
+
+    Returns:
+        Path to the runs/results CSV file.
+
+    Raises:
+        FileNotFoundError: If no candidate file is found.
+    """
     candidates = [
         "runs.csv",
         "results.csv",
@@ -69,7 +79,14 @@ def find_runs_csv(run_dir: Path) -> Path:
 
 
 def find_manifest(run_dir: Path) -> Optional[Path]:
-    """Find manifest.json in a run directory."""
+    """Find `manifest.json` in a run directory.
+
+    Args:
+        run_dir: Run directory to search.
+
+    Returns:
+        Path to `manifest.json` if present, otherwise None.
+    """
     candidates = [
         run_dir / "manifest.json",
         run_dir / "figures" / "manifest.json",
@@ -83,7 +100,15 @@ def find_manifest(run_dir: Path) -> Optional[Path]:
 
 
 def detect_run_type(df: pd.DataFrame, manifest: dict) -> str:
-    """Detect whether this is simulation or kidney data."""
+    """Detect whether this is simulation or kidney data.
+
+    Args:
+        df: Results DataFrame.
+        manifest: Loaded manifest dictionary.
+
+    Returns:
+        `"simulation"` or `"kidney"`.
+    """
     # Check for simulation-specific columns
     if "true_archetype" in df.columns:
         return "simulation"
@@ -112,7 +137,15 @@ def generate_panel_a(
     run_type: str,
     dpi: int = 300,
 ):
-    """Generate Panel A: Archetype Scatter."""
+    """Generate Panel A: archetype scatter.
+
+    Args:
+        df: Results DataFrame.
+        spec: PlotSpec instance.
+        outdir: Output directory.
+        run_type: `simulation` or `kidney`.
+        dpi: Resolution in dots per inch.
+    """
     from biorsp.plotting.panels import plot_archetype_scatter, save_panel_with_caption
 
     color_by = (
@@ -124,14 +157,14 @@ def generate_panel_a(
     fig = plot_archetype_scatter(
         df,
         spec,
-        title="Coverage vs Spatial Bias Score",
+        title="Coverage vs. Spatial Bias Score",
         color_by=color_by,
         show_annotations=True,
     )
 
     c_cut, s_cut = spec.get_quadrant_bounds()
     caption = (
-        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
+        f"Panel A: Coverage vs. Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={c_cut:.2f}, S={s_cut:.2f}. "
         f"Each point represents one gene or simulation replicate. "
         f"Colors indicate archetype classification."
@@ -150,7 +183,16 @@ def generate_panel_b(
     group_by: Optional[str] = None,
     dpi: int = 300,
 ):
-    """Generate Panel B: Confusion Matrix or Composition Bar."""
+    """Generate Panel B: confusion matrix or composition bar.
+
+    Args:
+        df: Results DataFrame.
+        spec: PlotSpec instance.
+        outdir: Output directory.
+        run_type: `simulation` or `kidney`.
+        group_by: Optional grouping column for kidney mode.
+        dpi: Resolution in dots per inch.
+    """
     from biorsp.plotting.panels import (
         plot_composition_bar,
         plot_confusion_matrix,
@@ -198,7 +240,14 @@ def generate_panel_c_summary(
     outdir: Path,
     dpi: int = 300,
 ):
-    """Generate Panel C: Summary statistics when spatial data unavailable."""
+    """Generate Panel C: summary statistics when spatial data are unavailable.
+
+    Args:
+        df: Results DataFrame.
+        spec: PlotSpec instance.
+        outdir: Output directory.
+        dpi: Resolution in dots per inch.
+    """
     fig, ax = plt.subplots(figsize=(8, 6))
 
     import numpy as np
@@ -286,7 +335,14 @@ def generate_panel_d_distribution(
     outdir: Path,
     dpi: int = 300,
 ):
-    """Generate Panel D: Score distributions when pairwise data unavailable."""
+    """Generate Panel D: score distributions when pairwise data are unavailable.
+
+    Args:
+        df: Results DataFrame.
+        spec: PlotSpec instance.
+        outdir: Output directory.
+        dpi: Resolution in dots per inch.
+    """
     fig, ax = plt.subplots(figsize=(8, 6))
 
     coverage = df[spec.coverage_col].dropna()
@@ -377,25 +433,16 @@ def make_figures(
     dpi: int = 300,
     group_by: Optional[str] = None,
 ):
-    """
-    Generate figures from a completed BioRSP run.
+    """Generate figures from a completed BioRSP run.
 
-    Parameters
-    ----------
-    indir : str
-        Input directory containing runs.csv and manifest.json
-    outdir : str, optional
-        Output directory (default: indir/figures)
-    panels : list, optional
-        List of panels to generate (default: all)
-    debug : bool
-        Whether to generate debug plots
-    format : str
-        Output format (png, pdf, svg)
-    dpi : int
-        Resolution for raster formats
-    group_by : str, optional
-        Column for grouping in Panel B (kidney mode)
+    Args:
+        indir: Input directory containing `runs.csv` and optional `manifest.json`.
+        outdir: Output directory (default: `indir/figures`).
+        panels: List of panels to generate (default: all).
+        debug: Whether to generate debug plots.
+        format: Output format (`png`, `pdf`, `svg`).
+        dpi: Resolution for raster formats.
+        group_by: Column for grouping in Panel B (kidney mode).
     """
     from biorsp.plotting.spec import PlotSpec, load_spec_from_manifest
 

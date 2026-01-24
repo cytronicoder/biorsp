@@ -9,7 +9,7 @@ Usage:
 
     python scripts/plot_simulation_csv.py --input-dir results/sim --outdir scripts/output --which calibration,power
 
-    python scripts/plot_simulation_csv.py results/sim/calibration.csv scripts/output/out --plot_type calibration
+    python scripts/plot_simulation_csv.py results/sim/calibration.csv scripts/output/out --plot-type calibration
 
 Requires:
     Package installation: pip install -e .

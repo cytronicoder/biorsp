@@ -29,13 +29,13 @@ def run_script(
         str(script_path),
         "--mode",
         "quick",
-        "--n_reps",
+        "--n-reps",
         "2",
         "--outdir",
         str(out_path),
         "--seed",
         "42",
-        "--n_workers",
+        "--n-workers",
         "1",
     ]
 

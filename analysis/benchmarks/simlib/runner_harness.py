@@ -40,25 +40,23 @@ CANONICAL_META_COLUMNS = [
 
 
 def normalize_scores_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Return a copy of ``df`` with canonical score columns enforced.
+    """Normalize score columns to the canonical benchmark schema.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Input runs dataframe that should contain Coverage and a spatial score
-        column (either ``Spatial_Score`` or legacy ``Spatial_Bias_Score``).
+    Args:
+        df: Input runs DataFrame expected to contain `Coverage` and a spatial score
+            column (`Spatial_Score` or legacy `Spatial_Bias_Score`).
 
-    Returns
-    -------
-    pd.DataFrame
-        Copy of ``df`` with ``Spatial_Score`` present and validated.
+    Returns:
+        A copy of the input DataFrame with `Spatial_Score` present and validated.
 
-    Raises
-    ------
-    AssertionError
-        If required columns are missing or values violate contract
-        (e.g., Coverage not in [0, 1], non-finite Spatial_Score) or if a
-        metadata column is entirely NaN.
+    Raises:
+        AssertionError: If required columns are missing, `Coverage` is outside
+            `[0, 1]`, `Spatial_Score` contains non-finite values, or a metadata
+            column is entirely NaN.
+
+    Notes:
+        If both `Spatial_Score` and `Spatial_Bias_Score` exist, the values must
+        agree on non-NaN entries and the legacy column is dropped.
     """
 
     df_norm = df.copy()
@@ -117,32 +115,21 @@ def normalize_labels(
     allow_abstain_pred: bool = True,
     allow_abstain_truth: bool = False,
 ) -> pd.DataFrame:
-    """Normalize truth and prediction label columns to canonical archetype names.
+    """Normalize truth and prediction labels to canonical archetype names.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing label columns.
-    truth_col : str
-        Column name for ground-truth archetypes.
-    pred_col : str
-        Column name for predicted archetypes.
-    allow_abstain_pred : bool, optional
-        Whether to permit abstention labels in predictions (default True).
-    allow_abstain_truth : bool, optional
-        Whether to permit abstention labels in the truth column (default False).
+    Args:
+        df: DataFrame containing label columns.
+        truth_col: Column name for ground-truth archetypes.
+        pred_col: Column name for predicted archetypes.
+        allow_abstain_pred: Whether to permit abstention labels in predictions.
+        allow_abstain_truth: Whether to permit abstention labels in the truth column.
 
-    Returns
-    -------
-    pd.DataFrame
-        Copy of ``df`` with normalized label series.
+    Returns:
+        A copy of the input DataFrame with normalized label columns.
 
-    Raises
-    ------
-    KeyError
-        If either of the specified columns is missing.
-    AssertionError
-        If labels contain unknown values after normalization.
+    Raises:
+        KeyError: If either of the specified columns is missing.
+        AssertionError: If labels contain unknown values after normalization.
     """
 
     df_norm = df.copy()
@@ -166,20 +153,14 @@ def normalize_labels(
 
 
 def compute_binomial_ci(k: int, n: int, alpha: float = 0.05) -> tuple[float, float]:
-    """Compute Wilson score confidence interval for a binomial proportion.
+    """Compute Wilson score confidence intervals for a binomial proportion.
 
-    Parameters
-    ----------
-    k : int
-        Number of successes.
-    n : int
-        Number of trials.
-    alpha : float, optional
-        Two-sided significance level (default 0.05).
+    Args:
+        k: Number of successes.
+        n: Number of trials.
+        alpha: Two-sided significance level.
 
-    Returns
-    -------
-    tuple[float, float]
+    Returns:
         Lower and upper bounds of the confidence interval.
     """
 
@@ -195,36 +176,25 @@ class SplitResult:
 def split_train_test(
     df: pd.DataFrame, group_cols: list[str], test_frac: float, seed: int
 ) -> SplitResult:
-    """Deterministic group-level train/test split.
+    """Split groups into deterministic train/test indices.
 
-    Groups defined by ``group_cols`` are shuffled deterministically using
-    ``seed`` and then assigned entirely to train/test according to ``test_frac``
-    to prevent leakage between splits.
+    Groups defined by `group_cols` are shuffled deterministically using `seed`
+    and assigned entirely to train/test according to `test_frac`, preventing
+    leakage between splits.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame containing the grouping columns.
-    group_cols : list[str]
-        Column names that define groups (each group assigned to one split).
-    test_frac : float
-        Fraction of groups assigned to the test split; must be in (0, 1).
-    seed : int
-        Random seed for deterministic shuffling.
+    Args:
+        df: DataFrame containing the grouping columns.
+        group_cols: Column names that define groups (each group assigned to one split).
+        test_frac: Fraction of groups assigned to the test split (must be in (0, 1)).
+        seed: Random seed for deterministic shuffling.
 
-    Returns
-    -------
-    SplitResult
-        Dataclass with ``train_idx`` and ``test_idx`` indices into ``df``.
+    Returns:
+        SplitResult with `train_idx` and `test_idx` indices into `df`.
 
-    Raises
-    ------
-    ValueError
-        If ``test_frac`` is not in (0, 1).
-    KeyError
-        If any grouping column is missing.
-    AssertionError
-        If the resulting train split is empty.
+    Raises:
+        ValueError: If `test_frac` is not in (0, 1).
+        KeyError: If any grouping column is missing.
+        AssertionError: If the resulting train split is empty.
     """
 
     if not 0 < test_frac < 1:
@@ -261,14 +231,10 @@ def split_train_test(
 def safe_metric_mask(series: pd.Series) -> pd.Series:
     """Return a boolean mask indicating finite (non-abstained) metric values.
 
-    Parameters
-    ----------
-    series : pd.Series
-        Metric series (e.g., p_value or Spatial_Score).
+    Args:
+        series: Metric series (e.g., `p_value` or `Spatial_Score`).
 
-    Returns
-    -------
-    pd.Series
+    Returns:
         Boolean mask where values are not NaN and finite.
     """
 
@@ -285,22 +251,20 @@ def finalize_contract(
 ) -> None:
     """Write contract artifacts and validate them.
 
-    Parameters
-    ----------
-    outdir : Path
-        Output directory where runs.csv/summary.csv/manifest.json/report.md live.
-    runs_df : pd.DataFrame
-        Per-run results table. Must already contain contract-required columns.
-    summary_df : pd.DataFrame
-        Aggregated metrics table. Must include CI columns.
-    manifest : Mapping[str, object]
-        Extra metadata to include in manifest.json (merged with contract
-        headers). Should include ``benchmark`` at minimum.
-    report_md : str
-        Markdown report text.
-    figures : Mapping[str, Path]
-        Mapping of figure identifiers to on-disk paths. Paths are recorded in
-        the manifest (relative to ``outdir``) after existence checks.
+    Args:
+        outdir: Output directory where `runs.csv`, `summary.csv`,
+            `manifest.json`, and `report.md` are written.
+        runs_df: Per-run results table containing contract-required columns.
+        summary_df: Aggregated metrics table with confidence intervals.
+        manifest: Extra metadata for `manifest.json` (merged with contract headers).
+            Must include a `benchmark` field.
+        report_md: Markdown report contents.
+        figures: Mapping of figure identifiers to on-disk paths. Paths are stored
+            in the manifest after existence checks.
+
+    Raises:
+        KeyError: If `benchmark` is missing from the manifest.
+        FileNotFoundError: If any figure path is missing on disk.
     """
 
     outdir = Path(outdir)

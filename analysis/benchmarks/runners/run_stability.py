@@ -48,7 +48,16 @@ MODE_CONFIGS = {
 
 
 def generate_umap_embeddings(X_high_dim, n_embeddings, rng):
-    """Generate multiple UMAP embeddings with different seeds."""
+    """Generate multiple UMAP embeddings with different seeds.
+
+    Args:
+        X_high_dim: High-dimensional input array.
+        n_embeddings: Number of embeddings to generate.
+        rng: NumPy random generator (used for fallbacks).
+
+    Returns:
+        List of embedding arrays.
+    """
     try:
         import umap
     except ImportError:
@@ -70,7 +79,16 @@ def generate_umap_embeddings(X_high_dim, n_embeddings, rng):
 
 
 def generate_pca_embeddings(X_high_dim, n_embeddings, rng):
-    """Fallback: PCA with added noise for variation."""
+    """Generate PCA embeddings with added noise for variation.
+
+    Args:
+        X_high_dim: High-dimensional input array.
+        n_embeddings: Number of embeddings to generate.
+        rng: NumPy random generator.
+
+    Returns:
+        List of embedding arrays.
+    """
     from scipy.linalg import svd
 
     X_centered = X_high_dim - X_high_dim.mean(axis=0)
@@ -88,7 +106,11 @@ def generate_pca_embeddings(X_high_dim, n_embeddings, rng):
 
 
 def run_stability(args):
-    """Run cross-embedding stability benchmark."""
+    """Run cross-embedding stability benchmark.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
     from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
     from analysis.benchmarks.simlib.runner_harness import finalize_contract
     from biorsp import BioRSPConfig
@@ -212,7 +234,7 @@ def run_stability(args):
     axes[1].plot([0, 1], [0, 1], "k--", alpha=0.5)
     axes[1].set_xlabel("S (Embedding 1)")
     axes[1].set_ylabel("S (Embedding 2)")
-    axes[1].set_title("Score Agreement\n(Embeddings 1 vs 2)", fontweight="bold")
+    axes[1].set_title("Score Agreement\n(Embeddings 1 vs. 2)", fontweight="bold")
     r = corr_matrix[0, 1]
     axes[1].text(0.05, 0.95, f"r = {r:.3f}", transform=axes[1].transAxes, fontsize=12, va="top")
 

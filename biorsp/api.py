@@ -33,7 +33,14 @@ LEGACY_COLUMNS = {
 
 
 def _standardize_gene_table(df: pd.DataFrame) -> pd.DataFrame:
-    """Rename to public schema, drop legacy columns, and ensure required fields exist."""
+    """Standardize gene score tables to the public schema.
+
+    Args:
+        df: Input DataFrame with internal column names.
+
+    Returns:
+        DataFrame with standardized column names and legacy columns removed.
+    """
     df = df.rename(columns=COLUMN_MAP)
 
     df = df.drop(columns=[c for c in LEGACY_COLUMNS if c in df.columns], errors="ignore")
@@ -61,25 +68,17 @@ def score_genes(
 ) -> pd.DataFrame:
     """Score genes for coverage and spatial organization.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data matrix.
-    genes : List[str]
-        List of genes to score.
-    embedding_key : str, optional
-        Key in adata.obsm storing the embedding, by default "X_umap".
-    subset : Optional[Union[dict, str, List[str]]], optional
-        Subset of cells to analyze (e.g., specific cell type), by default None.
-    config : Optional[BioRSPConfig], optional
-        BioRSP configuration, by default None.
-    **kwargs
-        Additional configuration parameters to override defaults.
+    Args:
+        adata: Annotated data matrix.
+        genes: List of genes to score.
+        embedding_key: Key in `adata.obsm` storing the embedding.
+        subset: Subset of cells to analyze (e.g., specific cell type).
+        config: Optional BioRSP configuration. If None, defaults are used.
+        **kwargs: Configuration overrides for `BioRSPConfig`.
 
-    Returns
-    -------
-    pd.DataFrame
-        GeneScoreTable with standardized columns: Coverage, Spatial_Bias_Score, Directionality.
+    Returns:
+        DataFrame with standardized columns including `Coverage`,
+        `Spatial_Bias_Score`, and `Directionality`.
     """
     if config is None:
         config = BioRSPConfig(**kwargs)
@@ -102,23 +101,16 @@ def classify_genes(
     s_cut: Optional[float] = None,
     fdr_cut: float = 0.05,
 ) -> pd.DataFrame:
-    """Classify genes into archetypes based on Coverage and Spatial_Bias_Score.
+    """Classify genes into archetypes based on coverage and spatial score.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Result from score_genes().
-    c_cut : float, optional
-         Coverage cutoff. If None, defaults to 0.10.
-    s_cut : float, optional
-         Spatial Bias Score cutoff. If None, determined automatically.
-    fdr_cut : float, optional
-         FDR cutoff used if 'q_value' is present and s_cut is None.
+    Args:
+        df: Result from `score_genes`.
+        c_cut: Coverage cutoff. If None, defaults to 0.10.
+        s_cut: Spatial score cutoff. If None, derived automatically when possible.
+        fdr_cut: FDR cutoff used when `q_value` is available and `s_cut` is None.
 
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with an additional 'Archetype' column.
+    Returns:
+        DataFrame with an additional `Archetype` column.
     """
     internal_df = df.rename(columns=INTERNAL_MAP)
 
@@ -135,7 +127,19 @@ def score_gene_pairs(
     config: Optional[BioRSPConfig] = None,
     **kwargs,
 ) -> pd.DataFrame:
-    """Score gene-gene co-patterns."""
+    """Score gene–gene co-patterns in an embedding.
+
+    Args:
+        adata: Annotated data matrix.
+        genes: List of genes to score in pairs.
+        embedding_key: Key in `adata.obsm` storing the embedding.
+        subset: Subset of cells to analyze.
+        config: Optional BioRSP configuration.
+        **kwargs: Configuration overrides.
+
+    Returns:
+        DataFrame with pairwise scores.
+    """
     if config is None:
         config = BioRSPConfig(**kwargs)
 

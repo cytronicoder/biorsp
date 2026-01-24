@@ -1,5 +1,7 @@
 # KPMP All-Gene Archetypes Report
 
+This report is an example output from a specific run. Values, thresholds, and figure filenames reflect the configuration used at that time.
+
 **Generated:** 2026-01-11 04:45:12
 
 ## Dataset Summary
@@ -119,7 +121,7 @@
 
 ## Figures
 
-1. **fig_CS_scatter**: All genes in C-S space with quadrant boundaries
+1. **fig_cs_scatter**: All genes in C vs S space with quadrant boundaries
 2. **fig_CS_marginals**: Histograms of C and S distributions
 3. **fig_top_tables**: Top genes per archetype
 4. **fig_archetype_examples**: Representative gene visualizations

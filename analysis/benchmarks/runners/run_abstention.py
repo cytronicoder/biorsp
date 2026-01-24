@@ -33,7 +33,11 @@ if str(ROOT) not in sys.path:
 
 
 def run_abstention(args):
-    """Run abstention evaluation."""
+    """Run abstention evaluation.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
     from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
     from analysis.benchmarks.simlib.runner_harness import finalize_contract, normalize_scores_df
     from biorsp import BioRSPConfig
@@ -333,7 +337,12 @@ to compute reliable spatial scores.
 
 
 def plot_abstention_summary(output_dir, summary_df):
-    """Plot abstention rate summary."""
+    """Plot abstention rate summary.
+
+    Args:
+        output_dir: Output directory for the plot.
+        summary_df: Summary DataFrame with abstention metrics.
+    """
     fig, ax = plt.subplots(1, 1, figsize=(10, 6))
 
     x_pos = np.arange(len(summary_df))

@@ -177,14 +177,14 @@ def plot_power(csv_path: Path, outdir: Path):
     try:
         from biorsp.simulations import io, plotting
 
-        fig = plotting.plot_power_curve(df, x_var="N", title="Power vs Sample Size")
+        fig = plotting.plot_power_curve(df, x_var="N", title="Power vs. Sample Size")
         io.save_figure(fig, Path(outdir), "power_vs_N.png")
     except ImportError:
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.plot(df_clean["N"], df_clean["power"], "o-", lw=2)
         ax.set_xlabel("Sample Size (N)")
         ax.set_ylabel("Power")
-        ax.set_title("Power vs Sample Size")
+        ax.set_title("Power vs. Sample Size")
         ax.grid(alpha=0.3)
         _save_fig(fig, outdir / "power_vs_N")
 
@@ -363,7 +363,7 @@ def main():
         parser = argparse.ArgumentParser()
         parser.add_argument("csv_path", type=Path)
         parser.add_argument("outdir", type=Path)
-        parser.add_argument("--plot_type", type=str, required=True)
+        parser.add_argument("--plot-type", dest="plot_type", type=str, required=True)
         args = parser.parse_args()
 
         args.outdir.mkdir(parents=True, exist_ok=True)

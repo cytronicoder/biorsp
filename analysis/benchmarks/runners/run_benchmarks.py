@@ -5,11 +5,11 @@ Runs all benchmarks sequentially with optimized settings, tracking progress
 and aggregating runtime statistics. Validates contract outputs strictly.
 
 Usage:
-    python run_benchmarks.py --mode publication --n_workers 8
+    python run_benchmarks.py --mode publication --n-workers 8
 
-    python run_benchmarks.py --mode quick --n_workers 4
+    python run_benchmarks.py --mode quick --n-workers 4
 
-    python run_benchmarks.py --mode publication --n_workers 8 --checkpoint_every 50 --resume
+    python run_benchmarks.py --mode publication --n-workers 8 --checkpoint-every 50 --resume
 """
 
 import argparse
@@ -34,7 +34,15 @@ BENCHMARKS = [
 
 
 def validate_benchmark_outputs(name: str, output_dir: Path) -> Tuple[bool, str]:
-    """Validate that benchmark outputs are complete and non-empty."""
+    """Validate that benchmark outputs are complete and non-empty.
+
+    Args:
+        name: Benchmark name.
+        output_dir: Output directory for the benchmark.
+
+    Returns:
+        Tuple of (is_valid, message).
+    """
     required_files = {
         "report.md": "report",
         "manifest.json": "manifest",
@@ -82,7 +90,20 @@ def run_benchmark(
     resume: bool,
     extra_flags: dict,
 ) -> Tuple[bool, float, str]:
-    """Run a single benchmark and validate outputs."""
+    """Run a single benchmark and validate outputs.
+
+    Args:
+        name: Benchmark name.
+        script: Runner script name.
+        mode: Benchmark mode.
+        n_workers: Number of workers.
+        checkpoint_every: Checkpoint cadence.
+        resume: Whether to resume from checkpoints.
+        extra_flags: Additional CLI flags.
+
+    Returns:
+        Tuple of (success, runtime_seconds, status_message).
+    """
     output_dir = ROOT.parent / "outputs" / name
 
     cmd = [
@@ -90,9 +111,9 @@ def run_benchmark(
         str(BENCHMARKS_DIR / script),
         "--mode",
         mode,
-        "--n_workers",
+        "--n-workers",
         str(n_workers),
-        "--checkpoint_every",
+        "--checkpoint-every",
         str(checkpoint_every),
         "--outdir",
         str(output_dir),
@@ -143,11 +164,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_benchmarks.py --mode publication --n_workers 8
+  python run_benchmarks.py --mode publication --n-workers 8
 
-  python run_benchmarks.py --mode quick --n_workers 4
+  python run_benchmarks.py --mode quick --n-workers 4
 
-  python run_benchmarks.py --mode publication --n_workers 8 --resume
+  python run_benchmarks.py --mode publication --n-workers 8 --resume
         """,
     )
     parser.add_argument(
@@ -158,10 +179,18 @@ Examples:
         help="Benchmark mode: 'quick' (smoke test) or 'publication' (full grid)",
     )
     parser.add_argument(
-        "--n_workers", type=int, default=-1, help="Number of parallel workers (-1 = use all cores)"
+        "--n-workers",
+        dest="n_workers",
+        type=int,
+        default=-1,
+        help="Number of parallel workers (-1 = use all cores)",
     )
     parser.add_argument(
-        "--checkpoint_every", type=int, default=25, help="Save checkpoint every N runs"
+        "--checkpoint-every",
+        dest="checkpoint_every",
+        type=int,
+        default=25,
+        help="Save checkpoint every N runs",
     )
     parser.add_argument(
         "--resume", action="store_true", help="Resume from checkpoint if interrupted"

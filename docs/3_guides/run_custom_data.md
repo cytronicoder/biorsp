@@ -1,49 +1,33 @@
-# Running on Custom Data
+# Running on custom data
 
-BioRSP is designed to work with standard AnnData objects.
+BioRSP expects an AnnData object with a two-dimensional embedding.
 
-## Prerequisites
+## Requirements
 
-1.  **AnnData Object (`adata`)**
-    - `adata.X`: Expression matrix (counts or log-normalized).
-    - `adata.obsm`: Embedding coordinates (e.g., UMAP, t-SNE, Spatial).
+- `adata.X` with cells by genes (counts or normalized values).
+- `adata.obsm` containing a 2D embedding (e.g., `X_umap`, `X_spatial`).
 
-2.  **Embedding**
-    - You must have a 2D embedding key (e.g., `"X_umap"` or `"X_spatial"`).
-    - BioRSP calculates spatial scores *relative to the center* of this embedding.
-
-## Step-by-Step Guide
+## Example workflow
 
 ```python
 import scanpy as sc
 from biorsp import score_genes, classify_genes
 
-# 1. Read your data
-adata = sc.read_h5ad("path/to/my_data.h5ad")
+adata = sc.read_h5ad("path/to/data.h5ad")
 
-# 2. Check for embedding
 if "X_umap" not in adata.obsm:
-    print("Computing UMAP...")
     sc.pp.neighbors(adata)
     sc.tl.umap(adata)
 
-# 3. Select genes to score
-# Usually, we score highly variable genes or marker genes
-sc.pp.highly_variable_genes(adata, n_top_genes=2000)
-genes_to_score = adata.var_names[adata.var["highly_variable"]]
+genes = adata.var_names
+scores = score_genes(adata, genes, embedding_key="X_umap")
+results = classify_genes(scores)
 
-# 4. Run Scoring
-df = score_genes(adata, genes_to_score, embedding_key="X_umap")
-
-# 5. Classify
-results = classify_genes(df)
-
-# 6. Save results
-results.to_csv("biorsp_results.csv")
+results.to_csv("biorsp_results.csv", index=False)
 ```
 
-## Common Pitfalls
+## Common issues
 
--   **Wrong Embedding**: BioRSP assumes the input embedding reflects the spatial geometry you care about. If you use UMAP, it scores organization in UMAP space. If you use physical coordinates (`X_spatial`), it scores physical organization.
--   **Sparse Matrices**: BioRSP handles sparse matrices automatically.
--   **Normalization**: BioRSP infers whether data is raw counts or log-normalized to set detection thresholds. You can override this in `BioRSPConfig`.
+- **Embedding choice**: BioRSP scores organization in the embedding you provide. Use the embedding that represents the spatial geometry you intend to analyze.
+- **Gene filtering**: Large datasets may require a pre-filtered gene list for runtime reasons.
+- **Threshold interpretation**: Archetype labels depend on thresholds; document how you set or derived them when reporting results.

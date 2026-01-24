@@ -51,7 +51,7 @@ def main():
         "analysis/benchmarks/runners/run_archetypes.py",
         "--mode",
         "quick",
-        "--n_reps",
+        "--n-reps",
         "1",
         "--outdir",
         "dev/smoke_tests/output_bench_smoke",

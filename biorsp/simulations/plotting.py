@@ -366,7 +366,7 @@ def plot_robustness_delta(
     figsize: Tuple[float, float] = (8, 6),
 ) -> Figure:
     """
-    Plot robustness (median absolute delta vs perturbation strength).
+    Plot robustness (median absolute delta vs. perturbation strength).
 
     Parameters
     ----------
@@ -464,11 +464,11 @@ def plot_archetype_scatter(
     true_archetypes: np.ndarray,
     c_cut: float = 0.30,
     s_cut: float = 0.15,
-    title: str = "Panel A: Coverage vs Spatial Organization",
+    title: str = "Panel A: Coverage vs. Spatial Organization",
     figsize: Tuple[float, float] = (7, 6),
 ) -> Figure:
     """
-    Create scatter plot of C vs S with ground truth coloring and quadrant boundaries.
+    Create scatter plot of C vs. S with ground truth coloring and quadrant boundaries.
 
     This is Panel A of the story figure.
 
@@ -1141,9 +1141,9 @@ def plot_support_diagnostics(
     Diagnostic plot for supporting statistics that affect S-score reliability.
 
     Shows:
-    - Left: S vs foreground cell count (n_fg)
-    - Center: S vs geometry coverage (n_geom)
-    - Right: S vs foreground/geometry ratio
+    - Left: S vs. foreground cell count (n_fg)
+    - Center: S vs. geometry coverage (n_geom)
+    - Right: S vs. foreground/geometry ratio
 
     Purpose: Diagnose whether low support (few cells) causes unreliable S scores.
 
@@ -1183,7 +1183,7 @@ def plot_support_diagnostics(
         )
     ax.set_xlabel("Foreground Coverage (fraction or count)", fontsize=10)
     ax.set_ylabel("Spatial Bias Score (S)", fontsize=10)
-    ax.set_title("S vs Foreground Support", fontsize=11)
+    ax.set_title("S vs. Foreground Support", fontsize=11)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
 
@@ -1201,7 +1201,7 @@ def plot_support_diagnostics(
         )
     ax.set_xlabel("Geometry Coverage (fraction)", fontsize=10)
     ax.set_ylabel("Spatial Bias Score (S)", fontsize=10)
-    ax.set_title("S vs Geometry Support", fontsize=11)
+    ax.set_title("S vs. Geometry Support", fontsize=11)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
 
@@ -1220,7 +1220,7 @@ def plot_support_diagnostics(
         )
     ax.set_xlabel("FG/BG Ratio", fontsize=10)
     ax.set_ylabel("Spatial Bias Score (S)", fontsize=10)
-    ax.set_title("S vs FG/BG Ratio", fontsize=11)
+    ax.set_title("S vs. FG/BG Ratio", fontsize=11)
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
     ax.set_xscale("log")
@@ -1361,7 +1361,7 @@ def plot_pattern_detectability(
     """
     Show S score distribution for each pattern type to verify detectability.
 
-    Purpose: Confirm which patterns produce high S (detectable) vs low S (not detectable).
+    Purpose: Confirm which patterns produce high S (detectable) vs. low S (not detectable).
 
     Parameters
     ----------
@@ -1745,7 +1745,7 @@ def plot_genegene_distributions(
     figsize: Tuple[float, float] = (10, 5),
 ) -> Figure:
     """
-    Plot within-module vs between-module score distributions.
+    Plot within-module vs. between-module score distributions.
 
     Purpose: Visual separation indicates module recovery capability.
 
@@ -2272,7 +2272,7 @@ def plot_robustness_example_panel(
     """
     Create example panel for robustness analysis.
 
-    Shows baseline vs distorted comparison for coordinates and scores.
+    Shows baseline vs. distorted comparison for coordinates and scores.
 
     Parameters
     ----------

@@ -217,7 +217,7 @@ def test_workflow_figures(outdir: Path, coords: np.ndarray, expr: np.ndarray, co
             "delta_deg": config.delta_deg,
             "B": config.B,
         },
-        "note": "coverage_expr != foreground_fraction (biological vs internal threshold)",
+        "note": "coverage_expr != foreground_fraction (biological vs. internal threshold)",
     }
     save_metadata(outdir / "09_workflow_debug", metadata)
 

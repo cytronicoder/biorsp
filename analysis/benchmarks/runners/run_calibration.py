@@ -23,20 +23,16 @@ if str(ROOT) not in sys.path:
 def run_calibration_condition(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
     """Run a single calibration replicate.
 
-    Parameters
-    ----------
-    config_dict : dict
-        Condition configuration; keys include 'shape', 'N', and 'null_type'.
-    seed : int
-        Random seed for the replicate.
-    config : BioRSPConfig
-        Scoring configuration for BioRSP (e.g., B, delta_deg, n_permutations).
+    Args:
+        config_dict: Condition configuration with keys such as `shape`, `N`,
+            and `null_type`.
+        seed: Random seed for the replicate.
+        config: BioRSP scoring configuration (e.g., `B`, `delta_deg`,
+            `n_permutations`).
 
-    Returns
-    -------
-    dict
+    Returns:
         Row dictionary containing schema-required columns and metadata. May
-        contain abstention indicators (``abstain_flag``, ``abstain_reason``).
+        include abstention indicators (`abstain_flag`, `abstain_reason`).
     """
     from biorsp.simulations import (
         datasets,
@@ -130,7 +126,7 @@ def run_calibration_condition(config_dict: dict, seed: int, config: "BioRSPConfi
 
 
 def main():
-    """Run calibration benchmark CLI.
+    """Run the calibration benchmark CLI.
 
     Parses command-line options, executes replicates across a condition grid,
     derives thresholds, produces plots, and writes contract artifacts.
@@ -159,33 +155,45 @@ def main():
         help="Base output directory",
     )
     parser.add_argument(
-        "--run_id", type=str, default=None, help="Run identifier (default: timestamp)"
+        "--run-id", type=str, default=None, help="Run identifier (default: timestamp)"
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--n_reps", type=int, default=100)
+    parser.add_argument("--n-reps", dest="n_reps", type=int, default=100)
     parser.add_argument("--N", type=int, nargs="+", default=[500, 1000, 2000])
     parser.add_argument(
         "--shape", type=str, nargs="+", default=["disk", "ellipse", "annulus", "peanut"]
     )
     parser.add_argument(
-        "--null_type",
+        "--null-type",
+        dest="null_type",
         type=str,
         nargs="+",
         default=["iid", "depth_confounded", "mask_stress"],
         help="Null types: iid, depth_confounded, mask_stress (NOT density_confounded - that creates signal!)",
     )
 
-    parser.add_argument("--n_permutations", type=int, default=250)
+    parser.add_argument("--n-permutations", type=int, default=250)
     parser.add_argument(
         "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
     )
     parser.add_argument(
-        "--n_workers", type=int, default=1, help="Parallel workers (-1 = all cores)"
+        "--n-workers",
+        dest="n_workers",
+        type=int,
+        default=1,
+        help="Parallel workers (-1 = all cores)",
     )
-    parser.add_argument("--checkpoint_every", type=int, default=25, help="Save every N replicates")
+    parser.add_argument(
+        "--checkpoint-every",
+        dest="checkpoint_every",
+        type=int,
+        default=25,
+        help="Save every N replicates",
+    )
     parser.add_argument("--resume", action="store_true", help="Resume from existing runs.csv")
     parser.add_argument(
-        "--permutation_scope",
+        "--permutation-scope",
+        dest="permutation_scope",
         type=str,
         choices=["none", "topk", "all"],
         default="all",

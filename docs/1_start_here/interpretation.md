@@ -1,44 +1,26 @@
-# Interpreting Scores
+# Interpreting scores
 
-BioRSP outputs three primary standardized metrics. Here is how to interpret them.
+This page summarizes the primary per-gene outputs returned by the API. All values depend on the embedding supplied by the user.
 
-## 1. Coverage
+## Coverage
 
-_Column: `Coverage`_
+- Column: `Coverage`
+- Interpretation: fraction of cells classified as foreground for the gene. Values lie in `[0, 1]`.
+- Low coverage indicates rare expression; high coverage indicates widespread expression.
 
-The fraction of cells in the region of interest (ROI) that express the gene above a background threshold.
+## Spatial organization score
 
-- **Low (<0.05)**: Rare cell types or noise.
-- **High (>0.8)**: Ubiquitous housekeeping genes.
+- Column: `Spatial_Bias_Score`
+- Interpretation: non-negative summary of directional radial structure. Larger values indicate stronger directional structure in the embedding.
+- The score is embedding-specific; interpretation should be tied to the biological meaning of the chosen embedding.
 
-## 2. Spatial Bias Score
+## Directionality
 
-_Column: `Spatial_Bias_Score`_
+- Column: `Directionality`
+- Interpretation: signed radial summary derived from the radar profile. Positive and negative values indicate different radial biases (e.g., core vs. rim), depending on the embedding and foreground definition.
 
-A measure of how "organized" the expression is, ranging from 0 to 1 (or higher for very strong signals).
+## Archetypes
 
-- **0.0 - 0.1**: Random/Noise.
-- **0.1 - 0.2**: Weak spatial pattern.
-- **> 0.2**: Strong spatial pattern.
-
-**Note**: A gene with high Coverage but low Spatial Bias Score is likely ubiquitous and uniform (not spatially variable).
-
-## 3. Directionality
-
-_Column: `Directionality`_
-
-Indicates if the spatial pattern is one-sided (gradient).
-
-- **Near 0**: Symmetric pattern (e.g., center of tissue, or ubiquitous).
-- **High Abs Value**: Strong gradient towards one side.
-
-## 4. Archetypes
-
-_Column: `Archetype`_
-
-Classifications derived from the metrics above:
-
-- **I: Ubiquitous**: High Coverage, Low Spatial Bias Score.
-- **II: Gradient**: High Spatial Bias Score, High Directionality.
-- **III: Patchy**: Low Coverage, High Spatial Bias Score.
-- **IV: Basal/Edge**: Geometry-specific patterns.
+- Column: `Archetype`
+- BioRSP assigns archetypes by comparing each gene’s coverage and spatial score to thresholds (`C_cut`, `S_cut`).
+- If thresholds are data-derived (e.g., from benchmarks), interpret archetypes relative to the training data and split described in the run report.

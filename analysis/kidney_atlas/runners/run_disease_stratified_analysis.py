@@ -18,24 +18,24 @@ Key Features:
 
 Quick Examples:
     python run_disease_stratified_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/disease_stratified \\
-      --max_genes 100
+      --max-genes 100
 
     python run_disease_stratified_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/tal_disease_stratified \\
-      --celltype_key subclass.l1 \\
-      --celltype_filter TAL \\
-      --max_genes 100
+      --celltype-key subclass.l1 \\
+      --celltype-filter TAL \\
+      --max-genes 100
 
     python run_disease_stratified_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/disease_full \\
-      --max_genes 500 \\
-      --n_permutations 1000 \\
-      --do_genegene \\
-      --n_workers 4
+      --max-genes 500 \\
+      --n-permutations 1000 \\
+      --do-genegene \\
+      --n-workers 4
 """
 
 from __future__ import annotations
@@ -142,24 +142,29 @@ ARCHETYPE_NAMES = {
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments."""
+    """Parse command-line arguments.
+
+    Returns:
+        Parsed arguments namespace.
+    """
     parser = argparse.ArgumentParser(
         description="Disease-Stratified BioRSP Analysis for KPMP Data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_disease_stratified_analysis.py --ref_data data/kpmp.h5ad \\
-      --outdir results/disease_stratified --max_genes 100
+  python run_disease_stratified_analysis.py --ref-data data/kpmp.h5ad \\
+      --outdir results/disease_stratified --max-genes 100
 
-  python run_disease_stratified_analysis.py --ref_data data/kpmp.h5ad \\
-      --outdir results/tal_disease --celltype_key subclass.l1 \\
-      --celltype_filter TAL --max_genes 100
+  python run_disease_stratified_analysis.py --ref-data data/kpmp.h5ad \\
+      --outdir results/tal_disease --celltype-key subclass.l1 \\
+      --celltype-filter TAL --max-genes 100
 """,
     )
 
     io_group = parser.add_argument_group("Input/Output")
     io_group.add_argument(
-        "--ref_data",
+        "--ref-data",
+        dest="ref_data",
         type=str,
         required=True,
         help="Path to reference data (.h5ad preferred)",
@@ -173,26 +178,30 @@ Examples:
 
     cell_group = parser.add_argument_group("Cell Selection")
     cell_group.add_argument(
-        "--disease_key",
+        "--disease-key",
+        dest="disease_key",
         type=str,
         default=None,
         help="Metadata column for disease labels (auto-detect if not provided)",
     )
     cell_group.add_argument(
-        "--celltype_key",
+        "--celltype-key",
+        dest="celltype_key",
         type=str,
         default="subclass.l1",
         help="Metadata column for cell type (default: subclass.l1)",
     )
     cell_group.add_argument(
-        "--celltype_filter",
+        "--celltype-filter",
+        dest="celltype_filter",
         type=str,
         nargs="+",
         default=None,
-        help="Cell type label(s) to analyze (e.g., TAL). If not provided, analyze all cells.",
+        help="Cell type label(s to analyze (e.g., TAL). If not provided, analyze all cells.",
     )
     cell_group.add_argument(
-        "--donor_key",
+        "--donor-key",
+        dest="donor_key",
         type=str,
         default="donor_id",
         help="Metadata column for donor identifiers (default: donor_id)",
@@ -211,19 +220,22 @@ Examples:
         help="Comma-separated control genes (e.g., 'SLC12A1,UMOD,EGF')",
     )
     gene_group.add_argument(
-        "--min_pct",
+        "--min-pct",
+        dest="min_pct",
         type=float,
         default=0.01,
         help="Minimum expression prevalence for discovery genes (default: 0.01)",
     )
     gene_group.add_argument(
-        "--max_genes",
+        "--max-genes",
+        dest="max_genes",
         type=int,
         default=None,
         help="Maximum discovery genes to analyze (default: all passing filters)",
     )
     gene_group.add_argument(
-        "--exclude_patterns",
+        "--exclude-patterns",
+        dest="exclude_patterns",
         type=str,
         default="^MT-|^mt-|^RPS|^RPL",
         help="Regex pattern for genes to exclude (default: MT/ribosomal)",
@@ -231,7 +243,8 @@ Examples:
 
     scoring_group = parser.add_argument_group("Scoring Parameters")
     scoring_group.add_argument(
-        "--embedding_key",
+        "--embedding-key",
+        dest="embedding_key",
         type=str,
         default=None,
         help="Key in adata.obsm for embedding (default: auto-detect X_umap)",
@@ -243,39 +256,45 @@ Examples:
         help="Number of angular sectors (default: 72 = 5° resolution)",
     )
     scoring_group.add_argument(
-        "--delta_deg",
+        "--delta-deg",
+        dest="delta_deg",
         type=float,
         default=60.0,
         help="Sector width in degrees (default: 60°)",
     )
     scoring_group.add_argument(
-        "--foreground_quantile",
+        "--foreground-quantile",
+        dest="foreground_quantile",
         type=float,
         default=0.90,
         help="Quantile for foreground selection (default: 0.90)",
     )
     scoring_group.add_argument(
-        "--expr_threshold_mode",
+        "--expr-threshold-mode",
+        dest="expr_threshold_mode",
         type=str,
         choices=["detect", "fixed", "nonzero_quantile"],
         default="detect",
         help="How to determine coverage threshold (default: detect)",
     )
     scoring_group.add_argument(
-        "--expr_threshold_value",
+        "--expr-threshold-value",
+        dest="expr_threshold_value",
         type=float,
         default=None,
         help="Fixed coverage threshold (only used if mode=fixed)",
     )
     scoring_group.add_argument(
-        "--empty_fg_policy",
+        "--empty-fg-policy",
+        dest="empty_fg_policy",
         type=str,
         choices=["nan", "zero"],
         default="zero",
         help="Policy for empty-foreground sectors (default: zero)",
     )
     scoring_group.add_argument(
-        "--n_permutations",
+        "--n-permutations",
+        dest="n_permutations",
         type=int,
         default=200,
         help="Number of permutations for p-value calculation (default: 200)",
@@ -283,13 +302,15 @@ Examples:
 
     class_group = parser.add_argument_group("Archetype Classification")
     class_group.add_argument(
-        "--c_cut",
+        "--c-cut",
+        dest="c_cut",
         type=float,
         default=0.10,
         help="Coverage cutoff for archetype classification (default: 0.10)",
     )
     class_group.add_argument(
-        "--s_cut",
+        "--s-cut",
+        dest="s_cut",
         type=float,
         default=None,
         help="Spatial score cutoff (default: median of scored genes)",
@@ -297,7 +318,8 @@ Examples:
 
     genegene_group = parser.add_argument_group("Gene-Gene Analysis")
     genegene_group.add_argument(
-        "--do_genegene",
+        "--do-genegene",
+        dest="do_genegene",
         action="store_true",
         help="Compute pairwise gene relationships (can be slow)",
     )
@@ -310,13 +332,15 @@ Examples:
         help="Random seed for reproducibility (default: 42)",
     )
     runtime_group.add_argument(
-        "--n_workers",
+        "--n-workers",
+        dest="n_workers",
         type=int,
         default=1,
         help="Number of parallel workers (default: 1)",
     )
     runtime_group.add_argument(
-        "--strict_plots",
+        "--strict-plots",
+        dest="strict_plots",
         action="store_true",
         help="Raise exceptions on plotting errors instead of logging and continuing",
     )
@@ -326,7 +350,8 @@ Examples:
         help="Smoke test mode: 50 genes, no permutations, all plot types (overrides max_genes/n_permutations)",
     )
     runtime_group.add_argument(
-        "--debug_plots",
+        "--debug-plots",
+        dest="debug_plots",
         action="store_true",
         help="Generate intermediate debug plots (pointcloud, sector support)",
     )
@@ -335,18 +360,13 @@ Examples:
 
 
 def discover_disease_key(adata: anndata.AnnData) -> str | None:
-    """
-    Auto-discover disease/condition metadata column.
+    """Auto-discover the disease/condition metadata column.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data object
+    Args:
+        adata: Annotated data object.
 
-    Returns
-    -------
-    Optional[str]
-        Discovered disease key or None
+    Returns:
+        Discovered disease key or None if not found.
     """
     for key in DISEASE_KEYS:
         if key in adata.obs.columns:
@@ -359,18 +379,13 @@ def discover_disease_key(adata: anndata.AnnData) -> str | None:
 
 
 def standardize_disease_labels(disease_series: pd.Series) -> pd.Series:
-    """
-    Standardize disease labels to canonical names.
+    """Standardize disease labels to canonical names.
 
-    Parameters
-    ----------
-    disease_series : pd.Series
-        Disease labels from metadata
+    Args:
+        disease_series: Disease labels from metadata.
 
-    Returns
-    -------
-    pd.Series
-        Standardized disease labels
+    Returns:
+        Standardized disease labels.
     """
     standardized = disease_series.str.lower().str.replace(" ", "_")
     standardized = standardized.map(lambda x: DISEASE_MAPPINGS.get(x, x))
@@ -378,20 +393,14 @@ def standardize_disease_labels(disease_series: pd.Series) -> pd.Series:
 
 
 def get_disease_groups(adata: anndata.AnnData, disease_key: str) -> dict[str, np.ndarray]:
-    """
-    Get cell indices for each disease group.
+    """Get cell indices for each disease group.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data
-    disease_key : str
-        Column name for disease labels
+    Args:
+        adata: Annotated data object.
+        disease_key: Column name for disease labels.
 
-    Returns
-    -------
-    Dict[str, np.ndarray]
-        Mapping from disease name to cell indices
+    Returns:
+        Mapping from disease name to cell indices.
     """
     disease_labels = standardize_disease_labels(adata.obs[disease_key])
 
@@ -411,24 +420,16 @@ def get_disease_groups(adata: anndata.AnnData, disease_key: str) -> dict[str, np
 def estimate_coverage(
     x: np.ndarray, mode: str, value: float | None, nonzero_q: float = 0.25
 ) -> float:
-    """
-    Estimate coverage using BioRSP threshold logic.
+    """Estimate coverage using BioRSP threshold logic.
 
-    Parameters
-    ----------
-    x : np.ndarray
-        Expression vector
-    mode : str
-        Threshold mode: 'detect', 'fixed', 'nonzero_quantile'
-    value : Optional[float]
-        Fixed threshold value (for 'fixed' mode)
-    nonzero_q : float
-        Quantile for 'nonzero_quantile' mode (default: 0.25)
+    Args:
+        x: Expression vector.
+        mode: Threshold mode (`detect`, `fixed`, `nonzero_quantile`).
+        value: Fixed threshold value (for `fixed` mode).
+        nonzero_q: Quantile for `nonzero_quantile` mode.
 
-    Returns
-    -------
-    float
-        Fraction of cells with expr >= threshold
+    Returns:
+        Fraction of cells with expression above the threshold.
     """
     if mode == "fixed":
         if value is not None:
@@ -449,7 +450,18 @@ def estimate_coverage(
 
 
 def load_reference(ref_path: str) -> anndata.AnnData:
-    """Load reference dataset."""
+    """Load the reference dataset from a `.h5ad` file.
+
+    Args:
+        ref_path: Path to the reference dataset.
+
+    Returns:
+        Loaded AnnData object.
+
+    Raises:
+        FileNotFoundError: If the reference path does not exist.
+        ValueError: If the file format is unsupported.
+    """
     logger.info(f"Loading reference from {ref_path}")
     if not Path(ref_path).exists():
         raise FileNotFoundError(f"Reference file not found: {ref_path}")
@@ -464,7 +476,15 @@ def load_reference(ref_path: str) -> anndata.AnnData:
 
 
 def compute_file_checksum(filepath: str, algorithm: str = "sha256") -> str:
-    """Compute file checksum for provenance."""
+    """Compute a file checksum for provenance.
+
+    Args:
+        filepath: Path to the file.
+        algorithm: Hash algorithm name.
+
+    Returns:
+        Hex-encoded checksum.
+    """
     h = hashlib.new(algorithm)
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
@@ -475,15 +495,15 @@ def compute_file_checksum(filepath: str, algorithm: str = "sha256") -> str:
 def build_symbol_mappings(
     adata: anndata.AnnData,
 ) -> tuple[dict[str, str], dict[str, str]]:
-    """
-    Build bidirectional mappings between var_names and gene_symbols.
+    """Build bidirectional mappings between `var_names` and gene symbols.
 
-    Checks for feature_name (KPMP), gene_symbols, or symbol columns.
+    Checks for `feature_name` (KPMP), `gene_symbols`, or `symbol` columns.
 
-    Returns
-    -------
-    Tuple[Dict[str, str], Dict[str, str]]
-        (var_to_symbol, symbol_to_var)
+    Args:
+        adata: AnnData object.
+
+    Returns:
+        Tuple of `(var_to_symbol, symbol_to_var)` mappings.
     """
     if "feature_name" in adata.var.columns:
         var_to_symbol = {}
@@ -504,20 +524,17 @@ def build_symbol_mappings(
 
 
 def detect_embedding_key(adata: anndata.AnnData, user_key: str | None) -> str:
-    """
-    Detect or validate embedding key.
+    """Detect or validate the embedding key.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data
-    user_key : Optional[str]
-        User-specified key (takes priority)
+    Args:
+        adata: Annotated data object.
+        user_key: User-specified key (takes priority).
 
-    Returns
-    -------
-    str
-        Validated embedding key
+    Returns:
+        Validated embedding key.
+
+    Raises:
+        ValueError: If no valid embedding is found.
     """
     if user_key:
         if user_key not in adata.obsm:
@@ -533,7 +550,7 @@ def detect_embedding_key(adata: anndata.AnnData, user_key: str | None) -> str:
 
     available = list(adata.obsm.keys())
     raise ValueError(
-        f"No embedding found. Available keys: {available}. Please specify --embedding_key"
+        f"No embedding found. Available keys: {available}. Please specify --embedding-key"
     )
 
 
@@ -549,15 +566,22 @@ def select_genes(
     expr_threshold_mode: str = "detect",
     expr_threshold_value: float | None = None,
 ) -> tuple[list[str], list[str], dict]:
-    """
-    Select genes for analysis (controls + discovery).
+    """Select genes for analysis (controls plus discovery set).
 
-    Uses same coverage threshold logic as BioRSP scoring.
+    Args:
+        adata: AnnData object.
+        controls_str: Comma-separated control gene list.
+        symbol_to_var: Mapping from symbol to var name.
+        var_to_symbol: Mapping from var name to symbol.
+        min_pct: Minimum coverage fraction for discovery genes.
+        max_genes: Maximum number of genes to analyze.
+        exclude_patterns: Regex pattern for excluding genes by symbol.
+        seed: Random seed for subsampling.
+        expr_threshold_mode: Threshold mode for coverage estimation.
+        expr_threshold_value: Fixed threshold value when using `fixed` mode.
 
-    Returns
-    -------
-    Tuple[List[str], List[str], Dict]
-        (genes_to_analyze, control_vars, selection_info)
+    Returns:
+        Tuple of `(genes_to_analyze, control_vars, selection_info)`.
     """
     logger.info("Selecting genes for analysis...")
 
@@ -632,34 +656,21 @@ def run_analysis_for_disease(
     args: argparse.Namespace,
     outdir: Path,
 ) -> dict:
-    """
-    Run complete BioRSP analysis for one disease group.
+    """Run complete BioRSP analysis for one disease group.
 
-    Parameters
-    ----------
-    adata_disease : AnnData
-        Subset of data for this disease
-    disease_name : str
-        Name of the disease condition
-    genes_to_analyze : List[str]
-        List of genes to score
-    control_vars : List[str]
-        Control gene identifiers
-    var_to_symbol : Dict[str, str]
-        Mapping from var to symbol
-    embedding_key : str
-        Key for embedding
-    config : BioRSPConfig
-        BioRSP configuration
-    args : argparse.Namespace
-        Command-line arguments
-    outdir : Path
-        Output directory for this disease
+    Args:
+        adata_disease: Subset of data for this disease.
+        disease_name: Disease condition name.
+        genes_to_analyze: List of genes to score.
+        control_vars: Control gene identifiers.
+        var_to_symbol: Mapping from var name to symbol.
+        embedding_key: Embedding key to use.
+        config: BioRSP configuration.
+        args: Parsed CLI arguments.
+        outdir: Output directory for this disease.
 
-    Returns
-    -------
-    Dict
-        Analysis metadata
+    Returns:
+        Analysis metadata dictionary.
     """
     logger.info(f"\n{'=' * 80}")
     logger.info(f"Analyzing disease group: {disease_name}")
@@ -815,13 +826,17 @@ def run_analysis_for_disease(
 
 
 def select_exemplar_genes(df: pd.DataFrame, n_per_archetype: int = 3) -> list[str]:
-    """
-    Select representative genes for each archetype.
+    """Select representative genes for each archetype.
 
-    Prefers:
-    - Control genes (if is_control=True)
-    - High coverage_geom
-    - Extreme spatial_score (high for localized, low for uniform)
+    Args:
+        df: DataFrame with archetype assignments.
+        n_per_archetype: Number of genes to select per archetype.
+
+    Returns:
+        List of exemplar gene identifiers.
+
+    Notes:
+        Selection prioritizes control genes and high `coverage_geom`.
     """
     exemplars = []
 
@@ -839,7 +854,13 @@ def select_exemplar_genes(df: pd.DataFrame, n_per_archetype: int = 3) -> list[st
 
 
 def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
-    """Generate tables of top genes for each archetype."""
+    """Generate tables of top genes for each archetype.
+
+    Args:
+        df: DataFrame with gene scores and archetypes.
+        outdir: Output directory.
+        n_top: Number of top genes per archetype.
+    """
     try:
         figures_dir = outdir / "figures"
         figures_dir.mkdir(exist_ok=True)
@@ -956,7 +977,7 @@ def main():
     else:
         disease_key = discover_disease_key(adata)
         if disease_key is None:
-            raise ValueError("Could not auto-discover disease column. Please specify --disease_key")
+            raise ValueError("Could not auto-discover disease column. Please specify --disease-key")
 
     run_meta["disease_key"] = disease_key
     logger.info(f"Using disease column: {disease_key}")
@@ -974,7 +995,7 @@ def main():
         logger.info("[Stage 3] Filtering by cell type...")
 
         if not args.celltype_key:
-            raise ValueError("Must specify --celltype_key when using --celltype_filter")
+            raise ValueError("Must specify --celltype-key when using --celltype-filter")
 
         if args.celltype_key not in adata.obs.columns:
             raise ValueError(
@@ -1023,7 +1044,7 @@ def main():
     run_meta["gene_selection"] = selection_info
 
     if len(genes_to_analyze) == 0:
-        raise ValueError("No genes selected. Check --min_pct and --exclude_patterns")
+        raise ValueError("No genes selected. Check --min-pct and --exclude-patterns")
 
     logger.info("[Stage 6] Configuring BioRSP...")
 
@@ -1103,7 +1124,15 @@ def main():
 
 
 def generate_readme(run_meta: dict, args: argparse.Namespace) -> str:
-    """Generate README documentation for the analysis."""
+    """Generate README documentation for the analysis.
+
+    Args:
+        run_meta: Run metadata dictionary.
+        args: Parsed CLI arguments.
+
+    Returns:
+        Markdown text describing the analysis outputs.
+    """
     readme = f"""# Disease-Stratified BioRSP Analysis
 
 
@@ -1163,7 +1192,7 @@ def generate_readme(run_meta: dict, args: argparse.Namespace) -> str:
 ├── README.md                    # This file
 ├── normal/                      # Normal condition results
 │   ├── gene_scores.csv
-│   ├── gene_pairs.csv (if --do_genegene)
+│   ├── gene_pairs.csv (if --do-genegene)
 │   └── radar_plots/
 ├── acute_kidney_failure/        # AKI results
 │   └── ...
@@ -1180,11 +1209,11 @@ Results can be compared across disease conditions to identify:
 For TAL-specific analysis, use:
 ```bash
 python run_disease_stratified_analysis.py \\
-  --ref_data data/kpmp.h5ad \\
+  --ref-data data/kpmp.h5ad \\
   --outdir results/tal_disease \\
-  --celltype_key subclass.l1 \\
-  --celltype_filter TAL \\
-  --max_genes 100
+  --celltype-key subclass.l1 \\
+  --celltype-filter TAL \\
+  --max-genes 100
 ```
 """
 

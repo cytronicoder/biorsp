@@ -1,6 +1,6 @@
 # Quickstart
 
-Get started with BioRSP in 5 minutes.
+This quickstart uses a small example dataset from Scanpy and the Python API.
 
 ## Installation
 
@@ -8,44 +8,25 @@ Get started with BioRSP in 5 minutes.
 pip install .
 ```
 
-(Or from PyPI once released)
-
-## Minimal Example
+## Minimal example
 
 ```python
 import scanpy as sc
 from biorsp import score_genes, classify_genes
 
-# 1. Load Data
 adata = sc.datasets.pbmc3k_processed()
-# Ensure we have an embedding (e.g., UMAP)
-if "X_umap" not in adata.obsm:
-    sc.tl.pca(adata)
-    sc.pp.neighbors(adata)
-    sc.tl.umap(adata)
 
-# 2. Score Genes
-# This calculates Coverage (C) and Spatial Bias Score (S)
-genes = ["CD3D", "MS4A1", "CST3"]
-scores = score_genes(adata, genes, embedding_key="X_umap")
-
-# 3. Classify Archetypes
-# Categorizes genes into: Housekeeping, Regional Program, Niche Marker, or Sparse Noise
+scores = score_genes(adata, adata.var_names, embedding_key="X_umap")
 results = classify_genes(scores)
 
-print(results[["Coverage", "Spatial_Bias_Score", "Archetype"]])
+print(results[["Coverage", "Spatial_Bias_Score", "Directionality", "Archetype"]].head())
 ```
 
-## Understanding the Output
+## Output notes
 
-| Column | Description |
-|--------|-------------|
-| **Coverage** | Fraction of cells where the gene is expressed. (0.0 to 1.0) |
-| **Spatial_Bias_Score** | Magnitude of directional bias. Higher = more spatially coherent. |
-| **Directionality** | Signed value indicating orientation (if applicable). |
-| **Archetype** | Biological classification of the pattern. |
+- `Coverage`: fraction of cells above the foreground threshold.
+- `Spatial_Bias_Score`: spatial organization summary (non-negative).
+- `Directionality`: signed summary derived from radial statistics.
+- `Archetype`: label derived from coverage and spatial-score thresholds.
 
-## Next Steps
-
-- Learn about the [Interpretation](interpretation.md) of scores.
-- Run on [Custom Data](../3_guides/run_custom_data.md).
+See `docs/1_start_here/interpretation.md` for guidance on interpreting these fields.

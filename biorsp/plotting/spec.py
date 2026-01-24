@@ -56,29 +56,19 @@ QUADRANT_ANNOTATIONS = [
 
 @dataclass
 class PlotSpec:
-    """
-    Specification for standardized BioRSP plots.
+    """Specification for standardized BioRSP plots.
 
     This class defines the canonical thresholds, column names, and classification
-    logic used across all plotting functions. It ensures that:
-    1. Quadrant cutoff lines match the classification logic
-    2. Colors are assigned consistently
-    3. Column names are standardized
+    logic used across plotting functions. It ensures that quadrant cutoff lines
+    match the classification logic and that colors are assigned consistently.
 
-    Parameters
-    ----------
-    c_cut : float
-        Coverage threshold separating high/low (default: 0.30)
-    s_cut : float
-        Spatial score threshold separating high/low (default: 0.15)
-    coverage_col : str
-        Column name for coverage in DataFrames (default: "Coverage")
-    spatial_col : str
-        Column name for spatial bias score (default: "Spatial_Bias_Score")
-    archetype_col : str
-        Column name for archetype labels (default: "Archetype")
-    min_expr_cells : int
-        Minimum expressing cells for valid classification (default: 10)
+    Args:
+        c_cut: Coverage threshold separating high/low.
+        s_cut: Spatial score threshold separating high/low.
+        coverage_col: Column name for coverage in DataFrames.
+        spatial_col: Column name for spatial bias score.
+        archetype_col: Column name for archetype labels.
+        min_expr_cells: Minimum expressing cells for valid classification.
     """
 
     c_cut: float = 0.30
@@ -98,24 +88,16 @@ class PlotSpec:
         n_expr_cells: Optional[int] = None,
         abstain_flag: bool = False,
     ) -> str:
-        """
-        Classify a gene/replicate into an archetype based on C and S.
+        """Classify a gene or replicate into an archetype based on C and S.
 
-        Parameters
-        ----------
-        coverage : float
-            Coverage score (fraction of cells above threshold)
-        spatial_bias_score : float
-            Spatial organization score (weighted RMS)
-        n_expr_cells : int, optional
-            Number of expressing cells (for abstention check)
-        abstain_flag : bool
-            Whether the scoring algorithm abstained
+        Args:
+            coverage: Coverage score (fraction of cells above threshold).
+            spatial_bias_score: Spatial organization score (weighted RMS).
+            n_expr_cells: Number of expressing cells (for abstention check).
+            abstain_flag: Whether the scoring algorithm abstained.
 
-        Returns
-        -------
-        archetype : str
-            One of: "Ubiquitous", "Gradient", "Patchy", "Basal", "Abstention"
+        Returns:
+            Archetype label: `Ubiquitous`, `Gradient`, `Patchy`, `Basal`, or `Abstention`.
         """
         if abstain_flag:
             return "Abstention"
@@ -143,20 +125,17 @@ class PlotSpec:
         df: pd.DataFrame,
         inplace: bool = False,
     ) -> pd.DataFrame:
-        """
-        Classify all rows in a DataFrame and add Archetype column.
+        """Classify all rows in a DataFrame and add an archetype column.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame with Coverage and Spatial_Bias_Score columns
-        inplace : bool
-            If True, modify df in place; otherwise return copy
+        Args:
+            df: DataFrame with coverage and spatial score columns.
+            inplace: If True, modify `df` in place; otherwise return a copy.
 
-        Returns
-        -------
-        df : pd.DataFrame
-            DataFrame with added/updated Archetype column
+        Returns:
+            DataFrame with an added or updated archetype column.
+
+        Raises:
+            ValueError: If required columns are missing.
         """
         if not inplace:
             df = df.copy()
@@ -181,60 +160,42 @@ class PlotSpec:
         return df
 
     def get_color(self, archetype: str, default: str = "#BDBDBD") -> str:
-        """
-        Get color for an archetype label.
+        """Get the color for an archetype label.
 
-        Parameters
-        ----------
-        archetype : str
-            Archetype name
-        default : str
-            Default color hex code for unknown archetypes
+        Args:
+            archetype: Archetype name.
+            default: Default color hex code for unknown archetypes.
 
-        Returns
-        -------
-        color : str
-            Hex color code
+        Returns:
+            Hex color code.
         """
         return self.colors.get(archetype, default)
 
     def get_description(self, archetype: str, default: str = "Unknown archetype") -> str:
-        """
-        Get plain-language description for an archetype.
+        """Get a plain-language description for an archetype.
 
-        Parameters
-        ----------
-        archetype : str
-            Archetype name
-        default : str
-            Default description for unknown archetypes
+        Args:
+            archetype: Archetype name.
+            default: Default description for unknown archetypes.
 
-        Returns
-        -------
-        description : str
-            Multi-line description text
+        Returns:
+            Description text.
         """
         return self.descriptions.get(archetype, default)
 
     def get_quadrant_bounds(self) -> Tuple[float, float]:
-        """
-        Get the (c_cut, s_cut) thresholds as a tuple.
+        """Return the `(c_cut, s_cut)` thresholds as a tuple.
 
-        Returns
-        -------
-        bounds : tuple
-            (coverage_threshold, spatial_threshold)
+        Returns:
+            Tuple of `(coverage_threshold, spatial_threshold)`.
         """
         return (self.c_cut, self.s_cut)
 
     def get_legend_order(self) -> List[str]:
-        """
-        Get the canonical ordering for legend entries.
+        """Return the canonical ordering for legend entries.
 
-        Returns
-        -------
-        order : list
-            List of archetype names in display order
+        Returns:
+            List of archetype names in display order.
         """
         return self.order.copy()
 

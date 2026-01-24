@@ -19,20 +19,20 @@ Workflow:
 
 Quick Examples:
     python run_tal_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/tal_pilot \\
       --controls "SLC12A1,UMOD,EGF" \\
-      --max_genes 10 \\
-      --n_permutations 100
+      --max-genes 10 \\
+      --n-permutations 100
 
     python run_tal_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/tal_full \\
       --controls "SLC12A1,UMOD,EGF" \\
-      --max_genes 500 \\
-      --n_permutations 1000 \\
-      --do_genegene \\
-      --n_workers 4
+      --max-genes 500 \\
+      --n-permutations 1000 \\
+      --do-genegene \\
+      --n-workers 4
 """
 
 from __future__ import annotations
@@ -93,24 +93,29 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments for the TAL case study."""
+    """Parse command-line arguments for the TAL case study.
+
+    Returns:
+        Parsed arguments namespace.
+    """
     parser = argparse.ArgumentParser(
         description="BioRSP TAL Case Study: Spatial gene scoring in human kidney",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_tal_analysis.py --ref_data data/kpmp.h5ad --outdir results/pilot \\
-      --controls "SLC12A1,UMOD,EGF" --max_genes 10 --n_permutations 100
+  python run_tal_analysis.py --ref-data data/kpmp.h5ad --outdir results/pilot \\
+      --controls "SLC12A1,UMOD,EGF" --max-genes 10 --n-permutations 100
 
-  python run_tal_analysis.py --ref_data data/kpmp.h5ad --outdir results/full \\
-      --controls "SLC12A1,UMOD,EGF" --max_genes 500 --n_permutations 1000 \\
-      --do_genegene --n_workers 4
+  python run_tal_analysis.py --ref-data data/kpmp.h5ad --outdir results/full \\
+      --controls "SLC12A1,UMOD,EGF" --max-genes 500 --n-permutations 1000 \\
+      --do-genegene --n-workers 4
 """,
     )
 
     io_group = parser.add_argument_group("Input/Output")
     io_group.add_argument(
-        "--ref_data",
+        "--ref-data",
+        dest="ref_data",
         type=str,
         required=True,
         help="Path to reference data (.h5ad preferred)",
@@ -124,20 +129,23 @@ Examples:
 
     cell_group = parser.add_argument_group("Cell Selection")
     cell_group.add_argument(
-        "--celltype_key",
+        "--celltype-key",
+        dest="celltype_key",
         type=str,
         default="subclass.l1",
         help="Metadata column for cell type annotations (default: subclass.l1)",
     )
     cell_group.add_argument(
-        "--tal_labels",
+        "--tal-labels",
+        dest="tal_labels",
         type=str,
         nargs="+",
         default=["TAL"],
         help="Label(s) identifying TAL cells (default: TAL)",
     )
     cell_group.add_argument(
-        "--donor_key",
+        "--donor-key",
+        dest="donor_key",
         type=str,
         default="donor_id",
         help="Metadata column for donor identifiers (default: donor_id)",
@@ -156,19 +164,22 @@ Examples:
         help="Comma-separated canonical TAL markers (e.g., 'SLC12A1,UMOD,EGF')",
     )
     gene_group.add_argument(
-        "--min_pct",
+        "--min-pct",
+        dest="min_pct",
         type=float,
         default=0.01,
         help="Minimum expression prevalence for discovery genes (default: 0.01)",
     )
     gene_group.add_argument(
-        "--max_genes",
+        "--max-genes",
+        dest="max_genes",
         type=int,
         default=None,
         help="Maximum discovery genes to analyze (default: all passing filters)",
     )
     gene_group.add_argument(
-        "--exclude_patterns",
+        "--exclude-patterns",
+        dest="exclude_patterns",
         type=str,
         default="^MT-|^mt-|^RPS|^RPL",
         help="Regex pattern for genes to exclude (default: MT/ribosomal)",
@@ -176,7 +187,8 @@ Examples:
 
     scoring_group = parser.add_argument_group("Scoring Parameters")
     scoring_group.add_argument(
-        "--embedding_key",
+        "--embedding-key",
+        dest="embedding_key",
         type=str,
         default=None,
         help="Key in adata.obsm for embedding (default: auto-detect X_umap)",
@@ -188,39 +200,45 @@ Examples:
         help="Number of angular sectors (default: 72 = 5° resolution)",
     )
     scoring_group.add_argument(
-        "--delta_deg",
+        "--delta-deg",
+        dest="delta_deg",
         type=float,
         default=60.0,
         help="Sector width in degrees (default: 60°; use 180 for half-plane contrast)",
     )
     scoring_group.add_argument(
-        "--foreground_quantile",
+        "--foreground-quantile",
+        dest="foreground_quantile",
         type=float,
         default=0.90,
         help="Quantile for internal foreground selection (default: 0.90)",
     )
     scoring_group.add_argument(
-        "--expr_threshold_mode",
+        "--expr-threshold-mode",
+        dest="expr_threshold_mode",
         type=str,
         choices=["detect", "fixed", "nonzero_quantile"],
         default="detect",
         help="How to determine coverage threshold (default: detect)",
     )
     scoring_group.add_argument(
-        "--expr_threshold_value",
+        "--expr-threshold-value",
+        dest="expr_threshold_value",
         type=float,
         default=None,
         help="Fixed coverage threshold (only used if mode=fixed)",
     )
     scoring_group.add_argument(
-        "--empty_fg_policy",
+        "--empty-fg-policy",
+        dest="empty_fg_policy",
         type=str,
         choices=["nan", "zero"],
         default="zero",
         help="Policy for empty-foreground sectors (default: zero = no signal)",
     )
     scoring_group.add_argument(
-        "--n_permutations",
+        "--n-permutations",
+        dest="n_permutations",
         type=int,
         default=200,
         help="Number of permutations for p-value calculation (default: 200)",
@@ -228,19 +246,22 @@ Examples:
 
     class_group = parser.add_argument_group("Archetype Classification")
     class_group.add_argument(
-        "--c_cut",
+        "--c-cut",
+        dest="c_cut",
         type=float,
         default=0.10,
         help="Coverage cutoff for archetype classification (default: 0.10)",
     )
     class_group.add_argument(
-        "--s_cut",
+        "--s-cut",
+        dest="s_cut",
         type=float,
         default=None,
         help="Spatial score cutoff (default: auto from FDR or empirical null)",
     )
     class_group.add_argument(
-        "--fdr_cut",
+        "--fdr-cut",
+        dest="fdr_cut",
         type=float,
         default=0.05,
         help="FDR threshold for significance (default: 0.05)",
@@ -248,12 +269,14 @@ Examples:
 
     pair_group = parser.add_argument_group("Gene-Gene Analysis (Optional)")
     pair_group.add_argument(
-        "--do_genegene",
+        "--do-genegene",
+        dest="do_genegene",
         action="store_true",
         help="Compute pairwise gene relationships",
     )
     pair_group.add_argument(
-        "--top_for_pairs",
+        "--top-for-pairs",
+        dest="top_for_pairs",
         type=int,
         default=50,
         help="Number of top genes for pairwise analysis (default: 50)",
@@ -261,13 +284,15 @@ Examples:
 
     plot_group = parser.add_argument_group("Plotting")
     plot_group.add_argument(
-        "--top_k_plots",
+        "--top-k-plots",
+        dest="top_k_plots",
         type=int,
         default=12,
         help="Number of top genes to generate detailed plots for (default: 12)",
     )
     plot_group.add_argument(
-        "--plot_mode",
+        "--plot-mode",
+        dest="plot_mode",
         type=str,
         choices=["signed", "absolute"],
         default="signed",
@@ -276,7 +301,8 @@ Examples:
 
     runtime_group = parser.add_argument_group("Runtime")
     runtime_group.add_argument(
-        "--n_workers",
+        "--n-workers",
+        dest="n_workers",
         type=int,
         default=1,
         help="Number of parallel workers (default: 1 = serial)",
@@ -288,7 +314,8 @@ Examples:
         help="Random seed for reproducibility (default: 42)",
     )
     runtime_group.add_argument(
-        "--log_level",
+        "--log-level",
+        dest="log_level",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
@@ -299,7 +326,15 @@ Examples:
 
 
 def compute_file_checksum(path: str, algorithm: str = "sha256") -> str:
-    """Compute checksum of a file for provenance tracking."""
+    """Compute checksum of a file for provenance tracking.
+
+    Args:
+        path: Path to the file.
+        algorithm: Hash algorithm name.
+
+    Returns:
+        Hex-encoded checksum.
+    """
     h = hashlib.new(algorithm)
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
@@ -308,7 +343,19 @@ def compute_file_checksum(path: str, algorithm: str = "sha256") -> str:
 
 
 def load_reference(path: str) -> anndata.AnnData:
-    """Load reference data from H5AD file."""
+    """Load reference data from an H5AD file.
+
+    Args:
+        path: Path to the H5AD file.
+
+    Returns:
+        AnnData object.
+
+    Raises:
+        FileNotFoundError: If the path does not exist.
+        ValueError: If the file format is unsupported.
+        ImportError: If `anndata` is not installed.
+    """
     path_obj = Path(path)
     if not path_obj.exists():
         raise FileNotFoundError(f"Reference file not found: {path}")
@@ -329,7 +376,18 @@ def load_reference(path: str) -> anndata.AnnData:
 
 
 def detect_embedding_key(adata: anndata.AnnData, preferred_key: str | None = None) -> str:
-    """Auto-detect embedding key from adata.obsm."""
+    """Auto-detect an embedding key from `adata.obsm`.
+
+    Args:
+        adata: AnnData object.
+        preferred_key: Preferred embedding key.
+
+    Returns:
+        Valid embedding key.
+
+    Raises:
+        ValueError: If no suitable embedding is found.
+    """
     if preferred_key is not None:
         if preferred_key in adata.obsm:
             return preferred_key
@@ -351,12 +409,19 @@ def detect_embedding_key(adata: anndata.AnnData, preferred_key: str | None = Non
 
     raise ValueError(
         f"No suitable embedding found. Available keys: {list(adata.obsm.keys())}\n"
-        "Hint: Provide --embedding_key explicitly or ensure X_umap exists."
+        "Hint: Provide --embedding-key explicitly or ensure X_umap exists."
     )
 
 
 def build_symbol_mappings(adata: anndata.AnnData) -> tuple[dict[str, str], dict[str, str]]:
-    """Build var_name <-> gene_symbol mappings."""
+    """Build var_name to gene_symbol mappings.
+
+    Args:
+        adata: AnnData object.
+
+    Returns:
+        Tuple of `(var_to_symbol, symbol_to_var)` mappings.
+    """
     var_to_symbol = {}
     symbol_cols = ["feature_name", "gene_symbol", "gene_name", "symbol"]
     for col in symbol_cols:
@@ -383,16 +448,20 @@ def select_genes(
     exclude_pattern: str,
     seed: int,
 ) -> tuple[list[str], list[str], dict]:
-    """Select genes for analysis: controls + discovery set.
+    """Select genes for analysis (controls plus discovery set).
 
-    Returns
-    -------
-    genes_to_analyze : List[str]
-        All genes (var_names) to score
-    control_vars : List[str]
-        Control gene var_names (subset of genes_to_analyze)
-    selection_info : Dict
-        Metadata about selection for provenance
+    Args:
+        adata: AnnData object.
+        controls_str: Comma-separated control gene list.
+        symbol_to_var: Mapping from symbol to var name.
+        var_to_symbol: Mapping from var name to symbol.
+        min_pct: Minimum coverage fraction.
+        max_genes: Maximum number of genes to analyze.
+        exclude_pattern: Regex pattern for excluding genes by symbol.
+        seed: Random seed for subsampling.
+
+    Returns:
+        Tuple of `(genes_to_analyze, control_vars, selection_info)`.
     """
     all_genes = adata.var_names.tolist()
     n_cells = adata.n_obs
@@ -484,10 +553,15 @@ def plot_gene_panel(
 ):
     """Create a two-panel visualization for a single gene.
 
-    Left panel: Cell embedding colored by expression level, with a boundary
-                showing which cells actually express the gene (above threshold)
-    Right panel: Radar plot showing radial distribution of expression
-    Annotation box: Key metrics (coverage, spatial score, significance)
+    Args:
+        gene: Gene identifier.
+        adata: AnnData object.
+        gene_result: Series containing gene-level scores.
+        embedding_key: Embedding key in `adata.obsm`.
+        config: BioRSP configuration.
+        var_to_symbol: Mapping from var name to gene symbol.
+        outdir: Output directory for plots.
+        plot_mode: `signed` or `absolute` plotting mode.
     """
     symbol = var_to_symbol.get(gene, gene)
 
@@ -614,9 +688,14 @@ def plot_archetype_scatter(
     s_cut: float | None,
     outpath: Path,
 ):
-    """Create C_g vs S_g scatter plot with archetype quadrants.
+    """Create a Coverage vs. Spatial Score scatter plot with archetype quadrants.
 
-    This is the primary "story figure" for biologists.
+    Args:
+        df: DataFrame containing Coverage and Spatial_Bias_Score columns.
+        control_symbols: List of control gene symbols to annotate.
+        c_cut: Coverage cutoff.
+        s_cut: Spatial score cutoff.
+        outpath: Output path for the figure.
     """
     fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -738,7 +817,14 @@ def plot_gene_pairs_heatmap(
     outpath: Path,
     top_n: int = 30,
 ):
-    """Create a heatmap of gene-gene copattern scores."""
+    """Create a heatmap of gene–gene copattern scores.
+
+    Args:
+        pairs_df: DataFrame with gene pair scores.
+        var_to_symbol: Mapping from var name to gene symbol.
+        outpath: Output path for the heatmap.
+        top_n: Number of top pairs to include.
+    """
     if pairs_df.empty:
         logger.warning("No gene pairs to plot")
         return
@@ -879,7 +965,7 @@ def main():
     control_symbols = [var_to_symbol.get(v, v) for v in control_vars]
 
     if len(genes_to_analyze) == 0:
-        raise ValueError("No genes selected for analysis. Check --min_pct and --exclude_patterns.")
+        raise ValueError("No genes selected for analysis. Check --min-pct and --exclude-patterns.")
 
     logger.info("[Stage 5] Running BioRSP scoring...")
 

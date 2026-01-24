@@ -46,7 +46,7 @@ def test_calibration_runner_quick_mode_executes(tmp_path):
             "quick",
             "--outdir",
             str(tmp_path / "calibration"),
-            "--run_id",
+            "--run-id",
             "smoke_test",
             "--seed",
             "99999",

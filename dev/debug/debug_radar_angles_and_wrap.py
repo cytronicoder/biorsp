@@ -1,7 +1,7 @@
 """Debug script to validate radar plotting angle conventions and wrap-around.
 
 This script generates synthetic data with known geometry to verify:
-1. Theta convention transformations (math vs compass)
+1. Theta convention transformations (math vs. compass)
 2. Circular wrap-around continuity
 3. Zero-filled sector visualization
 4. Peak anchor alignment
@@ -171,7 +171,7 @@ def main():
         radial_max=None,
     )
 
-    fig.suptitle("Signed RSP: Proximal vs Distal Shift", fontsize=16, fontweight="bold")
+    fig.suptitle("Signed RSP: Proximal vs. Distal Shift", fontsize=16, fontweight="bold")
     plt.tight_layout()
     plt.savefig(output_dir / "debug_signed_labels.png", dpi=150, bbox_inches="tight")
     plt.close()

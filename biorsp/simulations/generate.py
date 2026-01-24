@@ -6,10 +6,18 @@ from biorsp.simulations.generator import generate_grid
 def main():
     parser = argparse.ArgumentParser(description="Generate BioRSP simulation datasets.")
     parser.add_argument(
-        "--output_dir", type=str, default="sim_results/inputs", help="Directory to save outputs"
+        "--output-dir",
+        dest="output_dir",
+        type=str,
+        default="sim_results/inputs",
+        help="Directory to save outputs",
     )
     parser.add_argument(
-        "--n_points", type=int, default=2000, help="Number of points per simulation"
+        "--n-points",
+        dest="n_points",
+        type=int,
+        default=2000,
+        help="Number of points per simulation",
     )
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
 

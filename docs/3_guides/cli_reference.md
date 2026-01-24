@@ -1,130 +1,70 @@
-# Usage Guide & CLI Reference
+# CLI reference
 
-This guide covers the command-line interface and advanced configuration options for BioRSP.
+BioRSP provides a single CLI entry point via `biorsp run` for scoring datasets stored as files.
 
-## Command-line interface
-
-BioRSP provides a command-line interface for running analyses without writing code. The CLI supports the full analysis workflow with permutation testing and flexible configuration.
-
-### Basic usage
+## Basic usage
 
 ```bash
-# Run analysis on a dataset
 python -m biorsp.cli run \
   --expression data/expression.csv \
   --coords data/coords.csv \
-  --outdir results/ \
-  --seed 42
+  --output results.csv
 ```
 
-### Common examples
+`--expression` should be a cell-by-gene matrix in CSV/TSV format. `--coords` must contain `x` and `y` columns for each cell.
 
-**1. Marker discovery with high sensitivity (narrow sectors)**
+## Common options
 
 ```bash
 python -m biorsp.cli run \
-  --expression kidney_expr.csv \
-  --coords kidney_umap.csv \
-  --outdir results/markers/ \
-  --B 72 \
-  --delta 60 \
-  --q 0.90 \
+  --expression data/expression.csv \
+  --coords data/coords.csv \
+  --output results.csv \
+  --outdir results_run \
+  --seed 42 \
   --inference \
-  --n-perm 1000 \
-  --seed 42
+  --n-permutations 200
 ```
 
-This uses 72 sectors with 60° width for high angular resolution, 90th percentile foreground threshold, and runs 1000 permutations for significance testing.
+- `--outdir` writes a `run_metadata.json` manifest for reproducibility.
+- `--inference` enables permutation testing; `--n-permutations` controls the number of permutations.
 
-**2. Co-expression analysis (broader integration)**
+### Parameter summary
 
-```bash
-python -m biorsp.cli run \
-  --expression gene_pairs.csv \
-  --coords embedding.csv \
-  --outdir results/coexpression/ \
-  --B 36 \
-  --delta 120 \
-  --q 0.50 \
-  --inference \
-  --n-perm 200 \
-  --seed 42
-```
+### Inputs
 
-Uses 36 sectors with 120° width for broad spatial integration and 50th percentile foreground threshold.
+- `--expression`: CSV/TSV file with expression values (cells × genes).
+- `--coords`: CSV/TSV file with `x` and `y` columns.
+- `--umis`: optional UMI counts file for stratified inference.
+- `--umi-column`: column name in the UMI file.
+- `--transpose`: transpose the expression matrix if it is gene × cell.
 
-**3. With UMI stratification for improved calibration**
+### Geometry and foreground definition
 
-```bash
-python -m biorsp.cli run \
-  --expression expr.csv \
-  --coords coords.csv \
-  --umis umi_counts.csv \
-  --umi-column total_counts \
-  --outdir results/stratified/ \
-  --inference \
-  --perm-mode rt_umi \
-  --n-r-bins 10 \
-  --n-umi-bins 10 \
-  --n-perm 1000 \
-  --seed 42
-```
+> **Note:** Runner scripts (kidney and benchmark runners) use `--n-permutations` (hyphenated) as the canonical form. The CLI also supports the legacy alias `--n-perm` for backward compatibility.
 
-Enables stratified permutation testing using radial bins, angular bins, and UMI count bins for better null calibration.
+- `--B`: number of angular sectors.
+- `--delta`: sector width in degrees.
+- `--q`: foreground quantile threshold.
+- `--min-count`, `--min-bg-count`, `--min-fg-total`: adequacy thresholds for foreground/background support.
 
-### CLI parameters
+### Permutation inference
 
-**Input files:**
+- `--inference`: enable permutation testing.
+- `--n-permutations`: number of permutations.
+- `--perm-mode`: `radial`, `joint`, `rt_umi`, or `none`.
+- `--n-r-bins`, `--n-theta-bins`, `--n-umi-bins`, `--min-stratum-size`: stratification parameters.
 
-- `--expression`: CSV/TSV file with expression matrix (genes as columns, cells as rows, or use `--transpose`)
-- `--coords`: CSV/TSV file with 2D coordinates (x, y columns)
-- `--umis`: Optional CSV/TSV file with UMI counts per cell (for stratified inference)
-- `--umi-column`: Column name for UMI counts (default: auto-detect "umi" or "umis")
+> **Note:** Runner scripts use `--n-permutations` (hyphenated) as the canonical form for this option; the CLI accepts `--n-permutations` and also supports the legacy alias `--n-perm` for backward compatibility.
 
-**Geometry:**
+### Sector weighting
 
-- `--B`: Number of sectors (default: 360)
-- `--delta`: Sector width in degrees (default: 20)
+- `--sector-weight-mode`: `none`, `sqrt_frac`, `effective_min`, or `logistic_support`.
+- `--sector-weight-k`: parameter controlling sector weighting.
 
-**Foreground:**
+## Outputs
 
-- `--q`: Foreground quantile threshold (default: 0.90)
-- `--min-fg-total`: Minimum total foreground cells (default: 100)
+- `--output`: CSV table with per-feature summaries.
+- `--outdir`: optional directory containing `run_metadata.json` (manifest with parameters and dataset summary).
 
-**Adequacy thresholds:**
-
-- `--min-count`: Min foreground cells per sector (default: 10)
-- `--min-bg-count`: Min background cells per sector (default: 50)
-- `--min_adequacy_fraction`: Min fraction of adequate sectors (default: 0.9)
-
-**Inference:**
-
-- `--inference`: Enable permutation testing (required for p-values)
-- `--n-perm`: Number of permutations (default: 200)
-- `--perm-mode`: Permutation strategy (`radial`, `joint`, `rt_umi`, `none`)
-- `--n-r-bins`: Number of radial bins for stratification (default: 10)
-- `--n-theta-bins`: Number of angular bins (default: 4)
-- `--n-umi-bins`: Number of UMI bins (default: 10)
-- `--min-stratum-size`: Min cells per stratum (default: 50)
-
-**Sector weighting:**
-
-- `--sector-weight-mode`: Weighting mode (`none`, `sqrt_frac`, `effective_min`, `logistic_support`)
-- `--sector-weight-k`: Tunable weighting parameter (default: 5.0)
-
-**Output:**
-
-- `--outdir`: Directory for results and plots (default: ".")
-- `--seed`: Random seed for reproducibility (default: 42)
-
-### Output files
-
-The CLI creates the following outputs in `--outdir`:
-
-- `results.csv`: Per-feature summary statistics (anisotropy, p-value, coverage, etc.)
-- `manifest.json`: Run metadata (config, version, timestamp)
-- `radar_*.png`: Radar plots for each feature (if `--save-plots` enabled)
-
-### Programmatic usage
-
-For more control, use the Python API directly. See the [API Reference](../api/index.md) and [Quickstart](../1_start_here/quickstart.md).
+For programmatic use, see `biorsp.api` and the quickstart.

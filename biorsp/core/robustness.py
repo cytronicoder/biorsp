@@ -24,10 +24,9 @@ class RobustnessResult:
     """Results of robustness analysis.
 
     Attributes:
-        mean_correlation: Mean Pearson correlation of subsampled RSP profiles with full profile.
+        mean_correlation: Mean Pearson correlation of subsampled profiles with the full profile.
         cv_anisotropy: Coefficient of variation of anisotropy across subsamples.
         n_subsamples: Number of subsamples performed.
-
     """
 
     mean_correlation: float
@@ -48,32 +47,19 @@ def compute_robustness_score(
 ) -> RobustnessResult:
     """Compute robustness metrics via subsampling.
 
-    Parameters
-    ----------
-    x : np.ndarray
-        (N,) expression values.
-    r : np.ndarray
-        (N,) radial distances.
-    theta : np.ndarray
-        (N,) angles.
-    config : BioRSPConfig, optional
-        Configuration object, by default None (creates default config).
-    n_subsample : int, optional
-        Number of iterations, by default 20.
-    subsample_frac : float, optional
-        Fraction of cells to keep per iteration, by default 0.8.
-    seed : int, optional
-        Random seed, by default 42.
-    fg_mode : str, optional
-        Foreground selection mode, by default "quantile".
-    abs_threshold : float, optional
-        Absolute threshold for foreground, by default None.
+    Args:
+        x: Expression values of shape (N,).
+        r: Radial distances of shape (N,).
+        theta: Angles of shape (N,).
+        config: Optional BioRSP configuration. Defaults are used if None.
+        n_subsample: Number of subsampling iterations.
+        subsample_frac: Fraction of cells to keep per iteration.
+        seed: Random seed.
+        fg_mode: Foreground selection mode.
+        abs_threshold: Optional absolute threshold for foreground selection.
 
-    Returns
-    -------
-    RobustnessResult
-        The result of the robustness analysis.
-
+    Returns:
+        RobustnessResult with mean correlation and anisotropy variability.
     """
     if config is None:
         config = BioRSPConfig()

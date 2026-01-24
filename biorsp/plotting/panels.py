@@ -6,7 +6,7 @@ benchmarks and kidney case studies. Each function produces a specific panel
 with consistent styling, axes, labels, and semantics.
 
 Panel naming convention:
-- A_archetype_scatter.png: Coverage vs Spatial Bias Score scatter with quadrants
+- A_archetype_scatter.png: Coverage vs. Spatial Bias Score scatter with quadrants
 - B_confusion_or_composition.png: Confusion matrix (sim) or composition bar (kidney)
 - C_examples_per_archetype.png: Example spatial patterns for each archetype
 - D_pairwise_or_module.png: Gene-gene pairs (sim) or modules (kidney)
@@ -35,43 +35,30 @@ logger = logging.getLogger(__name__)
 def plot_archetype_scatter(
     df: pd.DataFrame,
     spec: PlotSpec,
-    title: str = "Coverage vs Spatial Organization",
+    title: str = "Coverage vs. Spatial Organization",
     color_by: str = "Archetype",
     highlight_genes: Optional[List[str]] = None,
     figsize: Optional[Tuple[float, float]] = None,
     show_annotations: bool = True,
     ax: Optional[plt.Axes] = None,
 ) -> Figure:
-    """
-    Create Panel A: Archetype scatter plot (Coverage vs Spatial Bias Score).
+    """Create Panel A: archetype scatter plot (Coverage vs. Spatial Bias Score).
 
-    This is the primary figure showing the (C, S) distribution with quadrant
-    boundaries and archetype coloring. The cutoff lines MUST match the
-    classification logic in PlotSpec.
+    Args:
+        df: DataFrame with Coverage, Spatial_Bias_Score, and archetype columns.
+        spec: Plot specification with cutoffs and colors.
+        title: Plot title.
+        color_by: Column to use for coloring (`Archetype` or `true_archetype`).
+        highlight_genes: Optional list of gene names to highlight.
+        figsize: Optional figure size.
+        show_annotations: Whether to show quadrant annotations.
+        ax: Existing axes to plot on (if None, creates a new figure).
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame with Coverage, Spatial_Bias_Score, and Archetype columns
-    spec : PlotSpec
-        Plot specification with cutoffs and colors
-    title : str
-        Plot title
-    color_by : str
-        Column to use for coloring ("Archetype" or "true_archetype")
-    highlight_genes : list, optional
-        Gene names to highlight with larger markers
-    figsize : tuple, optional
-        Figure size (default: single column width)
-    show_annotations : bool
-        Whether to show quadrant annotations
-    ax : Axes, optional
-        Existing axes to plot on (if None, creates new figure)
+    Returns:
+        Matplotlib figure.
 
-    Returns
-    -------
-    fig : Figure
-        Matplotlib figure
+    Raises:
+        ValueError: If the DataFrame does not meet PlotSpec requirements.
     """
     if figsize is None:
         figsize = (get_column_width("single"), get_column_width("single"))
@@ -182,28 +169,18 @@ def plot_confusion_matrix(
     figsize: Optional[Tuple[float, float]] = None,
     ax: Optional[plt.Axes] = None,
 ) -> Figure:
-    """
-    Create Panel B (simulation): Confusion matrix heatmap.
+    """Create Panel B (simulation): confusion matrix heatmap.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame with true_archetype and Archetype columns
-    spec : PlotSpec
-        Plot specification
-    title : str
-        Plot title
-    normalize : str
-        Normalization mode: "true" (by row), "pred" (by col), "all", or None
-    figsize : tuple, optional
-        Figure size
-    ax : Axes, optional
-        Existing axes
+    Args:
+        df: DataFrame with `true_archetype` and predicted archetype columns.
+        spec: Plot specification.
+        title: Plot title.
+        normalize: Normalization mode (`true`, `pred`, `all`, or None).
+        figsize: Optional figure size.
+        ax: Existing axes to plot on.
 
-    Returns
-    -------
-    fig : Figure
-        Matplotlib figure
+    Returns:
+        Matplotlib figure.
     """
     if figsize is None:
         figsize = (6, 5)
@@ -273,30 +250,18 @@ def plot_composition_bar(
     figsize: Optional[Tuple[float, float]] = None,
     ax: Optional[plt.Axes] = None,
 ) -> Figure:
-    """
-    Create Panel B (kidney): Stacked bar chart of archetype composition.
+    """Create Panel B (kidney): stacked bar chart of archetype composition.
 
-    Used when ground truth is not available (e.g., kidney analysis).
+    Args:
+        df: DataFrame with archetype and grouping columns.
+        spec: Plot specification.
+        group_by: Column name to group by (e.g., `condition`, `cluster`).
+        title: Plot title.
+        figsize: Optional figure size.
+        ax: Existing axes.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame with Archetype column and grouping column
-    spec : PlotSpec
-        Plot specification
-    group_by : str
-        Column name to group by (e.g., "condition", "cluster")
-    title : str
-        Plot title
-    figsize : tuple, optional
-        Figure size
-    ax : Axes, optional
-        Existing axes
-
-    Returns
-    -------
-    fig : Figure
-        Matplotlib figure
+    Returns:
+        Matplotlib figure.
     """
     if figsize is None:
         figsize = (8, 5)
@@ -355,19 +320,13 @@ def save_panel_with_caption(
     caption: str,
     dpi: int = 300,
 ):
-    """
-    Save a panel figure with accompanying caption text file.
+    """Save a panel figure with an accompanying caption file.
 
-    Parameters
-    ----------
-    fig : Figure
-        Matplotlib figure to save
-    outpath : Path
-        Output path (e.g., "figures/A_archetype_scatter.png")
-    caption : str
-        Plain-language caption (1-3 sentences)
-    dpi : int
-        Resolution for raster formats
+    Args:
+        fig: Matplotlib figure to save.
+        outpath: Output path (e.g., `figures/A_archetype_scatter.png`).
+        caption: Plain-language caption (1–3 sentences).
+        dpi: Resolution for raster formats.
     """
     outpath = Path(outpath)
     outpath.parent.mkdir(parents=True, exist_ok=True)
@@ -388,25 +347,14 @@ def generate_standard_panels(
     mode: str = "simulation",
     group_by: Optional[str] = None,
 ):
-    """
-    Generate the standard figure set (Panels A and B) for a run.
+    """Generate the standard figure set (Panels A and B) for a run.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Results DataFrame with Coverage, Spatial_Bias_Score, Archetype columns
-    spec : PlotSpec
-        Plot specification
-    outdir : Path
-        Output directory for figures
-    mode : str
-        "simulation" (with ground truth) or "kidney" (no ground truth)
-    group_by : str, optional
-        For kidney mode, column to group by in Panel B
-
-    Returns
-    -------
-    None
+    Args:
+        df: Results DataFrame with Coverage and Spatial_Bias_Score columns.
+        spec: Plot specification.
+        outdir: Output directory for figures.
+        mode: `simulation` (with ground truth) or `kidney` (no ground truth).
+        group_by: Optional grouping column for kidney composition plots.
     """
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)
@@ -420,7 +368,7 @@ def generate_standard_panels(
     fig_a = plot_archetype_scatter(df, spec, color_by=color_by)
 
     caption_a = (
-        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
+        f"Panel A: Coverage vs. Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={spec.c_cut:.2f}, S={spec.s_cut:.2f}. "
         f"Each point represents one gene or simulation replicate. "
         f"Colors indicate archetype classification."
@@ -462,34 +410,20 @@ def plot_examples_panel(
     figsize: Optional[Tuple[float, float]] = None,
     title: str = "C. Representative Genes by Archetype",
 ) -> Figure:
-    """
-    Create Panel C: Example spatial patterns for each archetype.
+    """Create Panel C: example spatial patterns for each archetype.
 
-    Shows spatial expression patterns for representative genes in each archetype.
+    Args:
+        coords: Cell spatial coordinates (n_cells, 2).
+        expression: Expression matrix (n_cells, n_genes).
+        gene_names: Gene names corresponding to columns in `expression`.
+        df: Results DataFrame with gene names and archetypes.
+        spec: Plot specification.
+        n_examples_per_archetype: Number of example genes per archetype.
+        figsize: Optional figure size.
+        title: Panel title.
 
-    Parameters
-    ----------
-    coords : np.ndarray
-        Cell spatial coordinates (n_cells, 2)
-    expression : np.ndarray
-        Expression matrix (n_cells, n_genes)
-    gene_names : list
-        Gene names corresponding to columns in expression
-    df : pd.DataFrame
-        Results DataFrame with gene names and archetypes
-    spec : PlotSpec
-        Plot specification
-    n_examples_per_archetype : int
-        Number of example genes per archetype
-    figsize : tuple, optional
-        Figure size
-    title : str
-        Panel title
-
-    Returns
-    -------
-    fig : Figure
-        Matplotlib figure
+    Returns:
+        Matplotlib figure.
     """
     archetypes = spec.get_legend_order()
     n_archs = len(archetypes)
@@ -590,31 +524,18 @@ def plot_pairwise_panel(
     figsize: Optional[Tuple[float, float]] = None,
     ax: Optional[plt.Axes] = None,
 ) -> Figure:
-    """
-    Create Panel D: Gene-gene pairwise similarity analysis.
+    """Create Panel D: gene–gene pairwise similarity analysis.
 
-    Shows distribution of pairwise similarity scores, optionally highlighting
-    known co-regulated pairs if ground truth is available.
+    Args:
+        pairs_df: DataFrame with gene pairs and similarity scores.
+        spec: Plot specification.
+        score_col: Column name for similarity scores.
+        title: Panel title.
+        figsize: Optional figure size.
+        ax: Existing axes.
 
-    Parameters
-    ----------
-    pairs_df : pd.DataFrame
-        DataFrame with gene pairs and similarity scores
-    spec : PlotSpec
-        Plot specification
-    score_col : str
-        Column name for similarity scores
-    title : str
-        Panel title
-    figsize : tuple, optional
-        Figure size
-    ax : Axes, optional
-        Existing axes
-
-    Returns
-    -------
-    fig : Figure
-        Matplotlib figure
+    Returns:
+        Matplotlib figure.
     """
     if figsize is None:
         figsize = (6, 5)
@@ -692,24 +613,16 @@ def plot_marker_recovery_panel(
     figsize: Optional[Tuple[float, float]] = None,
     ax: Optional[plt.Axes] = None,
 ) -> Figure:
-    """
-    Create Panel C alternative: Precision@K bar chart for marker recovery.
+    """Create Panel C alternative: Precision@K bar chart for marker recovery.
 
-    Parameters
-    ----------
-    precision_df : pd.DataFrame
-        DataFrame with k and precision_at_k columns
-    title : str
-        Panel title
-    figsize : tuple, optional
-        Figure size
-    ax : Axes, optional
-        Existing axes
+    Args:
+        precision_df: DataFrame with `k` and `precision_at_k` columns.
+        title: Panel title.
+        figsize: Optional figure size.
+        ax: Existing axes.
 
-    Returns
-    -------
-    fig : Figure
-        Matplotlib figure
+    Returns:
+        Matplotlib figure.
     """
     if figsize is None:
         figsize = (6, 5)
@@ -768,35 +681,19 @@ def generate_full_panel_suite(
     mode: str = "simulation",
     group_by: Optional[str] = None,
 ):
-    """
-    Generate the complete figure suite (Panels A, B, C, D).
+    """Generate the complete figure suite (Panels A, B, C, D).
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Results DataFrame
-    spec : PlotSpec
-        Plot specification
-    outdir : Path
-        Output directory
-    coords : np.ndarray, optional
-        Cell coordinates for Panel C examples
-    expression : np.ndarray, optional
-        Expression matrix for Panel C examples
-    gene_names : list, optional
-        Gene names for Panel C examples
-    pairs_df : pd.DataFrame, optional
-        Pairwise scores for Panel D
-    precision_df : pd.DataFrame, optional
-        Precision@K results for Panel C alternative
-    mode : str
-        "simulation" or "kidney"
-    group_by : str, optional
-        Column for grouping in kidney mode
-
-    Returns
-    -------
-    None
+    Args:
+        df: Results DataFrame.
+        spec: Plot specification.
+        outdir: Output directory.
+        coords: Cell coordinates for Panel C examples.
+        expression: Expression matrix for Panel C examples.
+        gene_names: Gene names for Panel C examples.
+        pairs_df: Pairwise scores for Panel D.
+        precision_df: Precision@K results for Panel C alternative.
+        mode: `simulation` or `kidney`.
+        group_by: Optional grouping column for kidney mode.
     """
     outdir = Path(outdir)
     outdir.mkdir(parents=True, exist_ok=True)

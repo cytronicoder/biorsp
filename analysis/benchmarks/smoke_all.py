@@ -22,7 +22,7 @@ def main():
     output_dir.mkdir()
 
     scripts = [
-        ("run_calibration.py", ["--null_type", "iid"]),
+        ("run_calibration.py", ["--null-type", "iid"]),
         ("run_archetypes.py", ["--shape", "disk", "--pattern", "niche_core"]),
         ("run_robustness.py", ["--parameter", "dropout"]),
     ]
@@ -44,13 +44,13 @@ def main():
             str(script_path),
             "--mode",
             "quick",
-            "--n_reps",
+            "--n-reps",
             "2",
             "--outdir",
             str(phase_out),
             "--seed",
             "123",
-            "--n_workers",
+            "--n-workers",
             "1",
         ] + extra_args
 

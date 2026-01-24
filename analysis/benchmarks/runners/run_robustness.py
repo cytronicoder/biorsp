@@ -38,7 +38,16 @@ INVARIANCE_DISTORTIONS = {"none", "rotate", "jitter", "subsample"}
 
 
 def run_robustness_pair(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
-    """Run paired robustness evaluation: baseline and distorted with same seed."""
+    """Run paired robustness evaluation with baseline and distortion.
+
+    Args:
+        config_dict: Condition configuration dictionary.
+        seed: Random seed for paired generation.
+        config: BioRSP configuration for scoring.
+
+    Returns:
+        Row dictionary containing baseline and distorted metrics.
+    """
     # Local imports used by this function (moved here to avoid E402):
     from biorsp.simulations import (
         datasets,
@@ -171,28 +180,36 @@ def main():
     parser = argparse.ArgumentParser(description="Robustness benchmark")
     parser.add_argument("--outdir", type=str, default=str(ROOT / "outputs" / "robustness"))
     parser.add_argument("--seed", type=int, default=1000)
-    parser.add_argument("--n_reps", type=int, default=50)
+    parser.add_argument("--n-reps", dest="n_reps", type=int, default=50)
     parser.add_argument("--N", type=int, nargs="+", default=[2000])
     parser.add_argument("--shape", type=str, nargs="+", default=["disk"])
     parser.add_argument("--pattern", type=str, nargs="+", default=["wedge"])
     parser.add_argument(
-        "--distortion_kind",
+        "--distortion-kind",
+        dest="distortion_kind",
         type=str,
         nargs="+",
         default=["none", "rotate", "aniso_scale", "jitter", "subsample", "swirl"],
     )
-    parser.add_argument("--n_permutations", type=int, default=250)
+    parser.add_argument("--n-permutations", dest="n_permutations", type=int, default=250)
     parser.add_argument(
         "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
     )
-    parser.add_argument("--n_jobs", type=int, default=-1)
-    parser.add_argument("--n_workers", type=int, default=-1, help="Number of parallel workers")
+    parser.add_argument("--n-jobs", dest="n_jobs", type=int, default=-1)
     parser.add_argument(
-        "--checkpoint_every", type=int, default=25, help="Save checkpoint every N runs"
+        "--n-workers", dest="n_workers", type=int, default=-1, help="Number of parallel workers"
+    )
+    parser.add_argument(
+        "--checkpoint-every",
+        dest="checkpoint_every",
+        type=int,
+        default=25,
+        help="Save checkpoint every N runs",
     )
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
     parser.add_argument(
-        "--permutation_scope",
+        "--permutation-scope",
+        dest="permutation_scope",
         type=str,
         choices=["none", "all"],
         default="none",
@@ -301,7 +318,7 @@ def main():
     print(f"Running robustness benchmark: {len(configs)} conditions × {args.n_reps} reps")
 
     def save_checkpoint(results: list):
-        """Save incremental checkpoint."""
+        """Save an incremental checkpoint."""
         if not results:
             return
         checkpoint_df = pd.DataFrame(results)

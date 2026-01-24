@@ -54,7 +54,11 @@ MODE_CONFIGS = {
 
 
 def run_calibration(args):
-    """Run null calibration."""
+    """Run null calibration.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
     from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
     from analysis.benchmarks.simlib.runner_harness import (
         finalize_contract,
@@ -254,7 +258,15 @@ c_cut = thresholds['c_cut']
 
 
 def plot_null_calibration_diagnostics(output_dir, results_df, valid_p, thresholds, mode):
-    """Plot QQ, FPR, p-value histogram with explicit all-abstain handling."""
+    """Plot QQ, FPR, and p-value histograms with abstention handling.
+
+    Args:
+        output_dir: Output directory for diagnostics.
+        results_df: Runs DataFrame with p-values and metadata.
+        valid_p: Array of finite p-values.
+        thresholds: Thresholds derived from null runs.
+        mode: Benchmark mode name.
+    """
 
     n_abstained = results_df["abstain_flag"].sum()
     n_total = len(results_df)

@@ -38,18 +38,16 @@ logger = logging.getLogger(__name__)
 
 
 def load_results_dataframe(manifest_path: Path) -> pd.DataFrame:
-    """
-    Load results DataFrame from the same directory as manifest.
+    """Load a results DataFrame from the manifest directory.
 
-    Parameters
-    ----------
-    manifest_path : Path
-        Path to manifest.json
+    Args:
+        manifest_path: Path to `manifest.json`.
 
-    Returns
-    -------
-    df : pd.DataFrame
-        Results DataFrame with Coverage, Spatial_Bias_Score columns
+    Returns:
+        Results DataFrame with Coverage and Spatial_Bias_Score columns.
+
+    Raises:
+        FileNotFoundError: If no results CSV is found.
     """
     manifest_dir = manifest_path.parent
 
@@ -81,20 +79,14 @@ def load_results_dataframe(manifest_path: Path) -> pd.DataFrame:
 
 
 def detect_mode(df: pd.DataFrame, manifest: dict) -> str:
-    """
-    Detect whether this is simulation or kidney data.
+    """Detect whether this is simulation or kidney data.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Results DataFrame
-    manifest : dict
-        Loaded manifest
+    Args:
+        df: Results DataFrame.
+        manifest: Loaded manifest.
 
-    Returns
-    -------
-    mode : str
-        "simulation" or "kidney"
+    Returns:
+        `"simulation"` or `"kidney"`.
     """
     if "true_archetype" in df.columns:
         return "simulation"
@@ -119,21 +111,14 @@ def replot_from_manifest(
     dpi: int = 300,
     group_by: Optional[str] = None,
 ):
-    """
-    Regenerate panels from manifest without recomputation.
+    """Regenerate panels from a manifest without recomputation.
 
-    Parameters
-    ----------
-    manifest_path : str
-        Path to manifest.json
-    outdir : str, optional
-        Output directory (default: same as manifest with 'replot' suffix)
-    format : str
-        Output format ('png', 'pdf', 'svg')
-    dpi : int
-        Resolution for raster formats
-    group_by : str, optional
-        Column for grouping in kidney mode
+    Args:
+        manifest_path: Path to `manifest.json`.
+        outdir: Output directory (default: manifest directory with `replot` suffix).
+        format: Output format (`png`, `pdf`, `svg`).
+        dpi: Resolution for raster formats.
+        group_by: Grouping column for kidney mode.
     """
     manifest_path = Path(manifest_path)
     if not manifest_path.exists():
@@ -196,14 +181,21 @@ def _replot_simulation_panels(
     output_dir: Path,
     dpi: int,
 ):
-    """Generate simulation-specific panels."""
+    """Generate simulation-specific panels.
+
+    Args:
+        df: Results DataFrame.
+        spec: PlotSpec instance.
+        output_dir: Output directory.
+        dpi: Resolution in dots per inch.
+    """
     import matplotlib.pyplot as plt
 
     color_by = "true_archetype" if "true_archetype" in df.columns else spec.archetype_col
     fig_a = plot_archetype_scatter(df, spec, color_by=color_by)
 
     caption_a = (
-        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
+        f"Panel A: Coverage vs. Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={spec.c_cut:.2f}, S={spec.s_cut:.2f}. "
         f"Each point represents one gene or simulation replicate. "
         f"Colors indicate archetype classification."
@@ -232,13 +224,21 @@ def _replot_kidney_panels(
     dpi: int,
     group_by: Optional[str],
 ):
-    """Generate kidney-specific panels."""
+    """Generate kidney-specific panels.
+
+    Args:
+        df: Results DataFrame.
+        spec: PlotSpec instance.
+        output_dir: Output directory.
+        dpi: Resolution in dots per inch.
+        group_by: Optional grouping column.
+    """
     import matplotlib.pyplot as plt
 
     fig_a = plot_archetype_scatter(df, spec)
 
     caption_a = (
-        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
+        f"Panel A: Coverage vs. Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={spec.c_cut:.2f}, S={spec.s_cut:.2f}. "
         f"Colors indicate predicted archetype classification."
     )

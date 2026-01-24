@@ -426,7 +426,7 @@ def plot_debug_pointcloud(
     gene: str,
     outdir: Path,
 ):
-    """Debug plot showing coverage vs internal FG masks."""
+    """Debug plot showing coverage vs. internal FG masks."""
     fig, ax = plt.subplots(figsize=(8, 8))
 
     ax.scatter(coords[:, 0], coords[:, 1], c="lightgray", s=1, alpha=0.2, label="Background")

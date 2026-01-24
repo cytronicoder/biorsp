@@ -2,7 +2,7 @@
 One-Page Story Figure for BioRSP Methods Paper.
 
 Generates a single-page figure panel (4 subpanels) that validates BioRSP's core claims:
-- Panel A: Archetype scatter (C vs S) with ground truth coloring and quadrant boundaries
+- Panel A: Archetype scatter (C vs. S) with ground truth coloring and quadrant boundaries
 - Panel B: Confusion matrix for 2×2 classification
 - Panel C: Marker recovery (precision@K for structured genes)
 - Panel D: Gene-gene module recovery
@@ -17,7 +17,7 @@ Performance Tips:
     - Use --mode validation for preliminary results (~5min)
     - Use --mode publication for final manuscript figures (~15min)
     - Main bottleneck: permutation tests (controlled by mode)
-    - For large-scale benchmarks, see run_calibration.py which supports --n_workers
+    - For large-scale benchmarks, see run_calibration.py which supports --n-workers
 
 Outputs:
     - fig_story_A_archetypes.png
@@ -79,7 +79,11 @@ _DEFAULT_SPEC = PlotSpec()
 
 
 def run_story_benchmark(args):
-    """Run the complete story benchmark."""
+    """Run the complete story benchmark.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
     from biorsp.simulations import (
         datasets,
         expression,
@@ -290,7 +294,7 @@ def run_story_benchmark(args):
         true_archetypes=results_df.loc[eval_mask, "Archetype"].values,
         c_cut=c_cut,
         s_cut=s_cut,
-        title="A. Archetype Classification (C vs S)",
+        title="A. Archetype Classification (C vs. S)",
     )
     io.save_figure(fig_a, figures_dir, "fig_story_A_archetypes.png")
     plt.close(fig_a)
@@ -627,7 +631,18 @@ def write_story_report(
     n_genes: int,
     elapsed: float,
 ):
-    """Write human-readable report."""
+    """Write a human-readable report.
+
+    Args:
+        output_dir: Output directory.
+        class_metrics: Classification metrics dictionary.
+        prec_curve: Precision@K DataFrame.
+        module_metrics: Gene–gene module metrics dictionary.
+        thresholds: Thresholds dictionary.
+        mode: Benchmark mode name.
+        n_genes: Number of genes scored.
+        elapsed: Runtime in seconds.
+    """
 
     acc_threshold = 0.60 if mode == "quick" else 0.80
     acc_pass = class_metrics["accuracy"] >= acc_threshold
@@ -725,11 +740,15 @@ Genes sharing the same spatial pattern (module) should have high co-patterning s
 
 
 def write_caption(figures_dir: Path):
-    """Write caption for the one-page figure."""
+    """Write a caption for the one-page figure.
+
+    Args:
+        figures_dir: Figures output directory.
+    """
 
     caption = """Figure: BioRSP Method Validation Through Simulation
 
-(A) Coverage (C) vs Spatial Organization Score (S) for simulated genes with known ground truth.
+(A) Coverage (C) vs. Spatial Organization Score (S) for simulated genes with known ground truth.
     Points are colored by true archetype: Ubiquitous (green), regional program (blue),
     sparse/noisy (gray), and niche marker (orange). Dashed lines indicate classification
     thresholds derived from null simulations.

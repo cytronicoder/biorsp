@@ -1,7 +1,7 @@
 """Debug script for selection bias analysis.
 
 Tests that empty_fg_policy='zero' correctly handles empty sectors and avoids
-selection bias. Compares global_rim vs wedge_rim scenarios.
+selection bias. Compares global_rim vs. wedge_rim scenarios.
 
 Usage:
     python dev/debug/debug_selection_bias.py

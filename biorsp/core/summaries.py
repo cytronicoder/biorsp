@@ -6,8 +6,8 @@ Implements scalar statistics derived from the radar function:
 - Extremal peak based on absolute magnitude.
 - Localization index.
 - Signed summaries:
-    - R_mean indicates net radial bias (core vs rim).
-    - Polarity indicates whether the pattern is globally one-signed or mixed.
+    - R_mean indicates net radial bias (core vs. rim).
+    - Polarity indicates whether the pattern is globally one-signed vs. mixed.
     - These resolve ambiguity in A_g where rim and core patterns can have similar magnitude.
 """
 
@@ -26,28 +26,27 @@ class ScalarSummaries:
 
     Attributes:
         peak_distal: Minimum RSP value (rim-enriched).
-        peak_distal_angle: Angle corresponding to peak_distal.
+        peak_distal_angle: Angle corresponding to `peak_distal`.
         peak_proximal: Maximum RSP value (core-enriched).
-        peak_proximal_angle: Angle corresponding to peak_proximal.
+        peak_proximal_angle: Angle corresponding to `peak_proximal`.
         peak_extremal: RSP value with maximum absolute magnitude.
-        peak_extremal_angle: Angle corresponding to peak_extremal.
+        peak_extremal_angle: Angle corresponding to `peak_extremal`.
         anisotropy: RMS of RSP values (A_g).
-        max_rsp: Maximum RSP value (for diagnostics).
-        min_rsp: Minimum RSP value (same as peak_distal).
+        max_rsp: Maximum RSP value (diagnostic).
+        min_rsp: Minimum RSP value (same as `peak_distal`).
         integrated_rsp: Sum of RSP values (net directionality).
         localization_entropy: Shannon entropy-based localization index (L_g).
         localization_gini: Gini-based localization index.
         m_valid_sectors: Number of valid sectors used for computation.
         sum_abs_rsp: Sum of absolute RSP values.
-        localization_status: Status of localization computation (e.g., 'ok', 'no_signal').
+        localization_status: Status of localization computation.
         r_mean: Mean signed shift (net radial bias).
         r_median: Median signed shift.
-        polarity: Signed energy ratio (one-signed vs mixed).
+        polarity: Signed energy ratio (one-signed vs. mixed).
         a_signed: Signed anisotropy (sign(r_mean) * anisotropy).
         frac_pos: Fraction of sectors with positive RSP.
         frac_neg: Fraction of sectors with negative RSP.
         signed_status: Status of signed summary computation.
-
     """
 
     peak_distal: float
@@ -79,20 +78,19 @@ class ScalarSummaries:
 def compute_scalar_summaries(
     radar: RadarResult, valid_mask: Optional[np.ndarray] = None
 ) -> ScalarSummaries:
-    """Compute scalar summaries from radar result.
-
-    Derives all scalar statistics from the RSP profile, ignoring NaN values
-    (underpowered sectors) unless a mask is provided. Coverage metrics are
-    computed as the fraction of sectors where background or foreground counts
-    are positive (indicator of sufficient support).
+    """Compute scalar summaries from a radar result.
 
     Args:
-        radar: RadarResult object containing rsp values and centers.
-        valid_mask: Optional boolean mask to define sectors to include.
+        radar: RadarResult object containing RSP values and centers.
+        valid_mask: Optional boolean mask defining sectors to include.
 
     Returns:
-        ScalarSummaries object.
+        ScalarSummaries object with derived summary statistics.
 
+    Notes:
+        NaN RSP values indicate underpowered sectors. Coverage metrics are
+        computed as the fraction of sectors with foreground or background
+        support.
     """
     rsp = radar.rsp
     centers = radar.centers
