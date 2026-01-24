@@ -39,7 +39,7 @@ Runs BioRSP on a subset of genes and optionally computes gene–gene pairs.
 
 ```bash
 python analysis/kidney_atlas/runners/run_tal_analysis.py \
-  --ref_data /path/to/kpmp.h5ad \
+  --ref-data /path/to/kpmp.h5ad \
   --outdir results/kpmp_tal \
   --controls "SLC12A1,UMOD,EGF"
 ```
@@ -57,7 +57,7 @@ Stratifies the dataset by disease labels and runs the analysis per group.
 
 ```bash
 python analysis/kidney_atlas/runners/run_disease_stratified_analysis.py \
-  --ref_data /path/to/kpmp.h5ad \
+  --ref-data /path/to/kpmp.h5ad \
   --outdir results/kpmp_disease
 ```
 
@@ -65,10 +65,10 @@ To restrict to a cell type:
 
 ```bash
 python analysis/kidney_atlas/runners/run_disease_stratified_analysis.py \
-  --ref_data /path/to/kpmp.h5ad \
+  --ref-data /path/to/kpmp.h5ad \
   --outdir results/kpmp_disease_tal \
-  --celltype_key subclass.l1 \
-  --celltype_filter TAL
+  --celltype-key subclass.l1 \
+  --celltype-filter TAL
 ```
 
 **Key outputs** (per disease subdirectory):

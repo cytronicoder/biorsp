@@ -24,12 +24,12 @@ echo "Testing with 50 genes and 100 permutations..."
 echo ""
 
 python analysis/kidney_atlas/run_disease_stratified_analysis.py \
-  --ref_data "$DATA_FILE" \
+  --ref-data "$DATA_FILE" \
   --outdir "${BASE_DIR}/pilot" \
-  --celltype_key "$CELLTYPE_KEY" \
-  --celltype_filter "$CELLTYPE" \
-  --max_genes 50 \
-  --n_permutations 100 \
+  --celltype-key "$CELLTYPE_KEY" \
+  --celltype-filter "$CELLTYPE" \
+  --max-genes 50 \
+  --n-permutations 100 \
   --subsample 5000
 
 echo ""
@@ -56,15 +56,15 @@ echo "----------------------------------------"
 echo "To run a more comprehensive analysis with more genes and permutations, use:"
 echo ""
 echo "python analysis/kidney_atlas/run_disease_stratified_analysis.py \\"
-echo "  --ref_data $DATA_FILE \\"
-echo "  --outdir ${BASE_DIR}/full \\"
-echo "  --celltype_key $CELLTYPE_KEY \\"
-echo "  --celltype_filter $CELLTYPE \\"
-echo "  --controls 'SLC12A1,UMOD,EGF' \\"
-echo "  --max_genes 500 \\"
-echo "  --n_permutations 1000 \\"
-echo "  --do_genegene \\"
-echo "  --n_workers 4"
+echo "  --ref-data $DATA_FILE \\\"
+echo "  --outdir ${BASE_DIR}/full \\\"
+echo "  --celltype-key $CELLTYPE_KEY \\\"
+echo "  --celltype-filter $CELLTYPE \\\"
+echo "  --controls 'SLC12A1,UMOD,EGF' \\\"
+echo "  --max-genes 500 \\\"
+echo "  --n-permutations 1000 \\\"
+echo "  --do-genegene \\\"
+echo "  --n-workers 4"
 echo ""
 
 read -p "Would you like to run the full analysis now? (y/N) " -n 1 -r
@@ -75,15 +75,15 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
     
     python analysis/kidney_atlas/run_disease_stratified_analysis.py \
-      --ref_data "$DATA_FILE" \
+      --ref-data "$DATA_FILE" \
       --outdir "${BASE_DIR}/full" \
-      --celltype_key "$CELLTYPE_KEY" \
-      --celltype_filter "$CELLTYPE" \
+      --celltype-key "$CELLTYPE_KEY" \
+      --celltype-filter "$CELLTYPE" \
       --controls "SLC12A1,UMOD,EGF" \
-      --max_genes 500 \
-      --n_permutations 1000 \
-      --do_genegene \
-      --n_workers 4
+      --max-genes 500 \
+      --n-permutations 1000 \
+      --do-genegene \
+      --n-workers 4
     
     echo ""
     echo "✓ Full analysis complete!"

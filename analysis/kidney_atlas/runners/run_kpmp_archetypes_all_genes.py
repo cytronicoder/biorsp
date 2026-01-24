@@ -1401,7 +1401,7 @@ def generate_report(
     if reliability.get("cross_embedding"):
         ce = reliability["cross_embedding"]
         report += f"""
-- **UMAP vs t-SNE Spearman:** {ce.get("spearman_r", "N/A"):.3f}
+- **UMAP vs. t-SNE Spearman:** {ce.get("spearman_r", "N/A"):.3f}
 - **Genes tested:** {ce.get("n_genes_tested", "N/A")}
 """
 

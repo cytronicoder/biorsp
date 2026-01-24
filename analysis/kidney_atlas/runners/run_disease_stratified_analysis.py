@@ -18,24 +18,24 @@ Key Features:
 
 Quick Examples:
     python run_disease_stratified_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/disease_stratified \\
-      --max_genes 100
+      --max-genes 100
 
     python run_disease_stratified_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/tal_disease_stratified \\
-      --celltype_key subclass.l1 \\
-      --celltype_filter TAL \\
-      --max_genes 100
+      --celltype-key subclass.l1 \\
+      --celltype-filter TAL \\
+      --max-genes 100
 
     python run_disease_stratified_analysis.py \\
-      --ref_data data/kpmp.h5ad \\
+      --ref-data data/kpmp.h5ad \\
       --outdir results/disease_full \\
-      --max_genes 500 \\
-      --n_permutations 1000 \\
-      --do_genegene \\
-      --n_workers 4
+      --max-genes 500 \\
+      --n-permutations 1000 \\
+      --do-genegene \\
+      --n-workers 4
 """
 
 from __future__ import annotations
@@ -152,18 +152,19 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run_disease_stratified_analysis.py --ref_data data/kpmp.h5ad \\
-      --outdir results/disease_stratified --max_genes 100
+  python run_disease_stratified_analysis.py --ref-data data/kpmp.h5ad \\
+      --outdir results/disease_stratified --max-genes 100
 
-  python run_disease_stratified_analysis.py --ref_data data/kpmp.h5ad \\
-      --outdir results/tal_disease --celltype_key subclass.l1 \\
-      --celltype_filter TAL --max_genes 100
+  python run_disease_stratified_analysis.py --ref-data data/kpmp.h5ad \\
+      --outdir results/tal_disease --celltype-key subclass.l1 \\
+      --celltype-filter TAL --max-genes 100
 """,
     )
 
     io_group = parser.add_argument_group("Input/Output")
     io_group.add_argument(
-        "--ref_data",
+        "--ref-data",
+        dest="ref_data",
         type=str,
         required=True,
         help="Path to reference data (.h5ad preferred)",
@@ -177,26 +178,30 @@ Examples:
 
     cell_group = parser.add_argument_group("Cell Selection")
     cell_group.add_argument(
-        "--disease_key",
+        "--disease-key",
+        dest="disease_key",
         type=str,
         default=None,
         help="Metadata column for disease labels (auto-detect if not provided)",
     )
     cell_group.add_argument(
-        "--celltype_key",
+        "--celltype-key",
+        dest="celltype_key",
         type=str,
         default="subclass.l1",
         help="Metadata column for cell type (default: subclass.l1)",
     )
     cell_group.add_argument(
-        "--celltype_filter",
+        "--celltype-filter",
+        dest="celltype_filter",
         type=str,
         nargs="+",
         default=None,
-        help="Cell type label(s) to analyze (e.g., TAL). If not provided, analyze all cells.",
+        help="Cell type label(s to analyze (e.g., TAL). If not provided, analyze all cells.",
     )
     cell_group.add_argument(
-        "--donor_key",
+        "--donor-key",
+        dest="donor_key",
         type=str,
         default="donor_id",
         help="Metadata column for donor identifiers (default: donor_id)",
@@ -215,19 +220,22 @@ Examples:
         help="Comma-separated control genes (e.g., 'SLC12A1,UMOD,EGF')",
     )
     gene_group.add_argument(
-        "--min_pct",
+        "--min-pct",
+        dest="min_pct",
         type=float,
         default=0.01,
         help="Minimum expression prevalence for discovery genes (default: 0.01)",
     )
     gene_group.add_argument(
-        "--max_genes",
+        "--max-genes",
+        dest="max_genes",
         type=int,
         default=None,
         help="Maximum discovery genes to analyze (default: all passing filters)",
     )
     gene_group.add_argument(
-        "--exclude_patterns",
+        "--exclude-patterns",
+        dest="exclude_patterns",
         type=str,
         default="^MT-|^mt-|^RPS|^RPL",
         help="Regex pattern for genes to exclude (default: MT/ribosomal)",
@@ -235,7 +243,8 @@ Examples:
 
     scoring_group = parser.add_argument_group("Scoring Parameters")
     scoring_group.add_argument(
-        "--embedding_key",
+        "--embedding-key",
+        dest="embedding_key",
         type=str,
         default=None,
         help="Key in adata.obsm for embedding (default: auto-detect X_umap)",
@@ -247,39 +256,45 @@ Examples:
         help="Number of angular sectors (default: 72 = 5° resolution)",
     )
     scoring_group.add_argument(
-        "--delta_deg",
+        "--delta-deg",
+        dest="delta_deg",
         type=float,
         default=60.0,
         help="Sector width in degrees (default: 60°)",
     )
     scoring_group.add_argument(
-        "--foreground_quantile",
+        "--foreground-quantile",
+        dest="foreground_quantile",
         type=float,
         default=0.90,
         help="Quantile for foreground selection (default: 0.90)",
     )
     scoring_group.add_argument(
-        "--expr_threshold_mode",
+        "--expr-threshold-mode",
+        dest="expr_threshold_mode",
         type=str,
         choices=["detect", "fixed", "nonzero_quantile"],
         default="detect",
         help="How to determine coverage threshold (default: detect)",
     )
     scoring_group.add_argument(
-        "--expr_threshold_value",
+        "--expr-threshold-value",
+        dest="expr_threshold_value",
         type=float,
         default=None,
         help="Fixed coverage threshold (only used if mode=fixed)",
     )
     scoring_group.add_argument(
-        "--empty_fg_policy",
+        "--empty-fg-policy",
+        dest="empty_fg_policy",
         type=str,
         choices=["nan", "zero"],
         default="zero",
         help="Policy for empty-foreground sectors (default: zero)",
     )
     scoring_group.add_argument(
-        "--n_permutations",
+        "--n-permutations",
+        dest="n_permutations",
         type=int,
         default=200,
         help="Number of permutations for p-value calculation (default: 200)",
@@ -287,13 +302,15 @@ Examples:
 
     class_group = parser.add_argument_group("Archetype Classification")
     class_group.add_argument(
-        "--c_cut",
+        "--c-cut",
+        dest="c_cut",
         type=float,
         default=0.10,
         help="Coverage cutoff for archetype classification (default: 0.10)",
     )
     class_group.add_argument(
-        "--s_cut",
+        "--s-cut",
+        dest="s_cut",
         type=float,
         default=None,
         help="Spatial score cutoff (default: median of scored genes)",
@@ -301,7 +318,8 @@ Examples:
 
     genegene_group = parser.add_argument_group("Gene-Gene Analysis")
     genegene_group.add_argument(
-        "--do_genegene",
+        "--do-genegene",
+        dest="do_genegene",
         action="store_true",
         help="Compute pairwise gene relationships (can be slow)",
     )
@@ -314,13 +332,15 @@ Examples:
         help="Random seed for reproducibility (default: 42)",
     )
     runtime_group.add_argument(
-        "--n_workers",
+        "--n-workers",
+        dest="n_workers",
         type=int,
         default=1,
         help="Number of parallel workers (default: 1)",
     )
     runtime_group.add_argument(
-        "--strict_plots",
+        "--strict-plots",
+        dest="strict_plots",
         action="store_true",
         help="Raise exceptions on plotting errors instead of logging and continuing",
     )
@@ -330,7 +350,8 @@ Examples:
         help="Smoke test mode: 50 genes, no permutations, all plot types (overrides max_genes/n_permutations)",
     )
     runtime_group.add_argument(
-        "--debug_plots",
+        "--debug-plots",
+        dest="debug_plots",
         action="store_true",
         help="Generate intermediate debug plots (pointcloud, sector support)",
     )
@@ -529,7 +550,7 @@ def detect_embedding_key(adata: anndata.AnnData, user_key: str | None) -> str:
 
     available = list(adata.obsm.keys())
     raise ValueError(
-        f"No embedding found. Available keys: {available}. Please specify --embedding_key"
+        f"No embedding found. Available keys: {available}. Please specify --embedding-key"
     )
 
 
@@ -956,7 +977,7 @@ def main():
     else:
         disease_key = discover_disease_key(adata)
         if disease_key is None:
-            raise ValueError("Could not auto-discover disease column. Please specify --disease_key")
+            raise ValueError("Could not auto-discover disease column. Please specify --disease-key")
 
     run_meta["disease_key"] = disease_key
     logger.info(f"Using disease column: {disease_key}")
@@ -974,7 +995,7 @@ def main():
         logger.info("[Stage 3] Filtering by cell type...")
 
         if not args.celltype_key:
-            raise ValueError("Must specify --celltype_key when using --celltype_filter")
+            raise ValueError("Must specify --celltype-key when using --celltype-filter")
 
         if args.celltype_key not in adata.obs.columns:
             raise ValueError(
@@ -1023,7 +1044,7 @@ def main():
     run_meta["gene_selection"] = selection_info
 
     if len(genes_to_analyze) == 0:
-        raise ValueError("No genes selected. Check --min_pct and --exclude_patterns")
+        raise ValueError("No genes selected. Check --min-pct and --exclude-patterns")
 
     logger.info("[Stage 6] Configuring BioRSP...")
 
@@ -1171,7 +1192,7 @@ def generate_readme(run_meta: dict, args: argparse.Namespace) -> str:
 ├── README.md                    # This file
 ├── normal/                      # Normal condition results
 │   ├── gene_scores.csv
-│   ├── gene_pairs.csv (if --do_genegene)
+│   ├── gene_pairs.csv (if --do-genegene)
 │   └── radar_plots/
 ├── acute_kidney_failure/        # AKI results
 │   └── ...
@@ -1188,11 +1209,11 @@ Results can be compared across disease conditions to identify:
 For TAL-specific analysis, use:
 ```bash
 python run_disease_stratified_analysis.py \\
-  --ref_data data/kpmp.h5ad \\
+  --ref-data data/kpmp.h5ad \\
   --outdir results/tal_disease \\
-  --celltype_key subclass.l1 \\
-  --celltype_filter TAL \\
-  --max_genes 100
+  --celltype-key subclass.l1 \\
+  --celltype-filter TAL \\
+  --max-genes 100
 ```
 """
 
