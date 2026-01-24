@@ -1,2 +1,0 @@
-shape,N,scenario,similarity_profile_mean,similarity_profile_std,copattern_score_mean,copattern_score_std,shared_mask_fraction_mean,shared_mask_fraction_std,n_reps,schema_version
-disk,2000,same,0.17918880200385962,0.3988198041780186,0.15993844759970072,0.4089225304178205,1.0,0.0,5,2.0

@@ -1,2 +1,0 @@
-shape,N,coverage_regime,organization_regime,pattern_variant,replicate,seed,true_archetype,p_value,Spatial_Score,Coverage,n_expr_cells,abstain_flag,time,predicted_archetype_raw,predicted_archetype,s_margin,c_margin,total_margin
-disk,2000,high,iid,wedge_core,0,5010,housekeeping,,0.07838383760752096,0.6835,1367,False,0.07908201217651367,regional_program,regional_program,0.005168132267324876,0.3835,0.3886681322673249
