@@ -55,9 +55,9 @@ def parse_args():
     parser.add_argument(
         "--metric",
         type=str,
-        choices=["Spatial_Bias_Score", "coverage_score", "p_value"],
-        default="Spatial_Bias_Score",
-        help="Metric to compare (default: spatial_score)",
+        choices=["spatial_score", "coverage_expr", "p_value", "Spatial_Bias_Score", "coverage_score"],
+        default="spatial_score",
+        help="Metric to compare (default: spatial_score). Aliases accepted: Spatial_Bias_Score -> spatial_score, coverage_score -> coverage_expr",
     )
     return parser.parse_args()
 
@@ -86,16 +86,34 @@ def load_disease_results(results_dir: Path) -> Dict[str, pd.DataFrame]:
 
 
 def merge_disease_data(
-    disease_data: Dict[str, pd.DataFrame], metric: str = "Spatial_Bias_Score"
+    disease_data: Dict[str, pd.DataFrame], metric: str = "spatial_score"
 ) -> pd.DataFrame:
-    """Merge results across diseases for comparison."""
+    """Merge results across diseases for comparison.
+
+    The function accepts several metric aliases and normalizes them to the
+    actual CSV column names used in the output (e.g., 'spatial_score', 'coverage_expr', 'p_value').
+    """
+    # Normalize metric aliases to actual column names
+    metric_alias_map = {
+        "spatial_bias_score": "spatial_score",
+        "spatial_score": "spatial_score",
+        "coverage_score": "coverage_expr",
+        "coverage_expr": "coverage_expr",
+        "p_value": "p_value",
+    }
+    metric_col = metric_alias_map.get(metric.lower(), metric)
+
     diseases = sorted(disease_data.keys())
-    merged = disease_data[diseases[0]][["gene", "gene_symbol", metric]].copy()
-    merged = merged.rename(columns={metric: f"{metric}_{diseases[0]}"})
+    # Validate metric exists in the first disease dataframe
+    if metric_col not in disease_data[diseases[0]].columns:
+        raise KeyError(f"Requested metric '{metric}' normalized to '{metric_col}' not found in results columns: {list(disease_data[diseases[0]].columns)}")
+
+    merged = disease_data[diseases[0]][["gene", "gene_symbol", metric_col]].copy()
+    merged = merged.rename(columns={metric_col: f"{metric_col}_{diseases[0]}"})
 
     for disease in diseases[1:]:
-        df_disease = disease_data[disease][["gene", metric]]
-        df_disease = df_disease.rename(columns={metric: f"{metric}_{disease}"})
+        df_disease = disease_data[disease][["gene", metric_col]]
+        df_disease = df_disease.rename(columns={metric_col: f"{metric_col}_{disease}"})
         merged = merged.merge(df_disease, on="gene", how="outer")
 
     return merged
