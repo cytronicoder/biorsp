@@ -234,7 +234,7 @@ def run_stability(args):
     axes[1].plot([0, 1], [0, 1], "k--", alpha=0.5)
     axes[1].set_xlabel("S (Embedding 1)")
     axes[1].set_ylabel("S (Embedding 2)")
-    axes[1].set_title("Score Agreement\n(Embeddings 1 vs 2)", fontweight="bold")
+    axes[1].set_title("Score Agreement\n(Embeddings 1 vs. 2)", fontweight="bold")
     r = corr_matrix[0, 1]
     axes[1].text(0.05, 0.95, f"r = {r:.3f}", transform=axes[1].transAxes, fontsize=12, va="top")
 

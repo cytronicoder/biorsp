@@ -155,33 +155,45 @@ def main():
         help="Base output directory",
     )
     parser.add_argument(
-        "--run_id", type=str, default=None, help="Run identifier (default: timestamp)"
+        "--run-id", type=str, default=None, help="Run identifier (default: timestamp)"
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--n_reps", type=int, default=100)
+    parser.add_argument("--n-reps", dest="n_reps", type=int, default=100)
     parser.add_argument("--N", type=int, nargs="+", default=[500, 1000, 2000])
     parser.add_argument(
         "--shape", type=str, nargs="+", default=["disk", "ellipse", "annulus", "peanut"]
     )
     parser.add_argument(
-        "--null_type",
+        "--null-type",
+        dest="null_type",
         type=str,
         nargs="+",
         default=["iid", "depth_confounded", "mask_stress"],
         help="Null types: iid, depth_confounded, mask_stress (NOT density_confounded - that creates signal!)",
     )
 
-    parser.add_argument("--n_permutations", type=int, default=250)
+    parser.add_argument("--n-permutations", type=int, default=250)
     parser.add_argument(
         "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
     )
     parser.add_argument(
-        "--n_workers", type=int, default=1, help="Parallel workers (-1 = all cores)"
+        "--n-workers",
+        dest="n_workers",
+        type=int,
+        default=1,
+        help="Parallel workers (-1 = all cores)",
     )
-    parser.add_argument("--checkpoint_every", type=int, default=25, help="Save every N replicates")
+    parser.add_argument(
+        "--checkpoint-every",
+        dest="checkpoint_every",
+        type=int,
+        default=25,
+        help="Save every N replicates",
+    )
     parser.add_argument("--resume", action="store_true", help="Resume from existing runs.csv")
     parser.add_argument(
-        "--permutation_scope",
+        "--permutation-scope",
+        dest="permutation_scope",
         type=str,
         choices=["none", "topk", "all"],
         default="all",

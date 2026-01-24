@@ -536,18 +536,36 @@ def main():
         help="Base output directory",
     )
     parser.add_argument(
-        "--run_id", type=str, default=None, help="Run identifier (default: timestamp)"
+        "--run-id",
+        dest="run_id",
+        type=str,
+        default=None,
+        help="Run identifier (default: timestamp)",
     )
     parser.add_argument("--seed", type=int, default=5000)
-    parser.add_argument("--n_reps", type=int, default=20)
+    parser.add_argument(
+        "--n-reps",
+        dest="n_reps",
+        type=int,
+        default=20,
+    )
     parser.add_argument("--N", type=int, nargs="+", default=[500, 1000, 2000])
     parser.add_argument("--shape", type=str, nargs="+", default=["disk", "peanut"])
     parser.add_argument(
         "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
     )
-    parser.add_argument("--n_workers", type=int, default=-1)
     parser.add_argument(
-        "--debug_panels", type=str, choices=["none", "minimal", "all"], default="minimal"
+        "--n-workers",
+        dest="n_workers",
+        type=int,
+        default=-1,
+    )
+    parser.add_argument(
+        "--debug-panels",
+        dest="debug_panels",
+        type=str,
+        choices=["none", "minimal", "all"],
+        default="minimal",
     )
     args = parser.parse_args()
 

@@ -113,7 +113,7 @@ The contract schema is enforced by `analysis/benchmarks/simlib/io_contract.py`.
 ## Running benchmarks
 
 ```bash
-python analysis/benchmarks/runners/run_benchmarks.py --mode quick --n_workers 4 --outdir results/benchmarks
+python analysis/benchmarks/runners/run_benchmarks.py --mode quick --n-workers 4 --outdir results/benchmarks
 ```
 
 Individual runners can also be executed directly, for example:

@@ -2,7 +2,7 @@
 One-Page Story Figure for BioRSP Methods Paper.
 
 Generates a single-page figure panel (4 subpanels) that validates BioRSP's core claims:
-- Panel A: Archetype scatter (C vs S) with ground truth coloring and quadrant boundaries
+- Panel A: Archetype scatter (C vs. S) with ground truth coloring and quadrant boundaries
 - Panel B: Confusion matrix for 2×2 classification
 - Panel C: Marker recovery (precision@K for structured genes)
 - Panel D: Gene-gene module recovery
@@ -17,7 +17,7 @@ Performance Tips:
     - Use --mode validation for preliminary results (~5min)
     - Use --mode publication for final manuscript figures (~15min)
     - Main bottleneck: permutation tests (controlled by mode)
-    - For large-scale benchmarks, see run_calibration.py which supports --n_workers
+    - For large-scale benchmarks, see run_calibration.py which supports --n-workers
 
 Outputs:
     - fig_story_A_archetypes.png
@@ -294,7 +294,7 @@ def run_story_benchmark(args):
         true_archetypes=results_df.loc[eval_mask, "Archetype"].values,
         c_cut=c_cut,
         s_cut=s_cut,
-        title="A. Archetype Classification (C vs S)",
+        title="A. Archetype Classification (C vs. S)",
     )
     io.save_figure(fig_a, figures_dir, "fig_story_A_archetypes.png")
     plt.close(fig_a)
@@ -748,7 +748,7 @@ def write_caption(figures_dir: Path):
 
     caption = """Figure: BioRSP Method Validation Through Simulation
 
-(A) Coverage (C) vs Spatial Organization Score (S) for simulated genes with known ground truth.
+(A) Coverage (C) vs. Spatial Organization Score (S) for simulated genes with known ground truth.
     Points are colored by true archetype: Ubiquitous (green), regional program (blue),
     sparse/noisy (gray), and niche marker (orange). Dashed lines indicate classification
     thresholds derived from null simulations.

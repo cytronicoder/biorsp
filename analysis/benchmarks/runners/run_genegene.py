@@ -137,31 +137,42 @@ def main():
     parser = argparse.ArgumentParser(description="Gene-gene co-patterning benchmark")
     parser.add_argument("--outdir", type=str, default=str(ROOT / "outputs" / "genegene"))
     parser.add_argument("--seed", type=int, default=8000)
-    parser.add_argument("--n_reps", type=int, default=50)
+    parser.add_argument("--n-reps", dest="n_reps", type=int, default=50)
     parser.add_argument("--N", type=int, nargs="+", default=[2000, 5000])
     parser.add_argument("--shape", type=str, nargs="+", default=["disk"])
     parser.add_argument(
         "--scenario", type=str, nargs="+", default=["same", "opposite", "orthogonal", "rim_core"]
     )
-    parser.add_argument("--n_permutations", type=int, default=250)
+    parser.add_argument("--n-permutations", dest="n_permutations", type=int, default=250)
     parser.add_argument(
         "--mode", type=str, choices=["quick", "validation", "publication"], default="quick"
     )
-    parser.add_argument("--n_jobs", type=int, default=-1)
-    parser.add_argument("--n_workers", type=int, default=-1, help="Number of parallel workers")
+    parser.add_argument("--n-jobs", dest="n_jobs", type=int, default=-1)
     parser.add_argument(
-        "--checkpoint_every", type=int, default=25, help="Save checkpoint every N runs"
+        "--n-workers", dest="n_workers", type=int, default=-1, help="Number of parallel workers"
+    )
+    parser.add_argument(
+        "--checkpoint-every",
+        dest="checkpoint_every",
+        type=int,
+        default=25,
+        help="Save checkpoint every N runs",
     )
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
     parser.add_argument(
-        "--permutation_scope",
+        "--permutation-scope",
+        dest="permutation_scope",
         type=str,
         choices=["none", "topk", "all"],
         default="topk",
         help="Permutation strategy: 'none', 'topk' (only top K pairs), 'all'",
     )
     parser.add_argument(
-        "--topk_perm", type=int, default=500, help="Number of top pairs for topk permutation"
+        "--topk-perm",
+        dest="topk_perm",
+        type=int,
+        default=500,
+        help="Number of top pairs for topk permutation",
     )
     args = parser.parse_args()
 
