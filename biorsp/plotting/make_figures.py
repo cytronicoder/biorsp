@@ -3,7 +3,7 @@ CLI entry point for regenerating figures from BioRSP outputs.
 
 This module provides a command-line interface for re-plotting figures from
 completed benchmark runs without recomputation. It detects the run type
-(simulation vs kidney) and generates appropriate panels.
+(simulation vs. kidney) and generates appropriate panels.
 
 Usage:
     python -m biorsp.plotting.make_figures --indir <run_dir>
@@ -18,7 +18,7 @@ The tool will:
 4. Optionally generate debug plots
 
 Standard Panels:
-- A_archetype_scatter.png: Coverage vs Spatial Bias Score
+- A_archetype_scatter.png: Coverage vs. Spatial Bias Score
 - B_confusion_or_composition.png: Confusion matrix (sim) or composition bar (kidney)
 - C_examples_per_archetype.png: Representative spatial patterns
 - D_pairwise_or_module.png: Gene-gene pairs or modules
@@ -157,14 +157,14 @@ def generate_panel_a(
     fig = plot_archetype_scatter(
         df,
         spec,
-        title="Coverage vs Spatial Bias Score",
+        title="Coverage vs. Spatial Bias Score",
         color_by=color_by,
         show_annotations=True,
     )
 
     c_cut, s_cut = spec.get_quadrant_bounds()
     caption = (
-        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
+        f"Panel A: Coverage vs. Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={c_cut:.2f}, S={s_cut:.2f}. "
         f"Each point represents one gene or simulation replicate. "
         f"Colors indicate archetype classification."

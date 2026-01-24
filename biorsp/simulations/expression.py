@@ -512,8 +512,8 @@ def generate_factorial_gene(
     Generate gene expression with factorial control over coverage and organization.
 
     This is the main entry point for the 2x2 archetype design:
-    - Coverage: high vs low (controlled prevalence)
-    - Organization: structured (spatial pattern) vs unstructured (iid)
+    - Coverage: high vs. low (controlled prevalence)
+    - Organization: structured (spatial pattern) vs. unstructured (iid)
 
     IMPORTANT: For structured patterns, use ONLY patterns that BioRSP's S score
     can detect (patterns with radial contrast):

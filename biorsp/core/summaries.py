@@ -6,8 +6,8 @@ Implements scalar statistics derived from the radar function:
 - Extremal peak based on absolute magnitude.
 - Localization index.
 - Signed summaries:
-    - R_mean indicates net radial bias (core vs rim).
-    - Polarity indicates whether the pattern is globally one-signed or mixed.
+    - R_mean indicates net radial bias (core vs. rim).
+    - Polarity indicates whether the pattern is globally one-signed vs. mixed.
     - These resolve ambiguity in A_g where rim and core patterns can have similar magnitude.
 """
 
@@ -42,7 +42,7 @@ class ScalarSummaries:
         localization_status: Status of localization computation.
         r_mean: Mean signed shift (net radial bias).
         r_median: Median signed shift.
-        polarity: Signed energy ratio (one-signed vs mixed).
+        polarity: Signed energy ratio (one-signed vs. mixed).
         a_signed: Signed anisotropy (sign(r_mean) * anisotropy).
         frac_pos: Fraction of sectors with positive RSP.
         frac_neg: Fraction of sectors with negative RSP.

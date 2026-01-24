@@ -8,7 +8,7 @@ available data.
 
 Key Features:
 - Consistent 2x2 or 1x4 layout
-- Automatic panel substitution (confusion matrix vs composition bar)
+- Automatic panel substitution (confusion matrix vs. composition bar)
 - Caption generation from manifest metadata
 - Supports regeneration from standardized outputs
 
@@ -195,7 +195,7 @@ def generate_onepager(
             else spec.archetype_col
         )
         plot_archetype_scatter(df, spec, color_by=color_by, ax=ax_a, show_annotations=True)
-        ax_a.set_title("A. Coverage vs Spatial Bias Score", fontsize=11, fontweight="bold")
+        ax_a.set_title("A. Coverage vs. Spatial Bias Score", fontsize=11, fontweight="bold")
         add_panel_label(ax_a, "A")
 
         # Panel B: Confusion Matrix or Composition
@@ -423,7 +423,7 @@ def _generate_caption(
     caption_lines = [
         f"Figure: BioRSP Analysis Summary ({run_type.title()})",
         "",
-        f"(A) Coverage vs Spatial Bias Score scatter plot showing {n_total:,} ",
+        f"(A) Coverage vs. Spatial Bias Score scatter plot showing {n_total:,} ",
         "genes/replicates classified into four archetypes. Quadrant boundaries at ",
         f"C={c_cut:.2f}, S={s_cut:.2f}. ",
     ]

@@ -45,7 +45,7 @@ def plot_cs_scatter(
     palette: Mapping[str, str] | None = None,
     annotate_quadrants: bool = True,
 ):
-    """Plot coverage vs spatial score with archetype coloring.
+    """Plot coverage vs. spatial score with archetype coloring.
 
     Args:
         df: DataFrame containing score columns and optional truth/prediction labels.

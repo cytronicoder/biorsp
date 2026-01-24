@@ -77,7 +77,7 @@ def run_analysis(args):
         B=args.B,
         delta_deg=args.delta,
         foreground_quantile=args.q,
-        n_permutations=args.n_perm,
+        n_permutations=args.n_permutations,
         perm_mode=args.perm_mode,
         n_r_bins=args.n_r_bins,
         n_theta_bins=args.n_theta_bins,
@@ -146,7 +146,7 @@ def main(argv=None):
         "--min-fg-total", type=int, default=N_FG_TOT_MIN_DEFAULT, help="Min total foreground cells"
     )
     run_parser.add_argument(
-        "--min_adequacy_fraction",
+        "--min-adequacy-fraction",
         type=float,
         default=0.9,
         help="Min fraction of adequate sectors required",
@@ -161,7 +161,11 @@ def main(argv=None):
     )
     run_parser.add_argument("--inference", action="store_true", help="Run permutation test")
     run_parser.add_argument(
-        "--n-perm", type=int, default=K_EXPLORATORY_DEFAULT, help="Number of permutations"
+        "--n-permutations",
+        "--n-perm",
+        type=int,
+        default=K_EXPLORATORY_DEFAULT,
+        help="Number of permutations",
     )
     run_parser.add_argument(
         "--perm-mode",

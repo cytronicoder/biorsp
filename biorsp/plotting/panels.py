@@ -6,7 +6,7 @@ benchmarks and kidney case studies. Each function produces a specific panel
 with consistent styling, axes, labels, and semantics.
 
 Panel naming convention:
-- A_archetype_scatter.png: Coverage vs Spatial Bias Score scatter with quadrants
+- A_archetype_scatter.png: Coverage vs. Spatial Bias Score scatter with quadrants
 - B_confusion_or_composition.png: Confusion matrix (sim) or composition bar (kidney)
 - C_examples_per_archetype.png: Example spatial patterns for each archetype
 - D_pairwise_or_module.png: Gene-gene pairs (sim) or modules (kidney)
@@ -35,14 +35,14 @@ logger = logging.getLogger(__name__)
 def plot_archetype_scatter(
     df: pd.DataFrame,
     spec: PlotSpec,
-    title: str = "Coverage vs Spatial Organization",
+    title: str = "Coverage vs. Spatial Organization",
     color_by: str = "Archetype",
     highlight_genes: Optional[List[str]] = None,
     figsize: Optional[Tuple[float, float]] = None,
     show_annotations: bool = True,
     ax: Optional[plt.Axes] = None,
 ) -> Figure:
-    """Create Panel A: archetype scatter plot (Coverage vs Spatial Bias Score).
+    """Create Panel A: archetype scatter plot (Coverage vs. Spatial Bias Score).
 
     Args:
         df: DataFrame with Coverage, Spatial_Bias_Score, and archetype columns.
@@ -368,7 +368,7 @@ def generate_standard_panels(
     fig_a = plot_archetype_scatter(df, spec, color_by=color_by)
 
     caption_a = (
-        f"Panel A: Coverage vs Spatial Bias Score scatter plot. "
+        f"Panel A: Coverage vs. Spatial Bias Score scatter plot. "
         f"Quadrant boundaries at C={spec.c_cut:.2f}, S={spec.s_cut:.2f}. "
         f"Each point represents one gene or simulation replicate. "
         f"Colors indicate archetype classification."

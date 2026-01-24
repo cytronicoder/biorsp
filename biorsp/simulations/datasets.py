@@ -290,7 +290,7 @@ def make_factorial_panel(
     - niche_marker: low coverage, spatially structured (localized radial patterns)
 
     IMPORTANT: Pattern selection is aligned with what BioRSP's S score can detect.
-    S measures *radial* organization (mean radius of expressing vs non-expressing cells).
+    S measures *radial* organization (mean radius of expressing vs. non-expressing cells).
 
     Patterns used:
     - regional_program: core, rim, radial_gradient (broad radial structure → high |S|)

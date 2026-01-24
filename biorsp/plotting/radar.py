@@ -306,7 +306,7 @@ def plot_localization_scatter(
     delta_deg: float | None = None,
     **kwargs,
 ) -> plt.Axes:
-    """Plot anisotropy (A_g) vs localization (L_g) to distinguish spatial phenotypes.
+    """Plot anisotropy (A_g) vs. localization (L_g) to distinguish spatial phenotypes.
 
     Parameters
     ----------
@@ -405,7 +405,7 @@ def plot_phenotype_map(
     delta_deg: float | None = None,
     **kwargs,
 ) -> plt.Axes:
-    """Plot magnitude (A_g) vs directionality (polarity/R_mean) to distinguish core vs rim.
+    """Plot magnitude (A_g) vs. directionality (polarity/R_mean) to distinguish core vs. rim.
 
     Parameters
     ----------
@@ -455,7 +455,7 @@ def plot_phenotype_map(
 
     ax.set_xlabel("Anisotropy ($A_g$)")
     ax.set_ylabel(y_axis.replace("_", " ").title())
-    ax.set_title(f"Phenotype Map: Magnitude vs {y_axis.title()}")
+    ax.set_title(f"Phenotype Map: Magnitude vs. {y_axis.title()}")
 
     if show_archetypes:
         xlim = ax.get_xlim()
