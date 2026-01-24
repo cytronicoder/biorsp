@@ -74,6 +74,10 @@ class BioRSPConfig:
     min_total_per_sector: int = MIN_TOTAL_PER_SECTOR_DEFAULT
 
     perm_mode: Literal["radial", "joint", "rt_umi", "none"] = "radial"
+    perm_mode_scoring: Literal["global", "within_cluster", "knn_block"] = "global"
+    perm_cluster_key: Optional[str] = None
+    knn_k: int = 15
+    knn_block_size: int = 50
     n_permutations: int = K_EXPLORATORY_DEFAULT
     rejection_max_retries: int = REJECTION_MAX_RETRIES_DEFAULT
     umi_bins: int = UMI_BINS_DEFAULT
@@ -97,6 +101,11 @@ class BioRSPConfig:
 
     min_shared_mask_fraction: float = 0.6
     empty_fg_policy: Literal["nan", "zero"] = "zero"
+
+    radius_norm: Literal["max", "quantile", "std"] = "quantile"
+    radius_q: float = 0.99
+    radial_rule: Literal["equal", "quantile"] = "quantile"
+    fixed_vantage: Optional[np.ndarray] = None
 
     save_profiles: bool = True
     save_plots: bool = True

@@ -1,4 +1,8 @@
-"""Implementation of BioRSP scoring logic."""
+"""Implementation of BioRSP scoring logic.
+
+This module assumes embeddings are 2D latent coordinates (not tissue spatial).
+Permutation modes should respect locality unless labels are i.i.d. synthetic.
+"""
 
 import logging
 from typing import Dict, List, Optional, Tuple, Union
@@ -10,10 +14,10 @@ from scipy import sparse
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
-from biorsp.core.engine import compute_rsp_radar
-from biorsp.core.geometry import compute_vantage, get_sector_indices, polar_coordinates
+from biorsp.core.adequacy import assess_adequacy
+from biorsp.core.engine import SectorIndex, assign_sectors, compute_rsp_radar
+from biorsp.core.geometry import PolarPrep, get_sector_indices, prepare_polar
 from biorsp.preprocess.foreground import define_foreground
-from biorsp.preprocess.normalization import normalize_radii
 from biorsp.utils.config import BioRSPConfig
 
 logger = logging.getLogger(__name__)
@@ -65,7 +69,7 @@ def _prepare_embedding(
     embedding_key: str,
     subset: Optional[Union[dict, str, List[str]]],
     config: BioRSPConfig,
-) -> Tuple[AnnData, np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[np.ndarray], Dict]:
+) -> Tuple[AnnData, np.ndarray, PolarPrep, SectorIndex, Dict]:
     """Shared preprocessing for score_genes and score_gene_pairs."""
     if subset is not None:
         if isinstance(subset, dict):
@@ -83,22 +87,40 @@ def _prepare_embedding(
     if coords.shape[1] != 2:
         raise ValueError("Embedding must be 2D.")
 
-    center = compute_vantage(
+    if config.vantage == "geometric_median":
+        vantage_mode = "median"
+    elif config.vantage == "mean":
+        vantage_mode = "centroid"
+    elif config.vantage == "user":
+        vantage_mode = "fixed"
+    else:
+        vantage_mode = "median"
+
+    polar_prep = prepare_polar(
         coords,
-        method=config.vantage,
-        knn_k=config.center_knn_k,
-        density_percentile=config.center_density_percentile,
-        tol=config.geom_median_tol,
-        max_iter=config.geom_median_max_iter,
         seed=config.seed,
+        vantage=vantage_mode,
+        fixed_vantage=config.fixed_vantage,
+        radius_norm=config.radius_norm,
+        radius_q=config.radius_q,
     )
 
-    r, theta = polar_coordinates(coords, center)
-    r_norm, norm_stats = normalize_radii(r)
-    sector_indices = get_sector_indices(theta, config.B, config.delta_deg)
+    sector_index = assign_sectors(
+        polar_prep.theta,
+        polar_prep.r_norm,
+        B=config.B,
+        n_radial=config.n_r_bins,
+        radial_rule=config.radial_rule,
+        seed=config.seed,
+    )
+    sector_index.sector_indices = get_sector_indices(polar_prep.theta, config.B, config.delta_deg)
 
-    meta = {"n_cells": adata.n_obs, "center": center, "norm_stats": norm_stats}
-    return adata, coords, center, r_norm, theta, sector_indices, meta
+    meta = {
+        "n_cells": adata.n_obs,
+        "center": polar_prep.vantage_xy,
+        "norm_stats": polar_prep.norm_stats,
+    }
+    return adata, coords, polar_prep, sector_index, meta
 
 
 def _compute_spatial_score_from_radar(radar) -> Tuple[float, float, float, float, float]:
@@ -111,14 +133,14 @@ def _compute_spatial_score_from_radar(radar) -> Tuple[float, float, float, float
     """
     mask = radar.geom_supported_mask
     if mask is None or not np.any(mask):
-        return 0.0, 0.0, 0.0, 0.0, 0.0
+        return np.nan, np.nan, 0.0, 0.0, 0.0
 
     valid_rsp = np.nan_to_num(radar.rsp[mask], nan=0.0)
     w = radar.sector_weights[mask]
 
     sum_w = np.sum(w)
     if sum_w <= 0:
-        return 0.0, 0.0, 0.0, 0.0, 0.0
+        return np.nan, np.nan, 0.0, 0.0, 0.0
 
     s_g = float(np.sqrt(np.sum(w * valid_rsp**2) / sum_w))
     r_mean = float(np.sum(w * valid_rsp) / sum_w)
@@ -137,15 +159,19 @@ def _compute_spatial_score_from_radar(radar) -> Tuple[float, float, float, float
 
 
 def _permute_p_value(
+    coords: np.ndarray,
     r_norm: np.ndarray,
     theta: np.ndarray,
     y_observed: np.ndarray,
-    sector_indices: List[np.ndarray],
+    sector_index: SectorIndex,
     config: BioRSPConfig,
     observed_s: float,
     fixed_geom_mask: Optional[np.ndarray] = None,
     fixed_weights: Optional[np.ndarray] = None,
     stratify_labels: Optional[np.ndarray] = None,
+    cluster_labels: Optional[np.ndarray] = None,
+    knn_blocks: Optional[List[np.ndarray]] = None,
+    perm_mode: Optional[str] = None,
     rng_seed: int = 42,
 ) -> Tuple[float, float, float, float, int]:
     """Stratified permutation inference for S_g with fixed geometry.
@@ -157,8 +183,15 @@ def _permute_p_value(
     if n_perm <= 0:
         return np.nan, np.nan, np.nan, np.nan, 0
 
+    perm_mode = perm_mode or config.perm_mode_scoring
     rng = np.random.default_rng(rng_seed)
     n_cells = len(y_observed)
+
+    if not np.isfinite(observed_s):
+        return np.nan, np.nan, np.nan, np.nan, n_perm
+
+    if perm_mode == "knn_block" and knn_blocks is None:
+        knn_blocks = _build_knn_blocks(coords, config.knn_k, config.knn_block_size, rng_seed)
 
     if stratify_labels is not None:
         unique_labels = np.unique(stratify_labels)
@@ -166,8 +199,11 @@ def _permute_p_value(
     else:
         strata_indices = [np.arange(n_cells)]
 
+    if sector_index.sector_indices is None:
+        sector_index.sector_indices = get_sector_indices(theta, config.B, config.delta_deg)
+
     sector_sort_indices = []
-    for idx_s in sector_indices:
+    for idx_s in sector_index.sector_indices:
         if idx_s.size > 0:
             sector_sort_indices.append(np.argsort(r_norm[idx_s]))
         else:
@@ -176,16 +212,32 @@ def _permute_p_value(
     null_scores = []
     for _ in range(n_perm):
         y_perm = np.copy(y_observed)
-        for idxs in strata_indices:
-            perm_idxs = rng.permutation(idxs)
-            y_perm[idxs] = y_perm[perm_idxs]
+        if perm_mode == "within_cluster" and cluster_labels is not None:
+            for label in np.unique(cluster_labels):
+                idxs = np.where(cluster_labels == label)[0]
+                perm_idxs = rng.permutation(idxs)
+                y_perm[idxs] = y_perm[perm_idxs]
+        elif perm_mode == "knn_block" and knn_blocks is not None:
+            for block in knn_blocks:
+                perm_idxs = rng.permutation(block)
+                y_perm[block] = y_perm[perm_idxs]
+        else:
+            if perm_mode in {"within_cluster", "knn_block"}:
+                logger.warning(
+                    "Permutation mode '%s' requested but no grouping provided; "
+                    "falling back to global shuffle.",
+                    perm_mode,
+                )
+            for idxs in strata_indices:
+                perm_idxs = rng.permutation(idxs)
+                y_perm[idxs] = y_perm[perm_idxs]
 
         radar_null = compute_rsp_radar(
             r_norm,
             theta,
             y_perm,
             config=config,
-            sector_indices=sector_indices,
+            sector_index=sector_index,
             sector_sort_indices=sector_sort_indices,
             sector_weights=fixed_weights,
         )
@@ -213,6 +265,41 @@ def _permute_p_value(
     return float(p_val), float(null_mean), float(null_sd), float(z_score), n_perm
 
 
+def _build_knn_blocks(coords: np.ndarray, k: int, block_size: int, seed: int) -> List[np.ndarray]:
+    """Build locality-preserving permutation blocks from kNN adjacency."""
+    n_cells = coords.shape[0]
+    if n_cells == 0:
+        return []
+
+    k = max(1, min(k, n_cells - 1))
+    dists = np.linalg.norm(coords[:, None, :] - coords[None, :, :], axis=2)
+    neighbor_idx = np.argsort(dists, axis=1)[:, 1 : k + 1]
+
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(n_cells)
+    assigned = np.zeros(n_cells, dtype=bool)
+    blocks: List[np.ndarray] = []
+
+    for idx in order:
+        if assigned[idx]:
+            continue
+        block = [int(idx)]
+        assigned[idx] = True
+        queue = [int(idx)]
+        while queue and len(block) < block_size:
+            current = queue.pop(0)
+            for nb in neighbor_idx[current]:
+                if not assigned[nb]:
+                    assigned[nb] = True
+                    block.append(int(nb))
+                    queue.append(int(nb))
+                if len(block) >= block_size:
+                    break
+        blocks.append(np.array(block, dtype=int))
+
+    return blocks
+
+
 def score_genes_impl(
     adata: AnnData,
     genes: List[str],
@@ -220,7 +307,7 @@ def score_genes_impl(
     subset: Optional[Union[dict, str, List[str]]],
     config: BioRSPConfig,
 ) -> pd.DataFrame:
-    adata_sub, _, _, r_norm, theta, sector_indices, _ = _prepare_embedding(
+    adata_sub, coords, polar_prep, sector_index, _ = _prepare_embedding(
         adata, embedding_key, subset, config
     )
 
@@ -231,6 +318,14 @@ def score_genes_impl(
             stratify_labels = pd.qcut(vals, config.n_strata, labels=False, duplicates="drop")
         else:
             stratify_labels = vals
+
+    cluster_labels = None
+    if config.perm_cluster_key is not None and config.perm_cluster_key in adata_sub.obs:
+        cluster_labels = adata_sub.obs[config.perm_cluster_key].values
+
+    knn_blocks = None
+    if config.perm_mode_scoring == "knn_block":
+        knn_blocks = _build_knn_blocks(coords, config.knn_k, config.knn_block_size, config.seed)
 
     results = []
 
@@ -273,14 +368,53 @@ def score_genes_impl(
                     "coverage_contrast": 0.0,
                     "coverage_forced_zero": 0.0,
                     "coverage_fg": 0.0,
-                    "p_value": np.nan,
+                    "p_value": None,
                     "z_score": np.nan,
+                    "p_min": np.nan,
                     "warnings": ";".join(warnings + ["insufficient_internal_fg"]),
                 }
             )
             continue
 
-        radar = compute_rsp_radar(r_norm, theta, y, config=config, sector_indices=sector_indices)
+        adequacy = assess_adequacy(
+            polar_prep.r_norm,
+            polar_prep.theta,
+            y,
+            config=config,
+            x=x,
+            sector_index=sector_index,
+        )
+        if not adequacy.is_adequate:
+            results.append(
+                {
+                    "gene": gene,
+                    "n_cells_total": len(x),
+                    "expr_threshold_mode": t_mode,
+                    "expr_threshold_value": t_g,
+                    "coverage": coverage,
+                    "spatial_score": np.nan,
+                    "spatial_sign": 0,
+                    "r_mean": np.nan,
+                    "coverage_geom": adequacy.adequacy_fraction,
+                    "coverage_contrast": 0.0,
+                    "coverage_forced_zero": 0.0,
+                    "coverage_fg": 0.0,
+                    "p_value": None,
+                    "z_score": np.nan,
+                    "p_min": np.nan,
+                    "warnings": ";".join(warnings + [f"abstain:{adequacy.reason}"]),
+                }
+            )
+            continue
+
+        radar = compute_rsp_radar(
+            polar_prep.r_norm,
+            polar_prep.theta,
+            y,
+            config=config,
+            sector_index=sector_index,
+            frozen_mask=adequacy.sector_mask,
+        )
         s_g, r_mean, cov_geom, cov_contrast, cov_forced_zero = _compute_spatial_score_from_radar(
             radar
         )
@@ -298,17 +432,23 @@ def score_genes_impl(
         gene_seed = (config.seed + hash(gene)) % (2**32)
 
         p_val, _, _, z_score, _ = _permute_p_value(
-            r_norm,
-            theta,
+            coords,
+            polar_prep.r_norm,
+            polar_prep.theta,
             y,
-            sector_indices,
+            sector_index,
             config,
             s_g,
             fixed_geom_mask=radar.geom_supported_mask,
             fixed_weights=radar.sector_weights,
             stratify_labels=stratify_labels,
+            cluster_labels=cluster_labels,
+            knn_blocks=knn_blocks,
+            perm_mode=config.perm_mode_scoring,
             rng_seed=gene_seed,
         )
+
+        p_min = 1.0 / (config.n_permutations + 1) if config.n_permutations > 0 else np.nan
 
         results.append(
             {
@@ -326,6 +466,7 @@ def score_genes_impl(
                 "coverage_fg": cov_fg,
                 "p_value": p_val,
                 "z_score": z_score,
+                "p_min": p_min,
                 "warnings": ";".join(warnings),
             }
         )
@@ -348,7 +489,7 @@ def score_gene_pairs_impl(
     subset: Optional[Union[dict, str, List[str]]],
     config: BioRSPConfig,
 ) -> pd.DataFrame:
-    adata_sub, _, _, r_norm, theta, sector_indices, _ = _prepare_embedding(
+    adata_sub, _, polar_prep, sector_index, _ = _prepare_embedding(
         adata, embedding_key, subset, config
     )
 
@@ -365,8 +506,24 @@ def score_gene_pairs_impl(
             if y is None:
                 continue
 
+            adequacy = assess_adequacy(
+                polar_prep.r_norm,
+                polar_prep.theta,
+                y,
+                config=config,
+                x=x,
+                sector_index=sector_index,
+            )
+            if not adequacy.is_adequate:
+                continue
+
             radar = compute_rsp_radar(
-                r_norm, theta, y, config=config, sector_indices=sector_indices
+                polar_prep.r_norm,
+                polar_prep.theta,
+                y,
+                config=config,
+                sector_index=sector_index,
+                frozen_mask=adequacy.sector_mask,
             )
             s_g, r_mean, _, _, _ = _compute_spatial_score_from_radar(radar)
 

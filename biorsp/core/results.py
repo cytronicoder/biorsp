@@ -12,6 +12,7 @@ from biorsp.core.robustness import RobustnessResult
 from biorsp.core.summaries import ScalarSummaries
 from biorsp.core.typing import AdequacyReport, RadarResult
 from biorsp.utils.config import BioRSPConfig
+from biorsp.utils.labels import ABSTAIN_LABEL
 
 
 @dataclass
@@ -163,7 +164,7 @@ def assign_feature_types(
 
     for fr in feature_results.values():
         if not fr.adequacy.is_adequate:
-            fr.feature_type = None
+            fr.feature_type = ABSTAIN_LABEL
             continue
 
         coverage_value = float(getattr(fr, coverage_field))
