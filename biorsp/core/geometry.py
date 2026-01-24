@@ -3,13 +3,32 @@
 Implements geometric definitions and coordinate transformations:
 - Geometric median vantage point
 - Polar coordinate transformation
+- Canonical polar preparation (prepare_polar)
 - Wrapped angular distance on S1
 - Efficient sliding window angular indexing
 """
 
-from typing import List, Literal, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Literal, Optional, Tuple
 
 import numpy as np
+
+
+@dataclass
+class PolarPrep:
+    """Canonical polar preparation output.
+
+    Attributes:
+        theta: (N,) array of angles in radians.
+        r_norm: (N,) array of normalized radii in [0, 1].
+        vantage_xy: (2,) vantage point used for centering.
+        norm_stats: Dict of normalization metadata (scale, eps, and flags).
+    """
+
+    theta: np.ndarray
+    r_norm: np.ndarray
+    vantage_xy: np.ndarray
+    norm_stats: Dict[str, float]
 
 
 def geometric_median(
@@ -155,6 +174,123 @@ def polar_coordinates(z: np.ndarray, v: np.ndarray) -> Tuple[np.ndarray, np.ndar
     return r, theta
 
 
+def prepare_polar(
+    embedding: np.ndarray,
+    *,
+    seed: int,
+    vantage: Literal["median", "centroid", "random", "fixed"],
+    fixed_vantage: Optional[np.ndarray],
+    radius_norm: Literal["max", "quantile", "std"],
+    radius_q: float = 0.99,
+) -> PolarPrep:
+    """Prepare canonical polar coordinates from a 2D embedding.
+
+    The embedding is centered by a deterministic vantage point, then converted
+    to polar coordinates. Radii are normalized to [0, 1] with a stable scale.
+
+    Args:
+        embedding: (N, 2) array of coordinates.
+        seed: Random seed for reproducible selection (random vantage).
+        vantage: Vantage strategy ("median", "centroid", "random", "fixed").
+        fixed_vantage: Optional fixed vantage point used when ``vantage="fixed"``.
+        radius_norm: Radial normalization mode ("max", "quantile", "std").
+        radius_q: Quantile for radius scaling when ``radius_norm="quantile"``.
+
+    Returns:
+        PolarPrep with normalized radii, angles, and normalization metadata.
+    """
+    if embedding.ndim != 2 or embedding.shape[1] != 2:
+        raise ValueError("Embedding must be an (N, 2) array.")
+
+    n_cells = embedding.shape[0]
+    eps = 1e-8
+    if n_cells == 0:
+        return PolarPrep(
+            theta=np.array([]),
+            r_norm=np.array([]),
+            vantage_xy=np.array([0.0, 0.0]),
+            norm_stats={
+                "scale": 0.0,
+                "eps": eps,
+                "degenerate": True,
+                "reason": "empty_embedding",
+            },
+        )
+
+    if vantage == "median":
+        vantage_xy, _, _ = geometric_median(embedding)
+    elif vantage == "centroid":
+        vantage_xy = np.mean(embedding, axis=0)
+    elif vantage == "random":
+        rng = np.random.default_rng(seed)
+        vantage_xy = embedding[int(rng.integers(0, n_cells))]
+    elif vantage == "fixed":
+        if fixed_vantage is None:
+            raise ValueError("fixed_vantage must be provided when vantage='fixed'.")
+        vantage_xy = np.asarray(fixed_vantage, dtype=float)
+    else:
+        raise ValueError(f"Unknown vantage mode: {vantage}")
+
+    r, theta = polar_coordinates(embedding, vantage_xy)
+
+    if not np.all(np.isfinite(r)):
+        raise ValueError("Embedding contains non-finite values after centering.")
+
+    max_r = float(np.max(r)) if r.size else 0.0
+    std_r = float(np.std(r)) if r.size else 0.0
+    q_r = float(np.quantile(r, radius_q)) if r.size else 0.0
+
+    if max_r <= eps:
+        r_norm = np.zeros_like(r)
+        theta = np.zeros_like(r)
+        return PolarPrep(
+            theta=theta,
+            r_norm=r_norm,
+            vantage_xy=vantage_xy,
+            norm_stats={
+                "scale": 0.0,
+                "eps": eps,
+                "degenerate": True,
+                "reason": "all_points_identical",
+                "max_r": max_r,
+                "std_r": std_r,
+                "q_r": q_r,
+                "radius_norm": radius_norm,
+            },
+        )
+
+    if radius_norm == "max":
+        scale = max_r
+    elif radius_norm == "quantile":
+        scale = q_r if q_r > eps else max_r
+    elif radius_norm == "std":
+        scale = std_r * 3.0 if std_r > eps else max_r
+    else:
+        raise ValueError(f"Unknown radius normalization: {radius_norm}")
+
+    if scale <= eps:
+        r_norm = np.zeros_like(r)
+        theta = np.zeros_like(r)
+        degenerate = True
+    else:
+        r_norm = np.clip(r / (scale + eps), 0.0, 1.0)
+        theta = theta.copy()
+        degenerate = False
+
+    norm_stats = {
+        "scale": float(scale),
+        "eps": eps,
+        "degenerate": degenerate,
+        "max_r": max_r,
+        "std_r": std_r,
+        "q_r": q_r,
+        "radius_norm": radius_norm,
+        "radius_q": float(radius_q),
+    }
+
+    return PolarPrep(theta=theta, r_norm=r_norm, vantage_xy=vantage_xy, norm_stats=norm_stats)
+
+
 def wrapped_circular_distance(alpha: np.ndarray, beta: float) -> np.ndarray:
     """Compute wrapped angular distance on the unit circle S1.
 
@@ -259,9 +395,11 @@ def get_sector_indices(
 
 
 __all__ = [
+    "PolarPrep",
     "compute_vantage",
     "geometric_median",
     "polar_coordinates",
+    "prepare_polar",
     "wrapped_circular_distance",
     "angle_grid",
     "get_sector_indices",

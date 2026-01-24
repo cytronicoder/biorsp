@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, spearmanr
 
 from biorsp.core.engine import compute_rsp_radar
 from biorsp.core.summaries import compute_scalar_summaries
@@ -44,6 +44,7 @@ def compute_robustness_score(
     seed: int = 42,
     fg_mode: str = "quantile",
     abs_threshold: Optional[float] = None,
+    corr_method: str = "pearson",
 ) -> RobustnessResult:
     """Compute robustness metrics via subsampling.
 
@@ -107,12 +108,13 @@ def compute_robustness_score(
         )
         mask = mask_full & mask_sub & np.isfinite(rsp_sub) & np.isfinite(rsp_full)
 
-        if np.sum(mask) < 2:
+        if np.sum(mask) < 2 or np.std(rsp_sub[mask]) == 0 or np.std(rsp_full[mask]) == 0:
             corr = np.nan
-        elif np.std(rsp_sub[mask]) == 0 or np.std(rsp_full[mask]) == 0:
-            corr = 0.0
         else:
-            corr, _ = pearsonr(rsp_sub[mask], rsp_full[mask])
+            if corr_method == "spearman":
+                corr, _ = spearmanr(rsp_sub[mask], rsp_full[mask])
+            else:
+                corr, _ = pearsonr(rsp_sub[mask], rsp_full[mask])
 
         correlations.append(corr)
 

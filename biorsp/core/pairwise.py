@@ -14,8 +14,8 @@ from biorsp.core.summaries import compute_scalar_summaries
 from biorsp.core.typing import RadarResult
 
 
-def _weighted_corr(a: np.ndarray, b: np.ndarray, w: np.ndarray) -> float:
-    """Compute weighted Pearson correlation."""
+def _weighted_corr(a: np.ndarray, b: np.ndarray, w: np.ndarray, method: str = "pearson") -> float:
+    """Compute weighted correlation with optional Spearman fallback."""
     mask = np.isfinite(a) & np.isfinite(b) & (w > 0)
     if np.sum(mask) < 2:
         return np.nan
@@ -27,6 +27,10 @@ def _weighted_corr(a: np.ndarray, b: np.ndarray, w: np.ndarray) -> float:
     sum_w = np.sum(w_m)
     if sum_w <= 0:
         return np.nan
+
+    if method == "spearman":
+        a_m = a_m.argsort().argsort().astype(float)
+        b_m = b_m.argsort().argsort().astype(float)
 
     a_mean = np.sum(w_m * a_m) / sum_w
     b_mean = np.sum(w_m * b_m) / sum_w
@@ -66,6 +70,7 @@ def compute_pairwise_relationships(
     radar_by_feature: dict[str, RadarResult],
     top_k: int | None = None,
     min_shared_mask_fraction: float = 0.5,
+    corr_method: str = "pearson",
 ) -> tuple[list[PairwiseResult], list[PairwiseResult]]:
     """Compute pairwise synergy and complementarity from radar profiles.
 
@@ -75,6 +80,7 @@ def compute_pairwise_relationships(
         radar_by_feature: Mapping of feature name to RadarResult.
         top_k: Optional limit on number of features by anisotropy.
         min_shared_mask_fraction: Minimum shared support fraction.
+        corr_method: Correlation method ("pearson" or "spearman").
 
     Returns:
         (synergy, complementarity) lists sorted by their respective scores.
@@ -140,8 +146,8 @@ def compute_pairwise_relationships(
             )
             shared_weights[~shared_mask] = 0.0
 
-            corr = _weighted_corr(r1, r2, shared_weights)
-            comp = _weighted_corr(r1, -r2, shared_weights)
+            corr = _weighted_corr(r1, r2, shared_weights, method=corr_method)
+            comp = _weighted_corr(r1, -r2, shared_weights, method=corr_method)
 
             angle1 = summaries[f1].peak_extremal_angle
             angle2 = summaries[f2].peak_extremal_angle

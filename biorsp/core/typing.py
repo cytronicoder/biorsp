@@ -85,6 +85,7 @@ class AdequacyReport:
         n_background: Total background mass.
         adequacy_fraction: Fraction of sectors that are adequate.
         sector_indices: List of arrays containing cell indices for each sector window.
+        metrics: Dictionary of adequacy thresholds and effective sample sizes.
 
     """
 
@@ -98,6 +99,7 @@ class AdequacyReport:
     adequacy_fraction: float
     sector_indices: Optional[List[np.ndarray]] = None
     sector_reasons: Optional[List[str]] = None
+    metrics: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass

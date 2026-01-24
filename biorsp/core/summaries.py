@@ -129,6 +129,34 @@ def compute_scalar_summaries(
     valid_rsp = rsp[valid_mask]
     valid_centers = centers[valid_mask]
 
+    if valid_rsp.size == 0 or not np.all(np.isfinite(valid_rsp)):
+        return ScalarSummaries(
+            peak_distal=np.nan,
+            peak_distal_angle=np.nan,
+            peak_proximal=np.nan,
+            peak_proximal_angle=np.nan,
+            peak_extremal=np.nan,
+            peak_extremal_angle=np.nan,
+            anisotropy=np.nan,
+            max_rsp=np.nan,
+            min_rsp=np.nan,
+            integrated_rsp=np.nan,
+            localization_entropy=np.nan,
+            localization_gini=np.nan,
+            m_valid_sectors=int(np.sum(valid_mask)),
+            sum_abs_rsp=0.0,
+            localization_status="non_finite_rsp",
+            r_mean=np.nan,
+            r_median=np.nan,
+            polarity=np.nan,
+            a_signed=np.nan,
+            frac_pos=0.0,
+            frac_neg=0.0,
+            signed_status="non_finite_rsp",
+            coverage_geom=0.0,
+            coverage_fg=0.0,
+        )
+
     min_idx = np.argmin(valid_rsp)
     max_idx = np.argmax(valid_rsp)
 
@@ -154,7 +182,7 @@ def compute_scalar_summaries(
     integrated_rsp = np.sum(valid_rsp)
 
     l_entropy, info = compute_localization(rsp, valid_mask=valid_mask, method="entropy")
-    l_gini = info["gini"]
+    l_gini = info.get("gini", np.nan)
 
     signed = compute_signed_summaries(rsp, valid_mask=valid_mask)
 

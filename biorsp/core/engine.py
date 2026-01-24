@@ -11,7 +11,8 @@ RadarResult contract:
 - forced_zero_mask: geometry-supported but n_fg==0 and empty_fg_policy="zero".
 """
 
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List, Literal, Optional
 
 import numpy as np
 
@@ -31,6 +32,106 @@ from biorsp.utils.helpers import (
     weighted_quantile_sorted,
     weighted_wasserstein_1d,
 )
+
+
+@dataclass
+class SectorIndex:
+    """Precomputed sector assignments for reuse across features.
+
+    Attributes:
+        sector_id: (N,) array mapping each cell to a combined (angle, radius) bin.
+        angle_bin: (N,) array of angular bin indices.
+        radial_bin: (N,) array of radial bin indices.
+        n_sectors: Total number of combined sectors (B * n_radial).
+        angle_edges: Bin edges for angle (radians).
+        radial_edges: Bin edges for normalized radius in [0, 1].
+        angle_centers: Centers for angular bins (radians).
+        radial_centers: Centers for radial bins (normalized).
+        sector_indices: Optional list of indices per angular window (delta-based).
+    """
+
+    sector_id: np.ndarray
+    angle_bin: np.ndarray
+    radial_bin: np.ndarray
+    n_sectors: int
+    angle_edges: np.ndarray
+    radial_edges: np.ndarray
+    angle_centers: np.ndarray
+    radial_centers: np.ndarray
+    sector_indices: Optional[List[np.ndarray]] = None
+
+
+def assign_sectors(
+    theta: np.ndarray,
+    r_norm: np.ndarray,
+    *,
+    B: int,
+    n_radial: int,
+    radial_rule: Literal["equal", "quantile"],
+    seed: int,
+) -> SectorIndex:
+    """Assign each cell to a combined angular/radial sector.
+
+    Args:
+        theta: (N,) array of angles in radians.
+        r_norm: (N,) array of normalized radii in [0, 1].
+        B: Number of angular bins.
+        n_radial: Number of radial bins.
+        radial_rule: Radial binning rule ("equal" or "quantile").
+        seed: Random seed (reserved for deterministic tie-breaking).
+
+    Returns:
+        SectorIndex with per-cell bin assignments and bin edges.
+    """
+    if B <= 0 or n_radial <= 0:
+        raise ValueError("B and n_radial must be positive.")
+
+    theta = np.asarray(theta)
+    r_norm = np.asarray(r_norm)
+    if theta.shape != r_norm.shape:
+        raise ValueError("theta and r_norm must have the same shape.")
+
+    two_pi = 2 * np.pi
+    theta_mod = (theta + two_pi) % two_pi
+    angle_edges = np.linspace(0.0, two_pi, B + 1)
+    angle_bin = np.digitize(theta_mod, angle_edges, right=False) - 1
+    angle_bin = np.clip(angle_bin, 0, B - 1)
+    angle_centers = angle_edges[:-1] + (two_pi / B) / 2.0
+    angle_centers = angle_centers - np.pi
+
+    r_norm = np.clip(r_norm, 0.0, 1.0)
+    if n_radial == 1:
+        radial_edges = np.array([0.0, 1.0])
+    elif radial_rule == "equal":
+        radial_edges = np.linspace(0.0, 1.0, n_radial + 1)
+    elif radial_rule == "quantile":
+        quantiles = np.linspace(0.0, 1.0, n_radial + 1)
+        radial_edges = np.quantile(r_norm, quantiles)
+        radial_edges[0] = 0.0
+        radial_edges[-1] = 1.0
+        for i in range(1, len(radial_edges)):
+            if radial_edges[i] <= radial_edges[i - 1]:
+                radial_edges[i] = min(1.0, radial_edges[i - 1] + 1e-6)
+    else:
+        raise ValueError(f"Unknown radial_rule: {radial_rule}")
+
+    radial_bin = np.digitize(r_norm, radial_edges, right=False) - 1
+    radial_bin = np.clip(radial_bin, 0, n_radial - 1)
+    radial_centers = (radial_edges[:-1] + radial_edges[1:]) / 2.0
+
+    sector_id = angle_bin + B * radial_bin
+    n_sectors = B * n_radial
+
+    return SectorIndex(
+        sector_id=sector_id,
+        angle_bin=angle_bin,
+        radial_bin=radial_bin,
+        n_sectors=n_sectors,
+        angle_edges=angle_edges,
+        radial_edges=radial_edges,
+        angle_centers=angle_centers,
+        radial_centers=radial_centers,
+    )
 
 
 def sector_signed_stat(
@@ -264,6 +365,7 @@ def compute_rsp_radar(
     frozen_mask: Optional[np.ndarray] = None,
     normalization_stats: Optional[dict] = None,
     sector_weights: Optional[np.ndarray] = None,
+    sector_index: Optional[SectorIndex] = None,
     debug: bool = False,
     **kwargs,
 ) -> RadarResult:
@@ -284,7 +386,7 @@ def compute_rsp_radar(
     Parameters
     ----------
     r : np.ndarray
-        (N,) array of normalized radial distances.
+        (N,) array of normalized radial distances in [0, 1].
     theta : np.ndarray
         (N,) array of angles in radians.
     y : np.ndarray
@@ -336,7 +438,10 @@ def compute_rsp_radar(
 
     n_sectors = config.B
     if sector_indices is None:
-        sector_indices = get_sector_indices(theta, n_sectors, config.delta_deg)
+        if sector_index is not None and sector_index.sector_indices is not None:
+            sector_indices = sector_index.sector_indices
+        else:
+            sector_indices = get_sector_indices(theta, n_sectors, config.delta_deg)
 
     rsp_values = np.full(n_sectors, np.nan)
     counts_fg = np.zeros(n_sectors)
@@ -525,6 +630,8 @@ def compute_rsp_radar(
 
 
 __all__ = [
+    "SectorIndex",
+    "assign_sectors",
     "compute_anisotropy",
     "compute_rsp_radar",
     "sector_signed_stat",
