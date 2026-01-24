@@ -295,7 +295,7 @@ def test_uniform_expression_has_zero_spatial_score():
 if __name__ == "__main__":
     print("Running plotting correctness tests...\n")
 
-    print("Test 1: Coverage vs Foreground distinction")
+    print("Test 1: Coverage vs. Foreground distinction")
     test_coverage_vs_foreground_distinction()
     print("✓ PASSED\n")
 

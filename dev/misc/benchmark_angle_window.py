@@ -1,4 +1,4 @@
-"""Micro-benchmark for angle-window reuse vs recompute.
+"""Micro-benchmark for angle-window reuse vs. recompute.
 
 Usage: python scripts/benchmark_angle_window.py
 """

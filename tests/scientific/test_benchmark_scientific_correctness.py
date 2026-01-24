@@ -63,7 +63,7 @@ class TestArchetypeScientificCorrectness:
                 "quick",
                 "--outdir",
                 str(tmp_path / "archetypes"),
-                "--run_id",
+                "--run-id",
                 "test_run",
                 "--seed",
                 "12345",
@@ -128,7 +128,7 @@ class TestArchetypeScientificCorrectness:
 
         assert n_unique >= 2, (
             f"Only {n_unique} unique pattern_variant(s): {df['pattern_variant'].unique()}. "
-            f"Expected different patterns for IID vs structured organization."
+            f"Expected different patterns for IID vs. structured organization."
         )
 
     def test_sweep_includes_multiple_shapes(self, archetype_runs):
@@ -168,7 +168,7 @@ class TestArchetypeScientificCorrectness:
         )
 
     def test_coverage_matches_regime(self, archetype_runs):
-        """Coverage values should match coverage regime (high vs low)."""
+        """Coverage values should match coverage regime (high vs. low)."""
         df = archetype_runs
 
         high_cov = df[df["coverage_regime"] == "high"]["Coverage"].dropna()
@@ -199,7 +199,7 @@ class TestCalibrationScientificCorrectness:
                 "quick",
                 "--outdir",
                 str(tmp_path / "calibration"),
-                "--run_id",
+                "--run-id",
                 "test_run",
                 "--seed",
                 "54321",

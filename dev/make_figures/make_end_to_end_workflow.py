@@ -81,7 +81,7 @@ def generate_demo_data(seed=42):
     """Generate synthetic data with localized enrichment pattern.
 
     Simulates a gene with rim localization at angle ~0.5 radians.
-    This demonstrates core vs rim detection.
+    This demonstrates core vs. rim detection.
     """
     rng = np.random.default_rng(seed)
     n_cells = 3000

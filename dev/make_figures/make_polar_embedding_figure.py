@@ -47,7 +47,9 @@ def setup_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--adata", type=str, help="Path to AnnData h5ad file (optional)")
-    parser.add_argument("--coords_csv", type=str, help="Path to coordinates CSV (optional)")
+    parser.add_argument(
+        "--coords-csv", dest="coords_csv", type=str, help="Path to coordinates CSV (optional)"
+    )
     parser.add_argument(
         "--embedding-key", type=str, default="X_umap", help="Embedding key in adata.obsm"
     )

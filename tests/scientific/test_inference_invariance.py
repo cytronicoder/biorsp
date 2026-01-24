@@ -114,7 +114,7 @@ def test_no_selection_bias_in_coverage():
 
         assert (
             abs(coverage_sparse - coverage_dense) < 0.01
-        ), f"Geometry coverage should be invariant to expression level: {coverage_sparse} vs {coverage_dense}"
+        ), f"Geometry coverage should be invariant to expression level: {coverage_sparse} vs. {coverage_dense}"
 
 
 def test_inference_with_stratification():
