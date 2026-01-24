@@ -7,12 +7,12 @@ This file lists minimal commands for checking that benchmark and kidney workflow
 ```bash
 python analysis/benchmarks/runners/run_archetypes.py \
   --mode quick \
-  --n_workers 1 \
+  --n-workers 1 \
   --outdir test_output/benchmarks
 
 python analysis/benchmarks/runners/run_calibration.py \
   --mode quick \
-  --n_workers 1 \
+  --n-workers 1 \
   --outdir test_output/benchmarks
 ```
 
@@ -22,17 +22,17 @@ Each run creates `test_output/benchmarks/<benchmark>/<run_id>/` containing `runs
 
 ```bash
 python analysis/kidney_atlas/runners/run_tal_analysis.py \
-  --ref_data /path/to/kpmp.h5ad \
+  --ref-data /path/to/kpmp.h5ad \
   --outdir test_output/kidney_tal \
   --controls "SLC12A1,UMOD,EGF" \
-  --max_genes 10 \
-  --n_permutations 0
+  --max-genes 10 \
+  --n-permutations 0
 
 python analysis/kidney_atlas/runners/run_disease_stratified_analysis.py \
-  --ref_data /path/to/kpmp.h5ad \
+  --ref-data /path/to/kpmp.h5ad \
   --outdir test_output/kidney_disease \
-  --max_genes 10 \
-  --n_permutations 0 \
+  --max-genes 10 \
+  --n-permutations 0 \
   --smoke
 
 python analysis/kidney_atlas/runners/run_kpmp_archetypes_all_genes.py \

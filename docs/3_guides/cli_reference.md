@@ -23,13 +23,13 @@ python -m biorsp.cli run \
   --outdir results_run \
   --seed 42 \
   --inference \
-  --n-perm 200
+  --n-permutations 200
 ```
 
 - `--outdir` writes a `run_metadata.json` manifest for reproducibility.
-- `--inference` enables permutation testing; `--n-perm` controls the number of permutations.
+- `--inference` enables permutation testing; `--n-permutations` controls the number of permutations.
 
-## Parameter summary
+### Parameter summary
 
 ### Inputs
 
@@ -41,6 +41,8 @@ python -m biorsp.cli run \
 
 ### Geometry and foreground definition
 
+> **Note:** Runner scripts (kidney and benchmark runners) use `--n-permutations` (hyphenated) as the canonical form. The CLI also supports the legacy alias `--n-perm` for backward compatibility.
+
 - `--B`: number of angular sectors.
 - `--delta`: sector width in degrees.
 - `--q`: foreground quantile threshold.
@@ -49,9 +51,11 @@ python -m biorsp.cli run \
 ### Permutation inference
 
 - `--inference`: enable permutation testing.
-- `--n-perm`: number of permutations.
+- `--n-permutations`: number of permutations.
 - `--perm-mode`: `radial`, `joint`, `rt_umi`, or `none`.
 - `--n-r-bins`, `--n-theta-bins`, `--n-umi-bins`, `--min-stratum-size`: stratification parameters.
+
+> **Note:** Runner scripts use `--n-permutations` (hyphenated) as the canonical form for this option; the CLI accepts `--n-permutations` and also supports the legacy alias `--n-perm` for backward compatibility.
 
 ### Sector weighting
 
