@@ -183,15 +183,13 @@ Examples:
         print("❌ No benchmarks to run (all were skipped)")
         sys.exit(1)
 
-    print(
-        f"""
+    print(f"""
 ╔════════════════════════════════════════════════════════════════════╗
 ║  BioRSP Simulation Benchmark Suite                                ║
 ║  Mode: {args.mode:16}  Workers: {args.n_workers:4}                    ║
 ║  Benchmarks: {len(benchmarks_to_run)}/4 enabled                                     ║
 ╚════════════════════════════════════════════════════════════════════╝
-"""
-    )
+""")
 
     results = []
     total_time = 0
