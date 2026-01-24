@@ -26,7 +26,11 @@ from biorsp.utils.logging import setup_logging
 
 
 def run_analysis(args):
-    """Execute the analysis pipeline."""
+    """Execute the analysis pipeline.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
     setup_logging()
 
     print(f"Loading expression from {args.expression}...")
@@ -105,7 +109,11 @@ def run_analysis(args):
 
 
 def main(argv=None):
-    """Parse CLI arguments and dispatch subcommands."""
+    """Parse CLI arguments and dispatch subcommands.
+
+    Args:
+        argv: Optional list of CLI arguments.
+    """
     parser = argparse.ArgumentParser(
         prog="biorsp",
         description="BioRSP: Radial Spatial Patterning",

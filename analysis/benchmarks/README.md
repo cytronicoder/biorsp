@@ -1,321 +1,127 @@
-# BioRSP Method Validation Through Simulation
+# Benchmark suite (simulation)
 
-This directory contains a comprehensive simulation framework for rigorous validation of the BioRSP method, which quantifies spatial gene organization through two complementary metrics: the Spatial Organization Score ($S_g$) and Coverage Score ($C_g$). The validation strategy employs synthetic datasets with known ground truth to systematically evaluate statistical properties, classification performance, robustness characteristics, and sensitivity to spatial relationships across diverse biological scenarios.
+This directory contains simulation benchmarks for BioRSP. All benchmark runners write contract-compliant outputs and are intended to be reproducible with fixed seeds.
 
-## Methodological Framework
+## Output contract
 
-### Validation Strategy
+Each benchmark run writes a run directory under `OUTDIR/<benchmark>/<run_id>/` containing:
 
-We designed a four-pronged validation approach to address fundamental statistical requirements and biological realism:
+- `runs.csv`: per-replicate results with benchmark-specific columns.
+- `summary.csv`: aggregated metrics with confidence intervals.
+- `manifest.json`: run metadata, configuration, and provenance.
+- `report.md`: concise benchmark summary.
+- `figures/`: standardized plots.
 
-1. **Statistical Calibration**: Verification of type I error control under multiple null hypotheses, including spatially-structured confounders that violate standard independence assumptions
-2. **Archetype Classification**: Assessment of discriminative power across biologically-motivated spatial patterns spanning uniform housekeeping expression to highly localized niche markers
-3. **Robustness Analysis**: Characterization of metric stability under geometric transformations and expected failure modes
-4. **Pairwise Relationships**: Evaluation of gene-gene co-patterning detection for identifying functional gene modules and spatial neighborhoods
+The contract schema is enforced by `analysis/benchmarks/simlib/io_contract.py`.
 
-### Computational Infrastructure
+## Reproducibility
 
-The simulation framework consists of:
+- Use `--seed` to fix random seeds in runners.
+- For deterministic CPU execution, set `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, `OPENBLAS_NUM_THREADS=1`, `NUMEXPR_NUM_THREADS=1`.
+- Run identifiers (`run_id`) default to a UTC timestamp for uniqueness.
 
-- **`simlib/`**: A modular Python library implementing reproducible dataset generation, geometric transformations, expression models, and standardized evaluation metrics
-- **`benchmarks/`**: All validation experiments including:
-  - **Story Figure**: One-page methods paper figure validating core 2×2 archetype model
-  - **Core Benchmarks**: Statistical calibration, archetype recovery, gene-gene co-patterning, robustness analysis
-  - **Supporting Analysis**: Null calibration, cross-embedding stability, abstention evaluation
-- **`outputs/`**: Structured results storage with CSV data tables, JSON metadata manifests, and automated markdown reports
-- **`tests/`**: Unit test suite ensuring correctness of simulation primitives
-- **`scripts/`**: Utility tools for smoke testing and result verification
+## Benchmarks
 
-## Simulation Primitives
+### Archetypes (`run_archetypes.py`)
 
-The `simlib` package provides biologically-grounded building blocks:
+**Purpose:** Evaluate archetype classification based on coverage and spatial scores.
 
-**Tissue Geometries**: Six archetypal shapes representing diverse tissue architectures (disk, ellipse, crescent, peanut, annulus, disconnected blobs)
+**Inputs:** Synthetic expression patterns spanning high/low coverage and structured/iid spatial organization.
 
-**Expression Patterns**: Nine spatial archetypes spanning the biological spectrum from uniform housekeeping (no spatial structure) through localized programs (wedge, core, rim) to sparse niche markers
+**Key metrics:** Accuracy, macro F1, per-archetype recall, and abstention rate in `summary.csv`.
 
-**Confounding Models**: Four null models that preserve spatial structure in non-expression covariates (library depth, cell density) to test robustness against common technical artifacts
+**Held-out evaluation:** Cases are split by `case_id`; thresholds are derived on the training split and applied to the test split.
 
-**Geometric Distortions**: Six transformations including rotation-invariant operations (rotate, jitter, subsample) and symmetry-breaking perturbations (anisotropic scaling, radial warping) to probe expected invariances and sensitivities
+**Good behavior (intended):** Clear separation in `(Coverage, Spatial_Score)` and stable recall for each archetype on the held-out split.
 
-**Reproducibility**: All random number generation uses NumPy's `SeedSequence` entropy system, ensuring bit-exact reproducibility across platforms and Python versions
+**Failure modes:** High abstention, poor separation when coverage is extremely low, or misclassification when synthetic patterns overlap.
 
-## Validation Experiments
+### Calibration (`run_calibration.py`)
 
-All benchmarks and analyses are now unified in `benchmarks/`:
+**Purpose:** Validate null calibration of p-values and spatial scores under different null types.
 
-### Story Figure (Main Methods Paper Deliverable)
+**Inputs:** Synthetic nulls (e.g., iid, depth-confounded, mask stress) generated from simulated coordinates.
 
-**`run_story_onepager.py`** - One-page validation figure demonstrating BioRSP's core functionality:
+**Key metrics:** False positive rate (FPR) at specified alpha levels, KS statistic vs. Uniform(0,1), abstention rate.
 
-- **Panel A**: 2×2 archetype classification based on Coverage (C) and Spatial Bias Score (S)
-- **Panel B**: Confusion matrix for 4-class classification accuracy
-- **Panel C**: Marker recovery showing precision@K for structured genes
-- **Panel D**: Gene-gene module detection via co-patterning scores
+**Held-out evaluation:** Thresholds on `Spatial_Score` are derived on the training split (by null type and shape) and evaluated on the test split.
 
-```bash
-python benchmarks/run_story_onepager.py --mode quick --seed 42
-```
+**Good behavior (intended):** FPR near nominal alpha and QQ plots consistent with uniform p-values when the null is correct.
 
-**Supporting Analyses:**
+**Failure modes:** Excess false positives, high abstention, or strong deviations from uniform QQ plots.
 
-- **`run_null_calibration.py`**: Data-driven threshold derivation (S_cut, C_cut) from null simulations
-- **`run_stability.py`**: Cross-embedding stability—scores robust to different UMAP embeddings
-- **`run_abstention.py`**: Failure mode evaluation—correctly flags unreliable results under stress
+### Null calibration (`run_null_calibration.py`)
 
-### Core Benchmarks
+**Purpose:** Derive coverage and spatial-score thresholds from null simulations for downstream story plots or archetype labeling.
 
-**1. Statistical Calibration (`run_calibration.py`)
+**Inputs:** Synthetic nulls with configurable cell counts and permutation settings.
 
-**Objective**: Establish that p-values are uniformly distributed under true null hypotheses and that type I error is controlled at the nominal level (α = 0.05).
+**Key metrics:** Quantile-derived thresholds and null distributions recorded in `runs.csv` and summary artifacts.
 
-**Design**: We simulate expression data under three null models:
+**Good behavior (intended):** Thresholds are stable across seeds and null types.
 
-- **IID Null**: Standard null hypothesis with no spatial structure in expression
-- **Depth-Confounded**: Library size varies spatially (correlated with distance from tissue center), but expression remains spatially independent—tests robustness against technical gradients
-- **Mask Stress**: Extremely low gene prevalence (1-5% of cells) to stress-test the sector masking and background estimation procedures
+**Failure modes:** Thresholds dominated by sparse or abstained runs.
 
-For each null model, we generate 100 independent replicates across varying sample sizes (N = 500, 1000, 2000 cells) and tissue geometries (disk, ellipse, crescent). Each replicate computes BioRSP metrics with 1000 permutations for p-value estimation.
+### Robustness (`run_robustness.py`)
 
-**Success Criteria**:
+**Purpose:** Quantify sensitivity of Coverage and Spatial_Score to geometric distortions.
 
-- QQ plots of observed p-values vs. Uniform(0,1) should show near-perfect agreement
-- False positive rate at α = 0.05 should be 0.05 ± 0.01 (95% CI)
-- Calibration should hold across all geometries and sample sizes
+**Inputs:** Synthetic patterns with paired baseline and distorted datasets (rotation, jitter, subsampling, anisotropic scaling, swirl).
 
-### 2. Archetype Classification (`run_archetypes.py`)
+**Key metrics:** Within-pair deltas and correlation summaries, reported in `runs.csv` and aggregated in `summary.csv`.
 
-**Objective**: Demonstrate that the (C, S) coordinate system effectively discriminates biologically-distinct spatial patterns and provides interpretable classification boundaries.
+**Good behavior (intended):** Invariant distortions show small deltas; sensitive distortions show systematic shifts.
 
-**Design**: We simulate expression patterns representing four archetypal classes:
+**Failure modes:** Large deltas under rotations or mild jitter.
 
-- **Housekeeping** (uniform): Expected high coverage C, low spatial score S
-- **Niche Markers** (core/rim/wedge): Expected varied coverage, high S reflecting localization
-- **Regional Programs** (broad domains): Expected high C, moderate S
-- **Sparse/Noisy** (scattered): Expected low C, low S
+### Stability (`run_stability.py`)
 
-For each pattern × geometry combination, we generate 75 replicates with controlled prevalence and signal strength parameters. We then examine the distribution of (C, S) coordinates and compute separation metrics (silhouette scores, pairwise distances).
+**Purpose:** Assess run-to-run stability under resampling or embedding perturbations.
 
-**Success Criteria**:
+**Inputs:** Synthetic datasets with repeated resampling and scoring.
 
-- Clear separation of archetype clusters in (C, S) space
-- Housekeeping patterns cluster at high C, low S
-- Localized patterns (wedge, core, rim) achieve S > 0.15
-- Classification accuracy > 90% using simple geometric boundaries
+**Key metrics:** Correlations and variability in Coverage and Spatial_Score across replicates.
 
-### 3. Robustness Analysis (`run_robustness.py`)
+**Good behavior (intended):** High correlations across replicates when sampling variation is moderate.
 
-**Objective**: Characterize which geometric transformations preserve BioRSP metrics (desired invariances) and which break them (expected failure modes).
+**Failure modes:** Instability when signals are sparse or when embeddings are highly perturbed.
 
-**Design**: We apply six distortions to baseline spatial patterns:
+### Gene–gene (`run_genegene.py`)
 
-*Expected Invariances*:
+**Purpose:** Evaluate pairwise spatial co-patterning metrics.
 
-- **Rotation**: Arbitrary rotation of coordinates (S should be rotation-invariant)
-- **Jitter**: Small random positional noise (σ = 1-5% of tissue diameter)
-- **Subsampling**: Random removal of 20-50% of cells
+**Inputs:** Synthetic gene pairs representing co-localized, opposing, and orthogonal patterns.
 
-*Expected Sensitivities*:
+**Key metrics:** Pairwise similarity scores and separation between known scenarios.
 
-- **Anisotropic Scaling**: Stretching along one axis (breaks circular symmetry assumed by radial statistics)
-- **Swirl**: Radial-dependent angular warping (distorts radial patterns)
+**Good behavior (intended):** Co-localized pairs have higher similarity than orthogonal or opposing pairs.
 
-For each distortion type and intensity level, we compute the correlation between original and distorted S values across 50 replicates.
+**Failure modes:** Overlap between scenarios or low separation in score distributions.
 
-**Success Criteria**:
+### Abstention stress test (`run_abstention.py`)
 
-- Invariant transformations: Pearson correlation r > 0.95 between original and distorted S
-- Sensitive transformations: Documented degradation curves showing where method breaks down
-- Clear documentation of failure modes for users
+**Purpose:** Quantify abstention behavior under challenging signal regimes.
 
-### 4. Gene-Gene Co-patterning (`run_genegene.py`)
+**Inputs:** Synthetic conditions with low coverage or sparse foreground support.
 
-**Objective**: Validate that pairwise correlation and complementarity metrics correctly identify co-localized and mutually-exclusive spatial patterns.
+**Key metrics:** Abstention rates and abstention reasons in `runs.csv` and `summary.csv`.
 
-**Design**: We simulate four pairwise scenarios:
+**Good behavior (intended):** High abstention when adequacy constraints are violated.
 
-- **Co-localization**: Both genes follow identical wedge pattern (angle_center = 0°) → expect high positive correlation
-- **Exclusion**: Genes occupy opposite wedges (0° vs 180°) → expect high complementarity score
-- **Orthogonal**: Genes occupy perpendicular wedges (0° vs 90°) → expect near-zero correlation
-- **Core-Rim**: One gene in center, one at periphery → expect negative correlation or complementarity
+**Failure modes:** Low abstention under obvious inadequacy or large numbers of NaN scores.
 
-For each scenario, we generate 100 replicate pairs and compute Pearson correlation on radar profiles along with BioRSP's complementarity index.
-
-**Success Criteria**:
-
-- Co-localized pairs: correlation > 0.8
-- Exclusion pairs: complementarity > 0.7 or correlation < -0.3
-- Orthogonal pairs: |correlation| < 0.2
-- Precision-recall curve for "true positive" pair detection shows AUC > 0.9
-
-## Experimental Parameters
-
-The benchmark suite operates in three tiers to balance computational cost with statistical rigor:
-
-| Tier | Replicates | Permutations | Scope | Runtime | Use Case |
-|:-----|:-----------|:-------------|:------|:--------|:---------|
-| **Quick** | 5-10 | 100 | `none` | 5-15 min | Code verification, continuous integration |
-| **Validation** | 30-50 | 500 | `topk` | 30 min - 2 hr | Preliminary analysis, method development |
-| **Publication** | 75-100 | 1000 | `all` | 4-12 hr | Peer-review manuscripts, final validation |
-
-The `topk` permutation scope restricts expensive permutation tests to the most significant results, providing an order-of-magnitude speedup for large benchmarks.
-
-## Running the Validation Suite
-
-Execute individual benchmarks or the complete suite:
+## Running benchmarks
 
 ```bash
-# Full validation pipeline in quick mode (verify all benchmarks execute correctly)
-python3 run_benchmarks.py --mode quick --n_workers 4
-
-# Publication-grade calibration experiment (with checkpointing for fault tolerance)
-python3 benchmarks/run_calibration.py --mode publication --n_workers -1 --checkpoint_every 25 --resume
-
-# Archetype analysis (no permutations needed for classification task)
-python3 benchmarks/run_archetypes.py --mode publication --n_workers 8 --permutation_scope none
-
-# Gene-gene experiment (topk permutations for top 500 pairs only)
-python3 benchmarks/run_genegene.py --mode publication --n_workers 8 --permutation_scope topk --topk_perm 500
+python analysis/benchmarks/runners/run_benchmarks.py --mode quick --n_workers 4 --outdir results/benchmarks
 ```
 
-**Computational Requirements**: Publication-tier validation requires 8-12 hours on modern multi-core hardware (8+ cores recommended). Results are deterministically reproducible given identical random seeds.
-
-## Result Interpretation
-
-Upon completion, each benchmark generates:
-
-1. **`runs.csv`**: Per-replicate results with all computed metrics
-2. **`summary.csv`**: Aggregated statistics (means, confidence intervals, effect sizes)
-3. **`report.md`**: Automated markdown summary with pass/fail criteria
-4. **`manifest.json`**: Complete provenance including git commit, software versions, and parameter settings
-5. **Diagnostic plots**: QQ plots (calibration), scatter plots (archetypes), robustness curves, correlation distributions
-
-Visualize results across all benchmarks:
+Individual runners can also be executed directly, for example:
 
 ```bash
-python3 plot_benchmarks.py
+python analysis/benchmarks/runners/run_archetypes.py --mode quick --outdir results/benchmarks
 ```
 
-This generates publication-quality figure panels in `figures/` suitable for methods papers and supplementary materials.
+## Standardized plots
 
-## Design Rationale
-
-**Reproducibility**: SeedSequence-based random number generation ensures bit-exact reproducibility, critical for peer review and method comparison.
-
-**Computational Efficiency**: Parallel execution, geometry caching, and selective permutation testing reduce runtime by 5-10× compared to naive implementations.
-
-**Statistical Rigor**: Publication tier uses 1000 permutations per condition, providing p-value precision of ±0.001 for robust multiple testing correction.
-
-**Biological Realism**: Tissue geometries and expression patterns are grounded in spatial transcriptomics observations (e.g., kidney nephron structures, brain cortical layers, tumor microenvironments).
-
-For detailed parameter documentation and performance optimization guidelines, see `benchmarks/README.md`.
-
----
-
-## Plot Standardization (January 2026)
-
-### Overview
-
-The simulation benchmarks and kidney case studies now share a unified plotting API to ensure consistent visual presentation across all analysis types. This standardization enables:
-
-- **Same conceptual figure set** regardless of whether the run is simulation or KPMP kidney data
-- **Consistent archetype colors and cutoff semantics** across all modules
-- **Reproducible figure regeneration** from saved outputs without recomputation
-
-### Standardized Figure Set
-
-All benchmark runs produce the following canonical figures:
-
-| Panel | Filename | Simulation Content | Kidney Content |
-|:------|:---------|:-------------------|:---------------|
-| **A** | `A_archetype_scatter.png` | C vs S scatter with true archetype colors | C vs S scatter with predicted archetype colors |
-| **B** | `B_confusion_or_composition.png` | Confusion matrix (true vs predicted) | Composition bar (by condition/cluster) |
-| **C** | `C_examples_per_archetype.png` | Spatial patterns per archetype | Representative genes per archetype |
-| **D** | `D_pairwise_or_module.png` | Gene-gene similarity distribution | Gene-gene pairs or modules |
-
-Each panel is accompanied by a `.txt` caption file describing the figure content.
-
-### Shared Plotting API
-
-All plotting is centralized in `biorsp/plotting/`:
-
-```python
-from biorsp.plotting import PlotSpec, generate_onepager, make_figures
-
-# Create specification with cutoffs
-spec = PlotSpec(c_cut=0.30, s_cut=0.15)
-
-# Classify genes
-df = spec.classify_dataframe(df)
-
-# Generate all panels
-from biorsp.plotting.panels import generate_standard_panels
-generate_standard_panels(df, spec, outdir="figures/", mode="simulation")
-```
-
-### CLI for Regenerating Figures
-
-Figures can be regenerated from saved outputs without rerunning benchmarks:
-
-```bash
-# Generate all panels from a run directory
-python -m biorsp.plotting.make_figures --indir outputs/archetypes
-
-# Include debug plots
-python -m biorsp.plotting.make_figures --indir outputs/archetypes --debug
-
-# Generate PDF format
-python -m biorsp.plotting.make_figures --indir outputs/archetypes --format pdf
-```
-
-### PlotSpec and Classification Consistency
-
-The `PlotSpec` class ensures quadrant cutoff lines exactly match classification logic:
-
-- **Coverage threshold (c_cut)**: Default 0.30, separates high/low coverage
-- **Spatial score threshold (s_cut)**: Derived from calibration or manual, separates high/low spatial organization
-- **Classification**: `spec.classify(coverage, spatial_score)` returns archetype label
-- **Quadrant bounds**: `spec.get_quadrant_bounds()` returns same thresholds used for plotting
-
-### Archetype Colors (Canonical)
-
-```python
-ARCHETYPE_COLORS = {
-    "Ubiquitous": "#4CAF50",  # Green - high C, low S
-    "Gradient": "#2196F3",     # Blue - high C, high S
-    "Basal": "#9E9E9E",        # Gray - low C, low S
-    "Patchy": "#FF5722",       # Red-Orange - low C, high S
-}
-```
-
-### Debug Plots
-
-When `--debug` flag is enabled, additional diagnostic plots are saved to `debug/`:
-
-- `debug_cutoff_consistency.png`: Verifies colors match quadrant assignments
-- `debug_score_distributions.png`: Score histograms with threshold markers
-- `debug_pointcloud_<case>.png`: Raw point cloud with vantage
-- `debug_foreground_mask_<case>.png`: Foreground/background visualization
-- `debug_sector_counts_<case>.png`: nF/nB vs theta with validity mask
-
-### Manifest and Provenance
-
-Each run saves `manifest.json` containing:
-
-```json
-{
-  "benchmark": "archetypes",
-  "timestamp": "2026-01-23T...",
-  "git_commit": "abc123...",
-  "plot_spec": {
-    "c_cut": 0.30,
-    "s_cut": 0.15,
-    "coverage_col": "Coverage",
-    "spatial_col": "Spatial_Bias_Score"
-  },
-  "params": {...},
-  "runtime_seconds": 123.4
-}
-```
-
-The `plot_spec` field ensures figures can be regenerated with identical cutoffs.
+Benchmark runners use `biorsp.plotting.standard.make_standard_plot_set` to produce shared plots. See `docs/simulations_plotting.md` for details.

@@ -93,7 +93,11 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments for the TAL case study."""
+    """Parse command-line arguments for the TAL case study.
+
+    Returns:
+        Parsed arguments namespace.
+    """
     parser = argparse.ArgumentParser(
         description="BioRSP TAL Case Study: Spatial gene scoring in human kidney",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -299,7 +303,15 @@ Examples:
 
 
 def compute_file_checksum(path: str, algorithm: str = "sha256") -> str:
-    """Compute checksum of a file for provenance tracking."""
+    """Compute checksum of a file for provenance tracking.
+
+    Args:
+        path: Path to the file.
+        algorithm: Hash algorithm name.
+
+    Returns:
+        Hex-encoded checksum.
+    """
     h = hashlib.new(algorithm)
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
@@ -308,7 +320,19 @@ def compute_file_checksum(path: str, algorithm: str = "sha256") -> str:
 
 
 def load_reference(path: str) -> anndata.AnnData:
-    """Load reference data from H5AD file."""
+    """Load reference data from an H5AD file.
+
+    Args:
+        path: Path to the H5AD file.
+
+    Returns:
+        AnnData object.
+
+    Raises:
+        FileNotFoundError: If the path does not exist.
+        ValueError: If the file format is unsupported.
+        ImportError: If `anndata` is not installed.
+    """
     path_obj = Path(path)
     if not path_obj.exists():
         raise FileNotFoundError(f"Reference file not found: {path}")
@@ -329,7 +353,18 @@ def load_reference(path: str) -> anndata.AnnData:
 
 
 def detect_embedding_key(adata: anndata.AnnData, preferred_key: str | None = None) -> str:
-    """Auto-detect embedding key from adata.obsm."""
+    """Auto-detect an embedding key from `adata.obsm`.
+
+    Args:
+        adata: AnnData object.
+        preferred_key: Preferred embedding key.
+
+    Returns:
+        Valid embedding key.
+
+    Raises:
+        ValueError: If no suitable embedding is found.
+    """
     if preferred_key is not None:
         if preferred_key in adata.obsm:
             return preferred_key
@@ -356,7 +391,14 @@ def detect_embedding_key(adata: anndata.AnnData, preferred_key: str | None = Non
 
 
 def build_symbol_mappings(adata: anndata.AnnData) -> tuple[dict[str, str], dict[str, str]]:
-    """Build var_name <-> gene_symbol mappings."""
+    """Build var_name to gene_symbol mappings.
+
+    Args:
+        adata: AnnData object.
+
+    Returns:
+        Tuple of `(var_to_symbol, symbol_to_var)` mappings.
+    """
     var_to_symbol = {}
     symbol_cols = ["feature_name", "gene_symbol", "gene_name", "symbol"]
     for col in symbol_cols:
@@ -383,16 +425,20 @@ def select_genes(
     exclude_pattern: str,
     seed: int,
 ) -> tuple[list[str], list[str], dict]:
-    """Select genes for analysis: controls + discovery set.
+    """Select genes for analysis (controls plus discovery set).
 
-    Returns
-    -------
-    genes_to_analyze : List[str]
-        All genes (var_names) to score
-    control_vars : List[str]
-        Control gene var_names (subset of genes_to_analyze)
-    selection_info : Dict
-        Metadata about selection for provenance
+    Args:
+        adata: AnnData object.
+        controls_str: Comma-separated control gene list.
+        symbol_to_var: Mapping from symbol to var name.
+        var_to_symbol: Mapping from var name to symbol.
+        min_pct: Minimum coverage fraction.
+        max_genes: Maximum number of genes to analyze.
+        exclude_pattern: Regex pattern for excluding genes by symbol.
+        seed: Random seed for subsampling.
+
+    Returns:
+        Tuple of `(genes_to_analyze, control_vars, selection_info)`.
     """
     all_genes = adata.var_names.tolist()
     n_cells = adata.n_obs
@@ -484,10 +530,15 @@ def plot_gene_panel(
 ):
     """Create a two-panel visualization for a single gene.
 
-    Left panel: Cell embedding colored by expression level, with a boundary
-                showing which cells actually express the gene (above threshold)
-    Right panel: Radar plot showing radial distribution of expression
-    Annotation box: Key metrics (coverage, spatial score, significance)
+    Args:
+        gene: Gene identifier.
+        adata: AnnData object.
+        gene_result: Series containing gene-level scores.
+        embedding_key: Embedding key in `adata.obsm`.
+        config: BioRSP configuration.
+        var_to_symbol: Mapping from var name to gene symbol.
+        outdir: Output directory for plots.
+        plot_mode: `signed` or `absolute` plotting mode.
     """
     symbol = var_to_symbol.get(gene, gene)
 
@@ -614,9 +665,14 @@ def plot_archetype_scatter(
     s_cut: float | None,
     outpath: Path,
 ):
-    """Create C_g vs S_g scatter plot with archetype quadrants.
+    """Create a Coverage vs Spatial Score scatter plot with archetype quadrants.
 
-    This is the primary "story figure" for biologists.
+    Args:
+        df: DataFrame containing Coverage and Spatial_Bias_Score columns.
+        control_symbols: List of control gene symbols to annotate.
+        c_cut: Coverage cutoff.
+        s_cut: Spatial score cutoff.
+        outpath: Output path for the figure.
     """
     fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -738,7 +794,14 @@ def plot_gene_pairs_heatmap(
     outpath: Path,
     top_n: int = 30,
 ):
-    """Create a heatmap of gene-gene copattern scores."""
+    """Create a heatmap of gene–gene copattern scores.
+
+    Args:
+        pairs_df: DataFrame with gene pair scores.
+        var_to_symbol: Mapping from var name to gene symbol.
+        outpath: Output path for the heatmap.
+        top_n: Number of top pairs to include.
+    """
     if pairs_df.empty:
         logger.warning("No gene pairs to plot")
         return

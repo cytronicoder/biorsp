@@ -23,20 +23,16 @@ if str(ROOT) not in sys.path:
 def run_calibration_condition(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
     """Run a single calibration replicate.
 
-    Parameters
-    ----------
-    config_dict : dict
-        Condition configuration; keys include 'shape', 'N', and 'null_type'.
-    seed : int
-        Random seed for the replicate.
-    config : BioRSPConfig
-        Scoring configuration for BioRSP (e.g., B, delta_deg, n_permutations).
+    Args:
+        config_dict: Condition configuration with keys such as `shape`, `N`,
+            and `null_type`.
+        seed: Random seed for the replicate.
+        config: BioRSP scoring configuration (e.g., `B`, `delta_deg`,
+            `n_permutations`).
 
-    Returns
-    -------
-    dict
+    Returns:
         Row dictionary containing schema-required columns and metadata. May
-        contain abstention indicators (``abstain_flag``, ``abstain_reason``).
+        include abstention indicators (`abstain_flag`, `abstain_reason`).
     """
     from biorsp.simulations import (
         datasets,
@@ -130,7 +126,7 @@ def run_calibration_condition(config_dict: dict, seed: int, config: "BioRSPConfi
 
 
 def main():
-    """Run calibration benchmark CLI.
+    """Run the calibration benchmark CLI.
 
     Parses command-line options, executes replicates across a condition grid,
     derives thresholds, produces plots, and writes contract artifacts.

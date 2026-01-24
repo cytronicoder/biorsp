@@ -57,7 +57,14 @@ TIMINGS = {}
 
 
 def profile_stage(stage_name: str):
-    """Decorator to profile execution time of a function."""
+    """Create a decorator that profiles execution time of a function.
+
+    Args:
+        stage_name: Name of the stage being profiled.
+
+    Returns:
+        Decorator that records elapsed time in the global `TIMINGS` dictionary.
+    """
 
     def decorator(func):
         @wraps(func)
@@ -98,7 +105,11 @@ ARCHETYPE_NAMES = {
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command line arguments.
+
+    Returns:
+        Parsed arguments namespace.
+    """
     parser = argparse.ArgumentParser(
         description="KPMP All-Gene Archetypes Pipeline",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -210,7 +221,14 @@ def parse_args() -> argparse.Namespace:
 def create_gene_name_mapping(adata: ad.AnnData) -> Dict[str, str]:
     """Create mapping from ENSG IDs to gene names.
 
-    Uses feature_name from adata.var if available, otherwise falls back to var_names.
+    Uses `adata.var["feature_name"]` if available, otherwise falls back to
+    `adata.var_names`.
+
+    Args:
+        adata: AnnData object.
+
+    Returns:
+        Mapping from gene IDs to display names.
     """
     mapping = {}
     if "feature_name" in adata.var.columns:
@@ -228,7 +246,15 @@ def create_gene_name_mapping(adata: ad.AnnData) -> Dict[str, str]:
 def add_gene_names_to_dataframe(
     df: pd.DataFrame, gene_name_mapping: Dict[str, str]
 ) -> pd.DataFrame:
-    """Add gene_name column to dataframe based on ENSG gene column."""
+    """Add a `gene_name` column using a gene ID mapping.
+
+    Args:
+        df: Input DataFrame with a `gene` column.
+        gene_name_mapping: Mapping from gene ID to display name.
+
+    Returns:
+        DataFrame with an inserted `gene_name` column.
+    """
     df = df.copy()
     df["gene_name"] = df["gene"].map(lambda x: gene_name_mapping.get(x, x))
     cols = df.columns.tolist()
@@ -238,7 +264,15 @@ def add_gene_names_to_dataframe(
 
 
 def get_gene_expression_fast(adata: ad.AnnData, gene_idx: int) -> np.ndarray:
-    """Fast extraction of gene expression vector."""
+    """Extract a gene expression vector by index.
+
+    Args:
+        adata: AnnData object.
+        gene_idx: Column index of the gene in `adata.X`.
+
+    Returns:
+        Expression vector of shape (n_cells,).
+    """
     if sparse.issparse(adata.X):
         return adata.X[:, gene_idx].toarray().flatten()
     else:
@@ -248,21 +282,15 @@ def get_gene_expression_fast(adata: ad.AnnData, gene_idx: int) -> np.ndarray:
 def compute_coverage_vectorized(
     X: np.ndarray, gene_indices: List[int], threshold: float
 ) -> np.ndarray:
-    """Vectorized coverage computation for multiple genes.
+    """Compute coverage for multiple genes in a vectorized manner.
 
-    Parameters
-    ----------
-    X : np.ndarray or sparse matrix
-        Expression matrix (cells x genes)
-    gene_indices : List[int]
-        Indices of genes to compute coverage for
-    threshold : float
-        Expression threshold
+    Args:
+        X: Expression matrix (cells × genes).
+        gene_indices: Indices of genes to compute coverage for.
+        threshold: Expression threshold.
 
-    Returns
-    -------
-    np.ndarray
-        Coverage values for each gene
+    Returns:
+        Coverage values for each gene.
     """
     if sparse.issparse(X):
         X_sub = X[:, gene_indices]
@@ -276,7 +304,14 @@ def compute_coverage_vectorized(
 
 @profile_stage("gene_filtering")
 def detect_expression_threshold(adata: ad.AnnData) -> Tuple[float, str]:
-    """Detect appropriate expression threshold based on data type."""
+    """Detect an expression threshold based on data type.
+
+    Args:
+        adata: AnnData object.
+
+    Returns:
+        Tuple of `(threshold, method_label)`.
+    """
     if sparse.issparse(adata.X):
         sample = adata.X[:1000].toarray() if adata.n_obs > 1000 else adata.X.toarray()
     else:
@@ -296,12 +331,16 @@ def fast_filter_genes(
     min_nonzero: int = 50,
     threshold: float = 1.0,
 ) -> Tuple[List[str], Dict[str, int]]:
-    """Fast gene filtering based on coverage and nonzero counts.
+    """Filter genes based on coverage and nonzero counts.
 
-    Returns
-    -------
-    Tuple[List[str], Dict[str, int]]
-        Filtered gene list and statistics about filtering.
+    Args:
+        adata: AnnData object.
+        min_coverage: Minimum coverage threshold.
+        min_nonzero: Minimum number of nonzero cells.
+        threshold: Expression threshold for coverage.
+
+    Returns:
+        Tuple of `(filtered_genes, stats_dict)`.
     """
     n_cells = adata.n_obs
 
@@ -338,9 +377,18 @@ def fast_filter_genes(
 
 
 def derive_c_cut(df: pd.DataFrame, default: float = 0.10) -> float:
-    """Derive coverage cutoff c_cut.
+    """Derive the coverage cutoff `c_cut`.
 
-    If median(C) < default, set c_cut = max(0.05, median(C)).
+    Args:
+        df: DataFrame with a `Coverage` column.
+        default: Default cutoff to use when the median is higher.
+
+    Returns:
+        Coverage cutoff value.
+
+    Notes:
+        If the median Coverage is below `default`, the cutoff is set to
+        `max(0.05, median(Coverage))`.
     """
     median_c = df["Coverage"].median()
 
@@ -363,19 +411,19 @@ def derive_s_cut_from_null(
     K: int = 200,
     seed: int = 42,
 ) -> Tuple[float, float, Dict[str, Any]]:
-    """Derive spatial bias score cutoff s_cut from null distribution.
+    """Derive spatial score cutoffs from a null distribution.
 
-    Parameters
-    ----------
-    M : int
-        Number of genes to sample for null estimation.
-    K : int
-        Number of permutations per gene.
+    Args:
+        adata: AnnData object.
+        context: BioRSP context for scoring.
+        genes: List of genes to sample.
+        config: BioRSP configuration.
+        M: Number of genes to sample for null estimation.
+        K: Number of permutations per gene.
+        seed: Random seed.
 
-    Returns
-    -------
-    Tuple[float, float, Dict]
-        (s_cut_95, s_cut_99, metadata)
+    Returns:
+        Tuple of `(s_cut_95, s_cut_99, metadata)`.
     """
     from biorsp.preprocess.context import score_gene_with_context
 
@@ -420,7 +468,15 @@ def derive_s_cut_from_null(
 
 
 def derive_s_cut_simple(df: pd.DataFrame, quantile: float = 0.75) -> float:
-    """Simple s_cut derivation based on distribution of observed S values."""
+    """Derive a simple `s_cut` from observed Spatial_Bias_Score values.
+
+    Args:
+        df: DataFrame with `Spatial_Bias_Score` and `Coverage`.
+        quantile: Quantile used as a fallback threshold.
+
+    Returns:
+        Spatial score cutoff.
+    """
     s_values = df["Spatial_Bias_Score"].dropna()
     if len(s_values) == 0:
         return 0.05
@@ -441,13 +497,16 @@ def classify_genes(
     s_cut: float,
     fdr_cut: float = 0.05,
 ) -> pd.DataFrame:
-    """Classify genes into 2x2 archetypes.
+    """Classify genes into 2×2 archetypes.
 
-    Archetypes:
-    - High C / Low S:  "Ubiquitous Uniform"
-    - Low  C / High S: "Focal Marker"
-    - High C / High S: "Regional Gradient"
-    - Low  C / Low S:  "Rare Scattered"
+    Args:
+        df: DataFrame with `Coverage` and `Spatial_Bias_Score`.
+        c_cut: Coverage cutoff.
+        s_cut: Spatial score cutoff.
+        fdr_cut: FDR cutoff for marking significance (if `q_value` exists).
+
+    Returns:
+        DataFrame with archetype labels and cutoff columns.
     """
     df = df.copy()
 
@@ -483,10 +542,15 @@ def score_gene_chunk_worker(
     genes: List[str],
     shared_ctx: SharedContext,
 ) -> List[Dict[str, Any]]:
-    """Worker function to score a chunk of genes.
+    """Score a chunk of genes in a worker process.
 
-    This function is executed in a separate process. It loads the AnnData
-    and context from disk/shared memory and scores genes.
+    Args:
+        chunk_id: Chunk index.
+        genes: List of genes to score.
+        shared_ctx: Shared context containing paths and configuration.
+
+    Returns:
+        List of per-gene result dictionaries.
     """
     import anndata as ad
     import numpy as np

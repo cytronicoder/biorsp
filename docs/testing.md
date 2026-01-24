@@ -1,26 +1,24 @@
-# Testing and CI quickstart
+# Testing
 
-Use the markers and make targets below to keep local runs aligned with CI.
+Use the Makefile targets to align local runs with CI defaults.
 
 ## Quick paths
 
-- **Default (CI/local fast path):** `make test` → runs pytest with `-m "not slow and not scientific"` (unit + integration + plotting smoke)
-- **Focused subsets:** `make test-quick` (unit+integration), `make test-plot` (plotting-only)
+- `make test`: runs `pytest -q -m "not slow and not scientific"`.
+- `make test-quick`: unit + integration subset.
+- `make test-plot`: plotting-focused subset.
 
-## Full / slow suites
+## Slow suites
 
-- **Slow / scheduled:** `make test-slow` or `pytest -q -m "slow"` (benchmarks and heavy runners). These are excluded from CI by default.
-- **All tests including slow:** `pytest -q -m "unit or integration or scientific or plotting or slow"`.
-
-## Determinism and reproducibility
-
-- RNG is seeded via `--seed` (default from `$PYTEST_SEED` or 1337). Override with `pytest --seed 20240101`.
-- Matplotlib backend is forced to `Agg` to avoid GUI dependencies.
-- CI sets `BIORSP_TEST_MODE=quick` automatically through the `fast_mode` fixture.
+- `make test-slow` or `pytest -q -m "slow"` runs slow-marked tests only.
 
 ## Reproducing CI locally
 
-- Mirror CI selection: `pytest -q -m "not slow"` from repo root.
-- Run a single category: e.g., `pytest -q tests/scientific -m scientific`.
-- For CLI/runner tests, ensure dependencies are installed (`pip install -e ".[dev]"`).
-- Ensure dev tools are installed and up-to-date: `pip install -U -r requirements-dev.txt`.
+```bash
+pytest -q -m "not slow" tests/
+```
+
+## Determinism
+
+- Provide explicit seeds in tests when available.
+- Use `MPLBACKEND=Agg` to avoid GUI dependencies when running plotting tests.

@@ -113,18 +113,14 @@ def _ensure_dir(path: Path) -> None:
 
 
 def init_run_dir(config: BenchmarkContractConfig) -> dict[str, Path]:
-    """Create run directory structure and return a mapping of standard paths.
+    """Create run directory structure and return standard paths.
 
-    Parameters
-    ----------
-    config : BenchmarkContractConfig
-        Configuration providing ``outdir``, ``benchmark``, and ``run_id``.
+    Args:
+        config: Configuration providing `outdir`, `benchmark`, and `run_id`.
 
-    Returns
-    -------
-    dict[str, Path]
-        Dictionary with keys like 'root', 'runs_csv', 'summary_csv',
-        'manifest_json', 'report_md', 'figures', and 'debug'.
+    Returns:
+        Dictionary with keys like `root`, `runs_csv`, `summary_csv`,
+        `manifest_json`, `report_md`, `figures`, and `debug`.
     """
 
     root = Path(config.outdir) / config.benchmark / config.run_id
@@ -152,22 +148,16 @@ def _check_required_columns(df: pd.DataFrame, required: Iterable[str], benchmark
 
 
 def assert_contract_runs(df: pd.DataFrame, benchmark: str) -> None:
-    """Validate that a runs dataframe adheres to the benchmark contract.
+    """Validate that a runs DataFrame adheres to the benchmark contract.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Runs dataframe to validate.
-    benchmark : str
-        Benchmark kind (e.g., 'archetypes', 'calibration').
+    Args:
+        df: Runs DataFrame to validate.
+        benchmark: Benchmark kind (e.g., `archetypes`, `calibration`).
 
-    Raises
-    ------
-    ValueError
-        If benchmark is unknown or required columns are missing.
-    AssertionError
-        If mandatory columns contain NaNs or archetype-specific non-abstain
-        checks fail.
+    Raises:
+        ValueError: If the benchmark is unknown or required columns are missing.
+        AssertionError: If mandatory columns contain NaNs or archetype-specific
+            non-abstain checks fail.
     """
     if benchmark not in BENCHMARK_REQUIRED:
         raise ValueError(f"Unknown benchmark '{benchmark}' for contract validation")
@@ -219,13 +209,13 @@ def assert_contract_runs(df: pd.DataFrame, benchmark: str) -> None:
 
 
 def validate_runs_df(df: pd.DataFrame, benchmark: str) -> None:
-    """Validate runs dataframe against the contract schema."""
+    """Validate a runs DataFrame against the contract schema."""
 
     assert_contract_runs(df, benchmark)
 
 
 def validate_summary_df(df: pd.DataFrame) -> None:
-    """Validate summary dataframe to ensure CI columns exist."""
+    """Validate a summary DataFrame to ensure CI columns exist."""
 
     _check_required_columns(df, SUMMARY_REQUIRED, benchmark="summary")
 
@@ -279,20 +269,15 @@ def save_debug(paths: dict[str, Path], fig, name: str, subdir: str = "debug") ->
 
 
 def finalize_and_validate(paths: dict[str, Path]) -> None:
-    """Ensure required contract artifacts exist and are non-empty, and validate contents.
+    """Ensure required contract artifacts exist and validate contents.
 
-    Parameters
-    ----------
-    paths : dict[str, Path]
-        Mapping as returned by :func:`init_run_dir` with 'runs_csv',
-        'summary_csv', 'manifest_json', and 'report_md' paths.
+    Args:
+        paths: Mapping returned by `init_run_dir` with `runs_csv`, `summary_csv`,
+            `manifest_json`, and `report_md` paths.
 
-    Raises
-    ------
-    FileNotFoundError
-        If required artifact files are missing.
-    ValueError
-        If any required artifact is empty or CSVs contain zero rows.
+    Raises:
+        FileNotFoundError: If required artifact files are missing.
+        ValueError: If any required artifact is empty or CSVs contain zero rows.
     """
 
     required_files = ["runs_csv", "summary_csv", "manifest_json", "report_md"]

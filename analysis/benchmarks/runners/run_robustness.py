@@ -38,7 +38,16 @@ INVARIANCE_DISTORTIONS = {"none", "rotate", "jitter", "subsample"}
 
 
 def run_robustness_pair(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
-    """Run paired robustness evaluation: baseline and distorted with same seed."""
+    """Run paired robustness evaluation with baseline and distortion.
+
+    Args:
+        config_dict: Condition configuration dictionary.
+        seed: Random seed for paired generation.
+        config: BioRSP configuration for scoring.
+
+    Returns:
+        Row dictionary containing baseline and distorted metrics.
+    """
     # Local imports used by this function (moved here to avoid E402):
     from biorsp.simulations import (
         datasets,
@@ -301,7 +310,7 @@ def main():
     print(f"Running robustness benchmark: {len(configs)} conditions × {args.n_reps} reps")
 
     def save_checkpoint(results: list):
-        """Save incremental checkpoint."""
+        """Save an incremental checkpoint."""
         if not results:
             return
         checkpoint_df = pd.DataFrame(results)

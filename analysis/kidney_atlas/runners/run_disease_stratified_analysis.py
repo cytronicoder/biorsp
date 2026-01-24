@@ -142,7 +142,11 @@ ARCHETYPE_NAMES = {
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments."""
+    """Parse command-line arguments.
+
+    Returns:
+        Parsed arguments namespace.
+    """
     parser = argparse.ArgumentParser(
         description="Disease-Stratified BioRSP Analysis for KPMP Data",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -335,18 +339,13 @@ Examples:
 
 
 def discover_disease_key(adata: anndata.AnnData) -> str | None:
-    """
-    Auto-discover disease/condition metadata column.
+    """Auto-discover the disease/condition metadata column.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data object
+    Args:
+        adata: Annotated data object.
 
-    Returns
-    -------
-    Optional[str]
-        Discovered disease key or None
+    Returns:
+        Discovered disease key or None if not found.
     """
     for key in DISEASE_KEYS:
         if key in adata.obs.columns:
@@ -359,18 +358,13 @@ def discover_disease_key(adata: anndata.AnnData) -> str | None:
 
 
 def standardize_disease_labels(disease_series: pd.Series) -> pd.Series:
-    """
-    Standardize disease labels to canonical names.
+    """Standardize disease labels to canonical names.
 
-    Parameters
-    ----------
-    disease_series : pd.Series
-        Disease labels from metadata
+    Args:
+        disease_series: Disease labels from metadata.
 
-    Returns
-    -------
-    pd.Series
-        Standardized disease labels
+    Returns:
+        Standardized disease labels.
     """
     standardized = disease_series.str.lower().str.replace(" ", "_")
     standardized = standardized.map(lambda x: DISEASE_MAPPINGS.get(x, x))
@@ -378,20 +372,14 @@ def standardize_disease_labels(disease_series: pd.Series) -> pd.Series:
 
 
 def get_disease_groups(adata: anndata.AnnData, disease_key: str) -> dict[str, np.ndarray]:
-    """
-    Get cell indices for each disease group.
+    """Get cell indices for each disease group.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data
-    disease_key : str
-        Column name for disease labels
+    Args:
+        adata: Annotated data object.
+        disease_key: Column name for disease labels.
 
-    Returns
-    -------
-    Dict[str, np.ndarray]
-        Mapping from disease name to cell indices
+    Returns:
+        Mapping from disease name to cell indices.
     """
     disease_labels = standardize_disease_labels(adata.obs[disease_key])
 
@@ -411,24 +399,16 @@ def get_disease_groups(adata: anndata.AnnData, disease_key: str) -> dict[str, np
 def estimate_coverage(
     x: np.ndarray, mode: str, value: float | None, nonzero_q: float = 0.25
 ) -> float:
-    """
-    Estimate coverage using BioRSP threshold logic.
+    """Estimate coverage using BioRSP threshold logic.
 
-    Parameters
-    ----------
-    x : np.ndarray
-        Expression vector
-    mode : str
-        Threshold mode: 'detect', 'fixed', 'nonzero_quantile'
-    value : Optional[float]
-        Fixed threshold value (for 'fixed' mode)
-    nonzero_q : float
-        Quantile for 'nonzero_quantile' mode (default: 0.25)
+    Args:
+        x: Expression vector.
+        mode: Threshold mode (`detect`, `fixed`, `nonzero_quantile`).
+        value: Fixed threshold value (for `fixed` mode).
+        nonzero_q: Quantile for `nonzero_quantile` mode.
 
-    Returns
-    -------
-    float
-        Fraction of cells with expr >= threshold
+    Returns:
+        Fraction of cells with expression above the threshold.
     """
     if mode == "fixed":
         if value is not None:
@@ -449,7 +429,18 @@ def estimate_coverage(
 
 
 def load_reference(ref_path: str) -> anndata.AnnData:
-    """Load reference dataset."""
+    """Load the reference dataset from a `.h5ad` file.
+
+    Args:
+        ref_path: Path to the reference dataset.
+
+    Returns:
+        Loaded AnnData object.
+
+    Raises:
+        FileNotFoundError: If the reference path does not exist.
+        ValueError: If the file format is unsupported.
+    """
     logger.info(f"Loading reference from {ref_path}")
     if not Path(ref_path).exists():
         raise FileNotFoundError(f"Reference file not found: {ref_path}")
@@ -464,7 +455,15 @@ def load_reference(ref_path: str) -> anndata.AnnData:
 
 
 def compute_file_checksum(filepath: str, algorithm: str = "sha256") -> str:
-    """Compute file checksum for provenance."""
+    """Compute a file checksum for provenance.
+
+    Args:
+        filepath: Path to the file.
+        algorithm: Hash algorithm name.
+
+    Returns:
+        Hex-encoded checksum.
+    """
     h = hashlib.new(algorithm)
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
@@ -475,15 +474,15 @@ def compute_file_checksum(filepath: str, algorithm: str = "sha256") -> str:
 def build_symbol_mappings(
     adata: anndata.AnnData,
 ) -> tuple[dict[str, str], dict[str, str]]:
-    """
-    Build bidirectional mappings between var_names and gene_symbols.
+    """Build bidirectional mappings between `var_names` and gene symbols.
 
-    Checks for feature_name (KPMP), gene_symbols, or symbol columns.
+    Checks for `feature_name` (KPMP), `gene_symbols`, or `symbol` columns.
 
-    Returns
-    -------
-    Tuple[Dict[str, str], Dict[str, str]]
-        (var_to_symbol, symbol_to_var)
+    Args:
+        adata: AnnData object.
+
+    Returns:
+        Tuple of `(var_to_symbol, symbol_to_var)` mappings.
     """
     if "feature_name" in adata.var.columns:
         var_to_symbol = {}
@@ -504,20 +503,17 @@ def build_symbol_mappings(
 
 
 def detect_embedding_key(adata: anndata.AnnData, user_key: str | None) -> str:
-    """
-    Detect or validate embedding key.
+    """Detect or validate the embedding key.
 
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data
-    user_key : Optional[str]
-        User-specified key (takes priority)
+    Args:
+        adata: Annotated data object.
+        user_key: User-specified key (takes priority).
 
-    Returns
-    -------
-    str
-        Validated embedding key
+    Returns:
+        Validated embedding key.
+
+    Raises:
+        ValueError: If no valid embedding is found.
     """
     if user_key:
         if user_key not in adata.obsm:
@@ -549,15 +545,22 @@ def select_genes(
     expr_threshold_mode: str = "detect",
     expr_threshold_value: float | None = None,
 ) -> tuple[list[str], list[str], dict]:
-    """
-    Select genes for analysis (controls + discovery).
+    """Select genes for analysis (controls plus discovery set).
 
-    Uses same coverage threshold logic as BioRSP scoring.
+    Args:
+        adata: AnnData object.
+        controls_str: Comma-separated control gene list.
+        symbol_to_var: Mapping from symbol to var name.
+        var_to_symbol: Mapping from var name to symbol.
+        min_pct: Minimum coverage fraction for discovery genes.
+        max_genes: Maximum number of genes to analyze.
+        exclude_patterns: Regex pattern for excluding genes by symbol.
+        seed: Random seed for subsampling.
+        expr_threshold_mode: Threshold mode for coverage estimation.
+        expr_threshold_value: Fixed threshold value when using `fixed` mode.
 
-    Returns
-    -------
-    Tuple[List[str], List[str], Dict]
-        (genes_to_analyze, control_vars, selection_info)
+    Returns:
+        Tuple of `(genes_to_analyze, control_vars, selection_info)`.
     """
     logger.info("Selecting genes for analysis...")
 
@@ -632,34 +635,21 @@ def run_analysis_for_disease(
     args: argparse.Namespace,
     outdir: Path,
 ) -> dict:
-    """
-    Run complete BioRSP analysis for one disease group.
+    """Run complete BioRSP analysis for one disease group.
 
-    Parameters
-    ----------
-    adata_disease : AnnData
-        Subset of data for this disease
-    disease_name : str
-        Name of the disease condition
-    genes_to_analyze : List[str]
-        List of genes to score
-    control_vars : List[str]
-        Control gene identifiers
-    var_to_symbol : Dict[str, str]
-        Mapping from var to symbol
-    embedding_key : str
-        Key for embedding
-    config : BioRSPConfig
-        BioRSP configuration
-    args : argparse.Namespace
-        Command-line arguments
-    outdir : Path
-        Output directory for this disease
+    Args:
+        adata_disease: Subset of data for this disease.
+        disease_name: Disease condition name.
+        genes_to_analyze: List of genes to score.
+        control_vars: Control gene identifiers.
+        var_to_symbol: Mapping from var name to symbol.
+        embedding_key: Embedding key to use.
+        config: BioRSP configuration.
+        args: Parsed CLI arguments.
+        outdir: Output directory for this disease.
 
-    Returns
-    -------
-    Dict
-        Analysis metadata
+    Returns:
+        Analysis metadata dictionary.
     """
     logger.info(f"\n{'=' * 80}")
     logger.info(f"Analyzing disease group: {disease_name}")
@@ -815,13 +805,17 @@ def run_analysis_for_disease(
 
 
 def select_exemplar_genes(df: pd.DataFrame, n_per_archetype: int = 3) -> list[str]:
-    """
-    Select representative genes for each archetype.
+    """Select representative genes for each archetype.
 
-    Prefers:
-    - Control genes (if is_control=True)
-    - High coverage_geom
-    - Extreme spatial_score (high for localized, low for uniform)
+    Args:
+        df: DataFrame with archetype assignments.
+        n_per_archetype: Number of genes to select per archetype.
+
+    Returns:
+        List of exemplar gene identifiers.
+
+    Notes:
+        Selection prioritizes control genes and high `coverage_geom`.
     """
     exemplars = []
 
@@ -839,7 +833,13 @@ def select_exemplar_genes(df: pd.DataFrame, n_per_archetype: int = 3) -> list[st
 
 
 def plot_top_tables(df: pd.DataFrame, outdir: Path, n_top: int = 15):
-    """Generate tables of top genes for each archetype."""
+    """Generate tables of top genes for each archetype.
+
+    Args:
+        df: DataFrame with gene scores and archetypes.
+        outdir: Output directory.
+        n_top: Number of top genes per archetype.
+    """
     try:
         figures_dir = outdir / "figures"
         figures_dir.mkdir(exist_ok=True)
@@ -1103,7 +1103,15 @@ def main():
 
 
 def generate_readme(run_meta: dict, args: argparse.Namespace) -> str:
-    """Generate README documentation for the analysis."""
+    """Generate README documentation for the analysis.
+
+    Args:
+        run_meta: Run metadata dictionary.
+        args: Parsed CLI arguments.
+
+    Returns:
+        Markdown text describing the analysis outputs.
+    """
     readme = f"""# Disease-Stratified BioRSP Analysis
 
 

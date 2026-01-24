@@ -32,7 +32,20 @@ def _process_feature(
     config: BioRSPConfig,
     seed: int,
 ) -> Optional[FeatureResult]:
-    """Process a single feature."""
+    """Process a single feature.
+
+    Args:
+        name: Feature name.
+        x: Expression vector for the feature.
+        r_norm: Normalized radial distances.
+        theta: Angular coordinates.
+        umi_counts: Optional UMI counts for stratified inference.
+        config: BioRSP configuration.
+        seed: Random seed for deterministic processing.
+
+    Returns:
+        FeatureResult if adequate; otherwise None.
+    """
     rng = np.random.default_rng(seed)
 
     y, fg_info = define_foreground(
@@ -98,28 +111,17 @@ def run(
 ) -> RunSummary:
     """Run the full BioRSP pipeline on a dataset.
 
-    Parameters
-    ----------
-    coords : np.ndarray
-        (N, 2) array of spatial coordinates.
-    expression : Union[pd.DataFrame, np.ndarray]
-        (N, G) expression matrix.
-    feature_names : Optional[List[str]]
-        List of G feature names. If expression is a DataFrame, these are inferred.
-    umi_counts : Optional[np.ndarray]
-        (N,) array of total UMI counts per cell for stratified inference.
-    config : Optional[BioRSPConfig]
-        Configuration object. If None, defaults are used.
-    outdir : Optional[str]
-        Directory to save results and manifest.
-    n_workers : int
-        Number of workers for parallel processing of features.
+    Args:
+        coords: Array of shape (N, 2) with spatial coordinates.
+        expression: Expression matrix (N, G) or DataFrame with genes as columns.
+        feature_names: Optional list of feature names (inferred if DataFrame).
+        umi_counts: Optional array of UMI counts for stratified inference.
+        config: Optional configuration object. Defaults are used if None.
+        outdir: Optional directory to save results and a run manifest.
+        n_workers: Number of workers for parallel processing.
 
-    Returns
-    -------
-    RunSummary
-        Object containing per-feature results and metadata.
-
+    Returns:
+        RunSummary containing per-feature results and metadata.
     """
     start_time = time.time()
     config = config or BioRSPConfig()

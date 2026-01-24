@@ -69,7 +69,11 @@ class RunSummary:
     pairwise: dict[str, list] | None = None
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Convert feature results to a pandas DataFrame."""
+        """Convert feature results to a pandas DataFrame.
+
+        Returns:
+            DataFrame containing per-feature summaries and metadata.
+        """
         rows = []
         for name, res in self.feature_results.items():
             fail_fg = 0
@@ -121,18 +125,21 @@ def assign_feature_types(
     c_hi: float | None = None,
     A_hi: float | None = None,
 ) -> tuple[dict[str, FeatureResult], TypingThresholds]:
-    """Assign coverage × anisotropy types (I-IV) for adequate features.
+    """Assign coverage × anisotropy types (I–IV) for adequate features.
 
     Args:
         feature_results: Mapping of feature name to FeatureResult.
         coverage_field: Coverage field used for typing.
-        method: Threshold method ('median' or 'user').
-        c_hi: Coverage threshold (required if method='user').
-        A_hi: Anisotropy threshold (required if method='user').
+        method: Threshold method (`median` or `user`).
+        c_hi: Coverage threshold (required if `method='user'`).
+        A_hi: Anisotropy threshold (required if `method='user'`).
 
     Returns:
-        Updated feature_results and TypingThresholds.
+        Updated feature results and typing thresholds.
 
+    Raises:
+        ValueError: If `method='user'` and thresholds are missing, or if
+            an unsupported method is provided.
     """
     adequate = [
         fr

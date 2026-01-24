@@ -28,7 +28,16 @@ if str(ROOT) not in sys.path:
 
 
 def run_genegene_condition(config_dict: dict, seed: int, config: "BioRSPConfig") -> dict:
-    """Run one gene-gene replicate."""
+    """Run one gene–gene replicate.
+
+    Args:
+        config_dict: Condition configuration dictionary.
+        seed: Random seed for the replicate.
+        config: BioRSP configuration for scoring.
+
+    Returns:
+        Row dictionary containing pairwise metrics and metadata.
+    """
     from biorsp.simulations import (
         datasets,
         expression,
@@ -225,7 +234,7 @@ def main():
     print(f"Running gene-gene benchmark: {len(configs)} conditions × {args.n_reps} reps")
 
     def save_checkpoint(results: list):
-        """Save incremental checkpoint."""
+        """Save an incremental checkpoint."""
         if not results:
             return
         checkpoint_df = pd.DataFrame(results)
@@ -343,7 +352,13 @@ def main():
 
 
 def plot_genegene_debug(output_dir, runs_df, args):
-    """Generate debug figure: joint scatter and similarity distributions."""
+    """Generate debug figures for joint scatter and similarity distributions.
+
+    Args:
+        output_dir: Output directory for debug figures.
+        runs_df: Runs DataFrame containing pairwise metrics.
+        args: Parsed CLI arguments.
+    """
     debug_dir = output_dir / "debug"
     debug_dir.mkdir(exist_ok=True)
 

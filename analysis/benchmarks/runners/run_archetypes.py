@@ -73,23 +73,19 @@ def _logit_clipped(p: np.ndarray) -> np.ndarray:
 def calibrate_intercept(
     prob: np.ndarray, target: float, tol: float = 1e-3, max_iter: int = 60
 ) -> tuple[float, float]:
-    """Find intercept shift so mean(sigmoid(logit(prob) + b)) ≈ target.
+    """Find an intercept shift that matches a target mean prevalence.
 
-    Parameters
-    ----------
-    prob : np.ndarray
-        Array of probabilities in (0, 1).
-    target : float
-        Desired mean prevalence between 0 and 1.
-    tol : float, optional
-        Convergence tolerance (default 1e-3).
-    max_iter : int, optional
-        Maximum number of iterations (default 60).
+    Args:
+        prob: Array of probabilities in (0, 1).
+        target: Desired mean prevalence between 0 and 1.
+        tol: Convergence tolerance.
+        max_iter: Maximum number of iterations.
 
-    Returns
-    -------
-    tuple[float, float]
-        Intercept shift and achieved mean prevalence.
+    Returns:
+        Tuple of `(intercept_shift, achieved_mean_prevalence)`.
+
+    Raises:
+        ValueError: If `target` is outside (0, 1).
     """
 
     if not (0 < target < 1):
@@ -116,20 +112,18 @@ def calibrate_intercept(
 
 
 def make_truth_spec(archetype: str, gen: np.random.Generator) -> dict[str, Any]:
-    """Generate synthetic pattern specification for an archetype.
+    """Generate a synthetic pattern specification for an archetype.
 
-    Parameters
-    ----------
-    archetype : str
-        Archetype name (may be canonical or informal).
-    gen : np.random.Generator
-        RNG to draw random parameters.
+    Args:
+        archetype: Archetype name (canonical or informal).
+        gen: RNG for drawing random parameters.
 
-    Returns
-    -------
-    dict
-        Spec containing keys 'pattern_family', 'pattern_variant',
-        'target_prevalence', and 'generator_params'.
+    Returns:
+        Spec containing `pattern_family`, `pattern_variant`, `target_prevalence`,
+        and `generator_params`.
+
+    Raises:
+        ValueError: If the archetype is unsupported.
     """
 
     label = normalize_archetype_label(archetype)
@@ -266,7 +260,16 @@ def reconstruct_truth(row: pd.Series) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _run_single_condition(config_dict: dict, seed: int, rsp_config: BioRSPConfig) -> dict:
-    """Generate one replicate and score it."""
+    """Generate one replicate and score it.
+
+    Args:
+        config_dict: Condition configuration dictionary.
+        seed: Random seed.
+        rsp_config: BioRSP configuration for scoring.
+
+    Returns:
+        Row dictionary containing scores and metadata.
+    """
 
     def _true_archetype() -> str:
         key = (coverage_regime, organization_regime)
@@ -358,17 +361,14 @@ def _run_single_condition(config_dict: dict, seed: int, rsp_config: BioRSPConfig
 
 
 def derive_thresholds(runs_df: pd.DataFrame) -> dict:
-    """Derive default thresholds (S_cut, C_cut) from runs.
+    """Derive default thresholds (`S_cut`, `C_cut`) from runs.
 
-    Parameters
-    ----------
-    runs_df : pd.DataFrame
-        DataFrame of runs containing 'Spatial_Score' and 'organization_regime'.
+    Args:
+        runs_df: DataFrame of runs containing `Spatial_Score` and
+            `organization_regime`.
 
-    Returns
-    -------
-    dict
-        Thresholds with keys 'S_cut', 'C_cut', and 'source'.
+    Returns:
+        Thresholds with keys `S_cut`, `C_cut`, and `source`.
     """
     base = runs_df.loc[~runs_df["abstain_flag"]].copy()
     null_mask = base["organization_regime"] == "iid"
@@ -413,17 +413,16 @@ def _bootstrap_macro_f1(
 def build_summary(runs_df: pd.DataFrame, split: str = "test") -> pd.DataFrame:
     """Build summary metrics with confidence intervals for a split.
 
-    Parameters
-    ----------
-    runs_df : pd.DataFrame
-        Runs dataframe including 'Archetype_true', 'Archetype_pred' and 'split'.
-    split : str, optional
-        Which split to summarize ('train' or 'test'), by default 'test'.
+    Args:
+        runs_df: Runs DataFrame including `Archetype_true`, `Archetype_pred`,
+            and `split`.
+        split: Which split to summarize (`train` or `test`).
 
-    Returns
-    -------
-    pd.DataFrame
-        Summary dataframe with metrics such as accuracy, macro_f1, and recall.
+    Returns:
+        Summary DataFrame with metrics such as accuracy, macro F1, and recall.
+
+    Raises:
+        ValueError: If no rows are available for the requested split.
     """
     runs_df = runs_df.copy()
     subset = runs_df[runs_df.get("split", split) == split]

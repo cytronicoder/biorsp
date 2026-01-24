@@ -1,18 +1,16 @@
-# Introduction to BioRSP
+# Introduction
 
-BioRSP (Biological Radar Spatial Profiling) is a method for quantifying and interpreting spatial gene expression patterns. Unlike traditional methods that rely on identifying pre-defined spatial domains (clustering), BioRSP scores each gene individually based on its "spatial coherence" relative to a tissue's geometry.
+BioRSP analyzes gene-level spatial organization in a two-dimensional embedding. For each gene, it computes a coverage metric (fraction of cells expressing the gene) and a spatial organization metric derived from the radial distribution of foreground versus background cells. Archetype labels are assigned by applying coverage and spatial-score thresholds.
 
-## Why BioRSP?
+BioRSP does not perform clustering or trajectory inference. It relies on the embedding you provide (e.g., UMAP or spatial coordinates) and reports spatial organization within that embedding.
 
-- **Reference-Free**: Doesn't require a reference atlas.
-- **Geometry-Aware**: Accounts for tissue boundaries and shape.
-- **Interpretable**: Metrics like "Directionality" map directly to biological concepts (e.g., gradients).
+## Typical inputs
 
-## Core Philosophy
+- A 2D embedding for cells (e.g., `adata.obsm["X_umap"]`).
+- A gene expression matrix aligned to the embedding.
 
-BioRSP treats each gene as a signal on a radar. By analyzing the "radar profile" of gene expression from a central vantage point, we can distinguish between:
+## Typical outputs
 
-1. **Global Gradients** (Directional)
-2. **Basal/Edge Patterns** (Radial)
-3. **Patchy/Focal Expressions** (Sparse but organized)
-4. **Noise** (Randomly scattered)
+- Per-gene tables with coverage, spatial score, and related summaries.
+- Optional archetype classification based on thresholds.
+- Optional standardized plots summarizing scores and archetype composition.

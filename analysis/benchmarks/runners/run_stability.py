@@ -48,7 +48,16 @@ MODE_CONFIGS = {
 
 
 def generate_umap_embeddings(X_high_dim, n_embeddings, rng):
-    """Generate multiple UMAP embeddings with different seeds."""
+    """Generate multiple UMAP embeddings with different seeds.
+
+    Args:
+        X_high_dim: High-dimensional input array.
+        n_embeddings: Number of embeddings to generate.
+        rng: NumPy random generator (used for fallbacks).
+
+    Returns:
+        List of embedding arrays.
+    """
     try:
         import umap
     except ImportError:
@@ -70,7 +79,16 @@ def generate_umap_embeddings(X_high_dim, n_embeddings, rng):
 
 
 def generate_pca_embeddings(X_high_dim, n_embeddings, rng):
-    """Fallback: PCA with added noise for variation."""
+    """Generate PCA embeddings with added noise for variation.
+
+    Args:
+        X_high_dim: High-dimensional input array.
+        n_embeddings: Number of embeddings to generate.
+        rng: NumPy random generator.
+
+    Returns:
+        List of embedding arrays.
+    """
     from scipy.linalg import svd
 
     X_centered = X_high_dim - X_high_dim.mean(axis=0)
@@ -88,7 +106,11 @@ def generate_pca_embeddings(X_high_dim, n_embeddings, rng):
 
 
 def run_stability(args):
-    """Run cross-embedding stability benchmark."""
+    """Run cross-embedding stability benchmark.
+
+    Args:
+        args: Parsed CLI arguments.
+    """
     from analysis.benchmarks.simlib.io_contract import BenchmarkContractConfig, init_run_dir
     from analysis.benchmarks.simlib.runner_harness import finalize_contract
     from biorsp import BioRSPConfig

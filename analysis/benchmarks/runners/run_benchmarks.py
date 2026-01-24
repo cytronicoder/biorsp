@@ -34,7 +34,15 @@ BENCHMARKS = [
 
 
 def validate_benchmark_outputs(name: str, output_dir: Path) -> Tuple[bool, str]:
-    """Validate that benchmark outputs are complete and non-empty."""
+    """Validate that benchmark outputs are complete and non-empty.
+
+    Args:
+        name: Benchmark name.
+        output_dir: Output directory for the benchmark.
+
+    Returns:
+        Tuple of (is_valid, message).
+    """
     required_files = {
         "report.md": "report",
         "manifest.json": "manifest",
@@ -82,7 +90,20 @@ def run_benchmark(
     resume: bool,
     extra_flags: dict,
 ) -> Tuple[bool, float, str]:
-    """Run a single benchmark and validate outputs."""
+    """Run a single benchmark and validate outputs.
+
+    Args:
+        name: Benchmark name.
+        script: Runner script name.
+        mode: Benchmark mode.
+        n_workers: Number of workers.
+        checkpoint_every: Checkpoint cadence.
+        resume: Whether to resume from checkpoints.
+        extra_flags: Additional CLI flags.
+
+    Returns:
+        Tuple of (success, runtime_seconds, status_message).
+    """
     output_dir = ROOT.parent / "outputs" / name
 
     cmd = [

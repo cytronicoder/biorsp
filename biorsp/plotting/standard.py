@@ -23,7 +23,7 @@ DEFAULT_THRESHOLDS = {"C_cut": 0.3, "S_cut": 0.15}
 
 
 def get_archetype_palette() -> dict[str, str]:
-    """Stable color mapping for canonical archetypes (no Abstain)."""
+    """Return the default archetype color palette (excluding abstention)."""
 
     return label_palette(include_abstain=False)
 
@@ -45,33 +45,21 @@ def plot_cs_scatter(
     palette: Mapping[str, str] | None = None,
     annotate_quadrants: bool = True,
 ):
-    """Coverage vs spatial score scatter with archetype coloring.
+    """Plot coverage vs spatial score with archetype coloring.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Dataframe containing scores and optional truth/prediction columns.
-    C_col : str, optional
-        Name of the coverage column, by default 'Coverage'.
-    S_col : str, optional
-        Name of the spatial score column, by default 'Spatial_Score'.
-    true_col : str | None, optional
-        Column containing ground-truth archetype labels, by default None.
-    pred_col : str, optional
-        Column used for predicted archetypes, by default 'Archetype_pred'.
-    C_cut : float, optional
-        Vertical threshold line for coverage, by default 0.3.
-    S_cut : float, optional
-        Horizontal threshold line for spatial score, by default 0.15.
-    palette : Mapping[str, str] | None, optional
-        Color mapping for archetypes. If None, default palette is used.
-    annotate_quadrants : bool, optional
-        Whether to annotate quadrant labels on the plot, by default True.
+    Args:
+        df: DataFrame containing score columns and optional truth/prediction labels.
+        C_col: Name of the coverage column.
+        S_col: Name of the spatial score column.
+        true_col: Column containing ground-truth archetype labels, if available.
+        pred_col: Column used for predicted archetypes.
+        C_cut: Vertical threshold line for coverage.
+        S_cut: Horizontal threshold line for spatial score.
+        palette: Color mapping for archetypes. Defaults to the canonical palette.
+        annotate_quadrants: Whether to annotate quadrant labels on the plot.
 
-    Returns
-    -------
-    matplotlib.figure.Figure
-        Created scatter figure.
+    Returns:
+        Matplotlib figure for the scatter plot.
     """
 
     _require_columns(df, [C_col, S_col], "Coverage/Spatial scatter")
@@ -150,22 +138,14 @@ def plot_confusion_matrix(
 ):
     """Plot a confusion matrix heatmap.
 
-    Parameters
-    ----------
-    cm : np.ndarray
-        Square confusion matrix counts.
-    labels : Sequence[str]
-        Label names in the same order as rows/columns of ``cm``.
-    normalize : str | None, optional
-        Normalization mode: 'true' (row-wise), 'pred' (col-wise), 'all' or None
-        for raw counts, by default 'true'.
-    title : str, optional
-        Plot title, by default 'Confusion'.
+    Args:
+        cm: Square confusion matrix counts.
+        labels: Label names in the same order as rows/columns of `cm`.
+        normalize: Normalization mode (`true`, `pred`, `all`, or None for counts).
+        title: Plot title.
 
-    Returns
-    -------
-    matplotlib.figure.Figure
-        Figure containing the confusion matrix visualization.
+    Returns:
+        Matplotlib figure containing the confusion matrix visualization.
     """
     cm = np.asarray(cm, dtype=float)
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -209,6 +189,16 @@ def plot_marker_recovery(
     k_list: Sequence[int] = (10, 20, 50, 100),
     baseline: float | None = None,
 ):
+    """Plot precision at top-k for ranked markers.
+
+    Args:
+        df_ranked: DataFrame with a `label_true` column indicating true markers.
+        k_list: List of k values to evaluate.
+        baseline: Optional baseline precision to draw as a reference line.
+
+    Returns:
+        Matplotlib figure with bar plots of precision at each k.
+    """
     _require_columns(df_ranked, ["label_true"], "marker recovery")
     fig, ax = plt.subplots(figsize=(6, 4))
     n = len(df_ranked)
@@ -227,6 +217,14 @@ def plot_marker_recovery(
 
 
 def plot_genegene_metrics(summary: Mapping[str, float]):
+    """Plot a simple bar chart for gene–gene summary metrics.
+
+    Args:
+        summary: Mapping of metric name to value.
+
+    Returns:
+        Matplotlib figure containing the bar chart.
+    """
     keys = list(summary.keys())
     values = [summary[k] for k in keys]
     fig, ax = plt.subplots(figsize=(6, 4))
@@ -245,6 +243,21 @@ def plot_calibration_qq(
     title: str = "QQ plot",
     zoom_alpha: bool = True,
 ):
+    """Plot a QQ plot for p-values with optional alpha zoom.
+
+    Args:
+        pvals: Iterable of p-values.
+        alpha: Reference alpha level.
+        perm_floor: Optional permutation floor to draw as a line.
+        title: Plot title.
+        zoom_alpha: Whether to include a zoomed panel near alpha.
+
+    Returns:
+        Matplotlib figure containing the QQ plot(s).
+
+    Raises:
+        ValueError: If no finite p-values are provided.
+    """
     pvals = np.asarray(list(pvals), dtype=float)
     pvals = pvals[~np.isnan(pvals)]
     if pvals.size == 0:
@@ -283,6 +296,16 @@ def plot_calibration_qq(
 
 
 def plot_fpr_grid(df_summary: pd.DataFrame, alpha: float = 0.05, title: str = "FPR grid"):
+    """Plot false positive rates with confidence intervals.
+
+    Args:
+        df_summary: Summary DataFrame with `metric`, `mean`, `ci_low`, `ci_high`.
+        alpha: Reference alpha level.
+        title: Plot title.
+
+    Returns:
+        Matplotlib figure with error bars by metric.
+    """
     _require_columns(df_summary, ["metric", "mean", "ci_low", "ci_high"], "FPR grid")
     fig, ax = plt.subplots(figsize=(6, 5))
     ax.axhline(alpha, color="red", linestyle=":", linewidth=1.2, label=f"alpha={alpha}")
@@ -314,6 +337,20 @@ def plot_embedding_with_archetypes(
     palette: Mapping[str, str] | None = None,
     title: str = "Embedding",
 ):
+    """Plot a 2D embedding colored by archetype labels.
+
+    Args:
+        embedding_xy: Array of shape (n_cells, 2).
+        labels: Sequence of archetype labels for each cell.
+        palette: Optional color mapping for archetypes.
+        title: Plot title.
+
+    Returns:
+        Matplotlib figure for the embedding plot.
+
+    Raises:
+        ValueError: If the number of labels does not match the embedding rows.
+    """
     if embedding_xy.shape[0] != len(labels):
         raise ValueError("embedding_xy and labels must have the same length")
     palette = dict(get_archetype_palette() if palette is None else palette)
@@ -342,7 +379,7 @@ def plot_embedding_with_archetypes(
 
 
 def _ensure_figdir(outdir: Path) -> Path:
-    """Ensure output directory exists and return it (no subdirectory)."""
+    """Ensure the output directory exists and return it."""
     figdir = Path(outdir)
     figdir.mkdir(parents=True, exist_ok=True)
     return figdir
@@ -389,9 +426,26 @@ def make_standard_plot_set(
 ) -> dict[str, Path]:
     """Generate the canonical plot set for simulation and kidney outputs.
 
-    Returns a mapping from figure identifier to saved path. The function is
-    resilient to missing optional inputs (truth labels, embeddings) and will
-    annotate plots with "no data" when appropriate instead of failing.
+    Args:
+        scores_df: DataFrame containing Coverage and Spatial_Score columns.
+        outdir: Output directory for figures.
+        thresholds: Optional mapping containing `C_cut` and `S_cut`.
+        truth_col: Column containing ground-truth archetype labels, if available.
+        pred_col: Column containing predicted archetype labels.
+        gene_col: Column containing gene identifiers.
+        title: Optional figure title for the scatter plot.
+        debug: Whether to generate debug panels.
+        embedding: Optional embedding array for debug plotting.
+        expr_matrix: Optional expression matrix (unused but reserved for future use).
+        fg_masks: Optional mapping of gene name to foreground mask for debug plotting.
+        rng_seed: Random seed (unused; retained for API stability).
+
+    Returns:
+        Mapping from figure identifier to saved file path.
+
+    Notes:
+        The function is resilient to missing optional inputs and will emit
+        placeholder panels rather than raising.
     """
 
     outdir = Path(outdir)
