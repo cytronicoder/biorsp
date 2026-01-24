@@ -22,11 +22,13 @@ python analysis/kidney_atlas/run_disease_stratified_analysis.py \
 ```
 
 By default, this will analyze all three conditions found in the data:
+
 - **Healthy reference** (Healthy_living_donor + Healthy_stone_donor combined)
 - **Acute kidney injury** (AKI)
 - **Chronic kidney disease** (CKD)
 
 **Output structure:**
+
 ```
 results/all_cells_disease_stratified/
 ├── healthy_reference/
@@ -108,6 +110,7 @@ python analysis/kidney_atlas/run_disease_stratified_analysis.py \
 ```
 
 Control genes will be:
+
 - Processed first
 - Highlighted in plots with special markers
 - Useful for validating expected TAL markers
@@ -129,6 +132,7 @@ python analysis/kidney_atlas/run_disease_stratified_analysis.py \
 ```
 
 This will:
+
 - Use 1000 cells per disease (faster)
 - Analyze only top 50 genes
 - Use 50 permutations (less precise p-values)
@@ -153,6 +157,7 @@ python analysis/kidney_atlas/run_disease_stratified_analysis.py \
 ```
 
 This will:
+
 - Analyze up to 2000 genes per disease
 - Use 1000 permutations for precise p-values
 - Include gene-gene interaction analysis
@@ -193,6 +198,7 @@ python analysis/kidney_atlas/compare_disease_results.py \
 ```
 
 This generates:
+
 - Heatmaps showing RSP score changes across diseases
 - Scatter plots comparing disease pairs
 - Statistical summaries of disease-specific effects
@@ -220,6 +226,7 @@ Each disease folder contains:
 ### "No cells found matching filter"
 
 Check available cell types in your data:
+
 ```python
 import anndata as ad
 adata = ad.read_h5ad("analysis/kidney_atlas/data/kpmp.h5ad")
@@ -229,6 +236,7 @@ print(adata.obs['subclass.l1'].unique())
 ### "Disease column not found"
 
 Manually specify the column:
+
 ```bash
 --disease_key disease_category
 ```
@@ -236,6 +244,7 @@ Manually specify the column:
 ### Out of memory errors
 
 Reduce computational load:
+
 ```bash
 --subsample 5000 \
 --max_genes 200 \
@@ -246,11 +255,13 @@ Reduce computational load:
 ### Very slow execution
 
 Enable parallel processing:
+
 ```bash
 --n_workers 8  # Use 8 CPU cores
 ```
 
 Skip gene-gene analysis for faster results:
+
 ```bash
 # Remove --do_genegene flag
 ```
@@ -265,6 +276,7 @@ Skip gene-gene analysis for faster results:
 4. **Scale to production** (Example 7) when ready
 
 For more details, see:
+
 - [QUICK_REFERENCE.md](QUICK_REFERENCE.md) - Command cheat sheet
 - [compare_disease_results.py](compare_disease_results.py) - Comparison tool
 - [run_tal_analysis.py](run_tal_analysis.py) - Original single-condition analysis

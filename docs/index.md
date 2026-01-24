@@ -33,6 +33,6 @@ Each analysis produces:
 
 See also:
 
-- Theory and methods: `docs/theory.md` ✅
-- Usage guide: `docs/usage.md` ✅
-- Diagnostics: `docs/diagnostics.md` ✅
+- Theory and methods: [`docs/theory.md`](docs/theory.md)
+- Usage guide: [`docs/usage.md`](docs/usage.md)
+- Diagnostics: [`docs/diagnostics.md`](docs/diagnostics.md)

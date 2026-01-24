@@ -75,25 +75,30 @@ Enables stratified permutation testing using radial bins, angular bins, and UMI 
 ### CLI parameters
 
 **Input files:**
+
 - `--expression`: CSV/TSV file with expression matrix (genes as columns, cells as rows, or use `--transpose`)
 - `--coords`: CSV/TSV file with 2D coordinates (x, y columns)
 - `--umis`: Optional CSV/TSV file with UMI counts per cell (for stratified inference)
 - `--umi-column`: Column name for UMI counts (default: auto-detect "umi" or "umis")
 
 **Geometry:**
+
 - `--B`: Number of sectors (default: 360)
 - `--delta`: Sector width in degrees (default: 20)
 
 **Foreground:**
+
 - `--q`: Foreground quantile threshold (default: 0.90)
 - `--min-fg-total`: Minimum total foreground cells (default: 100)
 
 **Adequacy thresholds:**
+
 - `--min-count`: Min foreground cells per sector (default: 10)
 - `--min-bg-count`: Min background cells per sector (default: 50)
 - `--min_adequacy_fraction`: Min fraction of adequate sectors (default: 0.9)
 
 **Inference:**
+
 - `--inference`: Enable permutation testing (required for p-values)
 - `--n-perm`: Number of permutations (default: 200)
 - `--perm-mode`: Permutation strategy (`radial`, `joint`, `rt_umi`, `none`)
@@ -103,10 +108,12 @@ Enables stratified permutation testing using radial bins, angular bins, and UMI 
 - `--min-stratum-size`: Min cells per stratum (default: 50)
 
 **Sector weighting:**
+
 - `--sector-weight-mode`: Weighting mode (`none`, `sqrt_frac`, `effective_min`, `logistic_support`)
 - `--sector-weight-k`: Tunable weighting parameter (default: 5.0)
 
 **Output:**
+
 - `--outdir`: Directory for results and plots (default: ".")
 - `--seed`: Random seed for reproducibility (default: 42)
 

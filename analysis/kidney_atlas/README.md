@@ -17,11 +17,13 @@ This directory contains case studies for analyzing spatial gene organization in 
 Analyze Thick Ascending Limb (TAL) cells to understand spatial gene organization patterns.
 
 **Quick start:**
+
 ```bash
 python run_tal_analysis.py --ref_data data/kpmp.h5ad --outdir results/tal --max_genes 100
 ```
 
 **Outputs:**
+
 - Gene rankings by coverage and spatial organization
 - Archetype classifications (localized, uniform, niche, sparse)
 - Per-gene radar plots and visualizations
@@ -32,11 +34,13 @@ See detailed documentation in the script or [TAL Analysis Section](#tal-cell-spa
 ### 2. Disease-Stratified Analysis (`run_disease_stratified_analysis.py`) ⭐ NEW
 
 Stratify data by disease condition and run BioRSP separately on each group. Perfect for comparing spatial patterns across:
+
 - Normal/healthy tissue
 - Acute kidney failure (AKI)
 - Chronic kidney disease (CKD)
 
 **All cells, stratified by disease:**
+
 ```bash
 python run_disease_stratified_analysis.py \
   --ref_data data/kpmp.h5ad \
@@ -45,6 +49,7 @@ python run_disease_stratified_analysis.py \
 ```
 
 **TAL cells only, stratified by disease:**
+
 ```bash
 python run_disease_stratified_analysis.py \
   --ref_data data/kpmp.h5ad \
@@ -55,6 +60,7 @@ python run_disease_stratified_analysis.py \
 ```
 
 **Output structure:**
+
 ```
 results/tal_disease/
 ├── normal/
@@ -127,6 +133,7 @@ python plot_kpmp_embedding.py --density --facet-by condition
 ```
 
 The script automatically discovers and visualizes:
+
 - Cell type annotations
 - Disease/condition status
 - Sample/batch information
@@ -212,24 +219,28 @@ Genes naturally fall into four categories based on coverage and spatial organiza
 ### What Each Quadrant Means
 
 **Localized Programs** (High Coverage + High Spatial Bias Score)
+
 - These genes are the cell type's "signature programs"
 - Found in most cells of the tissue region, but expression clusters in specific zones
 - Example: SLC12A1 (Na-K-2Cl cotransporter) in proximal TAL
 - **Interpretation**: Core TAL functional program that varies by micro-location
 
 **Housekeeping Genes** (High Coverage + Low Spatial Bias Score)
+
 - Widely expressed across all cells, no location preference
 - Likely involved in basic cellular function needed everywhere
 - Example: EEF1A1 (elongation factor) or ribosomal proteins
 - **Interpretation**: General cell maintenance—less informative about tissue organization
 
 **Niche Biomarkers** (Low Coverage + High Spatial Bias Score)
+
 - Expressed in just a fraction of cells, but those cells cluster together
 - Potential markers of specialized sub-populations or functional niches
 - Could indicate cell-cell interaction zones
 - **Interpretation**: May reveal micro-anatomical structure or cell state transitions
 
 **Sparse Genes** (Low Coverage + Low Spatial Bias Score)
+
 - Rarely expressed and scattered randomly
 - Likely either noise, very rare cell states, or genes needing specific stimuli
 - **Interpretation**: Less reliable for understanding tissue organization
@@ -287,7 +298,8 @@ results/tal_full/
 | `--B` | 72 | Divide the tissue into how many angular "slices"? (72 = 5° each) |
 | `--delta_deg` | 60 | Sector "width" in degrees—how much angular smoothing? |
 
-⚠️ **Note on `--delta_deg`**: 
+⚠️ **Note on `--delta_deg`**:
+
 - Use **30–90°** to detect localized "wedge" patterns (most common)
 - **180°** means comparing opposite hemispheres—good for coarse tissue structure but loses fine spatial detail
 - Larger values = smoother but less detailed spatial maps
@@ -325,19 +337,23 @@ These genes are classic TAL signatures—you should see high coverage and good s
 ## Data Sources
 
 ### KPMP Dataset
+
 - **Source**: Kidney Precision Medicine Project
-- **Reference**: Lake et al. (2021). Nature. https://doi.org/10.1038/s41586-021-03549-5
+- **Reference**: Lake et al. (2021). Nature. <https://doi.org/10.1038/s41586-021-03549-5>
 
 ### Azimuth Reference
-- **Provenance**: https://github.com/satijalab/azimuth-references/tree/master/human_kidney
-- **Reference**: Hao et al. (2021). Cell. https://doi.org/10.1016/j.cell.2021.04.048
+
+- **Provenance**: <https://github.com/satijalab/azimuth-references/tree/master/human_kidney>
+- **Reference**: Hao et al. (2021). Cell. <https://doi.org/10.1016/j.cell.2021.04.048>
 
 ## Troubleshooting
 
 ### "No suitable embedding found"
+
 **Problem**: Script can't find a 2D embedding (UMAP, t-SNE, etc.)
 
 **Solution**: Check what embeddings your file has, then tell the script explicitly:
+
 ```bash
 # First, see what's available
 python -c "import anndata; a = anndata.read_h5ad('data/kpmp.h5ad'); print(a.obsm.keys())"
@@ -347,9 +363,11 @@ python run_tal_analysis.py ... --embedding_key X_your_custom_key
 ```
 
 ### "No cells match labels"
+
 **Problem**: Script couldn't find your cell type label in the metadata.
 
 **Solution**: Check what metadata columns exist and what the TAL label is:
+
 ```python
 import anndata
 adata = anndata.read_h5ad("data/kpmp.h5ad")
@@ -362,28 +380,34 @@ print(adata.obs["subclass.l1"].unique())
 ```
 
 Then pass the correct labels:
+
 ```bash
 python run_tal_analysis.py ... --celltype_key your_column_name --tal_labels "Label1" "Label2"
 ```
 
 ### All genes have low `coverage_geom` (confidence)
+
 **Problem**: We can't measure spatial organization reliably across all directions.
 
 **Possible causes**:
+
 - Cell subset is too small or clustered in one region
 - Embedding is sparse or elongated
 - Wrong cell type labels selected
 
 **Solutions**:
+
 1. Try a larger sample: `--subsample 5000` (if you're subsampling)
 2. Check your cell type selection—are these really TAL cells?
 3. Visualize the embedding manually to see if TAL cells fill the space or cluster in one corner
 4. Use a denser/higher-resolution embedding if available
 
 ### Results seem noisy or inconsistent
+
 **Problem**: P-values or rankings look unstable between runs.
 
 **Solution**: You're probably using too few permutations (randomizations). Increase it:
+
 ```bash
 python run_tal_analysis.py ... --n_permutations 1000
 ```
@@ -399,6 +423,7 @@ Default is 200 for speed. For publication, use 1000+.
 | 50K+ cells | 16–32 GB | 30–120 min | Use `--subsample` for testing |
 
 **For testing new cell types**: Always start with a subsample:
+
 ```bash
 python run_tal_analysis.py ... --subsample 5000 --max_genes 20 --n_permutations 100
 ```
@@ -418,6 +443,7 @@ If you use this case study or the BioRSP framework, please cite:
 **Got unexpected results?** Check the troubleshooting section above.
 
 **Found a bug?** Please open an issue on GitHub with:
+
 - Your command line
 - Error message (if any)
 - Dataset info (# cells, # genes, embedding type)
