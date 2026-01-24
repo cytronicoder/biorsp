@@ -93,12 +93,10 @@ def compute_file_fingerprint(
 class BioRSPManifest:
     """Reproducibility manifest for a BioRSP run.
 
-    Schema version 2.0 changes:
-    - Added schema_version field
-    - Added git_dirty boolean
-    - Added input_fingerprints for file provenance
-    - Enhanced software_versions with more dependencies
-    - Improved config serialization robustness
+    Attributes capture software versions, run parameters, seeds, dataset
+    summary, timings, and optional input file fingerprints for provenance.
+
+    The manifest schema version is recorded in ``schema_version``.
     """
 
     schema_version: str = "2.0"

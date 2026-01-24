@@ -113,7 +113,19 @@ def _ensure_dir(path: Path) -> None:
 
 
 def init_run_dir(config: BenchmarkContractConfig) -> dict[str, Path]:
-    """Initialize the run directory structure and return key paths."""
+    """Create run directory structure and return a mapping of standard paths.
+
+    Parameters
+    ----------
+    config : BenchmarkContractConfig
+        Configuration providing ``outdir``, ``benchmark``, and ``run_id``.
+
+    Returns
+    -------
+    dict[str, Path]
+        Dictionary with keys like 'root', 'runs_csv', 'summary_csv',
+        'manifest_json', 'report_md', 'figures', and 'debug'.
+    """
 
     root = Path(config.outdir) / config.benchmark / config.run_id
     _ensure_dir(root)
@@ -140,6 +152,23 @@ def _check_required_columns(df: pd.DataFrame, required: Iterable[str], benchmark
 
 
 def assert_contract_runs(df: pd.DataFrame, benchmark: str) -> None:
+    """Validate that a runs dataframe adheres to the benchmark contract.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Runs dataframe to validate.
+    benchmark : str
+        Benchmark kind (e.g., 'archetypes', 'calibration').
+
+    Raises
+    ------
+    ValueError
+        If benchmark is unknown or required columns are missing.
+    AssertionError
+        If mandatory columns contain NaNs or archetype-specific non-abstain
+        checks fail.
+    """
     if benchmark not in BENCHMARK_REQUIRED:
         raise ValueError(f"Unknown benchmark '{benchmark}' for contract validation")
 
@@ -149,8 +178,6 @@ def assert_contract_runs(df: pd.DataFrame, benchmark: str) -> None:
     for col in key_cols:
         if df[col].isna().any():
             raise AssertionError(f"Contract violation: column '{col}' contains NaN")
-
-    if benchmark == "archetypes":
         required_non_null = [
             "shape",
             "n_cells",
@@ -252,7 +279,21 @@ def save_debug(paths: dict[str, Path], fig, name: str, subdir: str = "debug") ->
 
 
 def finalize_and_validate(paths: dict[str, Path]) -> None:
-    """Check that all required contract artifacts exist and are non-empty."""
+    """Ensure required contract artifacts exist and are non-empty, and validate contents.
+
+    Parameters
+    ----------
+    paths : dict[str, Path]
+        Mapping as returned by :func:`init_run_dir` with 'runs_csv',
+        'summary_csv', 'manifest_json', and 'report_md' paths.
+
+    Raises
+    ------
+    FileNotFoundError
+        If required artifact files are missing.
+    ValueError
+        If any required artifact is empty or CSVs contain zero rows.
+    """
 
     required_files = ["runs_csv", "summary_csv", "manifest_json", "report_md"]
     missing = [key for key in required_files if not paths.get(key, Path("missing")).exists()]

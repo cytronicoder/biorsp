@@ -42,16 +42,23 @@ CANONICAL_META_COLUMNS = [
 def normalize_scores_df(df: pd.DataFrame) -> pd.DataFrame:
     """Return a copy of ``df`` with canonical score columns enforced.
 
-    - Ensures ``Coverage`` and ``Spatial_Score`` exist. If ``Spatial_Score`` is
-      missing but ``Spatial_Bias_Score`` exists, the latter is renamed. If both
-      exist they must match (ignoring NaNs) otherwise an AssertionError is
-      raised. If neither exists an AssertionError is raised with an actionable
-      message.
-    - Drops ``Spatial_Bias_Score`` after reconciliation to avoid downstream
-      ambiguity.
-    - Validates bounds: Coverage must lie in [0, 1] where defined; Spatial_Score
-      must be finite where defined. NaNs are preserved to represent abstention.
-    - If optional metadata columns are present they must not be entirely NaN.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input runs dataframe that should contain Coverage and a spatial score
+        column (either ``Spatial_Score`` or legacy ``Spatial_Bias_Score``).
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of ``df`` with ``Spatial_Score`` present and validated.
+
+    Raises
+    ------
+    AssertionError
+        If required columns are missing or values violate contract
+        (e.g., Coverage not in [0, 1], non-finite Spatial_Score) or if a
+        metadata column is entirely NaN.
     """
 
     df_norm = df.copy()
@@ -110,10 +117,32 @@ def normalize_labels(
     allow_abstain_pred: bool = True,
     allow_abstain_truth: bool = False,
 ) -> pd.DataFrame:
-    """Normalize truth/prediction labels to canonical archetypes.
+    """Normalize truth and prediction label columns to canonical archetype names.
 
-    By default abstention is permitted only in predictions. Unknown labels raise
-    immediately to prevent silent drift.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing label columns.
+    truth_col : str
+        Column name for ground-truth archetypes.
+    pred_col : str
+        Column name for predicted archetypes.
+    allow_abstain_pred : bool, optional
+        Whether to permit abstention labels in predictions (default True).
+    allow_abstain_truth : bool, optional
+        Whether to permit abstention labels in the truth column (default False).
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of ``df`` with normalized label series.
+
+    Raises
+    ------
+    KeyError
+        If either of the specified columns is missing.
+    AssertionError
+        If labels contain unknown values after normalization.
     """
 
     df_norm = df.copy()
@@ -137,10 +166,21 @@ def normalize_labels(
 
 
 def compute_binomial_ci(k: int, n: int, alpha: float = 0.05) -> tuple[float, float]:
-    """Wilson score interval for a binomial proportion.
+    """Compute Wilson score confidence interval for a binomial proportion.
 
-    This wraps :func:`analysis.benchmarks.simlib.metrics_ci.binomial_wilson_ci`
-    to keep a single implementation. Returns ``(lower, upper)`` bounds.
+    Parameters
+    ----------
+    k : int
+        Number of successes.
+    n : int
+        Number of trials.
+    alpha : float, optional
+        Two-sided significance level (default 0.05).
+
+    Returns
+    -------
+    tuple[float, float]
+        Lower and upper bounds of the confidence interval.
     """
 
     return binomial_wilson_ci(k, n, alpha=alpha)
@@ -157,9 +197,34 @@ def split_train_test(
 ) -> SplitResult:
     """Deterministic group-level train/test split.
 
-    Groups defined by ``group_cols`` are shuffled with ``seed`` and then split
-    into train/test according to ``test_frac``. Every group is assigned wholly
-    to one split to avoid leakage.
+    Groups defined by ``group_cols`` are shuffled deterministically using
+    ``seed`` and then assigned entirely to train/test according to ``test_frac``
+    to prevent leakage between splits.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing the grouping columns.
+    group_cols : list[str]
+        Column names that define groups (each group assigned to one split).
+    test_frac : float
+        Fraction of groups assigned to the test split; must be in (0, 1).
+    seed : int
+        Random seed for deterministic shuffling.
+
+    Returns
+    -------
+    SplitResult
+        Dataclass with ``train_idx`` and ``test_idx`` indices into ``df``.
+
+    Raises
+    ------
+    ValueError
+        If ``test_frac`` is not in (0, 1).
+    KeyError
+        If any grouping column is missing.
+    AssertionError
+        If the resulting train split is empty.
     """
 
     if not 0 < test_frac < 1:
@@ -194,7 +259,18 @@ def split_train_test(
 
 
 def safe_metric_mask(series: pd.Series) -> pd.Series:
-    """Boolean mask for finite metric values (NaN = abstain)."""
+    """Return a boolean mask indicating finite (non-abstained) metric values.
+
+    Parameters
+    ----------
+    series : pd.Series
+        Metric series (e.g., p_value or Spatial_Score).
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask where values are not NaN and finite.
+    """
 
     return series.notna() & np.isfinite(series.to_numpy())
 
