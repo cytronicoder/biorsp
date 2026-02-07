@@ -205,3 +205,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Large binary data formats used by Scanpy / AnnData
+*.h5ad
+*.h5
+*.hdf5
+
+# Binary array archives
+*.npz
+*.npy
+
+# Generated figures and documents
+*.png
+*.pdf
+*.svg
+
+# Ignore outputs directory (contains generated figures and tables)
+outputs/

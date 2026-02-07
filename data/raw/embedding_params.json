@@ -1,0 +1,22 @@
+{
+  "seed": 42,
+  "pca": {
+    "n_comps": 50,
+    "variance_explained": 0.1495421975851059
+  },
+  "neighbors": {
+    "n_neighbors": 15,
+    "n_pcs": 50,
+    "metric": "euclidean"
+  },
+  "umap": {
+    "min_dist": 0.3,
+    "spread": 1.0,
+    "n_components": 2
+  },
+  "dataset": {
+    "n_cells": 23279,
+    "n_genes": 29072,
+    "source": "data/raw/HT_raw_processed.h5ad"
+  }
+}
