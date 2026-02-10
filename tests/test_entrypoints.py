@@ -22,14 +22,14 @@ def test_run_biorsp_evaluation_entrypoint_calls_prereg_pipeline(monkeypatch):
     fake_eval.run_prereg_pipeline = lambda _cfg: None
     monkeypatch.setitem(sys.modules, "biorsp.evaluation", fake_eval)
 
-    module = _load_script_module("prereg_pipeline_legacy.py")
+    module = _load_script_module("prereg_pipeline.py")
     called: list[str] = []
 
     def _fake_run(config_path: str) -> None:
         called.append(config_path)
 
     monkeypatch.setattr(module, "run_prereg_pipeline", _fake_run)
-    monkeypatch.setattr(sys, "argv", ["prereg_pipeline_legacy.py", "--config", "tiny.json"])
+    monkeypatch.setattr(sys, "argv", ["prereg_pipeline.py", "--config", "tiny.json"])
 
     rc = module.main()
     assert rc == 0
