@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biorsp"
+version = "0.1.0"
+description = "Directional enrichment analysis for single-cell embeddings with donor-aware statistics"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "pandas",
+  "scipy",
+  "anndata",
+  "scanpy",
+  "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+biorsp-smoke-rsp = "biorsp.cli:smoke_rsp_main"
+biorsp-smoke-moran = "biorsp.cli:smoke_moran_main"
+biorsp-smoke-perm = "biorsp.cli:smoke_perm_main"
+
+[tool.setuptools.packages.find]
+include = ["biorsp*"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-q"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [
+  ".git",
+  ".venv",
+  ".pytest_cache",
+  "__pycache__",
+  "notebooks/ht-raw.ipynb",
+  "notebooks/ht-processed.ipynb",
+  "scripts/strata_diagnostics.py",
+  "scripts/data_diagnostics.py",
+  "scripts/smoke_suite.py",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
