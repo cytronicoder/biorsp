@@ -16,6 +16,7 @@ dependencies = [
   "anndata",
   "scanpy",
   "matplotlib",
+  "tabulate",
 ]
 
 [project.optional-dependencies]
