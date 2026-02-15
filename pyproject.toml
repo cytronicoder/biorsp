@@ -7,7 +7,7 @@ name = "biorsp"
 version = "0.1.0"
 description = "Directional enrichment analysis for single-cell embeddings with donor-aware statistics"
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
   "numpy",
@@ -15,17 +15,14 @@ dependencies = [
   "scipy",
   "anndata",
   "scanpy",
+  "leidenalg",
+  "scikit-image",
   "matplotlib",
   "tabulate",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
-
-[project.scripts]
-biorsp-smoke-rsp = "biorsp.cli:smoke_rsp_main"
-biorsp-smoke-moran = "biorsp.cli:smoke_moran_main"
-biorsp-smoke-perm = "biorsp.cli:smoke_perm_main"
 
 [tool.setuptools.packages.find]
 include = ["biorsp*"]
@@ -46,9 +43,6 @@ exclude = [
   "__pycache__",
   "notebooks/ht-raw.ipynb",
   "notebooks/ht-processed.ipynb",
-  "scripts/strata_diagnostics.py",
-  "scripts/data_diagnostics.py",
-  "scripts/smoke_suite.py",
 ]
 
 [tool.ruff.lint]
