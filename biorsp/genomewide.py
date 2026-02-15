@@ -34,6 +34,7 @@ from biorsp.pipeline_utils import (
     setup_logger as _setup_logger,
 )
 from biorsp.rsp import compute_rsp_profile_from_boolean, plot_rsp_polar
+from biorsp.staged_pipeline import run_scope_staged
 from biorsp.utils import ensure_dir
 
 
@@ -375,6 +376,39 @@ def run_genomewide_pipeline(config_path: str) -> None:
     resume = bool(cfg.get("resume", True))
     include_modules = bool(cfg.get("include_modules", False))
 
+    # staged/discovery mode defaults
+    staged_pipeline_enabled = bool(cfg.get("staged_pipeline_enabled", True))
+    discovery_mode = bool(cfg.get("discovery_mode", True))
+    pipeline_mode_default = "compute" if discovery_mode else "full"
+    pipeline_mode = str(cfg.get("pipeline_mode", pipeline_mode_default)).strip().lower()
+    if pipeline_mode not in {"compute", "plot", "full"}:
+        pipeline_mode = pipeline_mode_default
+    plot_top_k = int(cfg.get("plot_top_k", 20))
+    bins_screen = int(cfg.get("bins_screen", 36))
+    bins_confirm = int(cfg.get("bins_confirm", 72))
+    perm_init = int(cfg.get("perm_init", 100))
+    perm_mid = int(cfg.get("perm_mid", 300))
+    perm_final = int(cfg.get("perm_final", 1000))
+    p_escalate_1 = float(cfg.get("p_escalate_1", 0.2))
+    p_escalate_2 = float(cfg.get("p_escalate_2", 0.05))
+    stage1_top_k_global = int(cfg.get("stage1_top_k_global", cfg.get("stage1_top_k", 2000)))
+    stage1_top_k_mega = int(cfg.get("stage1_top_k_mega", 1000))
+    stage1_top_k_cluster = int(cfg.get("stage1_top_k_cluster", 300))
+    stage2_top_k_global = int(cfg.get("stage2_top_k_global", 200))
+    stage2_top_k_mega = int(cfg.get("stage2_top_k_mega", 80))
+    stage2_top_k_cluster = int(cfg.get("stage2_top_k_cluster", 30))
+    min_prev_global = float(cfg.get("min_prev_global", 0.01))
+    min_prev_cluster = float(cfg.get("min_prev_cluster", 0.03))
+    min_fg_global = int(cfg.get("min_fg_global", 50))
+    min_fg_cluster = int(cfg.get("min_fg_cluster", 30))
+    skip_umap_plots = bool(cfg.get("skip_umap_plots", discovery_mode))
+    skip_pair_plots = bool(cfg.get("skip_pair_plots", discovery_mode))
+    skip_rsp_plots = bool(cfg.get("skip_rsp_plots", discovery_mode))
+
+    all_genes_scopes = cfg.get("all_genes_scopes", [])
+    if isinstance(all_genes_scopes, list) and len([s for s in all_genes_scopes if s]) > 1:
+        raise ValueError("Only one scope may run --all_genes at a time.")
+
     expr_layer_binary = cfg.get("binary_expr_layer", None)
     expr_layer_continuous = cfg.get("continuous_expr_layer", "lognorm")
 
@@ -499,6 +533,115 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 score_name = f"score_{module_name}"
                 sc.tl.score_genes(adata_s, gene_list=present, score_name=score_name, use_raw=False)
                 module_scores.append(score_name)
+
+        if staged_pipeline_enabled:
+            kept_idx = np.array([adata_s.var_names.get_loc(g) for g in kept_genes], dtype=int)
+            X_scope = mat_cont[:, kept_idx] if kept_idx.size else mat_cont[:, :0]
+            scope_level = str(
+                cfg.get("scope_level_by_stratum", {}).get(
+                    stratum_name,
+                    cfg.get("scope_level_default", "global"),
+                )
+            )
+            scope_ctx = {
+                "scope_id": stratum_name.replace(" ", "_"),
+                "scope_name": stratum_name,
+                "scope_level": scope_level,
+                "out_dir": stratum_dir,
+                "figure_dir": fig_dir,
+                "angles": angles_ref,
+                "umap_xy": embeddings[ref_key],
+                "donor_ids": donor_ids,
+                "logger": logger,
+            }
+            staged_params: dict[str, Any] = {
+                "discovery_mode": discovery_mode,
+                "pipeline_mode": pipeline_mode,
+                "plot_top_k": plot_top_k,
+                "bins_screen": bins_screen,
+                "bins_confirm": bins_confirm,
+                "perm_init": perm_init,
+                "perm_mid": perm_mid,
+                "perm_final": perm_final,
+                "p_escalate_1": p_escalate_1,
+                "p_escalate_2": p_escalate_2,
+                "stage1_top_k_global": stage1_top_k_global,
+                "stage1_top_k_mega": stage1_top_k_mega,
+                "stage1_top_k_cluster": stage1_top_k_cluster,
+                "stage2_top_k_global": stage2_top_k_global,
+                "stage2_top_k_mega": stage2_top_k_mega,
+                "stage2_top_k_cluster": stage2_top_k_cluster,
+                "min_prev_global": min_prev_global,
+                "min_prev_cluster": min_prev_cluster,
+                "min_fg_global": min_fg_global,
+                "min_fg_cluster": min_fg_cluster,
+                "skip_umap_plots": skip_umap_plots,
+                "skip_pair_plots": skip_pair_plots,
+                "skip_rsp_plots": skip_rsp_plots,
+                "q_threshold": float(cfg.get("fdr_alpha", 0.05)),
+                "seed": seed,
+            }
+            scope_results = run_scope_staged(
+                scope_ctx=scope_ctx,
+                X=X_scope,
+                genes=kept_genes,
+                labels=None,
+                qc_covariates=adata_s.obs,
+                cache_dir=results_dir / "cache" / "genomewide" / stratum_name.replace(" ", "_"),
+                params=staged_params,
+            )
+
+            stage3_df = scope_results.get("stage3", pd.DataFrame()).copy()
+            if not stage3_df.empty:
+                stage3_df["stratum"] = stratum_name
+                stage3_df["mode"] = "binary"
+                stage3_df["threshold"] = "t0"
+                stage3_df["embedding"] = ref_key
+                stage3_df["p_perm_stage1"] = float("nan")
+                stage3_df["p_perm_stage2"] = stage3_df["p_T"]
+                stage3_df["FDR_stage2"] = stage3_df["q_T"]
+                stage3_df["moran_I"] = float("nan")
+                stage3_df["phi_sd_deg"] = float("nan")
+                stage3_df["jackknife_Emax_sd"] = float("nan")
+                stage3_df["n_cells"] = int(n_cells)
+                stage3_df["n_donors"] = int(n_donors)
+                stage3_df["detect_frac"] = stage3_df["prevalence"]
+                stage3_df["ambient_prone"] = stage3_df["gene"].isin(ambient_flags)
+                stage3_df["robust_hit"] = stage3_df["q_T"] <= float(cfg.get("fdr_alpha", 0.05))
+                results_rows.append(stage3_df)
+
+                top_hits = stage3_df.sort_values(["FDR_stage2", "E_max"], ascending=[True, False]).head(plot_top_k)
+                for _, row in top_hits.iterrows():
+                    top_hits_rows.append(row.to_dict())
+
+                summary_rows.append(
+                    {
+                        "stratum": stratum_name,
+                        "genes_tested": int(len(kept_genes)),
+                        "candidates": int(scope_results["stage1"].get("stage1_selected", pd.Series([], dtype=bool)).sum())
+                        if "stage1" in scope_results
+                        else 0,
+                        "robust_hits": int(np.sum(stage3_df["FDR_stage2"] <= float(cfg.get("fdr_alpha", 0.05)))),
+                        "median_phi_sd": float("nan"),
+                        "ambient_frac_in_hits": float(
+                            np.mean(top_hits["ambient_prone"].values) if not top_hits.empty else float("nan")
+                        ),
+                    }
+                )
+            else:
+                summary_rows.append(
+                    {
+                        "stratum": stratum_name,
+                        "genes_tested": int(len(kept_genes)),
+                        "candidates": int(scope_results["stage1"].get("stage1_selected", pd.Series([], dtype=bool)).sum())
+                        if "stage1" in scope_results
+                        else 0,
+                        "robust_hits": 0,
+                        "median_phi_sd": float("nan"),
+                        "ambient_frac_in_hits": float("nan"),
+                    }
+                )
+            continue
 
         # Stage 1 cache
         stage1_path = stratum_dir / "stage1.csv"

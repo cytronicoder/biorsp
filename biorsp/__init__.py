@@ -1,35 +1,25 @@
-"""BioRSP: lightweight utilities for reproducible spatial pattern statistics on single-cell data."""
+"""BioRSP public API."""
 
 from biorsp._version import __version__
-from biorsp.geometry import compute_angles, compute_vantage
-from biorsp.moran import extract_weights, morans_i
-from biorsp.permutation import (
-    build_donor_index,
-    perm_null_emax,
-    permute_foreground_within_donor,
-    plot_null_distribution,
-)
-from biorsp.rsp import (
-    compute_rsp_profile,
-    compute_rsp_profile_from_boolean,
-    plot_rsp_polar,
-)
-from biorsp.utils import ensure_dir, get_gene_vector, select_gene
+from biorsp.core.compute import compute_rsp
+from biorsp.core.features import resolve_feature_index
+from biorsp.core.geometry import compute_vantage_point
+from biorsp.plotting.rsp import plot_rsp, plot_umap_rsp_pair
+
+
+def run_case_study(*args, **kwargs):
+    """Lazy wrapper to avoid importing heavy pipeline dependencies at import time."""
+    from biorsp.pipeline.hierarchy import run_case_study as _run_case_study
+
+    return _run_case_study(*args, **kwargs)
+
 
 __all__ = [
     "__version__",
-    "compute_angles",
-    "compute_vantage",
-    "compute_rsp_profile",
-    "compute_rsp_profile_from_boolean",
-    "plot_rsp_polar",
-    "extract_weights",
-    "morans_i",
-    "build_donor_index",
-    "permute_foreground_within_donor",
-    "perm_null_emax",
-    "plot_null_distribution",
-    "ensure_dir",
-    "get_gene_vector",
-    "select_gene",
+    "compute_rsp",
+    "plot_rsp",
+    "plot_umap_rsp_pair",
+    "compute_vantage_point",
+    "resolve_feature_index",
+    "run_case_study",
 ]
