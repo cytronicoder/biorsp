@@ -1,6 +1,6 @@
 # Contributing
 
-## Development setup
+## Development Setup
 
 ```bash
 python -m venv .venv
@@ -8,30 +8,28 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-## Run tests
+## Tests And Lint
 
 ```bash
 pytest -q
-```
-
-## Lint and format
-
-```bash
 ruff check .
 ruff format .
 ```
 
-## Canonical smoke commands
+## Canonical Docs
+
+- User entrypoint: `/Users/cytronicoder/Documents/GitHub/biorsp-topaz/docs/01_quickstart.md`
+- Method and inference: `/Users/cytronicoder/Documents/GitHub/biorsp-topaz/docs/02_method.md`, `/Users/cytronicoder/Documents/GitHub/biorsp-topaz/docs/03_inference_and_nulls.md`
+- Developer guide: `/Users/cytronicoder/Documents/GitHub/biorsp-topaz/docs/06_developer_guide.md`
+
+## Case Study Command
 
 ```bash
-biorsp-smoke-rsp --h5ad /path/to/input.h5ad --outdir .
-biorsp-smoke-moran --h5ad /path/to/input.h5ad --outdir .
-biorsp-smoke-perm --h5ad /path/to/input.h5ad --outdir . --n-perm 100
-```
-
-## Pipeline entrypoints
-
-```bash
-python scripts/prereg_pipeline.py --config configs/biorsp_prereg.json
-python scripts/genomewide_pipeline.py --config configs/biorsp_genomewide.json
+PYTHONPATH=. python3 analysis/heart_case_study/run.py \
+  --h5ad data/processed/HT_pca_umap.h5ad \
+  --out outputs/heart_case_study/dev_run \
+  --donor_key hubmap_id \
+  --cluster_key azimuth_id \
+  --celltype_key azimuth_label \
+  --do_hierarchy true
 ```

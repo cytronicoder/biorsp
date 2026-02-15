@@ -22,3 +22,13 @@ artifacts/
 .ipynb_checkpoints/
 .DS_Store
 outputs/logs/runlog.md
+
+# Heart smoke-test run outputs (canonical + legacy variants)
+experiments/heart_smoketest/results*/
+experiments/heart_smoketest/twopass_live/
+experiments/heart_smoketest/diagnostics/
+
+# Keep canonical output root visible, but ignore run contents
+!experiments/heart_smoketest/outputs/
+experiments/heart_smoketest/outputs/*
+!experiments/heart_smoketest/outputs/.gitkeep
