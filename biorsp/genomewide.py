@@ -108,7 +108,9 @@ def _compute_embeddings(
     n_comps = min(n_pcs, max(2, min(adata.n_obs - 1, adata.n_vars - 1)))
     if "X_pca" not in adata.obsm:
         sc_module.tl.pca(adata, n_comps=n_comps, svd_solver="arpack")
-    sc_module.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_comps, use_rep="X_pca")
+    sc_module.pp.neighbors(
+        adata, n_neighbors=n_neighbors, n_pcs=n_comps, use_rep="X_pca"
+    )
     embeddings: dict[str, np.ndarray] = {}
     for seed in seeds:
         sc_module.tl.umap(
@@ -160,7 +162,11 @@ def _ambient_flags(var_names: Iterable[str]) -> set[str]:
     flags = set()
     for g in var_names:
         g_upper = str(g).upper()
-        if g_upper.startswith("MT-") or g_upper.startswith("RPL") or g_upper.startswith("RPS"):
+        if (
+            g_upper.startswith("MT-")
+            or g_upper.startswith("RPL")
+            or g_upper.startswith("RPS")
+        ):
             flags.add(str(g))
         if g_upper in {"MALAT1", "FOS", "JUN", "JUNB", "FOSB", "FOSL1", "FOSL2"}:
             flags.add(str(g))
@@ -215,7 +221,9 @@ def _plot_phi_compass(phi_deg: np.ndarray, out_png: Path, title: str) -> None:
     plt.close(fig)
 
 
-def _plot_phi_stability_bar(phi_sd_deg: np.ndarray, labels: list[str], out_png: Path, title: str) -> None:
+def _plot_phi_stability_bar(
+    phi_sd_deg: np.ndarray, labels: list[str], out_png: Path, title: str
+) -> None:
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(6, 4))
@@ -229,11 +237,22 @@ def _plot_phi_stability_bar(phi_sd_deg: np.ndarray, labels: list[str], out_png: 
     plt.close(fig)
 
 
-def _plot_scatter(x, y, labels, out_png: Path, title: str, xlabel: str, ylabel: str, highlight: set[str]) -> None:
+def _plot_scatter(
+    x,
+    y,
+    labels,
+    out_png: Path,
+    title: str,
+    xlabel: str,
+    ylabel: str,
+    highlight: set[str],
+) -> None:
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(5, 4))
-    ax.scatter(x, y, c=["red" if label in highlight else "black" for label in labels], s=10)
+    ax.scatter(
+        x, y, c=["red" if label in highlight else "black" for label in labels], s=10
+    )
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -297,9 +316,15 @@ def _write_genomewide_outputs(
     else:
         results_df = pd.DataFrame()
     results_df.to_csv(results_dir / "biorsp_genomewide_results.csv", index=False)
-    pd.DataFrame(top_hits_rows).to_csv(results_dir / "biorsp_genomewide_top_hits.csv", index=False)
-    pd.DataFrame(gene_filtering_rows).to_csv(results_dir / "gene_filtering.csv", index=False)
-    pd.DataFrame(summary_rows).to_csv(results_dir / "genomewide_summary.csv", index=False)
+    pd.DataFrame(top_hits_rows).to_csv(
+        results_dir / "biorsp_genomewide_top_hits.csv", index=False
+    )
+    pd.DataFrame(gene_filtering_rows).to_csv(
+        results_dir / "gene_filtering.csv", index=False
+    )
+    pd.DataFrame(summary_rows).to_csv(
+        results_dir / "genomewide_summary.csv", index=False
+    )
 
 
 def _gene_filtering(
@@ -321,7 +346,9 @@ def _gene_filtering(
     n_cells = mat.shape[0]
     detect_frac = detect_n / max(1, n_cells)
 
-    keep = (detect_frac >= min_detect_frac) & (detect_n >= min_detect_n) & (var >= min_var)
+    keep = (
+        (detect_frac >= min_detect_frac) & (detect_n >= min_detect_n) & (var >= min_var)
+    )
     kept_genes = [g for g, k in zip(var_names, keep) if k]
 
     counts = {
@@ -391,7 +418,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
     perm_final = int(cfg.get("perm_final", 1000))
     p_escalate_1 = float(cfg.get("p_escalate_1", 0.2))
     p_escalate_2 = float(cfg.get("p_escalate_2", 0.05))
-    stage1_top_k_global = int(cfg.get("stage1_top_k_global", cfg.get("stage1_top_k", 2000)))
+    stage1_top_k_global = int(
+        cfg.get("stage1_top_k_global", cfg.get("stage1_top_k", 2000))
+    )
     stage1_top_k_mega = int(cfg.get("stage1_top_k_mega", 1000))
     stage1_top_k_cluster = int(cfg.get("stage1_top_k_cluster", 300))
     stage2_top_k_global = int(cfg.get("stage2_top_k_global", 200))
@@ -406,7 +435,10 @@ def run_genomewide_pipeline(config_path: str) -> None:
     skip_rsp_plots = bool(cfg.get("skip_rsp_plots", discovery_mode))
 
     all_genes_scopes = cfg.get("all_genes_scopes", [])
-    if isinstance(all_genes_scopes, list) and len([s for s in all_genes_scopes if s]) > 1:
+    if (
+        isinstance(all_genes_scopes, list)
+        and len([s for s in all_genes_scopes if s]) > 1
+    ):
         raise ValueError("Only one scope may run --all_genes at a time.")
 
     expr_layer_binary = cfg.get("binary_expr_layer", None)
@@ -486,7 +518,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
             umap_min_dist,
             umap_spread,
         )
-        angles_by_embed = {k: compute_angles(v, compute_vantage(v)) for k, v in embeddings.items()}
+        angles_by_embed = {
+            k: compute_angles(v, compute_vantage(v)) for k, v in embeddings.items()
+        }
 
         # reference embedding
         ref_key = reference_embedding.replace("X_", "")
@@ -496,12 +530,16 @@ def run_genomewide_pipeline(config_path: str) -> None:
 
         # neighbors and Moran
         if "connectivities" not in adata_s.obsp:
-            sc.pp.neighbors(adata_s, n_neighbors=n_neighbors, n_pcs=n_pcs, use_rep="X_pca")
+            sc.pp.neighbors(
+                adata_s, n_neighbors=n_neighbors, n_pcs=n_pcs, use_rep="X_pca"
+            )
         W = extract_weights(adata_s)
 
         donor_ids = np.asarray(adata_s.obs[donor_col])
         unique_donors = np.unique(donor_ids)
-        donor_to_idx = {str(d): np.nonzero(donor_ids == d)[0].astype(int) for d in unique_donors}
+        donor_to_idx = {
+            str(d): np.nonzero(donor_ids == d)[0].astype(int) for d in unique_donors
+        }
 
         # gene filtering
         mat_cont = _get_matrix(adata_s, expr_layer_continuous)
@@ -531,11 +569,15 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 if len(present) < 2:
                     continue
                 score_name = f"score_{module_name}"
-                sc.tl.score_genes(adata_s, gene_list=present, score_name=score_name, use_raw=False)
+                sc.tl.score_genes(
+                    adata_s, gene_list=present, score_name=score_name, use_raw=False
+                )
                 module_scores.append(score_name)
 
         if staged_pipeline_enabled:
-            kept_idx = np.array([adata_s.var_names.get_loc(g) for g in kept_genes], dtype=int)
+            kept_idx = np.array(
+                [adata_s.var_names.get_loc(g) for g in kept_genes], dtype=int
+            )
             X_scope = mat_cont[:, kept_idx] if kept_idx.size else mat_cont[:, :0]
             scope_level = str(
                 cfg.get("scope_level_by_stratum", {}).get(
@@ -587,7 +629,10 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 genes=kept_genes,
                 labels=None,
                 qc_covariates=adata_s.obs,
-                cache_dir=results_dir / "cache" / "genomewide" / stratum_name.replace(" ", "_"),
+                cache_dir=results_dir
+                / "cache"
+                / "genomewide"
+                / stratum_name.replace(" ", "_"),
                 params=staged_params,
             )
 
@@ -607,10 +652,14 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 stage3_df["n_donors"] = int(n_donors)
                 stage3_df["detect_frac"] = stage3_df["prevalence"]
                 stage3_df["ambient_prone"] = stage3_df["gene"].isin(ambient_flags)
-                stage3_df["robust_hit"] = stage3_df["q_T"] <= float(cfg.get("fdr_alpha", 0.05))
+                stage3_df["robust_hit"] = stage3_df["q_T"] <= float(
+                    cfg.get("fdr_alpha", 0.05)
+                )
                 results_rows.append(stage3_df)
 
-                top_hits = stage3_df.sort_values(["FDR_stage2", "E_max"], ascending=[True, False]).head(plot_top_k)
+                top_hits = stage3_df.sort_values(
+                    ["FDR_stage2", "E_max"], ascending=[True, False]
+                ).head(plot_top_k)
                 for _, row in top_hits.iterrows():
                     top_hits_rows.append(row.to_dict())
 
@@ -618,13 +667,26 @@ def run_genomewide_pipeline(config_path: str) -> None:
                     {
                         "stratum": stratum_name,
                         "genes_tested": int(len(kept_genes)),
-                        "candidates": int(scope_results["stage1"].get("stage1_selected", pd.Series([], dtype=bool)).sum())
-                        if "stage1" in scope_results
-                        else 0,
-                        "robust_hits": int(np.sum(stage3_df["FDR_stage2"] <= float(cfg.get("fdr_alpha", 0.05)))),
+                        "candidates": (
+                            int(
+                                scope_results["stage1"]
+                                .get("stage1_selected", pd.Series([], dtype=bool))
+                                .sum()
+                            )
+                            if "stage1" in scope_results
+                            else 0
+                        ),
+                        "robust_hits": int(
+                            np.sum(
+                                stage3_df["FDR_stage2"]
+                                <= float(cfg.get("fdr_alpha", 0.05))
+                            )
+                        ),
                         "median_phi_sd": float("nan"),
                         "ambient_frac_in_hits": float(
-                            np.mean(top_hits["ambient_prone"].values) if not top_hits.empty else float("nan")
+                            np.mean(top_hits["ambient_prone"].values)
+                            if not top_hits.empty
+                            else float("nan")
                         ),
                     }
                 )
@@ -633,9 +695,15 @@ def run_genomewide_pipeline(config_path: str) -> None:
                     {
                         "stratum": stratum_name,
                         "genes_tested": int(len(kept_genes)),
-                        "candidates": int(scope_results["stage1"].get("stage1_selected", pd.Series([], dtype=bool)).sum())
-                        if "stage1" in scope_results
-                        else 0,
+                        "candidates": (
+                            int(
+                                scope_results["stage1"]
+                                .get("stage1_selected", pd.Series([], dtype=bool))
+                                .sum()
+                            )
+                            if "stage1" in scope_results
+                            else 0
+                        ),
                         "robust_hits": 0,
                         "median_phi_sd": float("nan"),
                         "ambient_frac_in_hits": float("nan"),
@@ -650,13 +718,17 @@ def run_genomewide_pipeline(config_path: str) -> None:
         else:
             stage1_rows = []
             for gene in kept_genes:
-                expr_cont = _get_matrix(adata_s, expr_layer_continuous)[:, adata_s.var_names.get_loc(gene)]
+                expr_cont = _get_matrix(adata_s, expr_layer_continuous)[
+                    :, adata_s.var_names.get_loc(gene)
+                ]
                 if sp.issparse(expr_cont):
                     expr_cont = expr_cont.toarray().ravel()
                 else:
                     expr_cont = np.asarray(expr_cont).ravel()
                 try:
-                    _, phi_max, emax = compute_rsp_profile_continuous(expr_cont, angles_ref, n_bins=bins)
+                    _, phi_max, emax = compute_rsp_profile_continuous(
+                        expr_cont, angles_ref, n_bins=bins
+                    )
                 except ValueError:
                     continue
 
@@ -664,7 +736,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 if inferential:
                     null_emax = np.zeros(stage1_perms, dtype=float)
                     for i in range(stage1_perms):
-                        perm_vals = permute_values_within_donor(expr_cont, donor_to_idx, rng)
+                        perm_vals = permute_values_within_donor(
+                            expr_cont, donor_to_idx, rng
+                        )
                         try:
                             _, _, emax_p = compute_rsp_profile_continuous(
                                 perm_vals, angles_ref, n_bins=bins
@@ -674,7 +748,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
                         null_emax[i] = emax_p
                     null_emax = null_emax[np.isfinite(null_emax)]
                     if null_emax.size > 0:
-                        p_perm = (1.0 + np.sum(null_emax >= emax)) / (1.0 + null_emax.size)
+                        p_perm = (1.0 + np.sum(null_emax >= emax)) / (
+                            1.0 + null_emax.size
+                        )
 
                 stage1_rows.append(
                     {
@@ -694,7 +770,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
         # Candidate selection
         candidates = set()
         if stage1_p_cutoff is not None:
-            candidates |= set(stage1_df.loc[stage1_df["p_perm_stage1"] <= stage1_p_cutoff, "gene"])
+            candidates |= set(
+                stage1_df.loc[stage1_df["p_perm_stage1"] <= stage1_p_cutoff, "gene"]
+            )
         if stage1_top_k is not None:
             stage1_sorted = stage1_df.sort_values("p_perm_stage1", ascending=True)
             candidates |= set(stage1_sorted.head(int(stage1_top_k))["gene"].values)
@@ -709,7 +787,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
         else:
             stage2_rows = []
             for gene in candidates:
-                expr_cont = _get_matrix(adata_s, expr_layer_continuous)[:, adata_s.var_names.get_loc(gene)]
+                expr_cont = _get_matrix(adata_s, expr_layer_continuous)[
+                    :, adata_s.var_names.get_loc(gene)
+                ]
                 if sp.issparse(expr_cont):
                     expr_cont = expr_cont.toarray().ravel()
                 else:
@@ -718,11 +798,15 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 # p_perm_stage2 on reference embedding
                 null_emax = np.zeros(stage2_perms, dtype=float)
                 try:
-                    _, phi_ref, emax_ref = compute_rsp_profile_continuous(expr_cont, angles_ref, n_bins=bins)
+                    _, phi_ref, emax_ref = compute_rsp_profile_continuous(
+                        expr_cont, angles_ref, n_bins=bins
+                    )
                 except ValueError:
                     continue
                 for i in range(stage2_perms):
-                    perm_vals = permute_values_within_donor(expr_cont, donor_to_idx, rng)
+                    perm_vals = permute_values_within_donor(
+                        expr_cont, donor_to_idx, rng
+                    )
                     try:
                         _, _, emax_p = compute_rsp_profile_continuous(
                             perm_vals, angles_ref, n_bins=bins
@@ -746,11 +830,15 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 phi_by_embed = {}
                 for emb_key, ang in angles_by_embed.items():
                     try:
-                        _, phi_k, _ = compute_rsp_profile_continuous(expr_cont, ang, n_bins=bins)
+                        _, phi_k, _ = compute_rsp_profile_continuous(
+                            expr_cont, ang, n_bins=bins
+                        )
                         phi_by_embed[emb_key] = phi_k
                     except ValueError:
                         phi_by_embed[emb_key] = float("nan")
-                phi_vals = np.array([v for v in phi_by_embed.values() if np.isfinite(v)], dtype=float)
+                phi_vals = np.array(
+                    [v for v in phi_by_embed.values() if np.isfinite(v)], dtype=float
+                )
                 phi_sd_deg = float(circular_sd(phi_vals) * 180.0 / math.pi)
 
                 # jackknife
@@ -761,7 +849,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
                     ang = compute_angles(emb, compute_vantage(emb))
                     expr_sub = expr_cont[mask]
                     try:
-                        _, _, emax_sub = compute_rsp_profile_continuous(expr_sub, ang, n_bins=bins)
+                        _, _, emax_sub = compute_rsp_profile_continuous(
+                            expr_sub, ang, n_bins=bins
+                        )
                         jk.append(emax_sub)
                     except ValueError:
                         continue
@@ -769,7 +859,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
 
                 for emb_key, ang in angles_by_embed.items():
                     try:
-                        _, phi_k, emax_k = compute_rsp_profile_continuous(expr_cont, ang, n_bins=bins)
+                        _, phi_k, emax_k = compute_rsp_profile_continuous(
+                            expr_cont, ang, n_bins=bins
+                        )
                     except ValueError:
                         phi_k, emax_k = float("nan"), float("nan")
                     stage2_rows.append(
@@ -780,11 +872,23 @@ def run_genomewide_pipeline(config_path: str) -> None:
                             "threshold": "continuous",
                             "embedding": emb_key,
                             "E_max": float(emax_k),
-                            "phi_max_deg": float(phi_k * 180.0 / math.pi) if np.isfinite(phi_k) else float("nan"),
-                            "p_perm_stage1": float(stage1_df.loc[stage1_df["gene"] == gene, "p_perm_stage1"].values[0])
-                            if gene in stage1_df["gene"].values
-                            else float("nan"),
-                            "p_perm_stage2": float(p_perm2) if emb_key == ref_key else float("nan"),
+                            "phi_max_deg": (
+                                float(phi_k * 180.0 / math.pi)
+                                if np.isfinite(phi_k)
+                                else float("nan")
+                            ),
+                            "p_perm_stage1": (
+                                float(
+                                    stage1_df.loc[
+                                        stage1_df["gene"] == gene, "p_perm_stage1"
+                                    ].values[0]
+                                )
+                                if gene in stage1_df["gene"].values
+                                else float("nan")
+                            ),
+                            "p_perm_stage2": (
+                                float(p_perm2) if emb_key == ref_key else float("nan")
+                            ),
                             "FDR_stage2": float("nan"),
                             "moran_I": float(moran_val),
                             "phi_sd_deg": phi_sd_deg,
@@ -798,7 +902,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
 
                 # binary validation if requested
                 if feature_mode in {"binary", "both"}:
-                    expr_bin = _get_matrix(adata_s, expr_layer_binary)[:, adata_s.var_names.get_loc(gene)]
+                    expr_bin = _get_matrix(adata_s, expr_layer_binary)[
+                        :, adata_s.var_names.get_loc(gene)
+                    ]
                     if sp.issparse(expr_bin):
                         expr_bin = expr_bin.toarray().ravel()
                     else:
@@ -823,7 +929,11 @@ def run_genomewide_pipeline(config_path: str) -> None:
                                 "threshold": thr_name,
                                 "embedding": ref_key,
                                 "E_max": float(emax_k),
-                                "phi_max_deg": float(phi_k * 180.0 / math.pi) if np.isfinite(phi_k) else float("nan"),
+                                "phi_max_deg": (
+                                    float(phi_k * 180.0 / math.pi)
+                                    if np.isfinite(phi_k)
+                                    else float("nan")
+                                ),
                                 "p_perm_stage1": float("nan"),
                                 "p_perm_stage2": float("nan"),
                                 "FDR_stage2": float("nan"),
@@ -832,7 +942,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
                                 "jackknife_Emax_sd": jk_sd,
                                 "n_cells": int(n_cells),
                                 "n_donors": int(n_donors),
-                                "detect_frac": float(detect_frac[var_names.index(gene)]),
+                                "detect_frac": float(
+                                    detect_frac[var_names.index(gene)]
+                                ),
                                 "ambient_prone": gene in ambient_flags,
                             }
                         )
@@ -841,19 +953,27 @@ def run_genomewide_pipeline(config_path: str) -> None:
             stage2_df.to_csv(stage2_path, index=False)
 
         # FDR within stratum for continuous ref embedding
-        mask_ref = (stage2_df["mode"] == "continuous") & (stage2_df["embedding"] == ref_key)
+        mask_ref = (stage2_df["mode"] == "continuous") & (
+            stage2_df["embedding"] == ref_key
+        )
         pvals = stage2_df.loc[mask_ref, "p_perm_stage2"].values
         fdrs = bh_fdr(np.asarray(pvals, dtype=float))
         stage2_df.loc[mask_ref, "FDR_stage2"] = fdrs
         # propagate FDR to all rows for same gene
-        fdr_map = dict(zip(stage2_df.loc[mask_ref, "gene"], stage2_df.loc[mask_ref, "FDR_stage2"]))
+        fdr_map = dict(
+            zip(stage2_df.loc[mask_ref, "gene"], stage2_df.loc[mask_ref, "FDR_stage2"])
+        )
         stage2_df["FDR_stage2"] = stage2_df["gene"].map(fdr_map)
 
         # Moran baseline from random genes
-        rand_genes = rng.choice(list(kept_genes), size=min(200, len(kept_genes)), replace=False)
+        rand_genes = rng.choice(
+            list(kept_genes), size=min(200, len(kept_genes)), replace=False
+        )
         moran_random = []
         for g in rand_genes:
-            expr = _get_matrix(adata_s, expr_layer_continuous)[:, adata_s.var_names.get_loc(g)]
+            expr = _get_matrix(adata_s, expr_layer_continuous)[
+                :, adata_s.var_names.get_loc(g)
+            ]
             if sp.issparse(expr):
                 expr = expr.toarray().ravel()
             else:
@@ -875,8 +995,16 @@ def run_genomewide_pipeline(config_path: str) -> None:
             row = group.iloc[0]
             phi_sd_deg = float(row["phi_sd_deg"])
             moran_val = float(row["moran_I"])
-            moran_pct = float(np.mean(moran_random <= moran_val)) if moran_random.size else float("nan")
-            fdr = float(row["FDR_stage2"]) if np.isfinite(row["FDR_stage2"]) else float("nan")
+            moran_pct = (
+                float(np.mean(moran_random <= moran_val))
+                if moran_random.size
+                else float("nan")
+            )
+            fdr = (
+                float(row["FDR_stage2"])
+                if np.isfinite(row["FDR_stage2"])
+                else float("nan")
+            )
             jack_sd = float(row["jackknife_Emax_sd"])
             robust_hit = (
                 np.isfinite(fdr)
@@ -885,11 +1013,13 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 and moran_pct >= 0.95
                 and jack_sd <= float(cfg.get("donor_jackknife_sd", 0.1))
             )
-            robust.append({
-                "gene": gene,
-                "robust_hit": bool(robust_hit),
-                "moran_I_percentile": moran_pct,
-            })
+            robust.append(
+                {
+                    "gene": gene,
+                    "robust_hit": bool(robust_hit),
+                    "moran_I_percentile": moran_pct,
+                }
+            )
         robust_df = pd.DataFrame(robust)
         stage2_df = stage2_df.merge(robust_df, on="gene", how="left")
 
@@ -897,7 +1027,11 @@ def run_genomewide_pipeline(config_path: str) -> None:
         results_rows.append(stage2_df)
 
         # top hits
-        top_hits = stage2_df[mask_ref].sort_values(["FDR_stage2", "E_max"], ascending=[True, False]).head(topn_plots)
+        top_hits = (
+            stage2_df[mask_ref]
+            .sort_values(["FDR_stage2", "E_max"], ascending=[True, False])
+            .head(topn_plots)
+        )
         for _, row in top_hits.iterrows():
             top_hits_rows.append(row.to_dict())
 
@@ -915,7 +1049,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 f"{stratum_name}: E_max vs FDR",
                 "E_max",
                 "-log10(FDR)",
-                set(top_hits.loc[top_hits["robust_hit"].fillna(False), "gene"].tolist()),
+                set(
+                    top_hits.loc[top_hits["robust_hit"].fillna(False), "gene"].tolist()
+                ),
             )
 
             # Moran vs E_max
@@ -927,7 +1063,9 @@ def run_genomewide_pipeline(config_path: str) -> None:
                 f"{stratum_name}: Moran vs E_max",
                 "E_max",
                 "Moran's I",
-                set(top_hits.loc[top_hits["robust_hit"].fillna(False), "gene"].tolist()),
+                set(
+                    top_hits.loc[top_hits["robust_hit"].fillna(False), "gene"].tolist()
+                ),
             )
 
             # phi compass
@@ -948,14 +1086,18 @@ def run_genomewide_pipeline(config_path: str) -> None:
             # per-hit plots
             for _, row in top_hits.iterrows():
                 gene = row["gene"]
-                expr = _get_matrix(adata_s, expr_layer_continuous)[:, adata_s.var_names.get_loc(gene)]
+                expr = _get_matrix(adata_s, expr_layer_continuous)[
+                    :, adata_s.var_names.get_loc(gene)
+                ]
                 if sp.issparse(expr):
                     expr = expr.toarray().ravel()
                 else:
                     expr = np.asarray(expr).ravel()
 
                 # recompute E_phi for polar
-                E_phi, phi_max, emax = compute_rsp_profile_continuous(expr, angles_ref, n_bins=bins)
+                E_phi, phi_max, emax = compute_rsp_profile_continuous(
+                    expr, angles_ref, n_bins=bins
+                )
                 is_ambient = bool(row.get("ambient_prone", False))
                 subtitle = f"FDR={row['FDR_stage2']:.3g} | Moran={row['moran_I']:.3g}"
                 _plot_umap_with_arrow(
@@ -967,7 +1109,11 @@ def run_genomewide_pipeline(config_path: str) -> None:
                     subtitle,
                     is_ambient,
                 )
-                plot_rsp_polar(E_phi, (fig_dir / f"{gene}_rsp_polar.png").as_posix(), f"RSP: {gene}")
+                plot_rsp_polar(
+                    E_phi,
+                    (fig_dir / f"{gene}_rsp_polar.png").as_posix(),
+                    f"RSP: {gene}",
+                )
 
                 # null histogram (stage2)
                 null_emax = np.zeros(stage2_perms, dtype=float)
@@ -982,25 +1128,42 @@ def run_genomewide_pipeline(config_path: str) -> None:
                     null_emax[i] = emax_p
                 null_emax = null_emax[np.isfinite(null_emax)]
                 if null_emax.size > 0:
-                    _plot_null_hist(null_emax, emax, fig_dir / f"{gene}_null_hist.png", f"Null E_max: {gene}")
+                    _plot_null_hist(
+                        null_emax,
+                        emax,
+                        fig_dir / f"{gene}_null_hist.png",
+                        f"Null E_max: {gene}",
+                    )
 
         # null calibration QQ (reuse if prereg exists)
         prereg_qq = results_dir / "qq" / f"{stratum_name.replace(' ', '_')}_qq.csv"
         if prereg_qq.exists():
             qq_df = pd.read_csv(prereg_qq)
-            _plot_qq(qq_df["observed"].values, fig_dir / "null_calibration_qq.png", "Null calibration")
+            _plot_qq(
+                qq_df["observed"].values,
+                fig_dir / "null_calibration_qq.png",
+                "Null calibration",
+            )
 
         # summary row
-        robust_count = int(top_hits["robust_hit"].sum()) if "robust_hit" in top_hits.columns else 0
+        robust_count = (
+            int(top_hits["robust_hit"].sum()) if "robust_hit" in top_hits.columns else 0
+        )
         summary_rows.append(
             {
                 "stratum": stratum_name,
                 "genes_tested": int(len(kept_genes)),
                 "candidates": int(len(candidates)),
                 "robust_hits": robust_count,
-                "median_phi_sd": float(np.nanmedian(top_hits["phi_sd_deg"].values)) if not top_hits.empty else float("nan"),
+                "median_phi_sd": (
+                    float(np.nanmedian(top_hits["phi_sd_deg"].values))
+                    if not top_hits.empty
+                    else float("nan")
+                ),
                 "ambient_frac_in_hits": float(
-                    np.mean(top_hits["ambient_prone"].values) if not top_hits.empty else float("nan")
+                    np.mean(top_hits["ambient_prone"].values)
+                    if not top_hits.empty
+                    else float("nan")
                 ),
             }
         )

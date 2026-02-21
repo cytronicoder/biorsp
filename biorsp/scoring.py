@@ -9,6 +9,8 @@ import pandas as pd
 from scipy.signal import find_peaks
 from scipy.stats import spearmanr
 
+from biorsp.smoothing import circular_moving_average
+
 DEFAULT_QC_THRESH = 0.35
 
 
@@ -68,34 +70,127 @@ def bh_fdr(pvals: np.ndarray) -> np.ndarray:
     return q_flat.reshape(arr.shape)
 
 
+def donor_effective_counts(
+    donor_ids: np.ndarray,
+    f: np.ndarray,
+    min_fg_per_donor: int = 10,
+    min_bg_per_donor: int = 10,
+) -> dict[str, Any]:
+    """Summarize donor-level foreground/background support and D_eff."""
+    f_bool = np.asarray(f, dtype=bool).ravel()
+    donor_arr = np.asarray(donor_ids)
+    if donor_arr.size != f_bool.size:
+        raise ValueError("donor_ids and f must have the same length.")
+    if int(min_fg_per_donor) < 0 or int(min_bg_per_donor) < 0:
+        raise ValueError("Per-donor minimum counts must be non-negative.")
+
+    unique_donors, inv = np.unique(donor_arr, return_inverse=True)
+    n_total = np.bincount(inv, minlength=unique_donors.size).astype(int)
+    n_fg = np.bincount(
+        inv, weights=f_bool.astype(int), minlength=unique_donors.size
+    ).astype(int)
+    n_bg = n_total - n_fg
+    informative = (n_fg >= int(min_fg_per_donor)) & (n_bg >= int(min_bg_per_donor))
+
+    donor_stats = {
+        str(unique_donors[i]): {"n_fg": int(n_fg[i]), "n_bg": int(n_bg[i])}
+        for i in range(unique_donors.size)
+    }
+
+    return {
+        "donor_stats": donor_stats,
+        "donor_labels": unique_donors.astype(str),
+        "n_fg_per_donor": n_fg,
+        "n_bg_per_donor": n_bg,
+        "D_total": int(unique_donors.size),
+        "D_eff": int(np.sum(informative)),
+        "informative_mask": informative.astype(bool),
+        "n_fg_total": int(np.sum(f_bool)),
+        "n_bg_total": int(f_bool.size - np.sum(f_bool)),
+    }
+
+
+def evaluate_underpowered(
+    *,
+    donor_ids: np.ndarray,
+    f: np.ndarray,
+    n_perm: int,
+    p_min: float = 0.005,
+    min_fg_total: int = 50,
+    min_fg_per_donor: int = 10,
+    min_bg_per_donor: int = 10,
+    d_eff_min: int = 2,
+    min_perm: int = 200,
+) -> dict[str, Any]:
+    """Apply donor-effective underpowered gating and return detailed diagnostics."""
+    f_bool = np.asarray(f, dtype=bool).ravel()
+    if f_bool.size == 0:
+        raise ValueError("f must contain at least one value.")
+
+    prevalence = float(np.mean(f_bool))
+    donor_info = donor_effective_counts(
+        donor_ids=donor_ids,
+        f=f_bool,
+        min_fg_per_donor=int(min_fg_per_donor),
+        min_bg_per_donor=int(min_bg_per_donor),
+    )
+
+    cond_prev = bool(prevalence < float(p_min))
+    cond_fg = bool(int(donor_info["n_fg_total"]) < int(min_fg_total))
+    cond_deff = bool(int(donor_info["D_eff"]) < int(d_eff_min))
+    cond_perm = bool(int(n_perm) < int(min_perm))
+    underpowered = bool(cond_prev or cond_fg or cond_deff or cond_perm)
+
+    donor_fg = np.asarray(donor_info["n_fg_per_donor"], dtype=float)
+    donor_bg = np.asarray(donor_info["n_bg_per_donor"], dtype=float)
+    cond_fg_per_donor = bool(np.any(donor_fg < int(min_fg_per_donor)))
+    cond_bg_per_donor = bool(np.any(donor_bg < int(min_bg_per_donor)))
+
+    abstain_reasons: list[str] = []
+    if underpowered:
+        if cond_prev:
+            abstain_reasons.append("prev_obs_below_floor")
+        if cond_fg:
+            abstain_reasons.append("fg_total_below_min")
+        if cond_deff:
+            if cond_fg_per_donor or cond_bg_per_donor:
+                abstain_reasons.append("fg_per_donor_below_min")
+            abstain_reasons.append("D_eff_below_min")
+        if cond_perm:
+            abstain_reasons.append("n_perm_below_min")
+
+    return {
+        **donor_info,
+        "prev": prevalence,
+        "underpowered": underpowered,
+        "underpowered_reasons": {
+            "prev_lt_p_min": cond_prev,
+            "n_fg_total_lt_min_fg_total": cond_fg,
+            "d_eff_lt_d_eff_min": cond_deff,
+            "n_perm_lt_min_perm": cond_perm,
+        },
+        "abstain_reasons": abstain_reasons,
+        "donor_fg_min": float(np.min(donor_fg)) if donor_fg.size else float("nan"),
+        "donor_fg_med": float(np.median(donor_fg)) if donor_fg.size else float("nan"),
+        "donor_fg_median": (
+            float(np.median(donor_fg)) if donor_fg.size else float("nan")
+        ),
+        "donor_fg_max": float(np.max(donor_fg)) if donor_fg.size else float("nan"),
+        "donor_bg_min": float(np.min(donor_bg)) if donor_bg.size else float("nan"),
+        "donor_bg_med": float(np.median(donor_bg)) if donor_bg.size else float("nan"),
+        "donor_bg_median": (
+            float(np.median(donor_bg)) if donor_bg.size else float("nan")
+        ),
+        "donor_bg_max": float(np.max(donor_bg)) if donor_bg.size else float("nan"),
+    }
+
+
 def circular_smooth(x: np.ndarray, w: int) -> np.ndarray:
-    """Circular moving-average smoothing with wrap-around padding."""
-    arr = _as_1d_float("x", x)
-    if int(w) != w or int(w) <= 0:
-        raise ValueError("w must be a positive integer.")
-    w_int = int(w)
-    if w_int % 2 == 0:
-        raise ValueError("w must be odd for centered smoothing.")
-    if arr.size <= 1 or w_int == 1:
-        return arr.copy()
-
-    if w_int > arr.size:
-        w_int = arr.size if arr.size % 2 == 1 else arr.size - 1
-        if w_int <= 1:
-            return arr.copy()
-
-    half = w_int // 2
-    padded = np.concatenate([arr[-half:], arr, arr[:half]])
-    kernel = np.ones(w_int, dtype=float) / float(w_int)
-    smoothed = np.convolve(padded, kernel, mode="valid")
-    if smoothed.size != arr.size:
-        raise AssertionError("Circular smoothing produced unexpected output length.")
-    return smoothed
+    """Compatibility wrapper around canonical circular moving average."""
+    return circular_moving_average(x, w)
 
 
-def coverage_from_null(
-    E_obs: np.ndarray, null_E: np.ndarray, q: float = 0.95
-) -> float:
+def coverage_from_null(E_obs: np.ndarray, null_E: np.ndarray, q: float = 0.95) -> float:
     """Compute coverage score: fraction of bins with ``E_obs > q-quantile(null_E)``."""
     if not (0.0 <= float(q) <= 1.0):
         raise ValueError("q must be in [0, 1].")
@@ -172,20 +267,13 @@ def _safe_spearman(x: np.ndarray, y: np.ndarray) -> float:
     return float(rho)
 
 
-def qc_metrics(
-    expr_or_f: np.ndarray,
+def detect_qc_columns(
     adata_obs: pd.DataFrame,
     covariate_candidates: dict[str, list[str]],
-) -> dict[str, Any]:
-    """Compute QC correlation metrics and a q-value-independent QC risk summary."""
+) -> dict[str, str | None]:
+    """Resolve available QC covariate columns from candidate keys."""
     if not isinstance(adata_obs, pd.DataFrame):
         raise TypeError("adata_obs must be a pandas DataFrame.")
-    x = _as_1d_float("expr_or_f", expr_or_f)
-    if x.size != int(adata_obs.shape[0]):
-        raise ValueError(
-            f"expr_or_f length ({x.size}) must match adata_obs rows ({adata_obs.shape[0]})."
-        )
-
     if not isinstance(covariate_candidates, dict) or len(covariate_candidates) == 0:
         raise ValueError("covariate_candidates must be a non-empty dictionary.")
 
@@ -195,16 +283,41 @@ def qc_metrics(
                 return key
         return None
 
-    depth_key = _resolve(covariate_candidates.get("total_counts", []))
-    mt_key = _resolve(covariate_candidates.get("pct_counts_mt", []))
-    ribo_key = _resolve(covariate_candidates.get("pct_counts_ribo", []))
+    return {
+        "depth_key": _resolve(covariate_candidates.get("total_counts", [])),
+        "mt_key": _resolve(covariate_candidates.get("pct_counts_mt", [])),
+        "ribo_key": _resolve(covariate_candidates.get("pct_counts_ribo", [])),
+    }
+
+
+def qc_risk_from_covariates(
+    expr_or_f: np.ndarray,
+    adata_obs: pd.DataFrame,
+    qc_columns: dict[str, str | None],
+) -> dict[str, float]:
+    """Compute QC correlations and absolute-risk score from resolved columns."""
+    if not isinstance(adata_obs, pd.DataFrame):
+        raise TypeError("adata_obs must be a pandas DataFrame.")
+    x = _as_1d_float("expr_or_f", expr_or_f)
+    if x.size != int(adata_obs.shape[0]):
+        raise ValueError(
+            f"expr_or_f length ({x.size}) must match adata_obs rows ({adata_obs.shape[0]})."
+        )
+    if not isinstance(qc_columns, dict):
+        raise TypeError("qc_columns must be a dictionary.")
+
+    depth_key = qc_columns.get("depth_key")
+    mt_key = qc_columns.get("mt_key")
+    ribo_key = qc_columns.get("ribo_key")
 
     rho_depth = float("nan")
     rho_mt = float("nan")
     rho_ribo = float("nan")
 
     if depth_key is not None:
-        depth = pd.to_numeric(adata_obs[depth_key], errors="coerce").to_numpy(dtype=float)
+        depth = pd.to_numeric(adata_obs[depth_key], errors="coerce").to_numpy(
+            dtype=float
+        )
         rho_depth = _safe_spearman(x, depth)
     if mt_key is not None:
         mt = pd.to_numeric(adata_obs[mt_key], errors="coerce").to_numpy(dtype=float)
@@ -218,14 +331,26 @@ def qc_metrics(
     qc_risk = float(np.max(np.abs(finite))) if finite.size > 0 else 0.0
 
     return {
-        "depth_key": depth_key,
-        "mt_key": mt_key,
-        "ribo_key": ribo_key,
         "rho_depth": rho_depth,
         "rho_mt": rho_mt,
         "rho_ribo": rho_ribo,
         "qc_risk": qc_risk,
-        "qc_driven": bool(qc_risk >= DEFAULT_QC_THRESH),
+    }
+
+
+def qc_metrics(
+    expr_or_f: np.ndarray,
+    adata_obs: pd.DataFrame,
+    covariate_candidates: dict[str, list[str]],
+) -> dict[str, Any]:
+    """Compute QC correlation metrics and a q-value-independent QC risk summary."""
+    qc_columns = detect_qc_columns(adata_obs, covariate_candidates)
+    qc_stats = qc_risk_from_covariates(expr_or_f, adata_obs, qc_columns)
+
+    return {
+        **qc_columns,
+        **qc_stats,
+        "qc_driven": bool(qc_stats["qc_risk"] >= DEFAULT_QC_THRESH),
     }
 
 
@@ -261,7 +386,9 @@ def classify_row(row: dict[str, Any] | pd.Series, thresholds: dict[str, Any]) ->
         qc_risk = (
             float(qc_risk_raw) if np.isfinite(float(qc_risk_raw)) else float("nan")
         )
-        qc_driven = bool(np.isfinite(qc_risk) and abs(qc_risk) >= qc_thresh and q_t <= q_sig)
+        qc_driven = bool(
+            np.isfinite(qc_risk) and abs(qc_risk) >= qc_thresh and q_t <= q_sig
+        )
     else:
         qc_driven = bool(qc_driven_val)
 
@@ -274,4 +401,3 @@ def classify_row(row: dict[str, Any] | pd.Series, thresholds: dict[str, Any]) ->
     if qc_driven:
         return "QC-driven"
     return "Uncertain"
-

@@ -98,7 +98,14 @@ def plot_umap_rsp_pair(
     ax_l = fig.add_subplot(1, 2, 1)
     ax_r = fig.add_subplot(1, 2, 2, projection="polar")
 
-    ax_l.scatter(xy[:, 0], xy[:, 1], c="lightgray", s=style.s_bg, alpha=style.alpha_bg, linewidths=0)
+    ax_l.scatter(
+        xy[:, 0],
+        xy[:, 1],
+        c="lightgray",
+        s=style.s_bg,
+        alpha=style.alpha_bg,
+        linewidths=0,
+    )
     order = np.argsort(x)
     sc = ax_l.scatter(
         xy[order, 0],
@@ -125,7 +132,9 @@ def plot_umap_rsp_pair(
     cbar.set_label("expression")
     ax_l.set_xticks([])
     ax_l.set_yticks([])
-    ax_l.set_title(f"{title_prefix + ': ' if title_prefix else ''}UMAP: {result.feature_label}")
+    ax_l.set_title(
+        f"{title_prefix + ': ' if title_prefix else ''}UMAP: {result.feature_label}"
+    )
 
     plot_rsp(result, title=f"RSP: {result.feature_label}", ax=ax_r)
     fig.tight_layout()

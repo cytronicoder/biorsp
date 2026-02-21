@@ -32,7 +32,11 @@ def plot_pair_metrics(
     y = pd.to_numeric(pair_table[y_col], errors="coerce").to_numpy(dtype=float)
 
     if q_col in pair_table.columns:
-        q = pd.to_numeric(pair_table[q_col], errors="coerce").fillna(1.0).to_numpy(dtype=float)
+        q = (
+            pd.to_numeric(pair_table[q_col], errors="coerce")
+            .fillna(1.0)
+            .to_numpy(dtype=float)
+        )
         colors = np.clip(-np.log10(np.maximum(q, 1e-300)), 0.0, 20.0)
         cmap = "viridis"
     else:

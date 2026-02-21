@@ -9,6 +9,7 @@ from typing import Iterable
 
 import numpy as np
 
+from biorsp.scoring import bh_fdr as _canonical_bh_fdr
 from biorsp.utils import ensure_dir
 
 
@@ -55,19 +56,12 @@ def circular_sd(angles_rad: np.ndarray) -> float:
 
 
 def bh_fdr(pvals: np.ndarray) -> np.ndarray:
-    p = np.asarray(pvals, dtype=float)
-    n = p.size
-    if n == 0:
-        return p
-    order = np.argsort(p)
-    ranks = np.arange(1, n + 1, dtype=float)
-    fdr = np.empty(n, dtype=float)
-    fdr[order] = p[order] * n / ranks
-    fdr[order] = np.minimum.accumulate(fdr[order][::-1])[::-1]
-    return np.clip(fdr, 0.0, 1.0)
+    return _canonical_bh_fdr(np.asarray(pvals, dtype=float))
 
 
-def plot_null_hist(null_emax: np.ndarray, observed: float, out_png: Path, title: str) -> None:
+def plot_null_hist(
+    null_emax: np.ndarray, observed: float, out_png: Path, title: str
+) -> None:
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(5, 4))

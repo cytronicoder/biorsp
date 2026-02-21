@@ -89,7 +89,9 @@ def compute_rsp_profile(
     )
 
 
-def _peak_directions(theta_centers: np.ndarray, r_theta: np.ndarray, frac: float = 0.5) -> np.ndarray:
+def _peak_directions(
+    theta_centers: np.ndarray, r_theta: np.ndarray, frac: float = 0.5
+) -> np.ndarray:
     arr = np.asarray(r_theta, dtype=float).ravel()
     th = np.asarray(theta_centers, dtype=float).ravel()
     if arr.size < 3:

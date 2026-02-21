@@ -20,7 +20,29 @@ from biorsp.plotting.rsp import (
     plot_rsp_to_file,
     plot_umap_rsp_pair,
 )
-from biorsp.plotting.styles import DEFAULT_PLOT_STYLE, PlotStyle, apply_plot_style, plot_style_dict
+from biorsp.plotting.style import (
+    DEFAULT_STYLE,
+    LABEL_ALPHA,
+    LABEL_D,
+    LABEL_DEFF,
+    LABEL_NEGLOG10_KS,
+    LABEL_PI,
+    LABEL_PT,
+    LABEL_SIGMA,
+    apply_style,
+    choose_text_color,
+    finalize_fig,
+    fmt_params,
+    render_na_panel,
+    safe_suptitle,
+    should_plot,
+)
+from biorsp.plotting.styles import (
+    DEFAULT_PLOT_STYLE,
+    PlotStyle,
+    apply_plot_style,
+    plot_style_dict,
+)
 from biorsp.plotting.utils import make_gene_stem, sanitize_feature_label, save_figure
 
 __all__ = [
@@ -45,4 +67,19 @@ __all__ = [
     "plot_score_qc_suite",
     "class_counts_dict",
     "plot_pair_metrics",
+    "DEFAULT_STYLE",
+    "apply_style",
+    "safe_suptitle",
+    "finalize_fig",
+    "fmt_params",
+    "should_plot",
+    "render_na_panel",
+    "choose_text_color",
+    "LABEL_D",
+    "LABEL_DEFF",
+    "LABEL_SIGMA",
+    "LABEL_PI",
+    "LABEL_PT",
+    "LABEL_NEGLOG10_KS",
+    "LABEL_ALPHA",
 ]

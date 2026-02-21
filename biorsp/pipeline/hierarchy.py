@@ -25,6 +25,7 @@ from biorsp.core.features import get_feature_vector, resolve_feature_index
 from biorsp.core.geometry import bin_theta, compute_theta, compute_vantage_point
 from biorsp.core.types import NullConfig, RSPConfig
 from biorsp.pipeline.io import write_json
+from biorsp.plotting.classification import plot_classification_suite
 from biorsp.plotting.qc import (
     plot_categorical_umap,
     save_numeric_umap,
@@ -35,7 +36,14 @@ from biorsp.plotting.styles import apply_plot_style, plot_style_dict
 from biorsp.plotting.utils import sanitize_feature_label
 from biorsp.stats.moran import extract_weights, morans_i
 from biorsp.stats.permutation import perm_null_T_and_profile
-from biorsp.stats.scoring import bh_fdr, qc_metrics
+from biorsp.stats.scoring import (
+    bh_fdr,
+    coverage_from_null,
+    evaluate_underpowered,
+    peak_count,
+    qc_metrics,
+    robust_z,
+)
 
 DONOR_CANDIDATES = [
     "hubmap_id",
@@ -67,6 +75,34 @@ CANONICAL_PAIR_LIMIT = 10
 QC_LIKE_THRESHOLD = 0.35
 STABILITY_SEED_OFFSETS = [0, 1, 2]
 STABILITY_BIN_OFFSETS = [-12, 0, 12]
+UNDERPOWERED_PREV = 0.005
+UNDERPOWERED_MIN_FG = 50
+UNDERPOWERED_MIN_FG_PER_DONOR = 10
+UNDERPOWERED_MIN_BG_PER_DONOR = 10
+UNDERPOWERED_D_EFF_MIN = 3
+UNDERPOWERED_MIN_PERM = 200
+Q_SIG = 0.05
+
+
+def _classify_gene_row(
+    *,
+    q_t: float,
+    prevalence: float,
+    peaks_k: float,
+    qc_driven: bool,
+    underpowered: bool,
+) -> str:
+    if underpowered:
+        return "Underpowered"
+    if np.isfinite(float(q_t)) and float(q_t) > Q_SIG and float(prevalence) >= 0.6:
+        return "Ubiquitous (non-localized)"
+    if np.isfinite(float(q_t)) and float(q_t) <= Q_SIG:
+        if qc_driven:
+            return "QC-driven"
+        if np.isfinite(float(peaks_k)) and float(peaks_k) >= 2.0:
+            return "Localized–multimodal"
+        return "Localized–unimodal"
+    return "Uncertain"
 
 
 @dataclass(frozen=True)
@@ -160,7 +196,9 @@ def _total_counts_vector(adata: ad.AnnData, expr_matrix: Any) -> np.ndarray:
     return fallback
 
 
-def _pct_mt_vector(adata: ad.AnnData, expr_matrix: Any, adata_like: Any) -> tuple[np.ndarray, str]:
+def _pct_mt_vector(
+    adata: ad.AnnData, expr_matrix: Any, adata_like: Any
+) -> tuple[np.ndarray, str]:
     obs_pct_mt = _safe_numeric_obs(adata, "pct_counts_mt")
     if obs_pct_mt is not None:
         return obs_pct_mt, "obs:pct_counts_mt"
@@ -215,7 +253,9 @@ def _ribosomal_fraction_vector(
     if ribo_mask is None or int(np.sum(ribo_mask)) == 0:
         return np.asarray(total_counts, dtype=float), "proxy:total_counts"
 
-    ribo_counts = np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    ribo_counts = (
+        np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    )
     ribo_frac = np.divide(ribo_counts, np.maximum(total_counts, 1e-12))
     return ribo_frac, "computed:ribo_fraction"
 
@@ -250,7 +290,11 @@ def _resolve_inference_strata(
     events: list[dict[str, str]] = []
     if donor_key is not None and donor_key in adata_scope.obs.columns:
         donor_ids = (
-            adata_scope.obs[donor_key].astype("string").fillna("NA").astype(str).to_numpy()
+            adata_scope.obs[donor_key]
+            .astype("string")
+            .fillna("NA")
+            .astype(str)
+            .to_numpy()
         )
         if np.unique(donor_ids).size >= 2:
             return donor_ids, {
@@ -275,7 +319,9 @@ def _resolve_inference_strata(
     }
 
 
-def _display_label_from_index(adata_like: Any, gene_idx: int, symbol_col: str | None) -> str:
+def _display_label_from_index(
+    adata_like: Any, gene_idx: int, symbol_col: str | None
+) -> str:
     label = str(pd.Index(adata_like.var_names)[int(gene_idx)])
     if symbol_col is not None and symbol_col in adata_like.var.columns:
         symbol = str(adata_like.var.iloc[int(gene_idx)][symbol_col]).strip()
@@ -467,6 +513,29 @@ def _score_feature(
     )
 
     prevalence = float(np.mean(np.asarray(expr, dtype=float) > 0.0))
+    n_fg = int(np.sum(np.asarray(expr, dtype=float) > 0.0))
+    n_cells = int(np.asarray(expr, dtype=float).size)
+    power = evaluate_underpowered(
+        donor_ids=np.asarray(inference_strata),
+        f=np.asarray(expr, dtype=float) > 0.0,
+        n_perm=int(null_cfg.n_perm),
+        p_min=UNDERPOWERED_PREV,
+        min_fg_total=UNDERPOWERED_MIN_FG,
+        min_fg_per_donor=UNDERPOWERED_MIN_FG_PER_DONOR,
+        min_bg_per_donor=UNDERPOWERED_MIN_BG_PER_DONOR,
+        d_eff_min=UNDERPOWERED_D_EFF_MIN,
+        min_perm=UNDERPOWERED_MIN_PERM,
+    )
+    underpowered = bool(power["underpowered"])
+
+    e_obs = np.asarray(perm["E_phi_obs"], dtype=float)
+    null_e = np.asarray(perm["null_E_phi"], dtype=float)
+    null_t = np.asarray(perm["null_T"], dtype=float)
+    t_obs = float(perm["T_obs"])
+    z_t = float(robust_z(t_obs, null_t))
+    coverage_c = float(coverage_from_null(np.abs(e_obs), np.abs(null_e), q=0.95))
+    peaks_k = int(peak_count(np.abs(e_obs), np.abs(null_e), smooth_w=3, q_prom=0.95))
+
     moran_cont, moran_bin = _moran_pair(np.asarray(expr, dtype=float), weights)
     qc = qc_metrics(
         np.asarray(expr, dtype=float),
@@ -477,9 +546,9 @@ def _score_feature(
             "pct_counts_ribo": ["pct_counts_ribo"],
         },
     )
-    corr_values = [qc.get("rho_depth"), qc.get("rho_mt"), qc.get("rho_ribo")]
-    finite_corr = [abs(float(v)) for v in corr_values if v is not None and np.isfinite(float(v))]
-    qc_risk = float(max(finite_corr)) if finite_corr else 0.0
+    qc_risk = float(qc.get("qc_risk", 0.0))
+    if not np.isfinite(qc_risk):
+        qc_risk = 0.0
     qc_like = bool(control_tag or qc_risk >= QC_LIKE_THRESHOLD)
 
     row = {
@@ -489,8 +558,23 @@ def _score_feature(
         "panel_group": panel_group,
         "auto_gene": bool(auto_gene),
         "prevalence": prevalence,
+        "n_fg": n_fg,
+        "n_fg_total": int(power["n_fg_total"]),
+        "n_bg_total": int(power["n_bg_total"]),
+        "D_eff": int(power["D_eff"]),
+        "donor_fg_min": float(power["donor_fg_min"]),
+        "donor_fg_med": float(power["donor_fg_med"]),
+        "donor_fg_max": float(power["donor_fg_max"]),
+        "n_cells": n_cells,
+        "underpowered_flag": underpowered,
         "anisotropy": float(result.anisotropy),
         "peak_direction_rad": float(result.peak_direction),
+        "T_obs": t_obs,
+        "Z_T": z_t,
+        "coverage_C": coverage_c,
+        "peaks_K": peaks_k,
+        "score_1": z_t,
+        "score_2": coverage_c,
         "p_T": float(perm["p_T"]),
         "n_perm": int(perm["n_perm_used"]),
         "moran_continuous": moran_cont,
@@ -518,6 +602,29 @@ def _plot_sanity_distribution(
     ax.set_xlabel("anisotropy")
     ax.set_ylabel("count")
     ax.set_title(title)
+    fig.tight_layout()
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=200)
+    plt.close(fig)
+
+
+def _plot_qc_mimicry(gene_df: pd.DataFrame, out_png: Path) -> None:
+    fig, ax = plt.subplots(figsize=(6.8, 4.2))
+    if gene_df.empty:
+        ax.text(0.5, 0.5, "No rows", ha="center", va="center")
+        ax.axis("off")
+    else:
+        x = pd.to_numeric(gene_df["qc_risk"], errors="coerce").to_numpy(dtype=float)
+        y = pd.to_numeric(gene_df["score_1"], errors="coerce").to_numpy(dtype=float)
+        c = np.where(
+            gene_df["control_tag"].astype(bool).to_numpy(), "#d62728", "#1f77b4"
+        )
+        ax.scatter(x, y, s=24, alpha=0.8, c=c, linewidths=0)
+        ax.axvline(QC_LIKE_THRESHOLD, color="black", linestyle="--", linewidth=1.0)
+        ax.set_xlabel("qc_risk")
+        ax.set_ylabel("score_1 (Z_T)")
+        ax.set_title("QC mimicry diagnostic")
+        ax.grid(alpha=0.25, linewidth=0.6)
     fig.tight_layout()
     out_png.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_png, dpi=200)
@@ -565,7 +672,9 @@ def _run_within_strata_sanity_check(
         perm_values[i] = float(perm_result.anisotropy)
 
     observed_value = float(observed.anisotropy)
-    p_like = float((1.0 + np.sum(perm_values >= observed_value)) / (1.0 + perm_values.size))
+    p_like = float(
+        (1.0 + np.sum(perm_values >= observed_value)) / (1.0 + perm_values.size)
+    )
 
     return {
         "observed_anisotropy": observed_value,
@@ -627,7 +736,9 @@ def _compute_stability_table(
 def _plot_stability_table(stability_df: pd.DataFrame, out_png: Path) -> None:
     fig, ax = plt.subplots(figsize=(8.5, 4.5))
     if stability_df.empty:
-        ax.text(0.5, 0.5, "No stability diagnostics available", ha="center", va="center")
+        ax.text(
+            0.5, 0.5, "No stability diagnostics available", ha="center", va="center"
+        )
         ax.axis("off")
     else:
         stable = stability_df.copy()
@@ -636,7 +747,13 @@ def _plot_stability_table(stability_df: pd.DataFrame, out_png: Path) -> None:
             axis=1,
         )
         for gene, sub in stable.groupby("gene", observed=False):
-            ax.plot(sub["config"], sub["anisotropy"], marker="o", linewidth=1.2, label=str(gene))
+            ax.plot(
+                sub["config"],
+                sub["anisotropy"],
+                marker="o",
+                linewidth=1.2,
+                label=str(gene),
+            )
         ax.set_ylabel("anisotropy")
         ax.set_title("F5 stability diagnostic (not biological validation)")
         ax.tick_params(axis="x", rotation=45)
@@ -656,7 +773,9 @@ def _mega_split_by_cluster_centroids(
     umap_xy = np.asarray(adata.obsm["X_umap"], dtype=float)[:, :2]
     clusters = adata.obs[cluster_key].astype("string").fillna("NA").astype(str)
     centroids = (
-        pd.DataFrame({"cluster": clusters.to_numpy(), "x": umap_xy[:, 0], "y": umap_xy[:, 1]})
+        pd.DataFrame(
+            {"cluster": clusters.to_numpy(), "x": umap_xy[:, 0], "y": umap_xy[:, 1]}
+        )
         .groupby("cluster", observed=False, as_index=False)
         .median()
         .sort_values("cluster", kind="mergesort")
@@ -708,7 +827,11 @@ def _run_scope(
     dirs = _scope_dirs(scope_outdir)
 
     adata_scope = adata_subset
-    _ensure_umap(adata_scope, seed=int(seed), recompute_if_missing=bool(recompute_umap_if_missing))
+    _ensure_umap(
+        adata_scope,
+        seed=int(seed),
+        recompute_if_missing=bool(recompute_umap_if_missing),
+    )
     umap_xy = np.asarray(adata_scope.obsm["X_umap"], dtype=float)[:, :2]
     center = compute_vantage_point(umap_xy, method="median")
     theta = compute_theta(umap_xy, center)
@@ -723,7 +846,9 @@ def _run_scope(
 
     total_counts = _total_counts_vector(adata_scope, expr_matrix)
     pct_mt, pct_mt_source = _pct_mt_vector(adata_scope, expr_matrix, adata_like)
-    ribo_fraction, ribo_source = _ribosomal_fraction_vector(expr_matrix, adata_like, total_counts)
+    ribo_fraction, ribo_source = _ribosomal_fraction_vector(
+        expr_matrix, adata_like, total_counts
+    )
 
     inference_strata, inference_meta = _resolve_inference_strata(
         adata_scope,
@@ -791,10 +916,14 @@ def _run_scope(
     except Exception:
         weights = None
 
-    rsp_cfg = RSPConfig(basis="X_umap", bins=int(bins), center_method="median", threshold=0.0)
+    rsp_cfg = RSPConfig(
+        basis="X_umap", bins=int(bins), center_method="median", threshold=0.0
+    )
     null_cfg = NullConfig(n_perm=int(n_perm), seed=int(seed), donor_stratified=True)
 
-    marker_for_pairs = [item for item in features if not item.auto_gene][:canonical_pair_limit]
+    marker_for_pairs = [item for item in features if not item.auto_gene][
+        :canonical_pair_limit
+    ]
     marker_for_pairs_set = {item.gene_idx for item in marker_for_pairs}
 
     rows: list[dict[str, Any]] = []
@@ -875,7 +1004,23 @@ def _run_scope(
                 True,
             )
         )
+
+    rng_controls = np.random.default_rng(int(seed) + 9000)
+    shuffle_source_expr: np.ndarray
+    if features:
+        shuffle_source_expr = get_feature_vector(expr_matrix, features[0].gene_idx)
     else:
+        shuffle_source_expr = np.asarray(total_counts, dtype=float)
+    for i in range(2):
+        control_vectors.append(
+            (
+                f"fake_shuffle_expr_{i+1}",
+                rng_controls.permutation(np.asarray(shuffle_source_expr, dtype=float)),
+                "negative_control",
+                True,
+            )
+        )
+    if ribo_source != "proxy:total_counts":
         control_vectors.append(
             (
                 "ribo_fraction_high",
@@ -941,7 +1086,28 @@ def _run_scope(
 
     gene_df = pd.DataFrame(rows)
     if not gene_df.empty:
-        gene_df["q_T"] = bh_fdr(pd.to_numeric(gene_df["p_T"], errors="coerce").to_numpy(dtype=float))
+        gene_df["q_T"] = bh_fdr(
+            pd.to_numeric(gene_df["p_T"], errors="coerce").to_numpy(dtype=float)
+        )
+        gene_df["qc_driven"] = gene_df["qc_like_flag"].astype(bool)
+        gene_df["class_label"] = [
+            _classify_gene_row(
+                q_t=float(q),
+                prevalence=float(prev),
+                peaks_k=float(peaks),
+                qc_driven=bool(qc_driven),
+                underpowered=bool(underpowered),
+            )
+            for q, prev, peaks, qc, qc_driven, underpowered in zip(
+                gene_df["q_T"],
+                gene_df["prevalence"],
+                gene_df["peaks_K"],
+                gene_df["qc_risk"],
+                gene_df["qc_driven"],
+                gene_df["underpowered_flag"],
+                strict=False,
+            )
+        ]
     gene_df = gene_df.sort_values(
         by=["control_tag", "auto_gene", "p_T", "gene"],
         ascending=[True, True, True, True],
@@ -949,8 +1115,46 @@ def _run_scope(
     ).reset_index(drop=True)
     gene_summary_path = dirs["tables"] / "gene_summary.csv"
     gene_df.to_csv(gene_summary_path, index=False)
+    gene_scores_path = dirs["tables"] / "gene_scores.csv"
+    score_cols = [
+        "scope",
+        "gene",
+        "requested_gene",
+        "panel_group",
+        "prevalence",
+        "p_T",
+        "q_T",
+        "Z_T",
+        "score_1",
+        "coverage_C",
+        "score_2",
+        "peaks_K",
+        "class_label",
+        "qc_risk",
+        "qc_like_flag",
+        "qc_driven",
+        "underpowered_flag",
+        "control_tag",
+        "moran_continuous",
+        "moran_binary",
+    ]
+    score_cols = [c for c in score_cols if c in gene_df.columns]
+    gene_df[score_cols].to_csv(gene_scores_path, index=False)
 
-    sanity_target_feature = next((item for item in features if not item.auto_gene), None)
+    cls_df = gene_df.loc[~gene_df["control_tag"].astype(bool)].copy()
+    if cls_df.empty:
+        cls_df = gene_df.copy()
+    plot_classification_suite(
+        cls_df,
+        dirs["plots_meta"],
+        z_strong_threshold=4.0,
+        coverage_strong_threshold=0.15,
+    )
+    _plot_qc_mimicry(gene_df, dirs["plots_qc"] / "qc_mimicry.png")
+
+    sanity_target_feature = next(
+        (item for item in features if not item.auto_gene), None
+    )
     sanity_rows: list[dict[str, Any]] = []
     if sanity_target_feature is not None:
         expr = get_feature_vector(expr_matrix, sanity_target_feature.gene_idx)
@@ -992,14 +1196,17 @@ def _run_scope(
     )
     stability_path = dirs["tables"] / "stability_diagnostics.csv"
     stability_df.to_csv(stability_path, index=False)
-    _plot_stability_table(stability_df, dirs["plots_qc"] / "f5_stability_diagnostic.png")
+    _plot_stability_table(
+        stability_df, dirs["plots_qc"] / "f5_stability_diagnostic.png"
+    )
 
     sanity_df = pd.DataFrame(sanity_rows)
     sanity_path = dirs["tables"] / "negative_control_sanity.csv"
     sanity_df.to_csv(sanity_path, index=False)
 
     symbol_cols = marker_table.loc[
-        marker_table["found"].astype(bool) & (marker_table["symbol_column"].astype(str) != ""),
+        marker_table["found"].astype(bool)
+        & (marker_table["symbol_column"].astype(str) != ""),
         "symbol_column",
     ]
     symbol_column_used = ""
@@ -1041,6 +1248,7 @@ def _run_scope(
         "gene_resolution_column_used": symbol_column_used,
         "paths": {
             "gene_summary_csv": gene_summary_path.as_posix(),
+            "gene_scores_csv": gene_scores_path.as_posix(),
             "marker_panel_csv": marker_table_path.as_posix(),
             "stability_csv": stability_path.as_posix(),
             "negative_control_sanity_csv": sanity_path.as_posix(),
@@ -1056,6 +1264,7 @@ def _run_scope(
         "n_cells": int(adata_scope.n_obs),
         "vantage_point": {"x0": float(center[0]), "y0": float(center[1])},
         "gene_summary_csv": gene_summary_path.as_posix(),
+        "gene_scores_csv": gene_scores_path.as_posix(),
         "marker_panel_csv": marker_table_path.as_posix(),
         "stability_csv": stability_path.as_posix(),
         "negative_control_sanity_csv": sanity_path.as_posix(),
@@ -1134,7 +1343,9 @@ def run_case_study(
     )
 
     donor_key_resolved = _resolve_obs_key(adata_work, donor_key, DONOR_CANDIDATES)
-    celltype_key_resolved = _resolve_obs_key(adata_work, celltype_key, CELLTYPE_CANDIDATES)
+    celltype_key_resolved = _resolve_obs_key(
+        adata_work, celltype_key, CELLTYPE_CANDIDATES
+    )
     cluster_key_resolved = _resolve_obs_key(adata_work, cluster_key, CLUSTER_CANDIDATES)
 
     hierarchy_root = root / "hierarchy"
@@ -1174,10 +1385,13 @@ def run_case_study(
     }
 
     aggregated_gene_paths = [Path(global_result["gene_summary_csv"])]
+    aggregated_gene_score_paths = [Path(global_result["gene_scores_csv"])]
 
     if do_hierarchy:
         if cluster_key_resolved is None:
-            raise RuntimeError("Hierarchy requires a cluster key (for this dataset, use azimuth_id).")
+            raise RuntimeError(
+                "Hierarchy requires a cluster key (for this dataset, use azimuth_id)."
+            )
 
         assign, mapping, centroids = _mega_split_by_cluster_centroids(
             adata_work,
@@ -1242,10 +1456,16 @@ def run_case_study(
             )
             mega_results[f"mega{mega_id}"] = result
             aggregated_gene_paths.append(Path(result["gene_summary_csv"]))
+            aggregated_gene_score_paths.append(Path(result["gene_scores_csv"]))
 
         clusters_root = hierarchy_root / "clusters"
         clusters_root.mkdir(parents=True, exist_ok=True)
-        cluster_values = adata_work.obs[cluster_key_resolved].astype("string").fillna("NA").astype(str)
+        cluster_values = (
+            adata_work.obs[cluster_key_resolved]
+            .astype("string")
+            .fillna("NA")
+            .astype(str)
+        )
         cluster_results: dict[str, Any] = {}
         skipped_clusters: list[dict[str, Any]] = []
         for cluster_id in sorted(cluster_values.unique().tolist()):
@@ -1279,6 +1499,7 @@ def run_case_study(
             )
             cluster_results[str(cluster_id)] = result
             aggregated_gene_paths.append(Path(result["gene_summary_csv"]))
+            aggregated_gene_score_paths.append(Path(result["gene_scores_csv"]))
 
         summary["mega"] = mega_results
         summary["clusters"] = {
@@ -1304,20 +1525,31 @@ def run_case_study(
     if gene_tables:
         all_genes = pd.concat(gene_tables, ignore_index=True)
         all_genes.to_csv(tables_root / "gene_summary.csv", index=False)
+    gene_score_tables = [
+        pd.read_csv(path) for path in aggregated_gene_score_paths if path.exists()
+    ]
+    if gene_score_tables:
+        all_gene_scores = pd.concat(gene_score_tables, ignore_index=True)
+        all_gene_scores.to_csv(tables_root / "gene_scores.csv", index=False)
 
     global_marker_csv = Path(global_result["marker_panel_csv"])
     if global_marker_csv.exists():
-        pd.read_csv(global_marker_csv).to_csv(tables_root / "marker_panel_found_missing.csv", index=False)
+        pd.read_csv(global_marker_csv).to_csv(
+            tables_root / "marker_panel_found_missing.csv", index=False
+        )
 
     global_cluster_counts = Path(global_result.get("cluster_celltype_counts_csv", ""))
     if global_cluster_counts.exists():
-        pd.read_csv(global_cluster_counts).to_csv(tables_root / "cluster_celltype_counts.csv", index=False)
+        pd.read_csv(global_cluster_counts).to_csv(
+            tables_root / "cluster_celltype_counts.csv", index=False
+        )
 
     for fig_name in [
         "f2_total_counts_umap.png",
         "f2_pct_counts_mt_umap.png",
         "f5_sanity_permutation.png",
         "f5_stability_diagnostic.png",
+        "qc_mimicry.png",
     ]:
         src = hierarchy_root / "global" / "plots" / "qc" / fig_name
         if src.exists():
@@ -1329,8 +1561,19 @@ def run_case_study(
         if src.exists():
             target = plots_root / "meta" / fig_name
             target.write_bytes(src.read_bytes())
+    for fig_name in [
+        "score1_score2_scatter.png",
+        "classification_scatter.png",
+        "class_counts.png",
+    ]:
+        src = hierarchy_root / "global" / "plots" / "meta" / fig_name
+        if src.exists():
+            target = plots_root / "meta" / fig_name
+            target.write_bytes(src.read_bytes())
 
-    for src in sorted((hierarchy_root / "global" / "plots" / "pairs").glob("f4_pair_*.png")):
+    for src in sorted(
+        (hierarchy_root / "global" / "plots" / "pairs").glob("f4_pair_*.png")
+    ):
         (plots_root / "pairs" / src.name).write_bytes(src.read_bytes())
 
     for src in sorted((hierarchy_root / "global" / "plots" / "rsp").glob("rsp_*.png")):
@@ -1379,11 +1622,47 @@ def run_case_study(
         "paths": {
             "hierarchy_summary_json": hierarchy_summary_path.as_posix(),
             "gene_summary_csv": (tables_root / "gene_summary.csv").as_posix(),
-            "marker_panel_csv": (tables_root / "marker_panel_found_missing.csv").as_posix(),
-            "cluster_celltype_counts_csv": (tables_root / "cluster_celltype_counts.csv").as_posix(),
+            "gene_scores_csv": (tables_root / "gene_scores.csv").as_posix(),
+            "marker_panel_csv": (
+                tables_root / "marker_panel_found_missing.csv"
+            ).as_posix(),
+            "cluster_celltype_counts_csv": (
+                tables_root / "cluster_celltype_counts.csv"
+            ).as_posix(),
         },
         "warnings": warnings,
     }
+
+    checklist_rows = [
+        {
+            "hypothesis": "individual_gene_scoring_classification",
+            "required_output": "tables/gene_scores.csv",
+            "path": (tables_root / "gene_scores.csv").as_posix(),
+            "exists": (tables_root / "gene_scores.csv").exists(),
+        },
+        {
+            "hypothesis": "score_space_with_classes",
+            "required_output": "plots/meta/score1_score2_scatter.png",
+            "path": (plots_root / "meta" / "score1_score2_scatter.png").as_posix(),
+            "exists": (plots_root / "meta" / "score1_score2_scatter.png").exists(),
+        },
+        {
+            "hypothesis": "class_count_plot",
+            "required_output": "plots/meta/class_counts.png",
+            "path": (plots_root / "meta" / "class_counts.png").as_posix(),
+            "exists": (plots_root / "meta" / "class_counts.png").exists(),
+        },
+        {
+            "hypothesis": "qc_mimicry_control",
+            "required_output": "plots/qc/qc_mimicry.png",
+            "path": (plots_root / "qc" / "qc_mimicry.png").as_posix(),
+            "exists": (plots_root / "qc" / "qc_mimicry.png").exists(),
+        },
+    ]
+    pd.DataFrame(checklist_rows).to_csv(
+        tables_root / "results_ready_checklist.csv", index=False
+    )
+
     write_json(root / "metadata.json", root_metadata)
     _write_runlog(outdir=root, adata=adata_work, summary=summary, warnings=warnings)
     return summary

@@ -35,7 +35,9 @@ def _build_bin_id(angles: np.ndarray, bins: int) -> np.ndarray:
         raise ValueError("bins must be a positive integer.")
     bins_i = int(bins)
     bin_width = (2.0 * np.pi) / float(bins_i)
-    bin_id = np.floor((np.asarray(angles, dtype=float) % (2.0 * np.pi)) / bin_width).astype(np.int32)
+    bin_id = np.floor(
+        (np.asarray(angles, dtype=float) % (2.0 * np.pi)) / bin_width
+    ).astype(np.int32)
     return np.clip(bin_id, 0, bins_i - 1)
 
 
@@ -116,7 +118,9 @@ class ScopeCache:
     loaded_from_disk: bool
 
 
-def _cache_paths(cache_dir: Path, scope_id: str, bins: int, n_perm: int, seed: int) -> tuple[Path, Path]:
+def _cache_paths(
+    cache_dir: Path, scope_id: str, bins: int, n_perm: int, seed: int
+) -> tuple[Path, Path]:
     safe_scope = _sanitize_scope_id(scope_id)
     stem = f"{safe_scope}.bins{int(bins)}.perm{int(n_perm)}.seed{int(seed)}"
     return cache_dir / f"{stem}.npz", cache_dir / f"{stem}.meta.json"
@@ -181,11 +185,15 @@ def build_or_load_scope_cache(
 
     if npz_path.exists() and meta_path.exists():
         try:
-            on_disk = ScopeCacheMetadata.from_json(json.loads(meta_path.read_text(encoding="utf-8")))
+            on_disk = ScopeCacheMetadata.from_json(
+                json.loads(meta_path.read_text(encoding="utf-8"))
+            )
             if _meta_matches(on_disk, expected_meta):
                 loaded = np.load(npz_path, allow_pickle=False)
                 bin_id = loaded["bin_id"].astype(np.int32, copy=False)
-                bin_counts_total = loaded["bin_counts_total"].astype(np.int32, copy=False)
+                bin_counts_total = loaded["bin_counts_total"].astype(
+                    np.int32, copy=False
+                )
                 perm_indices = loaded["perm_indices"].astype(np.int32, copy=False)
                 cells_in_bin = _build_cells_in_bin(bin_id, int(bins))
                 return ScopeCache(
@@ -213,7 +221,9 @@ def build_or_load_scope_cache(
         bin_counts_total=bin_counts_total,
         perm_indices=perm_indices,
     )
-    meta_path.write_text(json.dumps(expected_meta.to_json(), indent=2), encoding="utf-8")
+    meta_path.write_text(
+        json.dumps(expected_meta.to_json(), indent=2), encoding="utf-8"
+    )
 
     return ScopeCache(
         scope_id=str(scope_id),

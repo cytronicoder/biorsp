@@ -82,7 +82,13 @@ def plot_classification_suite(
         .head(10)
         .reset_index(drop=True)
     )
-    ann_offsets = [(0.10, 0.012), (-0.10, 0.012), (0.10, -0.012), (-0.10, -0.012), (0.00, 0.018)]
+    ann_offsets = [
+        (0.10, 0.012),
+        (-0.10, 0.012),
+        (0.10, -0.012),
+        (-0.10, -0.012),
+        (0.00, 0.018),
+    ]
     for i, row in ann_df.iterrows():
         dx, dy = ann_offsets[i % len(ann_offsets)]
         ax_sc.text(
@@ -103,7 +109,12 @@ def plot_classification_suite(
     artifacts["score1_score2_scatter"] = score_scatter_path.as_posix()
 
     # class counts
-    class_counts = metrics_df["class_label"].value_counts().reindex(CLASS_ORDER, fill_value=0).astype(int)
+    class_counts = (
+        metrics_df["class_label"]
+        .value_counts()
+        .reindex(CLASS_ORDER, fill_value=0)
+        .astype(int)
+    )
     fig_cc, ax_cc = plt.subplots(figsize=style.figsize_class_counts)
     x = np.arange(len(class_counts), dtype=float)
     ax_cc.bar(
@@ -137,7 +148,9 @@ def plot_classification_suite(
             label=f"{cls} (n={sub.shape[0]})",
         )
     ax_cls.axvline(z_strong_threshold, color="black", linestyle="--", linewidth=1.0)
-    ax_cls.axhline(coverage_strong_threshold, color="black", linestyle="--", linewidth=1.0)
+    ax_cls.axhline(
+        coverage_strong_threshold, color="black", linestyle="--", linewidth=1.0
+    )
     ax_cls.set_xlabel("score_1 (Z_T)")
     ax_cls.set_ylabel("score_2 (coverage_C)")
     ax_cls.set_title("Gene classification map")
@@ -178,11 +191,15 @@ def plot_classification_suite(
         axes_h[1].set_xlabel("score_2 (coverage_C)")
         axes_h[1].set_ylabel("Count")
         fig_h.tight_layout()
-        hist_path = out_dir / f"class_{sanitize_feature_label(cls)}_score_distributions.png"
+        hist_path = (
+            out_dir / f"class_{sanitize_feature_label(cls)}_score_distributions.png"
+        )
         save_figure(fig_h, hist_path, style=style)
         class_hist_paths.append(hist_path.as_posix())
 
-    artifacts["class_distribution_plots"] = ";".join(class_hist_paths) if class_hist_paths else None
+    artifacts["class_distribution_plots"] = (
+        ";".join(class_hist_paths) if class_hist_paths else None
+    )
     return artifacts
 
 
@@ -217,12 +234,21 @@ def plot_score_qc_suite(
     if metrics_df.empty or primary_score_col not in metrics_df.columns:
         return artifacts
 
-    score = pd.to_numeric(metrics_df[primary_score_col], errors="coerce").to_numpy(dtype=float)
+    score = pd.to_numeric(metrics_df[primary_score_col], errors="coerce").to_numpy(
+        dtype=float
+    )
     finite_score = score[np.isfinite(score)]
     if finite_score.size > 0:
         fig_hist, ax_hist = plt.subplots(figsize=(6.8, 4.2))
         bins = int(min(60, max(12, np.ceil(np.sqrt(finite_score.size)))))
-        ax_hist.hist(finite_score, bins=bins, color="#2f6fb0", alpha=0.85, edgecolor="black", linewidth=0.5)
+        ax_hist.hist(
+            finite_score,
+            bins=bins,
+            color="#2f6fb0",
+            alpha=0.85,
+            edgecolor="black",
+            linewidth=0.5,
+        )
         ax_hist.set_xlabel(primary_score_col)
         ax_hist.set_ylabel("Gene count")
         ax_hist.set_title(f"{primary_score_col} distribution")
@@ -233,11 +259,20 @@ def plot_score_qc_suite(
         artifacts["score_distribution"] = p_hist.as_posix()
 
     if "mean_expr" in metrics_df.columns:
-        mean_expr = pd.to_numeric(metrics_df["mean_expr"], errors="coerce").to_numpy(dtype=float)
+        mean_expr = pd.to_numeric(metrics_df["mean_expr"], errors="coerce").to_numpy(
+            dtype=float
+        )
         mask = np.isfinite(score) & np.isfinite(mean_expr)
         if int(mask.sum()) > 1:
             fig_me, ax_me = plt.subplots(figsize=(6.8, 4.2))
-            ax_me.scatter(mean_expr[mask], score[mask], s=20, alpha=0.65, color="#c4503f", linewidths=0)
+            ax_me.scatter(
+                mean_expr[mask],
+                score[mask],
+                s=20,
+                alpha=0.65,
+                color="#c4503f",
+                linewidths=0,
+            )
             ax_me.set_xlabel("mean_expr")
             ax_me.set_ylabel(primary_score_col)
             ax_me.set_title(f"{primary_score_col} vs mean_expr")
@@ -247,13 +282,17 @@ def plot_score_qc_suite(
             save_figure(fig_me, p_me, style=style)
             artifacts["score_vs_mean_expr"] = p_me.as_posix()
 
-    fg_col = "foreground_frac" if "foreground_frac" in metrics_df.columns else "prevalence"
+    fg_col = (
+        "foreground_frac" if "foreground_frac" in metrics_df.columns else "prevalence"
+    )
     if fg_col in metrics_df.columns:
         fg = pd.to_numeric(metrics_df[fg_col], errors="coerce").to_numpy(dtype=float)
         mask = np.isfinite(score) & np.isfinite(fg)
         if int(mask.sum()) > 1:
             fig_fg, ax_fg = plt.subplots(figsize=(6.8, 4.2))
-            ax_fg.scatter(fg[mask], score[mask], s=20, alpha=0.65, color="#2b8f7b", linewidths=0)
+            ax_fg.scatter(
+                fg[mask], score[mask], s=20, alpha=0.65, color="#2b8f7b", linewidths=0
+            )
             ax_fg.set_xlabel(fg_col)
             ax_fg.set_ylabel(primary_score_col)
             ax_fg.set_title(f"{primary_score_col} vs {fg_col}")

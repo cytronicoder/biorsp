@@ -169,7 +169,9 @@ def plot_umap_vantage_diagnostic(
         style=style,
     )
     add_vantage_marker(ax=ax, vantage_point=vantage_point, in_legend=True, style=style)
-    finalize_embedding_axes(ax=ax, title="UMAP vantage point diagnostic", show_ticks=False, style=style)
+    finalize_embedding_axes(
+        ax=ax, title="UMAP vantage point diagnostic", show_ticks=False, style=style
+    )
     ax.legend(loc="best", frameon=True, fontsize=style.legend_fontsize)
     fig.tight_layout()
     save_figure(fig, out_png, style=style)
@@ -200,7 +202,9 @@ def _compressed_categorical_labels(
         labels_str.value_counts(sort=False)
         .rename_axis("category")
         .reset_index(name="count")
-        .sort_values(by=["count", "category"], ascending=[False, True], kind="mergesort")
+        .sort_values(
+            by=["count", "category"], ascending=[False, True], kind="mergesort"
+        )
     )
     ordered_categories = counts["category"].astype(str).tolist()
     if numeric_categories:
@@ -214,7 +218,9 @@ def _compressed_categorical_labels(
     return compressed, top + [other_label]
 
 
-def _palette_for_categories(categories: list[str]) -> dict[str, tuple[float, float, float, float]]:
+def _palette_for_categories(
+    categories: list[str],
+) -> dict[str, tuple[float, float, float, float]]:
     cmap = plt.get_cmap("tab20")
     return {cat: cmap(i % 20) for i, cat in enumerate(categories)}
 
@@ -246,7 +252,9 @@ def _annotate_medians_with_spacing(
                 break
             cy += 0.01 * max(y_span, 1.0)
         placed.append((cx, cy))
-        txt = ax.text(cx, cy, str(cat), fontsize=9, color="black", ha="center", va="center")
+        txt = ax.text(
+            cx, cy, str(cat), fontsize=9, color="black", ha="center", va="center"
+        )
         txt.set_path_effects([pe.withStroke(linewidth=2.0, foreground="white")])
 
 
@@ -340,7 +348,9 @@ def write_cluster_celltype_counts(
         .groupby([cluster_key, celltype_key], observed=False)
         .size()
         .reset_index(name="n_cells")
-        .sort_values(by=[cluster_key, "n_cells"], ascending=[True, False], kind="mergesort")
+        .sort_values(
+            by=[cluster_key, "n_cells"], ascending=[True, False], kind="mergesort"
+        )
     )
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     counts_df.to_csv(out_csv, index=False)

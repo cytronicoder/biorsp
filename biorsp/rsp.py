@@ -29,8 +29,8 @@ def _assert_theta_orientation_debug(tol: float = 1e-8) -> None:
     center = np.array([0.0, 0.0], dtype=float)
     points = np.array(
         [
-            [1.0, 0.0],   # East
-            [0.0, 1.0],   # North
+            [1.0, 0.0],  # East
+            [0.0, 1.0],  # North
             [-1.0, 0.0],  # West
             [0.0, -1.0],  # South
         ],
@@ -150,7 +150,9 @@ def compute_rsp_profile_from_boolean(
     return E_phi, phi_max, E_max
 
 
-def _resolve_expr_matrix(adata: Any, layer: str | None, use_raw: bool) -> tuple[Any, Any]:
+def _resolve_expr_matrix(
+    adata: Any, layer: str | None, use_raw: bool
+) -> tuple[Any, Any]:
     if layer is not None and use_raw:
         raise ValueError("Use either layer or use_raw, not both.")
     if use_raw:
@@ -173,11 +175,15 @@ def _extract_expr_vector(
     if var_index is not None:
         idx = int(var_index)
         if idx < 0 or idx >= len(var_names):
-            raise IndexError(f"var_index {idx} out of bounds for n_vars={len(var_names)}.")
+            raise IndexError(
+                f"var_index {idx} out of bounds for n_vars={len(var_names)}."
+            )
         label = str(gene) if str(gene).strip() != "" else str(var_names[idx])
     else:
         if gene not in var_names:
-            raise KeyError(f"Feature '{gene}' not found in selected expression namespace.")
+            raise KeyError(
+                f"Feature '{gene}' not found in selected expression namespace."
+            )
         loc = var_names.get_loc(gene)
         if isinstance(loc, (int, np.integer)):
             idx = int(loc)
@@ -277,7 +283,9 @@ def plot_rsp(
     effective_theta_zero = "E" if umap_aligned else theta_zero
     effective_theta_direction = 1 if umap_aligned else theta_direction
     if effective_theta_direction not in (-1, 1):
-        raise ValueError(f"theta_direction must be -1 or 1, got {effective_theta_direction}.")
+        raise ValueError(
+            f"theta_direction must be -1 or 1, got {effective_theta_direction}."
+        )
 
     ax.plot(theta_closed, E_closed, lw=2, color=line_color)
     ax.fill_between(theta_closed, 0, E_closed, color=fill_color, alpha=fill_alpha)
@@ -344,17 +352,27 @@ def plot_umap_and_rsp_side_by_side(
     if debug:
         _assert_theta_orientation_debug()
 
-    emb_key = basis if basis in adata.obsm else (basis if basis.startswith("X_") else f"X_{basis}")
+    emb_key = (
+        basis
+        if basis in adata.obsm
+        else (basis if basis.startswith("X_") else f"X_{basis}")
+    )
     if emb_key not in adata.obsm:
-        raise KeyError(f"Embedding '{basis}' not found in adata.obsm (checked '{emb_key}').")
+        raise KeyError(
+            f"Embedding '{basis}' not found in adata.obsm (checked '{emb_key}')."
+        )
 
     embedding = np.asarray(adata.obsm[emb_key], dtype=float)
     if embedding.ndim != 2 or embedding.shape[1] < 2:
-        raise ValueError(f"Embedding '{emb_key}' must have shape (N, 2+), got {embedding.shape}.")
+        raise ValueError(
+            f"Embedding '{emb_key}' must have shape (N, 2+), got {embedding.shape}."
+        )
     xy = embedding[:, :2]
 
     expr_matrix, var_names = _resolve_expr_matrix(adata, layer=layer, use_raw=use_raw)
-    expr, label = _extract_expr_vector(expr_matrix, var_names, gene=gene, var_index=var_index)
+    expr, label = _extract_expr_vector(
+        expr_matrix, var_names, gene=gene, var_index=var_index
+    )
 
     if vantage_point is None:
         center = compute_vantage(xy)

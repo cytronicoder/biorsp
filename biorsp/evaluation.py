@@ -15,7 +15,7 @@ import scipy.sparse as sp
 from biorsp.config import load_json_config
 from biorsp.geometry import compute_angles, compute_vantage
 from biorsp.moran import extract_weights, morans_i
-from biorsp.permutation import perm_null_emax, permute_foreground_within_donor
+from biorsp.permutation import perm_null_T_and_profile, permute_foreground_within_donor
 from biorsp.pipeline_utils import (
     bh_fdr,
     circular_sd,
@@ -35,7 +35,11 @@ from biorsp.pipeline_utils import (
 from biorsp.pipeline_utils import (
     setup_logger as _setup_logger,
 )
-from biorsp.rsp import compute_rsp_profile, compute_rsp_profile_from_boolean, plot_rsp_polar
+from biorsp.rsp import (
+    compute_rsp_profile,
+    compute_rsp_profile_from_boolean,
+    plot_rsp_polar,
+)
 from biorsp.utils import ensure_dir
 
 DEFAULT_STRATA = {
@@ -80,6 +84,50 @@ MODULE_SETS = {
 }
 
 AMBIENT_PATTERNS = ["MT-", "RPL", "RPS", "MALAT1", "FOS", "JUN"]
+
+
+def _perm_null_emax_from_canonical(
+    expr: np.ndarray,
+    angles: np.ndarray,
+    donor_ids: np.ndarray,
+    n_bins: int,
+    n_perm: int,
+    seed: int,
+) -> tuple[np.ndarray, float, float, float]:
+    f_obs = np.asarray(expr, dtype=float).ravel() > 0
+    out = perm_null_T_and_profile(
+        f=f_obs,
+        angles=np.asarray(angles, dtype=float).ravel(),
+        donor_ids=np.asarray(donor_ids),
+        n_bins=int(n_bins),
+        n_perm=int(n_perm),
+        seed=int(seed),
+        donor_stratified=True,
+        return_null_profiles=True,
+        mode="raw",
+        smooth_w=1,
+    )
+
+    e_obs = np.asarray(
+        out.get("E_phi_obs", np.zeros(int(n_bins), dtype=float)), dtype=float
+    )
+    if e_obs.size == 0:
+        return np.zeros(int(n_perm), dtype=float), 0.0, 0.0, 1.0
+
+    b_max = int(np.argmax(e_obs))
+    edges = np.linspace(0.0, 2.0 * np.pi, int(n_bins) + 1, endpoint=True)
+    centers = (edges[:-1] + edges[1:]) / 2.0
+    phi_max_obs = float(centers[b_max] % (2.0 * np.pi))
+    emax_obs = float(np.max(e_obs))
+
+    null_e = np.asarray(
+        out.get("null_E_phi", np.zeros((0, int(n_bins)), dtype=float)), dtype=float
+    )
+    if null_e.ndim != 2 or null_e.shape[0] == 0:
+        return np.zeros(0, dtype=float), emax_obs, phi_max_obs, 1.0
+    null_emax = np.max(null_e, axis=1)
+    p = float((1.0 + np.sum(null_emax >= emax_obs)) / (1.0 + null_emax.size))
+    return null_emax, emax_obs, phi_max_obs, p
 
 
 def _get_scanpy():
@@ -160,7 +208,8 @@ def _apply_qc(
         else:
             if doublet_score_max is None:
                 logger.warning(
-                    "Doublet column '%s' is numeric but no doublet_score_max set; skipping.", col
+                    "Doublet column '%s' is numeric but no doublet_score_max set; skipping.",
+                    col,
                 )
             else:
                 mask &= obs[col] <= doublet_score_max
@@ -199,10 +248,18 @@ def _preprocessing_report(
                 row[f"{col}_median_after"] = float("nan")
         if "n_genes_by_counts" in adata_before.obs.columns:
             n_vars = max(1, adata_before.n_vars)
-            before_rate = adata_before.obs.loc[before_mask, "n_genes_by_counts"] / n_vars
+            before_rate = (
+                adata_before.obs.loc[before_mask, "n_genes_by_counts"] / n_vars
+            )
             after_rate = adata_after.obs.loc[after_mask, "n_genes_by_counts"] / n_vars
-            row["detection_rate_median_before"] = float(np.median(before_rate.values)) if before_rate.size else float("nan")
-            row["detection_rate_median_after"] = float(np.median(after_rate.values)) if after_rate.size else float("nan")
+            row["detection_rate_median_before"] = (
+                float(np.median(before_rate.values))
+                if before_rate.size
+                else float("nan")
+            )
+            row["detection_rate_median_after"] = (
+                float(np.median(after_rate.values)) if after_rate.size else float("nan")
+            )
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -254,7 +311,9 @@ def _compute_embeddings(
     n_comps = min(n_pcs, max(2, min(adata.n_obs - 1, adata.n_vars - 1)))
     if "X_pca" not in adata.obsm:
         sc_module.tl.pca(adata, n_comps=n_comps, svd_solver="arpack")
-    sc_module.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_comps, use_rep="X_pca")
+    sc_module.pp.neighbors(
+        adata, n_neighbors=n_neighbors, n_pcs=n_comps, use_rep="X_pca"
+    )
     embeddings: dict[str, np.ndarray] = {}
     for seed in seeds:
         sc_module.tl.umap(
@@ -271,7 +330,9 @@ def _compute_embeddings(
     return embeddings
 
 
-def _plot_umap_overlay(emb: np.ndarray, values: np.ndarray, out_png: Path, title: str) -> None:
+def _plot_umap_overlay(
+    emb: np.ndarray, values: np.ndarray, out_png: Path, title: str
+) -> None:
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(5, 4))
@@ -285,7 +346,9 @@ def _plot_umap_overlay(emb: np.ndarray, values: np.ndarray, out_png: Path, title
     plt.close(fig)
 
 
-def _plot_phi_stability(phi_by_embed: dict[str, float], out_png: Path, title: str) -> None:
+def _plot_phi_stability(
+    phi_by_embed: dict[str, float], out_png: Path, title: str
+) -> None:
     import matplotlib.pyplot as plt
 
     labels = list(phi_by_embed.keys())
@@ -381,20 +444,38 @@ def _write_prereg_outputs(
             fh.write("# Preprocessing report\n\n")
             fh.write(prep_df.to_markdown(index=False))
 
-    pd.DataFrame(all_results).to_csv(results_dir / "biorsp_stratum_results.csv", index=False)
+    pd.DataFrame(all_results).to_csv(
+        results_dir / "biorsp_stratum_results.csv", index=False
+    )
     pd.DataFrame(null_rows).to_csv(results_dir / "null_calibration.csv", index=False)
-    pd.DataFrame(jackknife_rows).to_csv(results_dir / "jackknife_details.csv", index=False)
-    pd.DataFrame(threshold_rows).to_csv(results_dir / "threshold_sensitivity.csv", index=False)
-    pd.DataFrame(donor_artifact_rows).to_csv(results_dir / "donor_artifact_test.csv", index=False)
-    pd.DataFrame(moran_baseline_rows).to_csv(results_dir / "moran_baseline.csv", index=False)
+    pd.DataFrame(jackknife_rows).to_csv(
+        results_dir / "jackknife_details.csv", index=False
+    )
+    pd.DataFrame(threshold_rows).to_csv(
+        results_dir / "threshold_sensitivity.csv", index=False
+    )
+    pd.DataFrame(donor_artifact_rows).to_csv(
+        results_dir / "donor_artifact_test.csv", index=False
+    )
+    pd.DataFrame(moran_baseline_rows).to_csv(
+        results_dir / "moran_baseline.csv", index=False
+    )
     pd.DataFrame(de_baseline_rows).to_csv(results_dir / "de_baseline.csv", index=False)
-    pd.DataFrame(embedding_stability_rows).to_csv(results_dir / "embedding_stability.csv", index=False)
-    pd.DataFrame(ablation_global_rows).to_csv(results_dir / "ablation_global_shuffle.csv", index=False)
-    pd.DataFrame(multimodal_rows).to_csv(results_dir / "multimodal_peaks.csv", index=False)
+    pd.DataFrame(embedding_stability_rows).to_csv(
+        results_dir / "embedding_stability.csv", index=False
+    )
+    pd.DataFrame(ablation_global_rows).to_csv(
+        results_dir / "ablation_global_shuffle.csv", index=False
+    )
+    pd.DataFrame(multimodal_rows).to_csv(
+        results_dir / "multimodal_peaks.csv", index=False
+    )
     if batch_rows:
         pd.DataFrame(batch_rows).to_csv(results_dir / "batch_summary.csv", index=False)
     if qq_rows:
-        pd.DataFrame(qq_rows).to_csv(results_dir / "null_calibration_qq_index.csv", index=False)
+        pd.DataFrame(qq_rows).to_csv(
+            results_dir / "null_calibration_qq_index.csv", index=False
+        )
 
 
 def run_prereg_pipeline(config_path: str) -> None:
@@ -436,9 +517,19 @@ def run_prereg_pipeline(config_path: str) -> None:
     expr_layer_rsp = cfg.get("rsp_expr_layer", None)
     lognorm_layer = cfg.get("moran_expr_layer", "lognorm")
 
-    qc_clean = QCThresholds(**cfg.get("qc_clean", {"min_genes": 200, "min_counts": 500, "max_mito_frac": 20.0}))
-    qc_stress = QCThresholds(**cfg.get("qc_stress", {"min_genes": 100, "min_counts": 200, "max_mito_frac": 30.0}))
-    qc_modes = ["cleaned", "stress"] if cfg.get("run_stress_mode", True) else ["cleaned"]
+    qc_clean = QCThresholds(
+        **cfg.get(
+            "qc_clean", {"min_genes": 200, "min_counts": 500, "max_mito_frac": 20.0}
+        )
+    )
+    qc_stress = QCThresholds(
+        **cfg.get(
+            "qc_stress", {"min_genes": 100, "min_counts": 200, "max_mito_frac": 30.0}
+        )
+    )
+    qc_modes = (
+        ["cleaned", "stress"] if cfg.get("run_stress_mode", True) else ["cleaned"]
+    )
 
     strata = cfg.get("strata", DEFAULT_STRATA)
     if include_secondary:
@@ -555,12 +646,16 @@ def run_prereg_pipeline(config_path: str) -> None:
                 angles_by_embed[key] = compute_angles(emb, compute_vantage(emb))
 
             if "connectivities" not in adata_s.obsp:
-                sc.pp.neighbors(adata_s, n_neighbors=n_neighbors, n_pcs=n_pcs, use_rep="X_pca")
+                sc.pp.neighbors(
+                    adata_s, n_neighbors=n_neighbors, n_pcs=n_pcs, use_rep="X_pca"
+                )
             W = extract_weights(adata_s)
 
             donor_ids = np.asarray(adata_s.obs[donor_col])
             unique_donors = np.unique(donor_ids)
-            donor_to_idx = {str(d): np.nonzero(donor_ids == d)[0].astype(int) for d in unique_donors}
+            donor_to_idx = {
+                str(d): np.nonzero(donor_ids == d)[0].astype(int) for d in unique_donors
+            }
 
             # feature lists
             panel_genes = POSITIVE_PANELS.get(stratum_name, [])
@@ -591,7 +686,9 @@ def run_prereg_pipeline(config_path: str) -> None:
                     if len(present) < 2:
                         continue
                     score_name = f"score_{module_name}"
-                    sc.tl.score_genes(adata_s, gene_list=present, score_name=score_name, use_raw=False)
+                    sc.tl.score_genes(
+                        adata_s, gene_list=present, score_name=score_name, use_raw=False
+                    )
                     features.append(("module", score_name))
 
             # ambient probes
@@ -604,7 +701,9 @@ def run_prereg_pipeline(config_path: str) -> None:
             for g in rand_genes:
                 try:
                     x = _get_expr_vector(adata_s, g, lognorm_layer)
-                    moran_random.append(morans_i(x.astype(float), W, row_standardize=False))
+                    moran_random.append(
+                        morans_i(x.astype(float), W, row_standardize=False)
+                    )
                 except ValueError:
                     continue
             moran_random = np.asarray(moran_random, dtype=float)
@@ -627,7 +726,9 @@ def run_prereg_pipeline(config_path: str) -> None:
                 # RSP on seed0, t0 (for p_perm)
                 angles0 = angles_by_embed[seed0_key]
                 try:
-                    E_phi, phi_max0, E_max0 = compute_rsp_profile(expr, angles0, n_bins=bins)
+                    E_phi, phi_max0, E_max0 = compute_rsp_profile(
+                        expr, angles0, n_bins=bins
+                    )
                 except ValueError:
                     continue
 
@@ -635,8 +736,10 @@ def run_prereg_pipeline(config_path: str) -> None:
                 p_perm = float("nan")
                 null_emax = None
                 if inferential:
-                    null_emax, E_max_obs, phi_max_obs, p_perm = perm_null_emax(
-                        expr, angles0, donor_ids, bins, n_perm, seed=seed
+                    null_emax, E_max_obs, phi_max_obs, p_perm = (
+                        _perm_null_emax_from_canonical(
+                            expr, angles0, donor_ids, bins, n_perm, seed=seed
+                        )
                     )
                 else:
                     E_max_obs = E_max0
@@ -661,7 +764,9 @@ def run_prereg_pipeline(config_path: str) -> None:
                         emax_by_seed[emb_key][display] = emax_k
                     except ValueError:
                         phi_by_embed[emb_key] = float("nan")
-                phi_sd = circular_sd(np.array([v for v in phi_by_embed.values() if np.isfinite(v)]))
+                phi_sd = circular_sd(
+                    np.array([v for v in phi_by_embed.values() if np.isfinite(v)])
+                )
                 phi_sd_deg = float(phi_sd * 180.0 / math.pi)
 
                 # donor jackknife (seed0 only)
@@ -685,7 +790,9 @@ def run_prereg_pipeline(config_path: str) -> None:
                         )
                     except ValueError:
                         continue
-                jackknife_sd = float(np.std(jk_emax, ddof=1)) if len(jk_emax) > 1 else float("nan")
+                jackknife_sd = (
+                    float(np.std(jk_emax, ddof=1)) if len(jk_emax) > 1 else float("nan")
+                )
 
                 # threshold sensitivity (seed0 only)
                 threshold_emax = {}
@@ -720,31 +827,45 @@ def run_prereg_pipeline(config_path: str) -> None:
                 multimodal, peak_idx = _detect_multimodal(E_phi)
                 if multimodal:
                     phi_centers = np.linspace(0, 2 * np.pi, bins, endpoint=False)
-                    peaks = [float(phi_centers[i] * 180.0 / math.pi) for i in peak_idx[:2]]
+                    peaks = [
+                        float(phi_centers[i] * 180.0 / math.pi) for i in peak_idx[:2]
+                    ]
                     multimodal_rows.append(
                         {
                             "qc_mode": qc_mode,
                             "stratum": stratum_name,
                             "gene_or_signature": display,
-                            "phi_peak1_deg": peaks[0] if len(peaks) > 0 else float("nan"),
-                            "phi_peak2_deg": peaks[1] if len(peaks) > 1 else float("nan"),
+                            "phi_peak1_deg": (
+                                peaks[0] if len(peaks) > 0 else float("nan")
+                            ),
+                            "phi_peak2_deg": (
+                                peaks[1] if len(peaks) > 1 else float("nan")
+                            ),
                         }
                     )
 
                 # flags
-                threshold_phi_sd = circular_sd(np.array([v for v in threshold_phi.values() if np.isfinite(v)]))
-                threshold_sensitive = bool(
-                    np.nanmax(list(threshold_emax.values())) - np.nanmin(list(threshold_emax.values()))
-                    > float(cfg.get("threshold_emax_delta", 0.1))
-                    or (threshold_phi_sd * 180.0 / math.pi) > float(cfg.get("threshold_phi_sd_deg", 30.0))
+                threshold_phi_sd = circular_sd(
+                    np.array([v for v in threshold_phi.values() if np.isfinite(v)])
                 )
-                embedding_sensitive = bool(phi_sd_deg > float(cfg.get("embedding_phi_sd_deg", 30.0)))
+                threshold_sensitive = bool(
+                    np.nanmax(list(threshold_emax.values()))
+                    - np.nanmin(list(threshold_emax.values()))
+                    > float(cfg.get("threshold_emax_delta", 0.1))
+                    or (threshold_phi_sd * 180.0 / math.pi)
+                    > float(cfg.get("threshold_phi_sd_deg", 30.0))
+                )
+                embedding_sensitive = bool(
+                    phi_sd_deg > float(cfg.get("embedding_phi_sd_deg", 30.0))
+                )
                 donor_sensitive = bool(
                     jackknife_sd > float(cfg.get("donor_jackknife_sd", 0.1))
                 )
 
                 moran_pct = (
-                    float(np.mean(moran_random <= moran_val)) if moran_random.size > 0 else float("nan")
+                    float(np.mean(moran_random <= moran_val))
+                    if moran_random.size > 0
+                    else float("nan")
                 )
 
                 # store rows per embedding + threshold
@@ -782,7 +903,11 @@ def run_prereg_pipeline(config_path: str) -> None:
                             except ValueError:
                                 pass
                         else:
-                            f_mask = expr > (np.quantile(expr, 0.9) if t_name == "q90" else np.quantile(expr, 0.95))
+                            f_mask = expr > (
+                                np.quantile(expr, 0.9)
+                                if t_name == "q90"
+                                else np.quantile(expr, 0.95)
+                            )
                             try:
                                 _, phi_k, emax_k = compute_rsp_profile_from_boolean(
                                     f_mask, angles_by_embed[emb_key], n_bins=bins
@@ -810,7 +935,11 @@ def run_prereg_pipeline(config_path: str) -> None:
                         stratum_dir / f"{display}_umap.png",
                         f"{stratum_name}: {display}",
                     )
-                    plot_rsp_polar(E_phi, (stratum_dir / f"{display}_rsp_polar.png").as_posix(), f"RSP: {display}")
+                    plot_rsp_polar(
+                        E_phi,
+                        (stratum_dir / f"{display}_rsp_polar.png").as_posix(),
+                        f"RSP: {display}",
+                    )
                     if inferential and null_emax is not None:
                         _plot_null_hist(
                             null_emax,
@@ -838,7 +967,9 @@ def run_prereg_pipeline(config_path: str) -> None:
             primary_rows = [
                 r
                 for r in per_stratum_rows
-                if r["embedding"] == seed0_key and r["threshold"] == "t0" and np.isfinite(r["p_perm"])
+                if r["embedding"] == seed0_key
+                and r["threshold"] == "t0"
+                and np.isfinite(r["p_perm"])
             ]
             pvals = np.array([r["p_perm"] for r in primary_rows], dtype=float)
             fdrs = bh_fdr(pvals)
@@ -898,9 +1029,13 @@ def run_prereg_pipeline(config_path: str) -> None:
                 null_pvals.append(p_val)
 
             null_pvals = np.asarray(null_pvals, dtype=float)
-            frac_sig = float(np.mean(null_pvals <= 0.05)) if null_pvals.size else float("nan")
+            frac_sig = (
+                float(np.mean(null_pvals <= 0.05)) if null_pvals.size else float("nan")
+            )
             fdr_null = bh_fdr(null_pvals) if null_pvals.size else np.array([])
-            frac_sig_fdr = float(np.mean(fdr_null <= 0.05)) if fdr_null.size else float("nan")
+            frac_sig_fdr = (
+                float(np.mean(fdr_null <= 0.05)) if fdr_null.size else float("nan")
+            )
             null_rows.append(
                 {
                     "qc_mode": qc_mode,
@@ -908,8 +1043,14 @@ def run_prereg_pipeline(config_path: str) -> None:
                     "n_synth": int(null_pvals.size),
                     "frac_sig_p05": frac_sig,
                     "frac_sig_fdr05": frac_sig_fdr,
-                    "p_median": float(np.median(null_pvals)) if null_pvals.size else float("nan"),
-                    "p_mean": float(np.mean(null_pvals)) if null_pvals.size else float("nan"),
+                    "p_median": (
+                        float(np.median(null_pvals))
+                        if null_pvals.size
+                        else float("nan")
+                    ),
+                    "p_mean": (
+                        float(np.mean(null_pvals)) if null_pvals.size else float("nan")
+                    ),
                 }
             )
 
@@ -920,8 +1061,16 @@ def run_prereg_pipeline(config_path: str) -> None:
                 qq_csv = qq_dir / f"{stratum_name.replace(' ', '_')}_qq.csv"
                 obs = np.sort(null_pvals)
                 exp = np.arange(1, obs.size + 1) / (obs.size + 1)
-                pd.DataFrame({"expected": exp, "observed": obs}).to_csv(qq_csv, index=False)
-                qq_rows.append({"qc_mode": qc_mode, "stratum": stratum_name, "qq_csv": qq_csv.as_posix()})
+                pd.DataFrame({"expected": exp, "observed": obs}).to_csv(
+                    qq_csv, index=False
+                )
+                qq_rows.append(
+                    {
+                        "qc_mode": qc_mode,
+                        "stratum": stratum_name,
+                        "qq_csv": qq_csv.as_posix(),
+                    }
+                )
                 if qc_mode == "cleaned" and stratum_name in {
                     "Ventricular cardiomyocytes",
                     "Fibroblasts",
@@ -929,7 +1078,9 @@ def run_prereg_pipeline(config_path: str) -> None:
                 }:
                     _plot_qq(
                         null_pvals,
-                        figures_dir / stratum_name.replace(" ", "_") / "null_calibration_qq.png",
+                        figures_dir
+                        / stratum_name.replace(" ", "_")
+                        / "null_calibration_qq.png",
                         f"Null calibration: {stratum_name}",
                     )
 
@@ -938,7 +1089,7 @@ def run_prereg_pipeline(config_path: str) -> None:
             if donor_counts.size > 0:
                 donor_a = donor_counts.index[0]
                 f_artifact = donor_ids == donor_a
-                null_emax, E_max_obs, _, p_perm_art = perm_null_emax(
+                null_emax, E_max_obs, _, p_perm_art = _perm_null_emax_from_canonical(
                     f_artifact.astype(float),
                     angles_by_embed[seed0_key],
                     donor_ids,
@@ -1000,7 +1151,9 @@ def run_prereg_pipeline(config_path: str) -> None:
                 if f_obs.sum() == 0 or f_obs.sum() == f_obs.size:
                     continue
                 try:
-                    _, _, emax_obs = compute_rsp_profile(expr, angles_by_embed[seed0_key], n_bins=bins)
+                    _, _, emax_obs = compute_rsp_profile(
+                        expr, angles_by_embed[seed0_key], n_bins=bins
+                    )
                 except ValueError:
                     continue
                 rng_local = np.random.default_rng(seed)

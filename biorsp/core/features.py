@@ -68,7 +68,9 @@ def resolve_feature_index(
         elif isinstance(loc, np.ndarray) and loc.size > 0:
             idx = int(np.flatnonzero(loc)[0])
         else:
-            raise KeyError(f"Feature '{feature}' did not resolve uniquely in var_names.")
+            raise KeyError(
+                f"Feature '{feature}' did not resolve uniquely in var_names."
+            )
         label = key
         if symbol_col is not None:
             sym = str(adata_like.var.iloc[idx][symbol_col]).strip()

@@ -237,7 +237,10 @@ def smoke_perm_main(argv: Iterable[str] | None = None) -> int:
     housekeeping_display = _get_gene_display_name(adata, housekeeping)
 
     records = []
-    for gene, gene_display in [(marker, marker_display), (housekeeping, housekeeping_display)]:
+    for gene, gene_display in [
+        (marker, marker_display),
+        (housekeeping, housekeeping_display),
+    ]:
         expr = get_gene_vector(adata, gene)
         null_emax, E_max_obs, phi_max_obs, p = perm_null_emax(
             expr,

@@ -54,25 +54,33 @@ def _safe_scope_level(scope_level: str | None) -> str:
     return level
 
 
-def _resolve_scope_int(params: dict[str, Any], key: str, scope_level: str, default: int) -> int:
+def _resolve_scope_int(
+    params: dict[str, Any], key: str, scope_level: str, default: int
+) -> int:
     scoped_key = f"{key}_{scope_level}"
     if scoped_key in params:
         return int(params[scoped_key])
     return int(params.get(key, default))
 
 
-def _resolve_scope_float(params: dict[str, Any], key: str, scope_level: str, default: float) -> float:
+def _resolve_scope_float(
+    params: dict[str, Any], key: str, scope_level: str, default: float
+) -> float:
     scoped_key = f"{key}_{scope_level}"
     if scoped_key in params:
         return float(params[scoped_key])
     return float(params.get(key, default))
 
 
-def _build_scope_params(scope_ctx: dict[str, Any], params: dict[str, Any]) -> ScopeParams:
+def _build_scope_params(
+    scope_ctx: dict[str, Any], params: dict[str, Any]
+) -> ScopeParams:
     scope_level = _safe_scope_level(scope_ctx.get("scope_level"))
     discovery_mode = bool(params.get("discovery_mode", True))
     pipeline_mode_default = "compute" if discovery_mode else "full"
-    pipeline_mode = str(params.get("pipeline_mode", pipeline_mode_default)).strip().lower()
+    pipeline_mode = (
+        str(params.get("pipeline_mode", pipeline_mode_default)).strip().lower()
+    )
     if pipeline_mode not in {"compute", "plot", "full"}:
         pipeline_mode = pipeline_mode_default
     skip_defaults = bool(discovery_mode)
@@ -167,7 +175,9 @@ def _stage1_scores(
                     det_rest = np.sum(arr[rest_mask] > 0, axis=0)
                     mean_region = np.mean(arr[region_mask], axis=0)
                     mean_rest = np.mean(arr[rest_mask], axis=0)
-                delta_det = np.abs(det_region / max(1, n_region) - det_rest / max(1, n_rest))
+                delta_det = np.abs(
+                    det_region / max(1, n_region) - det_rest / max(1, n_rest)
+                )
                 delta_mean = np.abs(mean_region - mean_rest)
             else:
                 delta_det = np.abs(prev - 0.5) * 2.0
@@ -331,14 +341,12 @@ def _adaptive_permutation(
             angles=cache.angles,
             donor_ids=donor_ids,
             n_bins=params.bins_confirm,
-            n_perm=params.perm_mid - used,
+            n_perm=params.perm_mid,
             seed=params.seed,
             donor_stratified=True,
             perm_indices=cache.perm_indices,
-            perm_start=used,
+            perm_start=0,
             perm_end=params.perm_mid,
-            previous_null_T=np.asarray(current["null_T"], dtype=float),
-            previous_null_E_phi=np.asarray(current["null_E_phi"], dtype=float),
             bin_id=cache.bin_id,
             bin_counts_total=cache.bin_counts_total,
         )
@@ -349,14 +357,12 @@ def _adaptive_permutation(
             angles=cache.angles,
             donor_ids=donor_ids,
             n_bins=params.bins_confirm,
-            n_perm=params.perm_final - used,
+            n_perm=params.perm_final,
             seed=params.seed,
             donor_stratified=True,
             perm_indices=cache.perm_indices,
-            perm_start=used,
+            perm_start=0,
             perm_end=params.perm_final,
-            previous_null_T=np.asarray(current["null_T"], dtype=float),
-            previous_null_E_phi=np.asarray(current["null_E_phi"], dtype=float),
             bin_id=cache.bin_id,
             bin_counts_total=cache.bin_counts_total,
         )
@@ -404,12 +410,16 @@ def _select_representatives(
     selected_frames = []
     for q in [1, 2, 3, 4]:
         q_df = confirmed[confirmed["quadrant"] == q].copy()
-        q_df = q_df.sort_values(["q_T", "p_T", "strength_proxy"], ascending=[True, True, False]).head(per_quad)
+        q_df = q_df.sort_values(
+            ["q_T", "p_T", "strength_proxy"], ascending=[True, True, False]
+        ).head(per_quad)
         if not q_df.empty:
             selected_frames.append(q_df)
 
     if selected_frames:
-        selected = pd.concat(selected_frames, ignore_index=True).drop_duplicates(subset=["gene"])
+        selected = pd.concat(selected_frames, ignore_index=True).drop_duplicates(
+            subset=["gene"]
+        )
     else:
         selected = confirmed.head(0).copy()
 
@@ -426,13 +436,26 @@ def _select_representatives(
     return selected.reset_index(drop=True)
 
 
-def _funnel_report(stage1_df: pd.DataFrame, stage2_df: pd.DataFrame, stage3_df: pd.DataFrame, reps_df: pd.DataFrame) -> dict[str, int]:
+def _funnel_report(
+    stage1_df: pd.DataFrame,
+    stage2_df: pd.DataFrame,
+    stage3_df: pd.DataFrame,
+    reps_df: pd.DataFrame,
+) -> dict[str, int]:
     n_total = int(stage1_df.shape[0])
-    n_eligible = int(stage1_df["eligible"].sum()) if "eligible" in stage1_df.columns else 0
-    n_stage1_selected = int(stage1_df.get("stage1_selected", pd.Series([], dtype=bool)).sum())
-    n_stage2_selected = int(stage2_df.get("stage2_selected", pd.Series([], dtype=bool)).sum())
+    n_eligible = (
+        int(stage1_df["eligible"].sum()) if "eligible" in stage1_df.columns else 0
+    )
+    n_stage1_selected = int(
+        stage1_df.get("stage1_selected", pd.Series([], dtype=bool)).sum()
+    )
+    n_stage2_selected = int(
+        stage2_df.get("stage2_selected", pd.Series([], dtype=bool)).sum()
+    )
     n_stage3_tested = int(stage3_df.shape[0])
-    n_significant = int(np.sum(stage3_df["q_T"] <= 0.05)) if "q_T" in stage3_df.columns else 0
+    n_significant = (
+        int(np.sum(stage3_df["q_T"] <= 0.05)) if "q_T" in stage3_df.columns else 0
+    )
     n_plotted = int(reps_df.shape[0])
     return {
         "n_genes_total": n_total,
@@ -486,19 +509,28 @@ def run_scope_staged(
     ensure_dir(out_dir.as_posix())
     ensure_dir(fig_dir.as_posix())
 
-    stage1_path, stage2_path, stage3_path, reps_path, funnel_gene_path = _ensure_stage_tables(out_dir)
+    stage1_path, stage2_path, stage3_path, reps_path, funnel_gene_path = (
+        _ensure_stage_tables(out_dir)
+    )
     funnel_summary_csv = out_dir / "funnel_report.csv"
     funnel_summary_json = out_dir / "funnel_report.json"
 
     n_cells = int(X.shape[0])
     min_cells = _resolve_scope_int(params, "min_cells", p.scope_level, 1)
     if n_cells < min_cells:
-        logger.info("Skipping scope=%s due to min_cells gate (%s < %s).", scope_name, n_cells, min_cells)
+        logger.info(
+            "Skipping scope=%s due to min_cells gate (%s < %s).",
+            scope_name,
+            n_cells,
+            min_cells,
+        )
         empty_stage1 = pd.DataFrame(columns=["gene", "gene_idx", "eligible"])
         empty_stage2 = pd.DataFrame(columns=["gene", "gene_idx"])
         empty_stage3 = pd.DataFrame(columns=["gene", "gene_idx", "p_T", "q_T"])
         empty_rep = empty_stage3.copy()
-        empty_funnel = pd.DataFrame(columns=["gene", "stage_reached", "skip_reason", "n_perm_final_used"])
+        empty_funnel = pd.DataFrame(
+            columns=["gene", "stage_reached", "skip_reason", "n_perm_final_used"]
+        )
         empty_stage1.to_csv(stage1_path, index=False)
         empty_stage2.to_csv(stage2_path, index=False)
         empty_stage3.to_csv(stage3_path, index=False)
@@ -566,16 +598,27 @@ def run_scope_staged(
             reps_df = pd.DataFrame()
             funnel_gene = pd.DataFrame()
         else:
-            selected_stage1 = stage1_df[stage1_df["eligible"]].sort_values(
-                ["screen_score", "n_fg"],
-                ascending=[False, False],
-            ).head(p.stage1_top_k)
+            selected_stage1 = (
+                stage1_df[stage1_df["eligible"]]
+                .sort_values(
+                    ["screen_score", "n_fg"],
+                    ascending=[False, False],
+                )
+                .head(p.stage1_top_k)
+            )
             stage1_selected_idx = set(selected_stage1["gene_idx"].astype(int).tolist())
-            stage1_df["stage1_selected"] = stage1_df["gene_idx"].astype(int).isin(stage1_selected_idx)
+            stage1_df["stage1_selected"] = (
+                stage1_df["gene_idx"].astype(int).isin(stage1_selected_idx)
+            )
 
             if degenerate_labels:
-                logger.info("Scope=%s has degenerate labels; skipping stage2/stage3.", scope_name)
-                stage2_df = pd.DataFrame(columns=["gene", "gene_idx", "stage2_selected"])
+                logger.info(
+                    "Scope=%s has degenerate labels; skipping stage2/stage3.",
+                    scope_name,
+                )
+                stage2_df = pd.DataFrame(
+                    columns=["gene", "gene_idx", "stage2_selected"]
+                )
                 stage3_df = pd.DataFrame(columns=["gene", "gene_idx", "p_T", "q_T"])
                 reps_df = pd.DataFrame(columns=["gene", "gene_idx"])
                 for idx in stage1_selected_idx:
@@ -595,8 +638,12 @@ def run_scope_staged(
                         ascending=[False, False, False],
                     ).reset_index(drop=True)
                     stage2_selected = stage2_df.head(p.stage2_top_k).copy()
-                    selected_stage2_idx = set(stage2_selected["gene_idx"].astype(int).tolist())
-                    stage2_df["stage2_selected"] = stage2_df["gene_idx"].astype(int).isin(selected_stage2_idx)
+                    selected_stage2_idx = set(
+                        stage2_selected["gene_idx"].astype(int).tolist()
+                    )
+                    stage2_df["stage2_selected"] = (
+                        stage2_df["gene_idx"].astype(int).isin(selected_stage2_idx)
+                    )
                 else:
                     selected_stage2_idx = set()
                     stage2_df["stage2_selected"] = False
@@ -611,7 +658,9 @@ def run_scope_staged(
                         params=p,
                     )
                     gene_meta[idx]["stage_reached"] = 3
-                    gene_meta[idx]["n_perm_final_used"] = int(perm_metrics["n_perm_final_used"])
+                    gene_meta[idx]["n_perm_final_used"] = int(
+                        perm_metrics["n_perm_final_used"]
+                    )
                     gene_meta[idx]["skip_reason"] = ""
                     stage2_row = stage2_df.loc[stage2_df["gene_idx"] == idx].iloc[0]
                     stage3_rows.append(
@@ -678,13 +727,19 @@ def run_scope_staged(
             }
         )
         pd.DataFrame([funnel_summary]).to_csv(funnel_summary_csv, index=False)
-        funnel_summary_json.write_text(json.dumps(funnel_summary, indent=2), encoding="utf-8")
+        funnel_summary_json.write_text(
+            json.dumps(funnel_summary, indent=2), encoding="utf-8"
+        )
     else:
         stage1_df = pd.read_csv(stage1_path) if stage1_path.exists() else pd.DataFrame()
         stage2_df = pd.read_csv(stage2_path) if stage2_path.exists() else pd.DataFrame()
         stage3_df = pd.read_csv(stage3_path) if stage3_path.exists() else pd.DataFrame()
         reps_df = pd.read_csv(reps_path) if reps_path.exists() else pd.DataFrame()
-        funnel_gene = pd.read_csv(funnel_gene_path) if funnel_gene_path.exists() else pd.DataFrame()
+        funnel_gene = (
+            pd.read_csv(funnel_gene_path)
+            if funnel_gene_path.exists()
+            else pd.DataFrame()
+        )
         cache_root = Path(cache_dir)
         cache_confirm = build_or_load_scope_cache(
             scope_id=f"{scope_id}.confirm",
@@ -720,7 +775,9 @@ def run_scope_staged(
     return scope_results
 
 
-def _plot_umap_overlay(emb: np.ndarray, values: np.ndarray, out_png: Path, title: str) -> None:
+def _plot_umap_overlay(
+    emb: np.ndarray, values: np.ndarray, out_png: Path, title: str
+) -> None:
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(5, 4))

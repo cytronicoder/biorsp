@@ -17,7 +17,9 @@ def sanitize_feature_label(label: str, max_len: int = 40) -> str:
     return clean[:max_len]
 
 
-def make_gene_stem(label: str, idx: int, used: dict[str, int], max_len: int = 64) -> str:
+def make_gene_stem(
+    label: str, idx: int, used: dict[str, int], max_len: int = 64
+) -> str:
     """Build a unique deterministic filename stem for a gene."""
     base = sanitize_feature_label(label, max_len=max_len)
     if base not in used:
