@@ -1,0 +1,58 @@
+{
+  "D": 5,
+  "G": 120,
+  "N": 3000,
+  "bins": 36,
+  "commit": "4a3134c",
+  "evaluated_pairs": [
+    "V0:O1",
+    "V0:O2",
+    "V0:O3",
+    "V1:O1",
+    "V1:O2",
+    "V2:O1",
+    "V2:O2",
+    "V2:O3",
+    "V5:O1",
+    "V5:O2",
+    "V8:O1",
+    "V8:O2"
+  ],
+  "experiment": "expI_embedding_robustness",
+  "fast_mode": true,
+  "master_seed": 123,
+  "mixture": {
+    "NULL": 0.8,
+    "TRUE_BIMODAL": 0.05,
+    "TRUE_PATCHY": 0.05,
+    "TRUE_UNIMODAL": 0.1
+  },
+  "mode": "raw",
+  "n_perm": 120,
+  "origins": [
+    "O1",
+    "O2",
+    "O3"
+  ],
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "python": "3.13.1",
+  "run_id": "expI_20260218T164422Z",
+  "sigma_eta": 0.4,
+  "timestamp_utc": "2026-02-18T16:44:22.499958+00:00",
+  "underpowered": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm": 120,
+    "p_min": 0.005
+  },
+  "variants": [
+    "V0",
+    "V1",
+    "V2",
+    "V5",
+    "V8"
+  ],
+  "w": 1
+}

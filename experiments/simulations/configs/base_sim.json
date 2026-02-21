@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "name": "base_sim_prereg",
+  "preregistered": {
+    "N_cells": 20000,
+    "G_genes": 2000,
+    "donors_grid": [2, 5, 10, 15],
+    "sigma_eta_grid": [0.0, 0.2, 0.4],
+    "prevalence_grid": [0.002, 0.005, 0.01, 0.05, 0.2, 0.6, 0.9],
+    "n_perm_default": 300,
+    "n_perm_high": 2000,
+    "plus_one_correction": true,
+    "permutation_strategy": "donor_aware",
+    "p_min": 0.005,
+    "min_fg_total": 50,
+    "min_fg_per_donor": 10,
+    "min_bg_per_donor": 10,
+    "d_eff_min": 2,
+    "bins_B": 36,
+    "smoothing_w": 1,
+    "origin_mode": "center",
+    "geometry_family": "disk_gaussian",
+    "donor_stratification": {
+      "enabled": true,
+      "scheme": "donor_x_library_decile"
+    },
+    "qc_covariates": {
+      "library_size": true,
+      "pct_mt": true
+    },
+    "seed_policy": {
+      "global_seed_key": "master_seed",
+      "per_cell_derivation": "stable_hash"
+    }
+  },
+  "runner": {
+    "args": {
+      "master_seed": 123,
+      "n_jobs": 1,
+      "backend": "loky",
+      "chunk_size": 25,
+      "plots": "all",
+      "artifact_snapshot": true
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "expB_maxstat_sensitivity.full.json",
+  "runner": {
+    "args": {
+      "test_mode": false,
+      "N": 3000,
+      "G": 120,
+      "n_perm": 120,
+      "min_perm": 120,
+      "n_seeds": 1,
+      "sigma_eta": 0.4,
+      "geometries": ["disk_gaussian", "density_gradient_disk"],
+      "D_grid": [10],
+      "pi_bins": [0.2, 0.9],
+      "bins_grid": [36, 72],
+      "smooth_grid": [1, 5],
+      "progress_every": 25
+    }
+  }
+}

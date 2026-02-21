@@ -1,0 +1,25 @@
+{
+  "extends": "base_sim.json",
+  "exp_name": "expA_null_calibration",
+  "runner": {
+    "script": "experiments/simulations/expA_null_calibration/run_expA_null_calibration.py",
+    "args": {
+      "N": 20000,
+      "G": 2000,
+      "bins": 36,
+      "n_perm": 300,
+      "donor_grid": [2, 5, 10, 15],
+      "sigma_eta_grid": [0.0, 0.2, 0.4],
+      "prevalence_bins": [0.002, 0.005, 0.01, 0.05, 0.2, 0.6, 0.9],
+      "p_min": 0.005,
+      "min_fg_total": 50,
+      "min_fg_per_donor": 10,
+      "min_bg_per_donor": 10,
+      "d_eff_min": 2,
+      "min_perm": 200,
+      "bh_validation_mode": "panel_bh",
+      "bh_panel_size": 15,
+      "bh_panel_strategy": "prevalence_stratified_fixed"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "extends": "base_sim.json",
+  "exp_name": "expC_power_surfaces",
+  "runner": {
+    "script": "experiments/simulations/expC_power_surfaces/run_expC_power_surfaces.py",
+    "args": {
+      "n_master_seeds": 5,
+      "n_perm": 300,
+      "bins": 36,
+      "genes_per_condition": 400,
+      "N_grid": [5000, 10000, 20000],
+      "D_grid": [2, 5, 10, 15],
+      "sigma_eta_grid": [0.0, 0.2, 0.4],
+      "pi_grid": [0.002, 0.005, 0.01, 0.05, 0.2, 0.6, 0.9],
+      "beta_grid": [0.0, 0.2, 0.4, 0.8],
+      "prev_floor": 0.005,
+      "min_fg_total": 50,
+      "min_fg_per_donor": 10,
+      "min_bg_per_donor": 10,
+      "d_eff_min": 2,
+      "min_perm": 200
+    }
+  }
+}

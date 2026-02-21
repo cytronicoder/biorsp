@@ -1,0 +1,29 @@
+{
+  "extends": "base_sim.json",
+  "exp_name": "expI_embedding_robustness",
+  "runner": {
+    "script": "experiments/simulations/expI_embedding_robustness/run_expI_embedding_robustness.py",
+    "args": {
+      "N": 20000,
+      "D": 10,
+      "G": 2000,
+      "bins": 36,
+      "mode": "raw",
+      "w": 1,
+      "n_perm": 300,
+      "q_thresh": 0.05,
+      "variants": ["V0", "V1", "V2", "V5", "V8"],
+      "origins": ["O1", "O2", "O3"],
+      "sigma_eta": 0.4,
+      "mixture_null": 0.4,
+      "mixture_unimodal": 0.2,
+      "mixture_bimodal": 0.2,
+      "mixture_patchy": 0.2,
+      "p_min": 0.005,
+      "min_fg_total": 50,
+      "min_fg_per_donor": 10,
+      "min_bg_per_donor": 10,
+      "d_eff_min": 2
+    }
+  }
+}

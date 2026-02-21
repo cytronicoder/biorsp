@@ -1,0 +1,34 @@
+{
+  "extends": "base_sim.json",
+  "exp_name": "expJ_baselines_ablation",
+  "runner": {
+    "script": "experiments/simulations/expJ_baselines_ablation/run_expJ_baselines_ablation.py",
+    "args": {
+      "runs": 5,
+      "N": 20000,
+      "D": 10,
+      "G": 2000,
+      "geometries": ["disk_gaussian", "density_gradient_disk"],
+      "bins": 36,
+      "mode": "raw",
+      "w": 1,
+      "n_perm": 300,
+      "q_thresh": 0.05,
+      "k_nn": 15,
+      "sigma_eta": 0.4,
+      "density_k": 15,
+      "enable_qc_in_geo2": true,
+      "include_baselines": ["moran", "rayleigh", "chisq"],
+      "include_ablations": ["A1_raw", "A2_nostrat", "A3_nogate", "A4_nonmax", "A6_B24", "A7_B72w5"],
+      "mixture_null": 0.4,
+      "mixture_unimodal": 0.2,
+      "mixture_bimodal": 0.2,
+      "mixture_patchy": 0.2,
+      "p_min": 0.005,
+      "min_fg_total": 50,
+      "min_fg_per_donor": 10,
+      "min_bg_per_donor": 10,
+      "d_eff_min": 2
+    }
+  }
+}

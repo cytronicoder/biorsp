@@ -1,0 +1,76 @@
+{
+  "D_grid": [
+    10
+  ],
+  "G": 120,
+  "N": 3000,
+  "angles_origin": [
+    0.0,
+    0.0
+  ],
+  "bins_grid": [
+    36,
+    72
+  ],
+  "corner_debug_target": {
+    "D": 10,
+    "bins_B": 72,
+    "geometry": "density_gradient_disk",
+    "k_genes": 20,
+    "mode": "smoothed",
+    "pi_target": 0.9,
+    "smooth_w": 5
+  },
+  "experiment": "Simulation Experiment B: max-stat validity + binning/smoothing sensitivity",
+  "foreground_edge_rule": {
+    "enabled": false,
+    "strategy": "none",
+    "threshold": 0.8
+  },
+  "geometries": [
+    "disk_gaussian",
+    "density_gradient_disk"
+  ],
+  "git_commit_short": "4a3134c",
+  "master_seed": 123,
+  "modes": [
+    "raw",
+    "smoothed"
+  ],
+  "n_perm": 120,
+  "n_seeds": 1,
+  "p_min_discrete": 0.008264462809917356,
+  "permutation": "donor-stratified shuffling, plus-one correction",
+  "pi_bins": [
+    0.2,
+    0.9
+  ],
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "python_version": "3.13.1",
+  "representative_plot_slice": {
+    "D": 10,
+    "pi_target": 0.2
+  },
+  "seed_scheme": "Stable blake2 hash by condition tuple. Condition seeds include (geometry,D,bins_B,smooth_w,mode,pi_target).",
+  "seed_values": [
+    123
+  ],
+  "sigma_eta": 0.4,
+  "smooth_grid": [
+    1,
+    5
+  ],
+  "smoothing": "circular moving-average, odd window w; w=1 means raw",
+  "statistic": "T = max_theta |E(theta)|",
+  "test_mode": true,
+  "timestamp_utc": "2026-02-18T16:41:31.379317+00:00",
+  "underpowered": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm": 120,
+    "p_min": 0.005,
+    "rule": "prev<p_min OR n_fg_total<min_fg_total OR D_eff<d_eff_min OR n_perm<min_perm"
+  }
+}

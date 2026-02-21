@@ -1,0 +1,67 @@
+{
+  "D_grid": [
+    5
+  ],
+  "N": 3000,
+  "beta_grid": [
+    0.0,
+    1.0
+  ],
+  "bins": 36,
+  "commit": "4a3134c",
+  "distortion": {
+    "n_perm": 200,
+    "rotate_degrees": 37.0,
+    "scale_x": 1.5,
+    "scale_y": 0.8,
+    "subset_per_regime": 100,
+    "warp_alpha": 0.3
+  },
+  "experiment": "expF_confound_resistance",
+  "g_qc_grid": [
+    0.0,
+    1.0
+  ],
+  "gamma_grid": [
+    0.5,
+    1.0
+  ],
+  "genes_per_condition": 40,
+  "geometries": [
+    "disk_gaussian",
+    "density_gradient_disk"
+  ],
+  "master_seed": 123,
+  "moran_k_grid": [
+    10,
+    20,
+    30
+  ],
+  "n_perm": 120,
+  "pi_grid": [
+    0.05,
+    0.2
+  ],
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "python": "3.13.1",
+  "qc_flag_thresholds": {
+    "max_abs_qc_corr": 0.2,
+    "max_abs_qc_corr_p": 0.01,
+    "qc_assoc_q": 0.05
+  },
+  "qc_test": "spearman",
+  "run_id": "expF_20260218T164317Z",
+  "seed_run": 123,
+  "sigma_eta_grid": [
+    0.4
+  ],
+  "timestamp_utc": "2026-02-18T16:43:17.235342+00:00",
+  "underpowered": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm": 120,
+    "p_min": 0.005
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "D_grid": [
+    5,
+    10
+  ],
+  "N_grid": [
+    3000
+  ],
+  "beta_grid": [
+    0.0,
+    0.5,
+    1.0
+  ],
+  "bins": 36,
+  "commit": "4a3134c",
+  "corr_boot": 200,
+  "experiment": "expE_gradient_vs_step_DE",
+  "genes_per_condition": 10,
+  "k_nn": 15,
+  "k_values": [
+    2,
+    4,
+    8,
+    16
+  ],
+  "master_seed": 123,
+  "n_master_seeds": 1,
+  "n_perm": 120,
+  "pi_grid": [
+    0.05,
+    0.2
+  ],
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "python": "3.13.1",
+  "run_id": "expE_20260218T164304Z",
+  "scenarios": [
+    "S1_step",
+    "S2_gradient"
+  ],
+  "seed_values": [
+    123
+  ],
+  "sigma_eta_grid": [
+    0.0,
+    0.4
+  ],
+  "test_mode": true,
+  "timestamp_utc": "2026-02-18T16:43:04.095011+00:00",
+  "total_gene_instances": 480,
+  "underpowered": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm": 120,
+    "p_min": 0.005
+  }
+}

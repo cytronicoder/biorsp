@@ -1,0 +1,17 @@
+{
+  "extends": "expA_null_calibration.full.json",
+  "runner": {
+    "args": {
+      "test_mode": false,
+      "N": 3000,
+      "G": 150,
+      "bins": 36,
+      "n_perm": 120,
+      "min_perm": 120,
+      "donor_grid": [5],
+      "sigma_eta_grid": [0.4],
+      "prevalence_bins": [0.05, 0.2, 0.9],
+      "progress_every": 25
+    }
+  }
+}

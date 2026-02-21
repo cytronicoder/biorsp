@@ -1,0 +1,18 @@
+{
+  "extends": "expH_fdr_pipeline_scale.full.json",
+  "runner": {
+    "args": {
+      "test_mode": true,
+      "N": 3000,
+      "D": 5,
+      "G_total": 120,
+      "geometry": ["disk_gaussian"],
+      "runs": 1,
+      "n_perm": 120,
+      "n_perm_pool": 120,
+      "min_perm": 120,
+      "fast_mode": true,
+      "progress_every": 50
+    }
+  }
+}

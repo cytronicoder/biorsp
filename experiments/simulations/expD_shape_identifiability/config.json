@@ -1,0 +1,78 @@
+{
+  "D_grid": [
+    10
+  ],
+  "N_grid": [
+    3000
+  ],
+  "alpha_sig": 0.05,
+  "beta_grid": [
+    0.0,
+    0.5,
+    1.0
+  ],
+  "bins_grid": [
+    24,
+    36
+  ],
+  "dropout_grid": [
+    0.0,
+    0.2
+  ],
+  "dropout_p01_factor": 0.5,
+  "dropout_symmetric": false,
+  "experiment": "Simulation Experiment D: shape identifiability under noise + bin/smoothing sensitivity",
+  "genes_per_class": 8,
+  "git_commit_short": "4a3134c",
+  "master_seed": 123,
+  "modes": [
+    "raw",
+    "smoothed"
+  ],
+  "n_boot": 5,
+  "n_perm": 120,
+  "patchy_width": 0.45,
+  "pi_grid": [
+    0.05,
+    0.2
+  ],
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "python_version": "3.13.1",
+  "representative_condition": {
+    "D": 10,
+    "N": 3000,
+    "beta": 1.0,
+    "bins_B": 36,
+    "dropout_noise": 0.0,
+    "mode": "smoothed",
+    "pi_target": 0.2,
+    "sigma_eta": 0.4,
+    "smooth_w": 3
+  },
+  "seed_values": [
+    123
+  ],
+  "sigma_eta_grid": [
+    0.4
+  ],
+  "test_mode": true,
+  "timestamp_utc": "2026-02-18T16:41:47.705785+00:00",
+  "truth_classes": [
+    "UNIMODAL",
+    "BIMODAL",
+    "TRIMODAL",
+    "PATCHY_4LOBE"
+  ],
+  "underpowered": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm_effective": 120,
+    "p_min": 0.005
+  },
+  "w_grid": [
+    1,
+    3
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "extends": "base_sim.json",
+  "exp_name": "expG_donor_replication",
+  "runner": {
+    "script": "experiments/simulations/expG_donor_replication/run_expG_donor_replication.py",
+    "args": {
+      "N_total": 20000,
+      "D_grid": [2, 5, 10, 15],
+      "sigma_eta_grid": [0.0, 0.2, 0.4],
+      "pi_grid": [0.005, 0.01, 0.05, 0.2],
+      "beta_grid": [0.2, 0.4, 0.8],
+      "genes_per_condition": 240,
+      "n_perm_pool": 300,
+      "n_perm_donor": 300,
+      "bins": 36,
+      "donor_prev_floor": 0.01,
+      "donor_min_fg": 10,
+      "p_min": 0.005,
+      "min_fg_total": 50,
+      "min_fg_per_donor": 10,
+      "min_bg_per_donor": 10,
+      "d_eff_min": 2,
+      "min_perm_pool": 200
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "D_grid": [
+    2,
+    5
+  ],
+  "N_grid": [
+    3000,
+    6000
+  ],
+  "angles_origin": [
+    0.0,
+    0.0
+  ],
+  "beta_grid": [
+    0.0,
+    0.5,
+    1.0
+  ],
+  "bins": 36,
+  "experiment": "Simulation Experiment C: Power surfaces + abstention boundaries",
+  "genes_per_condition": 12,
+  "geometry": "disk_gaussian",
+  "git_commit_short": "4a3134c",
+  "master_seed": 123,
+  "n_master_seeds": 1,
+  "n_perm": 120,
+  "permutation": "donor-stratified, plus-one correction",
+  "pi_grid": [
+    0.05,
+    0.2
+  ],
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "python_version": "3.13.1",
+  "seed_values": [
+    123
+  ],
+  "sigma_eta_grid": [
+    0.4
+  ],
+  "statistic": "T = max_theta |E(theta)|",
+  "test_mode": true,
+  "timestamp_utc": "2026-02-18T16:41:42.976032+00:00",
+  "underpowered": {
+    "D_eff_lt": 5,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "n_fg_total_lt": 50,
+    "n_perm_lt": 120,
+    "prev_obs_lt": 0.005
+  }
+}

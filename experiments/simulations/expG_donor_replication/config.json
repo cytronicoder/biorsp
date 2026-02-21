@@ -1,0 +1,56 @@
+{
+  "D_grid": [
+    5
+  ],
+  "N_total": 3000,
+  "beta_grid": [
+    0.0,
+    1.0
+  ],
+  "bins": 36,
+  "commit": "4a3134c",
+  "experiment": "expG_donor_replication",
+  "genes_per_condition": 40,
+  "master_seed": 123,
+  "n_perm_donor": 60,
+  "n_perm_pool": 120,
+  "pi_grid": [
+    0.05,
+    0.2
+  ],
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "pooled_power": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm_pool": 100,
+    "p_min": 0.005
+  },
+  "python": "3.13.1",
+  "regimes": [
+    "R_true",
+    "R_null",
+    "R_donor_specific"
+  ],
+  "replication_rule": {
+    "ang_thresh_deg": 30.0,
+    "frac_within_thresh": 0.6,
+    "informative_p_thresh": 0.1,
+    "informative_requires_p": false,
+    "k_consistency_thresh": 0.6,
+    "min_info_abs": 3,
+    "min_info_frac": 0.3333333333333333,
+    "p_thresh": 0.05,
+    "use_k_consistency": false
+  },
+  "run_id": "expG_20260218T164400Z",
+  "sigma_eta_grid": [
+    0.4
+  ],
+  "timestamp_utc": "2026-02-18T16:44:00.198548+00:00",
+  "within_donor_power": {
+    "donor_min_fg": 20,
+    "donor_prev_floor": 0.005
+  }
+}

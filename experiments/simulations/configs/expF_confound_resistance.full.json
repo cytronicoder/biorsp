@@ -1,0 +1,27 @@
+{
+  "extends": "base_sim.json",
+  "exp_name": "expF_confound_resistance",
+  "runner": {
+    "script": "experiments/simulations/expF_confound_resistance/run_expF_confound_resistance.py",
+    "args": {
+      "N": 20000,
+      "D_grid": [2, 5, 10, 15],
+      "sigma_eta_grid": [0.0, 0.2, 0.4],
+      "pi_grid": [0.005, 0.01, 0.05, 0.2],
+      "g_qc_grid": [0.0, 0.2, 0.4],
+      "gamma_grid": [0.0, 0.2, 0.4],
+      "beta_grid": [0.2, 0.4, 0.8],
+      "genes_per_condition": 240,
+      "n_perm": 300,
+      "bins": 36,
+      "p_min": 0.005,
+      "min_fg_total": 50,
+      "min_fg_per_donor": 10,
+      "min_bg_per_donor": 10,
+      "d_eff_min": 2,
+      "min_perm": 200,
+      "qc_q_thresh": 0.05,
+      "qc_corr_thresh": 0.2
+    }
+  }
+}

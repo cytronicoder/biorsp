@@ -1,0 +1,31 @@
+# Simulation run outputs and caches
+_results/
+**/_results/
+**/runs/
+**/run_*/
+**/debug_runs/
+**/cache/
+**/plots/
+**/figures/
+**/results/
+**/outputs/
+**/logs/
+**/reports/
+**/LATEST
+full_suite_A_J_*.log
+
+# Generated rollups
+ALL_KEY_RESULTS.md
+REPORT_INDEX.md
+full_suite_A_J_status.tsv
+
+# Keep source/config/docs tracked
+!configs/
+!configs/**/*.json
+!README.md
+!**/README.md
+!RUNBOOK.md
+!**/RUNBOOK.md
+!REPORT.md
+!**/REPORT.md
+!**/*_template*

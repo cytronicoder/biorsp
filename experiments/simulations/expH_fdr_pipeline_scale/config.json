@@ -1,0 +1,39 @@
+{
+  "D": 5,
+  "G_total": 120,
+  "N": 3000,
+  "bins": 36,
+  "commit": "4a3134c",
+  "enable_qc_flag": false,
+  "experiment": "expH_fdr_pipeline_scale",
+  "geometry": [
+    "disk_gaussian",
+    "density_gradient_disk"
+  ],
+  "master_seed": 123,
+  "mixture": {
+    "DONOR_SPECIFIC": 0.02,
+    "NULL": 0.85,
+    "QC_DRIVEN": 0.01,
+    "TRUE_BIMODAL": 0.03,
+    "TRUE_PATCHY": 0.03,
+    "TRUE_UNIMODAL": 0.06
+  },
+  "mode": "smoothed",
+  "n_perm": 120,
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "python": "3.13.1",
+  "run_id": "expH_20260218T164414Z",
+  "runs": 1,
+  "sigma_eta": 0.4,
+  "timestamp_utc": "2026-02-18T16:44:14.381760+00:00",
+  "underpowered": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm": 120,
+    "p_min": 0.005
+  },
+  "w": 3
+}

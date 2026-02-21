@@ -1,0 +1,19 @@
+{
+  "extends": "expG_donor_replication.full.json",
+  "runner": {
+    "args": {
+      "test_mode": true,
+      "N_total": 3000,
+      "D_grid": [5],
+      "sigma_eta_grid": [0.4],
+      "pi_grid": [0.05, 0.2],
+      "beta_grid": [0.0, 1.0],
+      "genes_per_condition": 40,
+      "n_perm_pool": 120,
+      "n_perm_donor": 60,
+      "min_perm_pool": 120,
+      "fast_mode": true,
+      "progress_every": 50
+    }
+  }
+}

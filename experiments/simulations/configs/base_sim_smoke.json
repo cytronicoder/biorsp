@@ -1,0 +1,14 @@
+{
+  "extends": "base_sim.json",
+  "name": "base_sim_smoke",
+  "runner": {
+    "args": {
+      "test_mode": true,
+      "n_jobs": 4,
+      "n_perm": 120,
+      "n_perm_pool": 120,
+      "n_perm_donor": 120,
+      "plots": "minimal"
+    }
+  }
+}

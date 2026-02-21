@@ -1,0 +1,63 @@
+{
+  "G": 150,
+  "N": 3000,
+  "biorsp_version": "0.1.0",
+  "donor_grid": [
+    5
+  ],
+  "experiment": "Simulation Experiment A: Null calibration across prevalence x donor effects",
+  "foreground_edge_rule": {
+    "description": "If triggered and strategy=complement, test on complement foreground.",
+    "strategy": "complement",
+    "threshold": 0.8,
+    "trigger": "prevalence_bin>=threshold OR fg_fraction>=threshold"
+  },
+  "git_commit_short": "4a3134c",
+  "master_seed": 123,
+  "multiple_testing_validation": {
+    "bh_feasible_q05": false,
+    "bh_feasible_q10": false,
+    "bh_min_rejectable_p_q05": 0.0003333333333333334,
+    "bh_min_rejectable_p_q10": 0.0006666666666666668,
+    "bh_panel_seed": 123,
+    "bh_panel_size": 15,
+    "bh_panel_strategy": "prevalence_stratified_fixed",
+    "m_full_tests": 150,
+    "min_attainable_p": 0.008264462809917356,
+    "mode": "panel_bh"
+  },
+  "n_bins": 36,
+  "n_perm": 120,
+  "platform": "macOS-15.6-arm64-arm-64bit-Mach-O",
+  "prevalence_bins": [
+    0.05,
+    0.2,
+    0.9
+  ],
+  "python_version": "3.13.1",
+  "qc": {
+    "mu0": 10.0,
+    "pct_mt_base_mean": 0.07,
+    "pct_mt_shift_range": [
+      -0.02,
+      0.02
+    ],
+    "qc_corr_threshold_warn": 0.03,
+    "sigma_L": 0.5
+  },
+  "seed_derivation": "seed_run = master_seed + stable_hash(D,sigma_eta) % 1e6; seed_gene = seed_run + g",
+  "sigma_eta_grid": [
+    0.4
+  ],
+  "test_mode": true,
+  "timestamp_utc": "2026-02-18T16:41:27.839741+00:00",
+  "underpowered_rule": "prev<p_min OR n_fg_total<min_fg_total OR D_eff<d_eff_min OR n_perm<min_perm",
+  "underpowered_thresholds": {
+    "d_eff_min": 2,
+    "min_bg_per_donor": 10,
+    "min_fg_per_donor": 10,
+    "min_fg_total": 50,
+    "min_perm": 120,
+    "p_min": 0.005
+  }
+}

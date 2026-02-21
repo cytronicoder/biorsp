@@ -1,0 +1,17 @@
+{
+  "extends": "expC_power_surfaces.full.json",
+  "runner": {
+    "args": {
+      "test_mode": false,
+      "N_grid": [3000, 6000],
+      "D_grid": [2, 5],
+      "sigma_eta_grid": [0.4],
+      "pi_grid": [0.05, 0.2],
+      "beta_grid": [0.0, 0.5, 1.0],
+      "genes_per_condition": 12,
+      "n_perm": 120,
+      "min_perm": 120,
+      "n_master_seeds": 1
+    }
+  }
+}
