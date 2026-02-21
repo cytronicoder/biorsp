@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+python scripts/artifact_audit.py --max_mb 10 --fail
