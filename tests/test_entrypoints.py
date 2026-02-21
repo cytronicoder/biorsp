@@ -9,7 +9,9 @@ from pathlib import Path
 def _load_script_module(script_name: str):
     root = Path(__file__).resolve().parents[1]
     script_path = root / "scripts" / script_name
-    spec = importlib.util.spec_from_file_location(script_name.replace(".py", ""), script_path)
+    spec = importlib.util.spec_from_file_location(
+        script_name.replace(".py", ""), script_path
+    )
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load script module: {script_path}")
     module = importlib.util.module_from_spec(spec)

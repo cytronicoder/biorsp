@@ -31,7 +31,9 @@ def test_evaluation_safe_moran_expected_error_warns_and_continues(monkeypatch, c
 
 
 def test_evaluation_safe_moran_unexpected_error_propagates(monkeypatch):
-    monkeypatch.setattr(evaluation, "_get_expr_vector", lambda *_args, **_kwargs: np.array([1.0, 2.0]))
+    monkeypatch.setattr(
+        evaluation, "_get_expr_vector", lambda *_args, **_kwargs: np.array([1.0, 2.0])
+    )
 
     def _raise_runtime(*_args, **_kwargs):
         raise RuntimeError("unexpected")
@@ -51,7 +53,11 @@ def test_evaluation_safe_moran_unexpected_error_propagates(monkeypatch):
 
 def test_genomewide_safe_moran_expected_error_warns_and_continues(monkeypatch, caplog):
     caplog.set_level(logging.WARNING)
-    monkeypatch.setattr(genomewide, "morans_i", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("bad expr")))
+    monkeypatch.setattr(
+        genomewide,
+        "morans_i",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("bad expr")),
+    )
     val = genomewide._safe_moran(
         expr=np.array([1.0, 2.0]),
         W=sp.eye(2),
@@ -65,7 +71,11 @@ def test_genomewide_safe_moran_expected_error_warns_and_continues(monkeypatch, c
 
 
 def test_genomewide_safe_moran_unexpected_error_propagates(monkeypatch):
-    monkeypatch.setattr(genomewide, "morans_i", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("unexpected")))
+    monkeypatch.setattr(
+        genomewide,
+        "morans_i",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("unexpected")),
+    )
     with pytest.raises(RuntimeError, match="unexpected"):
         genomewide._safe_moran(
             expr=np.array([1.0, 2.0]),

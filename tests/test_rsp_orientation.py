@@ -9,8 +9,8 @@ def test_theta_orientation_cardinal_points() -> None:
     center = np.array([0.0, 0.0], dtype=float)
     points = np.array(
         [
-            [1.0, 0.0],   # East
-            [0.0, 1.0],   # North
+            [1.0, 0.0],  # East
+            [0.0, 1.0],  # North
             [-1.0, 0.0],  # West
             [0.0, -1.0],  # South
         ],

@@ -6,6 +6,8 @@ from biorsp.scoring import (
     classify_row,
     compute_T,
     coverage_from_null,
+    donor_effective_counts,
+    evaluate_underpowered,
     peak_count,
     qc_metrics,
     robust_z,
@@ -80,3 +82,46 @@ def test_qc_metrics_and_classify():
 
     row["underpowered"] = True
     assert classify_row(row, thresholds) == "Underpowered"
+
+
+def test_donor_effective_counts_and_underpowered_gate():
+    donor_ids = np.array(["d1", "d1", "d1", "d2", "d2", "d2", "d3", "d3", "d3"])
+    f = np.array([1, 1, 0, 1, 0, 0, 0, 0, 0], dtype=bool)
+
+    info = donor_effective_counts(
+        donor_ids=donor_ids,
+        f=f,
+        min_fg_per_donor=1,
+        min_bg_per_donor=1,
+    )
+    assert info["D_total"] == 3
+    assert info["D_eff"] == 2
+    assert info["n_fg_total"] == 3
+    assert info["n_bg_total"] == 6
+
+    gate = evaluate_underpowered(
+        donor_ids=donor_ids,
+        f=f,
+        n_perm=300,
+        p_min=0.0,
+        min_fg_total=1,
+        min_fg_per_donor=1,
+        min_bg_per_donor=1,
+        d_eff_min=2,
+        min_perm=200,
+    )
+    assert gate["underpowered"] is False
+
+    gate2 = evaluate_underpowered(
+        donor_ids=donor_ids,
+        f=f,
+        n_perm=300,
+        p_min=0.0,
+        min_fg_total=1,
+        min_fg_per_donor=1,
+        min_bg_per_donor=1,
+        d_eff_min=3,
+        min_perm=200,
+    )
+    assert gate2["underpowered"] is True
+    assert gate2["underpowered_reasons"]["d_eff_lt_d_eff_min"] is True

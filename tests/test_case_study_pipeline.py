@@ -8,7 +8,7 @@ import scipy.sparse as sp
 
 from biorsp import __all__ as biorsp_public
 from biorsp.pipeline import __all__ as pipeline_public
-from biorsp.pipeline.hierarchy import run_case_study
+from biorsp.pipeline.hierarchy import _classify_gene_row, run_case_study
 
 matplotlib.use("Agg")
 
@@ -26,7 +26,9 @@ def _make_connectivities(n_cells: int) -> sp.csr_matrix:
     return mat
 
 
-def _make_adata(*, include_donor: bool, n_cells: int = 80, n_genes: int = 30) -> ad.AnnData:
+def _make_adata(
+    *, include_donor: bool, n_cells: int = 80, n_genes: int = 30
+) -> ad.AnnData:
     rng = np.random.default_rng(0)
     x = rng.poisson(1.2, size=(n_cells, n_genes)).astype(float)
     x[rng.uniform(size=x.shape) < 0.35] = 0.0
@@ -45,22 +47,30 @@ def _make_adata(*, include_donor: bool, n_cells: int = 80, n_genes: int = 30) ->
         index=[f"ENSG{i:09d}" for i in range(n_genes)],
     )
 
-    cluster_ids = np.array([f"AZ:{i:07d}" for i in np.repeat([1, 2, 3, 4], n_cells // 4)], dtype=object)
+    cluster_ids = np.array(
+        [f"AZ:{i:07d}" for i in np.repeat([1, 2, 3, 4], n_cells // 4)], dtype=object
+    )
     if cluster_ids.size < n_cells:
-        cluster_ids = np.concatenate([cluster_ids, np.array(["AZ:0000001"] * (n_cells - cluster_ids.size))])
+        cluster_ids = np.concatenate(
+            [cluster_ids, np.array(["AZ:0000001"] * (n_cells - cluster_ids.size))]
+        )
     cluster_ids = cluster_ids[:n_cells]
 
     obs = pd.DataFrame(
         {
             "azimuth_id": cluster_ids,
-            "azimuth_label": np.where(cluster_ids == "AZ:0000001", "Fibroblast", "Cardiomyocyte"),
+            "azimuth_label": np.where(
+                cluster_ids == "AZ:0000001", "Fibroblast", "Cardiomyocyte"
+            ),
             "total_counts": np.maximum(1.0, x.sum(axis=1)),
             "pct_counts_mt": rng.uniform(0.0, 15.0, size=n_cells),
         },
         index=[f"cell_{i}" for i in range(n_cells)],
     )
     if include_donor:
-        obs["hubmap_id"] = np.array([f"D{(i % 4) + 1}" for i in range(n_cells)], dtype=object)
+        obs["hubmap_id"] = np.array(
+            [f"D{(i % 4) + 1}" for i in range(n_cells)], dtype=object
+        )
 
     centers = {
         "AZ:0000001": np.array([0.0, 0.0]),
@@ -68,7 +78,9 @@ def _make_adata(*, include_donor: bool, n_cells: int = 80, n_genes: int = 30) ->
         "AZ:0000003": np.array([0.0, 4.0]),
         "AZ:0000004": np.array([4.0, 4.0]),
     }
-    umap = np.vstack([centers[cid] + rng.normal(scale=0.2, size=2) for cid in cluster_ids]).astype(float)
+    umap = np.vstack(
+        [centers[cid] + rng.normal(scale=0.2, size=2) for cid in cluster_ids]
+    ).astype(float)
 
     adata = ad.AnnData(X=x, obs=obs, var=var)
     adata.obsm["X_umap"] = umap
@@ -98,7 +110,9 @@ def test_case_study_marker_panel_resolution_and_fallback(tmp_path) -> None:
     marker_csv = outdir / "tables" / "marker_panel_found_missing.csv"
     assert marker_csv.exists()
     marker_df = pd.read_csv(marker_csv)
-    found_markers = marker_df[(marker_df["status"] == "marker_found") & (~marker_df["auto_gene"].astype(bool))]
+    found_markers = marker_df[
+        (marker_df["status"] == "marker_found") & (~marker_df["auto_gene"].astype(bool))
+    ]
     auto_genes = marker_df[marker_df["auto_gene"].astype(bool)]
 
     assert found_markers.shape[0] < 12
@@ -123,7 +137,9 @@ def test_case_study_donor_missing_fallback_to_library_quantiles(tmp_path) -> Non
         min_cells_per_mega=10,
     )
 
-    scope_meta = json.loads((outdir / "hierarchy" / "global" / "metadata.json").read_text())
+    scope_meta = json.loads(
+        (outdir / "hierarchy" / "global" / "metadata.json").read_text()
+    )
     assert scope_meta["inference"]["mode"] == "library_quantile"
     assert scope_meta["inference"]["inference_limited"] is True
 
@@ -158,3 +174,38 @@ def test_public_api_exports_case_study_only() -> None:
     legacy_name = "run_" + "hierarchy"
     assert legacy_name not in biorsp_public
     assert pipeline_public == ["run_case_study"]
+
+
+def test_classify_gene_row_handles_nan_peaks() -> None:
+    assert (
+        _classify_gene_row(
+            q_t=float("nan"),
+            prevalence=0.001,
+            peaks_k=float("nan"),
+            qc_driven=False,
+            underpowered=True,
+        )
+        == "Underpowered"
+    )
+
+    assert (
+        _classify_gene_row(
+            q_t=0.01,
+            prevalence=0.10,
+            peaks_k=float("nan"),
+            qc_driven=False,
+            underpowered=False,
+        )
+        == "Localized–unimodal"
+    )
+
+    assert (
+        _classify_gene_row(
+            q_t=0.01,
+            prevalence=0.10,
+            peaks_k=2.0,
+            qc_driven=False,
+            underpowered=False,
+        )
+        == "Localized–multimodal"
+    )

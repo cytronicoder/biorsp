@@ -32,7 +32,14 @@ def _make_tiny_adata(path: Path) -> None:
     obs = pd.DataFrame(
         {
             "donor": ["d1", "d1", "d1", "d2", "d2", "d2"],
-            "cell_type": ["Fibroblast", "Fibroblast", "Fibroblast", "Fibroblast", "Fibroblast", "Fibroblast"],
+            "cell_type": [
+                "Fibroblast",
+                "Fibroblast",
+                "Fibroblast",
+                "Fibroblast",
+                "Fibroblast",
+                "Fibroblast",
+            ],
             "n_genes_by_counts": [300, 320, 310, 305, 315, 325],
             "total_counts": [1200, 1100, 1000, 1150, 1180, 1120],
             "pct_counts_mt": [5.0, 4.0, 6.0, 5.5, 4.5, 5.2],
@@ -83,11 +90,15 @@ def _scanpy_stub():
         return None
 
     def _rank_genes_groups_df(_adata, group=None):
-        return pd.DataFrame({"names": ["ACTB"], "scores": [1.0], "logfoldchanges": [0.0]})
+        return pd.DataFrame(
+            {"names": ["ACTB"], "scores": [1.0], "logfoldchanges": [0.0]}
+        )
 
     return SimpleNamespace(
         read_h5ad=_read_h5ad,
-        pp=SimpleNamespace(normalize_total=_normalize_total, log1p=_log1p, neighbors=_neighbors),
+        pp=SimpleNamespace(
+            normalize_total=_normalize_total, log1p=_log1p, neighbors=_neighbors
+        ),
         tl=SimpleNamespace(
             score_genes=_score_genes,
             leiden=_leiden,
