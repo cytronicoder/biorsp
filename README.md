@@ -12,6 +12,12 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+Minimal import check:
+
+```bash
+python -c "import biorsp; print(getattr(biorsp, '__version__', 'ok'))"
+```
+
 ## Run The Heart Case Study
 
 ```bash
@@ -23,6 +29,45 @@ PYTHONPATH=. python3 analysis/heart_case_study/run.py \
   --celltype_key azimuth_label \
   --do_hierarchy true
 ```
+
+## Run The Heart Smoketest
+
+Show options:
+
+```bash
+python experiments/heart_smoketest/run_heart_smoketest.py --help
+```
+
+Example invocation:
+
+```bash
+python experiments/heart_smoketest/run_heart_smoketest.py \
+  --h5ad data/processed/HT_pca_umap.h5ad \
+  --out experiments/heart_smoketest/outputs/heart_ci_sanity
+```
+
+## Run Simulations
+
+Dry-run full suite orchestration:
+
+```bash
+python experiments/simulations/run_all.py --dry_run
+```
+
+Smoke profile batch run:
+
+```bash
+python experiments/simulations/run_all.py \
+  --profile smoke \
+  --n_jobs 8 \
+  --continue_on_error
+```
+
+Canonical config source for simulation runs is `experiments/simulations/configs/`.
+
+## Output Paths
+
+Simulation outputs: `experiments/simulations/_results/`
 
 ## Read The Docs
 

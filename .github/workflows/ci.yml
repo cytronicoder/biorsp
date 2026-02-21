@@ -18,5 +18,7 @@ jobs:
           pip install -e ".[dev]"
       - name: Lint
         run: ruff check .
+      - name: Artifact Audit
+        run: python scripts/artifact_audit.py --max_mb 10 --fail
       - name: Test
         run: pytest -q

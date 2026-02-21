@@ -1,34 +1,75 @@
+# Global Python/cache/build rules
 __pycache__/
 **/__pycache__/
-*.pyc
+*.py[cod]
+*.so
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.eggs/
-*.egg-info/
+.tox/
+.coverage*
+htmlcov/
+
+# Packaging
 build/
 dist/
+.eggs/
+*.egg-info/
+
+# Virtual environments
 .venv/
-outputs/
-**/outputs/
-results/
-**/results/
-figures/
-**/figures/
-logs/
-**/logs/
-artifacts/
-*.h5ad
+venv/
+env/
+.python-version
+
+# Jupyter
 .ipynb_checkpoints/
+
+# OS / IDE
 .DS_Store
-outputs/logs/runlog.md
+Thumbs.db
+.vscode/
+.idea/
 
-# Heart smoke-test run outputs (canonical + legacy variants)
-experiments/heart_smoketest/results*/
-experiments/heart_smoketest/twopass_live/
-experiments/heart_smoketest/diagnostics/
+# Generic logs
+*.log
+*.out
+*.err
+slurm-*.out
+nohup.out
 
-# Keep canonical output root visible, but ignore run contents
-!experiments/heart_smoketest/outputs/
-experiments/heart_smoketest/outputs/*
-!experiments/heart_smoketest/outputs/.gitkeep
+# Secrets / local credentials
+.env
+.env.*
+**/*secrets*
+credentials.json
+
+/outputs/
+/_results/
+
+/experiments/simulations/_results/
+/experiments/simulations/**/runs/
+/experiments/simulations/**/results/
+/experiments/simulations/**/plots/
+/experiments/simulations/**/debug_runs/
+
+/experiments/heart_smoketest/results/
+/experiments/heart_smoketest/outputs/
+/experiments/heart_single_donor_cardiomyocyte/results/
+
+/experiments/**/plots/
+/experiments/**/figures/
+/experiments/**/logs/
+/experiments/**/tables/
+/experiments/**/outputs/
+/experiments/**/results/
+/experiments/**/snapshot/
+/experiments/**/snapshots/
+/experiments/simulations/_results/
+
+!docs/figures/
+!docs/figures/**
+!docs/tables/
+!docs/tables/**
+!docs/manifests/
+!docs/manifests/**
