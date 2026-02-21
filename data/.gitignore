@@ -1,0 +1,13 @@
+# Local datasets and derived data artifacts
+raw/*
+processed/*
+interim/*
+external/*
+
+# Keep metadata/templates tracked
+!README.md
+!**/README.md
+!raw/**/*.json
+!processed/**/*.json
+!.gitkeep
+!**/.gitkeep
