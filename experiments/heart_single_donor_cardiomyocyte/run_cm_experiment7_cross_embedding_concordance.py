@@ -138,7 +138,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--tsne_perplexity", type=int, nargs="+", default=[30, 50])
     p.add_argument("--tsne_seeds", type=int, nargs="+", default=[0, 1])
 
-    p.add_argument("--foreground_modes", nargs="+", choices=["topq", "detect"], default=["topq"])
+    p.add_argument(
+        "--foreground_modes", nargs="+", choices=["topq", "detect"], default=["topq"]
+    )
     p.add_argument("--extra_genes_csv", default="")
     p.add_argument("--top_extra", type=int, default=50)
 
@@ -211,7 +213,11 @@ def _prepare_embedding_input(
     import scanpy as sc
 
     adata_embed = ad.AnnData(
-        X=expr_matrix_cm.copy() if hasattr(expr_matrix_cm, "copy") else np.array(expr_matrix_cm),
+        X=(
+            expr_matrix_cm.copy()
+            if hasattr(expr_matrix_cm, "copy")
+            else np.array(expr_matrix_cm)
+        ),
         obs=adata_cm.obs.copy(),
     )
     if expr_source.startswith("layer:counts"):
@@ -284,7 +290,9 @@ def _compute_embedding_suite(
                             "random_state": int(rs),
                             "n_pcs": n_pcs,
                         },
-                        coords=np.asarray(adata_embed.obsm["X_umap"], dtype=float)[:, :2].copy(),
+                        coords=np.asarray(adata_embed.obsm["X_umap"], dtype=float)[
+                            :, :2
+                        ].copy(),
                     )
                 )
 
@@ -322,7 +330,11 @@ def _compute_embedding_suite(
                 EmbeddingSpec(
                     family="TSNE",
                     name=nm,
-                    params={"perplexity": float(perp), "random_state": int(rs), "n_pcs": n_pcs},
+                    params={
+                        "perplexity": float(perp),
+                        "random_state": int(rs),
+                        "n_pcs": n_pcs,
+                    },
                     coords=coords,
                 )
             )
@@ -527,7 +539,9 @@ def _score_one(
     }
 
 
-def _classify_test(q_within_embedding: float, peaks_k: float, underpowered: bool) -> str:
+def _classify_test(
+    q_within_embedding: float, peaks_k: float, underpowered: bool
+) -> str:
     if underpowered:
         return "Not-localized"
     if np.isfinite(float(q_within_embedding)) and float(q_within_embedding) <= Q_SIG:
@@ -569,9 +583,24 @@ def _mode_class(values: list[str]) -> str:
     return str(counts.index[0])
 
 
-def _plot_feature(ax: plt.Axes, coords: np.ndarray, values_log: np.ndarray, title: str, vmin: float, vmax: float) -> None:
+def _plot_feature(
+    ax: plt.Axes,
+    coords: np.ndarray,
+    values_log: np.ndarray,
+    title: str,
+    vmin: float,
+    vmax: float,
+) -> None:
     ord_idx = np.argsort(values_log, kind="mergesort")
-    ax.scatter(coords[:, 0], coords[:, 1], c="#dddddd", s=4, alpha=0.25, linewidths=0, rasterized=True)
+    ax.scatter(
+        coords[:, 0],
+        coords[:, 1],
+        c="#dddddd",
+        s=4,
+        alpha=0.25,
+        linewidths=0,
+        rasterized=True,
+    )
     ax.scatter(
         coords[ord_idx, 0],
         coords[ord_idx, 1],
@@ -604,8 +633,20 @@ def _plot_polar_family(
     if null_e is not None:
         hi = np.quantile(null_e, 0.95, axis=0)
         lo = np.quantile(null_e, 0.05, axis=0)
-        ax.plot(th, np.concatenate([hi, hi[:1]]), color="#333", linestyle="--", linewidth=1.0)
-        ax.plot(th, np.concatenate([lo, lo[:1]]), color="#333", linestyle="--", linewidth=1.0)
+        ax.plot(
+            th,
+            np.concatenate([hi, hi[:1]]),
+            color="#333",
+            linestyle="--",
+            linewidth=1.0,
+        )
+        ax.plot(
+            th,
+            np.concatenate([lo, lo[:1]]),
+            color="#333",
+            linestyle="--",
+            linewidth=1.0,
+        )
     ax.set_theta_zero_location("E")
     ax.set_theta_direction(1)
     ax.set_rticks([])
@@ -639,7 +680,9 @@ def _write_readme(
     warnings_log: list[str],
 ) -> None:
     lines: list[str] = []
-    lines.append("CM Experiment #7 (Single-donor): Cross-embedding concordance as robustness instrument")
+    lines.append(
+        "CM Experiment #7 (Single-donor): Cross-embedding concordance as robustness instrument"
+    )
     lines.append("")
     lines.append("Core hypothesis")
     lines.append(
@@ -648,8 +691,12 @@ def _write_readme(
     )
     lines.append("")
     lines.append("Interpretation guardrails")
-    lines.append("- Embedding directions are representation-conditional; phi does not map to anatomy.")
-    lines.append("- We do not claim UMAP/t-SNE discovers biology; we test score generalization across representations.")
+    lines.append(
+        "- Embedding directions are representation-conditional; phi does not map to anatomy."
+    )
+    lines.append(
+        "- We do not claim UMAP/t-SNE discovers biology; we test score generalization across representations."
+    )
     lines.append("")
     lines.append("Run metadata")
     lines.append(f"- seed: {args.seed}")
@@ -701,8 +748,12 @@ def main() -> int:
 
     adata = ad.read_h5ad(args.h5ad)
 
-    donor_key = _resolve_key_required(adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor")
-    label_key = _resolve_key_required(adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label")
+    donor_key = _resolve_key_required(
+        adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor"
+    )
+    label_key = _resolve_key_required(
+        adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label"
+    )
 
     labels_all = adata.obs[label_key].astype("string").fillna("NA").astype(str)
     donor_ids_all = adata.obs[donor_key].astype("string").fillna("NA").astype(str)
@@ -715,7 +766,9 @@ def main() -> int:
         pd.DataFrame({"donor_id": donor_ids_all.to_numpy(), "is_cm": cm_mask_all})
         .groupby("donor_id", as_index=False)
         .agg(n_cells_total=("is_cm", "size"), n_cm=("is_cm", "sum"))
-        .sort_values(by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True])
+        .sort_values(
+            by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True]
+        )
         .reset_index(drop=True)
     )
     donor_star = str(donor_choice.iloc[0]["donor_id"])
@@ -736,7 +789,11 @@ def main() -> int:
         print(f"WARNING: {msg}")
 
     cm_label_counts = (
-        labels_donor.loc[cm_mask_donor].value_counts().sort_index().astype(int).to_dict()
+        labels_donor.loc[cm_mask_donor]
+        .value_counts()
+        .sort_index()
+        .astype(int)
+        .to_dict()
     )
     print("cm_labels_included=" + ", ".join(cm_label_counts.keys()))
 
@@ -746,7 +803,9 @@ def main() -> int:
         use_raw_arg=bool(args.use_raw),
     )
 
-    extra_genes = _read_extra_genes(str(args.extra_genes_csv), top_n=int(args.top_extra))
+    extra_genes = _read_extra_genes(
+        str(args.extra_genes_csv), top_n=int(args.top_extra)
+    )
     all_genes = list(dict.fromkeys(BASE_GENE_PANEL + extra_genes))
     gene_statuses = [_resolve_gene(g, adata_like_cm) for g in all_genes]
     gene_panel_df = pd.DataFrame(
@@ -765,13 +824,20 @@ def main() -> int:
     )
     gene_panel_df.to_csv(tables_dir / "gene_panel_status.csv", index=False)
 
-    genes_present = [st for st in gene_statuses if st.present and st.gene_idx is not None]
+    genes_present = [
+        st for st in gene_statuses if st.present and st.gene_idx is not None
+    ]
     if len(genes_present) == 0:
         raise RuntimeError("No genes from panel resolved in this expression namespace")
 
-    expr_by_gene = {st.gene: get_feature_vector(expr_matrix_cm, int(st.gene_idx)) for st in genes_present}
+    expr_by_gene = {
+        st.gene: get_feature_vector(expr_matrix_cm, int(st.gene_idx))
+        for st in genes_present
+    }
 
-    adata_embed, embed_note = _prepare_embedding_input(adata_cm, expr_matrix_cm, expr_source)
+    adata_embed, embed_note = _prepare_embedding_input(
+        adata_cm, expr_matrix_cm, expr_source
+    )
     embedding_specs, n_pcs_used = _compute_embedding_suite(
         adata_embed,
         seed=int(args.seed),
@@ -806,7 +872,9 @@ def main() -> int:
                     q=float(args.q),
                     n_bins=int(args.n_bins),
                     n_perm=int(args.n_perm),
-                    seed=int(args.seed + emb_i * 100000 + gene_i * 997 + mode_i * 31 + 13),
+                    seed=int(
+                        args.seed + emb_i * 100000 + gene_i * 997 + mode_i * 31 + 13
+                    ),
                     with_profiles=False,
                 )
 
@@ -851,7 +919,9 @@ def main() -> int:
 
     # BH within embedding (primary) and within family.
     q_within_embed = np.full(len(scores), np.nan, dtype=float)
-    for _, idx in scores.groupby(["embedding_name", "foreground_mode"], sort=False).groups.items():
+    for _, idx in scores.groupby(
+        ["embedding_name", "foreground_mode"], sort=False
+    ).groups.items():
         ids = np.asarray(list(idx), dtype=int)
         p = scores.loc[ids, "p_T"].to_numpy(dtype=float)
         fin = np.isfinite(p)
@@ -863,7 +933,9 @@ def main() -> int:
     scores["q_T_within_embedding"] = q_within_embed
 
     q_within_family = np.full(len(scores), np.nan, dtype=float)
-    for _, idx in scores.groupby(["embedding_family", "foreground_mode"], sort=False).groups.items():
+    for _, idx in scores.groupby(
+        ["embedding_family", "foreground_mode"], sort=False
+    ).groups.items():
         ids = np.asarray(list(idx), dtype=int)
         p = scores.loc[ids, "p_T"].to_numpy(dtype=float)
         fin = np.isfinite(p)
@@ -886,17 +958,35 @@ def main() -> int:
     scores.to_csv(tables_dir / "per_embedding_gene_scores.csv", index=False)
 
     # Primary mode for concordance summaries.
-    primary_mode = "topq" if "topq" in list(args.foreground_modes) else list(args.foreground_modes)[0]
+    primary_mode = (
+        "topq"
+        if "topq" in list(args.foreground_modes)
+        else list(args.foreground_modes)[0]
+    )
     s0 = scores.loc[scores["foreground_mode"] == primary_mode].copy()
 
     # Pairwise embedding concordance table (Spearman Z_T across genes).
     pair_rows: list[dict[str, Any]] = []
     for e1, e2 in combinations(embedding_order, 2):
-        a = s0.loc[s0["embedding_name"] == e1, ["gene", "Z_T", "underpowered_flag", "embedding_family"]].rename(
-            columns={"Z_T": "Z1", "underpowered_flag": "up1", "embedding_family": "family1"}
+        a = s0.loc[
+            s0["embedding_name"] == e1,
+            ["gene", "Z_T", "underpowered_flag", "embedding_family"],
+        ].rename(
+            columns={
+                "Z_T": "Z1",
+                "underpowered_flag": "up1",
+                "embedding_family": "family1",
+            }
         )
-        b = s0.loc[s0["embedding_name"] == e2, ["gene", "Z_T", "underpowered_flag", "embedding_family"]].rename(
-            columns={"Z_T": "Z2", "underpowered_flag": "up2", "embedding_family": "family2"}
+        b = s0.loc[
+            s0["embedding_name"] == e2,
+            ["gene", "Z_T", "underpowered_flag", "embedding_family"],
+        ].rename(
+            columns={
+                "Z_T": "Z2",
+                "underpowered_flag": "up2",
+                "embedding_family": "family2",
+            }
         )
         m = a.merge(b, on="gene", how="inner")
         valid = (
@@ -906,7 +996,10 @@ def main() -> int:
             & (~m["up2"].to_numpy(dtype=bool))
         )
         n_valid = int(np.sum(valid))
-        rho = _safe_spearman(m.loc[valid, "Z1"].to_numpy(dtype=float), m.loc[valid, "Z2"].to_numpy(dtype=float))
+        rho = _safe_spearman(
+            m.loc[valid, "Z1"].to_numpy(dtype=float),
+            m.loc[valid, "Z2"].to_numpy(dtype=float),
+        )
         fam1 = str(m["family1"].iloc[0]) if not m.empty else emb_map[e1].family
         fam2 = str(m["family2"].iloc[0]) if not m.empty else emb_map[e2].family
         pair_rows.append(
@@ -959,9 +1052,19 @@ def main() -> int:
         umap_mask = sub["embedding_family"].astype(str).to_numpy() == "UMAP"
         tsne_mask = sub["embedding_family"].astype(str).to_numpy() == "TSNE"
 
-        loc_pca = bool(np.any(localized[pca_mask])) if int(np.sum(pca_mask)) > 0 else False
-        loc_umap_maj = bool(np.mean(localized[umap_mask]) >= 0.5) if int(np.sum(umap_mask)) > 0 else False
-        loc_tsne_maj = bool(np.mean(localized[tsne_mask]) >= 0.5) if int(np.sum(tsne_mask)) > 0 else False
+        loc_pca = (
+            bool(np.any(localized[pca_mask])) if int(np.sum(pca_mask)) > 0 else False
+        )
+        loc_umap_maj = (
+            bool(np.mean(localized[umap_mask]) >= 0.5)
+            if int(np.sum(umap_mask)) > 0
+            else False
+        )
+        loc_tsne_maj = (
+            bool(np.mean(localized[tsne_mask]) >= 0.5)
+            if int(np.sum(tsne_mask)) > 0
+            else False
+        )
 
         z_vals = sub["Z_T"].to_numpy(dtype=float)
         median_z = float(np.nanmedian(z_vals)) if np.isfinite(z_vals).any() else np.nan
@@ -970,15 +1073,21 @@ def main() -> int:
         z_umap = sub.loc[umap_mask, "Z_T"].to_numpy(dtype=float)
         mean_z_umap = float(np.nanmean(z_umap)) if np.isfinite(z_umap).any() else np.nan
         z_pca = sub.loc[pca_mask, "Z_T"].to_numpy(dtype=float)
-        z_pca_val = float(z_pca[0]) if z_pca.size > 0 and np.isfinite(z_pca[0]) else np.nan
+        z_pca_val = (
+            float(z_pca[0]) if z_pca.size > 0 and np.isfinite(z_pca[0]) else np.nan
+        )
 
         pca_class = (
             str(sub.loc[pca_mask, "class_label"].iloc[0])
             if int(np.sum(pca_mask)) > 0
             else "Not-localized"
         )
-        umap_maj_class = _mode_class(sub.loc[umap_mask, "class_label"].astype(str).tolist())
-        tsne_maj_class = _mode_class(sub.loc[tsne_mask, "class_label"].astype(str).tolist())
+        umap_maj_class = _mode_class(
+            sub.loc[umap_mask, "class_label"].astype(str).tolist()
+        )
+        tsne_maj_class = _mode_class(
+            sub.loc[tsne_mask, "class_label"].astype(str).tolist()
+        )
 
         # Direction stability per family (localized calls only).
         def _fam_stats(mask: np.ndarray) -> tuple[float, float, float, int, float]:
@@ -994,7 +1103,9 @@ def main() -> int:
         mu_tsne, R_tsne, csd_tsne, nloc_tsne, _ = _fam_stats(tsne_mask)
 
         if nloc_pca > 0 and nloc_umap > 0 and nloc_tsne > 0:
-            _, R_cross, csd_cross = _circular_stats_deg(np.array([mu_pca, mu_umap, mu_tsne], dtype=float))
+            _, R_cross, csd_cross = _circular_stats_deg(
+                np.array([mu_pca, mu_umap, mu_tsne], dtype=float)
+            )
         else:
             R_cross, csd_cross = np.nan, np.nan
 
@@ -1050,25 +1161,62 @@ def main() -> int:
             }
         )
 
-    gene_summary = pd.DataFrame(sum_rows).sort_values(by=["median_Z_T", "gene"], ascending=[False, True], kind="mergesort")
+    gene_summary = pd.DataFrame(sum_rows).sort_values(
+        by=["median_Z_T", "gene"], ascending=[False, True], kind="mergesort"
+    )
     gene_summary.to_csv(tables_dir / "per_gene_concordance_summary.csv", index=False)
 
     # Exemplar selection.
     ex_rows: list[dict[str, Any]] = []
-    robust_top = gene_summary.loc[gene_summary["robust_embedding_concordant"]].sort_values(by="median_Z_T", ascending=False).head(3)
-    nonlinear_top = gene_summary.loc[gene_summary["category"] == "Nonlinear-only"].sort_values(by="mean_Z_UMAP", ascending=False).head(3)
-    inconsistent_top = gene_summary.loc[gene_summary["category"] == "Inconsistent"].sort_values(by="var_Z_T", ascending=False).head(2)
+    robust_top = (
+        gene_summary.loc[gene_summary["robust_embedding_concordant"]]
+        .sort_values(by="median_Z_T", ascending=False)
+        .head(3)
+    )
+    nonlinear_top = (
+        gene_summary.loc[gene_summary["category"] == "Nonlinear-only"]
+        .sort_values(by="mean_Z_UMAP", ascending=False)
+        .head(3)
+    )
+    inconsistent_top = (
+        gene_summary.loc[gene_summary["category"] == "Inconsistent"]
+        .sort_values(by="var_Z_T", ascending=False)
+        .head(2)
+    )
 
     for rank, (_, r) in enumerate(robust_top.iterrows(), start=1):
-        ex_rows.append({"gene": r["gene"], "exemplar_group": "PCA-confirmed robust", "rank_metric": float(r["median_Z_T"]), "rank": rank})
+        ex_rows.append(
+            {
+                "gene": r["gene"],
+                "exemplar_group": "PCA-confirmed robust",
+                "rank_metric": float(r["median_Z_T"]),
+                "rank": rank,
+            }
+        )
     for rank, (_, r) in enumerate(nonlinear_top.iterrows(), start=1):
-        ex_rows.append({"gene": r["gene"], "exemplar_group": "Nonlinear-only", "rank_metric": float(r["mean_Z_UMAP"]), "rank": rank})
+        ex_rows.append(
+            {
+                "gene": r["gene"],
+                "exemplar_group": "Nonlinear-only",
+                "rank_metric": float(r["mean_Z_UMAP"]),
+                "rank": rank,
+            }
+        )
     for rank, (_, r) in enumerate(inconsistent_top.iterrows(), start=1):
-        ex_rows.append({"gene": r["gene"], "exemplar_group": "Inconsistent", "rank_metric": float(r["var_Z_T"]), "rank": rank})
+        ex_rows.append(
+            {
+                "gene": r["gene"],
+                "exemplar_group": "Inconsistent",
+                "rank_metric": float(r["var_Z_T"]),
+                "rank": rank,
+            }
+        )
 
     exemplar_df = pd.DataFrame(ex_rows)
     if not exemplar_df.empty:
-        exemplar_df = exemplar_df.drop_duplicates(subset=["gene"], keep="first").reset_index(drop=True)
+        exemplar_df = exemplar_df.drop_duplicates(
+            subset=["gene"], keep="first"
+        ).reset_index(drop=True)
     exemplar_df.to_csv(tables_dir / "exemplar_selection.csv", index=False)
 
     # -----------------------------
@@ -1076,30 +1224,57 @@ def main() -> int:
     # -----------------------------
     fig0, ax0 = plt.subplots(figsize=(10.0, 4.6))
     dc = donor_choice.sort_values(by="n_cm", ascending=False).reset_index(drop=True)
-    colors = ["#d62728" if str(d) == donor_star else "#4c78a8" for d in dc["donor_id"].astype(str).tolist()]
+    colors = [
+        "#d62728" if str(d) == donor_star else "#4c78a8"
+        for d in dc["donor_id"].astype(str).tolist()
+    ]
     ax0.bar(np.arange(len(dc)), dc["n_cm"].to_numpy(dtype=float), color=colors)
     ax0.set_xticks(np.arange(len(dc)))
-    ax0.set_xticklabels(dc["donor_id"].astype(str).tolist(), rotation=45, ha="right", fontsize=8)
+    ax0.set_xticklabels(
+        dc["donor_id"].astype(str).tolist(), rotation=45, ha="right", fontsize=8
+    )
     ax0.set_ylabel("Cardiomyocyte cells")
     ax0.set_title("Cardiomyocyte counts per donor (donor_star highlighted)")
     fig0.tight_layout()
-    fig0.savefig(plots_dir / "00_overview" / "cm_counts_per_donor.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig0.savefig(
+        plots_dir / "00_overview" / "cm_counts_per_donor.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig0)
 
-    rep_umap = "umap_nn30_md0.1_s0" if "umap_nn30_md0.1_s0" in emb_map else next((e.name for e in embedding_specs if e.family == "UMAP"), "pca2d")
-    rep_tsne = "tsne_p30_s0" if "tsne_p30_s0" in emb_map else next((e.name for e in embedding_specs if e.family == "TSNE"), "pca2d")
+    rep_umap = (
+        "umap_nn30_md0.1_s0"
+        if "umap_nn30_md0.1_s0" in emb_map
+        else next((e.name for e in embedding_specs if e.family == "UMAP"), "pca2d")
+    )
+    rep_tsne = (
+        "tsne_p30_s0"
+        if "tsne_p30_s0" in emb_map
+        else next((e.name for e in embedding_specs if e.family == "TSNE"), "pca2d")
+    )
 
     fig1, axes1 = plt.subplots(1, 3, figsize=(13.5, 4.3))
     reps = ["pca2d", rep_umap, rep_tsne]
     titles = ["PCA-2D", "UMAP representative", "t-SNE representative"]
     for ax, nm, ttl in zip(axes1, reps, titles, strict=False):
         coords = emb_map[nm].coords
-        ax.scatter(coords[:, 0], coords[:, 1], c="#4c78a8", s=5, alpha=0.70, linewidths=0, rasterized=True)
+        ax.scatter(
+            coords[:, 0],
+            coords[:, 1],
+            c="#4c78a8",
+            s=5,
+            alpha=0.70,
+            linewidths=0,
+            rasterized=True,
+        )
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title(f"{ttl}\n{nm}", fontsize=9)
     fig1.tight_layout()
-    fig1.savefig(plots_dir / "00_overview" / "representative_embedding_gallery.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        plots_dir / "00_overview" / "representative_embedding_gallery.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig1)
 
     # -----------------------------
@@ -1113,7 +1288,11 @@ def main() -> int:
     for _, r in pair_df.iterrows():
         a = embedding_order.index(str(r["embedding_a"]))
         b = embedding_order.index(str(r["embedding_b"]))
-        mat[a, b] = float(r["spearman_Z_T"]) if np.isfinite(float(r["spearman_Z_T"])) else np.nan
+        mat[a, b] = (
+            float(r["spearman_Z_T"])
+            if np.isfinite(float(r["spearman_Z_T"]))
+            else np.nan
+        )
         mat[b, a] = mat[a, b]
 
     fig2, ax2 = plt.subplots(figsize=(0.45 * n_emb + 4.6, 0.45 * n_emb + 3.8))
@@ -1125,7 +1304,10 @@ def main() -> int:
     ax2.set_title("Pairwise Spearman correlation of Z_T across embeddings")
     fig2.colorbar(im2, ax=ax2)
     fig2.tight_layout()
-    fig2.savefig(plots_dir / "01_rank_concordance" / "pairwise_spearman_heatmap.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig2.savefig(
+        plots_dir / "01_rank_concordance" / "pairwise_spearman_heatmap.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig2)
 
     # Boxplots by family pair.
@@ -1134,7 +1316,9 @@ def main() -> int:
     data = []
     labels = []
     for fp in fam_order:
-        vals = pair_df.loc[pair_df["family_pair"] == fp, "spearman_Z_T"].to_numpy(dtype=float)
+        vals = pair_df.loc[pair_df["family_pair"] == fp, "spearman_Z_T"].to_numpy(
+            dtype=float
+        )
         vals = vals[np.isfinite(vals)]
         if vals.size > 0:
             data.append(vals)
@@ -1147,7 +1331,10 @@ def main() -> int:
         ax3.text(0.5, 0.5, "No valid pairwise correlations", ha="center", va="center")
     ax3.set_title("Rank concordance grouped by embedding-family pair")
     fig3.tight_layout()
-    fig3.savefig(plots_dir / "01_rank_concordance" / "family_pair_boxplots.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        plots_dir / "01_rank_concordance" / "family_pair_boxplots.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig3)
 
     # PCA vs mean UMAP scatter
@@ -1155,12 +1342,29 @@ def main() -> int:
     if not gene_summary.empty:
         x = gene_summary["Z_T_PCA"].to_numpy(dtype=float)
         y = gene_summary["mean_Z_UMAP"].to_numpy(dtype=float)
-        ax4.scatter(x, y, s=90, c="#4c78a8", alpha=0.88, edgecolors="black", linewidths=0.4)
+        ax4.scatter(
+            x, y, s=90, c="#4c78a8", alpha=0.88, edgecolors="black", linewidths=0.4
+        )
         for _, r in gene_summary.iterrows():
-            if np.isfinite(float(r["Z_T_PCA"])) and np.isfinite(float(r["mean_Z_UMAP"])):
-                ax4.text(float(r["Z_T_PCA"]), float(r["mean_Z_UMAP"]) + 0.03, str(r["gene"]), fontsize=8)
-        lo = np.nanmin(np.concatenate([x[np.isfinite(x)], y[np.isfinite(y)]])) if (np.isfinite(x).any() and np.isfinite(y).any()) else 0.0
-        hi = np.nanmax(np.concatenate([x[np.isfinite(x)], y[np.isfinite(y)]])) if (np.isfinite(x).any() and np.isfinite(y).any()) else 1.0
+            if np.isfinite(float(r["Z_T_PCA"])) and np.isfinite(
+                float(r["mean_Z_UMAP"])
+            ):
+                ax4.text(
+                    float(r["Z_T_PCA"]),
+                    float(r["mean_Z_UMAP"]) + 0.03,
+                    str(r["gene"]),
+                    fontsize=8,
+                )
+        lo = (
+            np.nanmin(np.concatenate([x[np.isfinite(x)], y[np.isfinite(y)]]))
+            if (np.isfinite(x).any() and np.isfinite(y).any())
+            else 0.0
+        )
+        hi = (
+            np.nanmax(np.concatenate([x[np.isfinite(x)], y[np.isfinite(y)]]))
+            if (np.isfinite(x).any() and np.isfinite(y).any())
+            else 1.0
+        )
         ax4.plot([lo, hi], [lo, hi], linestyle="--", color="#444")
         ax4.set_xlabel("Z_T (PCA-2D)")
         ax4.set_ylabel("mean Z_T (UMAP family)")
@@ -1168,7 +1372,10 @@ def main() -> int:
         ax4.axis("off")
     ax4.set_title("PCA baseline vs UMAP-family mean Z_T")
     fig4.tight_layout()
-    fig4.savefig(plots_dir / "01_rank_concordance" / "PCA_vs_mean_UMAP_scatter.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig4.savefig(
+        plots_dir / "01_rank_concordance" / "PCA_vs_mean_UMAP_scatter.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig4)
 
     # -----------------------------
@@ -1176,10 +1383,17 @@ def main() -> int:
     # -----------------------------
     # 1) stacked class frequency across embeddings per gene
     if s0.empty:
-        _save_placeholder(plots_dir / "02_class_concordance" / "stacked_class_frequency.png", "Class frequency", "No scores")
+        _save_placeholder(
+            plots_dir / "02_class_concordance" / "stacked_class_frequency.png",
+            "Class frequency",
+            "No scores",
+        )
     else:
         pivot_counts = (
-            s0.groupby(["gene", "class_label"]).size().unstack(fill_value=0).reindex(columns=CLASS_ORDER, fill_value=0)
+            s0.groupby(["gene", "class_label"])
+            .size()
+            .unstack(fill_value=0)
+            .reindex(columns=CLASS_ORDER, fill_value=0)
         )
         frac = pivot_counts.div(np.maximum(1, pivot_counts.sum(axis=1)), axis=0)
         genes_plot = frac.index.astype(str).tolist()
@@ -1201,7 +1415,10 @@ def main() -> int:
         ax5.set_title("Class frequency across embeddings by gene")
         ax5.legend(loc="upper right", fontsize=8)
         fig5.tight_layout()
-        fig5.savefig(plots_dir / "02_class_concordance" / "stacked_class_frequency.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig5.savefig(
+            plots_dir / "02_class_concordance" / "stacked_class_frequency.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig5)
 
     # 2) confusion PCA class vs UMAP-majority class
@@ -1225,10 +1442,21 @@ def main() -> int:
     ax6.set_title("PCA class vs UMAP-majority class")
     for i in range(conf_mat.shape[0]):
         for j in range(conf_mat.shape[1]):
-            ax6.text(j, i, int(conf_mat[i, j]), ha="center", va="center", color="black", fontsize=9)
+            ax6.text(
+                j,
+                i,
+                int(conf_mat[i, j]),
+                ha="center",
+                va="center",
+                color="black",
+                fontsize=9,
+            )
     fig6.colorbar(im6, ax=ax6)
     fig6.tight_layout()
-    fig6.savefig(plots_dir / "02_class_concordance" / "confusion_PCA_vs_UMAP_majority.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig6.savefig(
+        plots_dir / "02_class_concordance" / "confusion_PCA_vs_UMAP_majority.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig6)
 
     # 3) overlap/set bars for localized calls across families
@@ -1251,9 +1479,14 @@ def main() -> int:
         ax7.set_ylabel("# genes")
     else:
         ax7.axis("off")
-    ax7.set_title("Overlap of localized calls across PCA / UMAP-majority / TSNE-majority")
+    ax7.set_title(
+        "Overlap of localized calls across PCA / UMAP-majority / TSNE-majority"
+    )
     fig7.tight_layout()
-    fig7.savefig(plots_dir / "02_class_concordance" / "localized_overlap_setbars.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig7.savefig(
+        plots_dir / "02_class_concordance" / "localized_overlap_setbars.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig7)
 
     # -----------------------------
@@ -1268,10 +1501,19 @@ def main() -> int:
     if not dsub.empty:
         x = dsub["R_UMAP"].to_numpy(dtype=float)
         y = dsub["R_TSNE"].to_numpy(dtype=float)
-        col = np.where(dsub["robust_embedding_concordant"].to_numpy(dtype=bool), "#2ca02c", "#4c78a8")
+        col = np.where(
+            dsub["robust_embedding_concordant"].to_numpy(dtype=bool),
+            "#2ca02c",
+            "#4c78a8",
+        )
         ax8.scatter(x, y, s=95, c=col, alpha=0.88, edgecolors="black", linewidths=0.4)
         for _, r in dsub.iterrows():
-            ax8.text(float(r["R_UMAP"]), float(r["R_TSNE"]) + 0.01, str(r["gene"]), fontsize=8)
+            ax8.text(
+                float(r["R_UMAP"]),
+                float(r["R_TSNE"]) + 0.01,
+                str(r["gene"]),
+                fontsize=8,
+            )
         ax8.axvline(0.60, color="#333", linestyle="--")
         ax8.axhline(0.60, color="#333", linestyle="--")
         ax8.set_xlabel("R_UMAP")
@@ -1280,7 +1522,10 @@ def main() -> int:
         ax8.axis("off")
     ax8.set_title("Direction concentration concordance across non-linear families")
     fig8.tight_layout()
-    fig8.savefig(plots_dir / "03_direction_concordance" / "R_UMAP_vs_R_TSNE.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig8.savefig(
+        plots_dir / "03_direction_concordance" / "R_UMAP_vs_R_TSNE.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig8)
 
     # 2) mini circular plots for UMAP phi points
@@ -1292,21 +1537,33 @@ def main() -> int:
     for i, gene in enumerate(genes_plot):
         ax = fig9.add_subplot(n_rows, n_cols, i + 1, projection="polar")
         sub = s0.loc[(s0["gene"] == gene) & (s0["embedding_name"].isin(umap_names))]
-        loc = (
-            np.isfinite(sub["q_T_within_embedding"].to_numpy(dtype=float))
-            & (sub["q_T_within_embedding"].to_numpy(dtype=float) <= Q_SIG)
+        loc = np.isfinite(sub["q_T_within_embedding"].to_numpy(dtype=float)) & (
+            sub["q_T_within_embedding"].to_numpy(dtype=float) <= Q_SIG
         )
         phi = sub.loc[loc, "phi_hat_deg"].to_numpy(dtype=float)
         phi = phi[np.isfinite(phi)]
         if phi.size == 0:
-            ax.text(0.5, 0.5, "no localized", transform=ax.transAxes, ha="center", va="center", fontsize=7)
+            ax.text(
+                0.5,
+                0.5,
+                "no localized",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=7,
+            )
             ax.set_xticks([])
             ax.set_yticks([])
         else:
             rad = np.deg2rad(phi)
             ax.scatter(rad, np.ones_like(rad), s=24, c="#1f77b4", alpha=0.85)
             mu, R, csd = _circular_stats_deg(phi)
-            ax.plot([np.deg2rad(mu), np.deg2rad(mu)], [0.0, 1.15], color="#d62728", linewidth=1.8)
+            ax.plot(
+                [np.deg2rad(mu), np.deg2rad(mu)],
+                [0.0, 1.15],
+                color="#d62728",
+                linewidth=1.8,
+            )
             ax.text(0.02, 0.02, f"R={R:.2f}", transform=ax.transAxes, fontsize=7)
             ax.set_theta_zero_location("E")
             ax.set_theta_direction(1)
@@ -1314,7 +1571,10 @@ def main() -> int:
         ax.set_title(gene, fontsize=8)
     fig9.suptitle("UMAP-family localized phi points per gene", y=0.995)
     fig9.tight_layout(rect=[0.0, 0.0, 1.0, 0.97])
-    fig9.savefig(plots_dir / "03_direction_concordance" / "umap_phi_small_multiples.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig9.savefig(
+        plots_dir / "03_direction_concordance" / "umap_phi_small_multiples.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig9)
 
     # 3) cross-family direction drift arrows (PCA/UMAP/TSNE means)
@@ -1330,9 +1590,8 @@ def main() -> int:
         fam_lbl = []
         for fam, col_mu in [("PCA", "R_PCA"), ("UMAP", "R_UMAP"), ("TSNE", "R_TSNE")]:
             sub = s0.loc[(s0["gene"] == gene) & (s0["embedding_family"] == fam)]
-            loc = (
-                np.isfinite(sub["q_T_within_embedding"].to_numpy(dtype=float))
-                & (sub["q_T_within_embedding"].to_numpy(dtype=float) <= Q_SIG)
+            loc = np.isfinite(sub["q_T_within_embedding"].to_numpy(dtype=float)) & (
+                sub["q_T_within_embedding"].to_numpy(dtype=float) <= Q_SIG
             )
             phi = sub.loc[loc, "phi_hat_deg"].to_numpy(dtype=float)
             phi = phi[np.isfinite(phi)]
@@ -1341,14 +1600,24 @@ def main() -> int:
                 fam_mu.append(mu)
                 fam_lbl.append(fam)
         if len(fam_mu) == 0:
-            ax.text(0.5, 0.5, "no localized", transform=ax.transAxes, ha="center", va="center", fontsize=7)
+            ax.text(
+                0.5,
+                0.5,
+                "no localized",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=7,
+            )
             ax.set_xticks([])
             ax.set_yticks([])
         else:
             colors = {"PCA": "#2ca02c", "UMAP": "#1f77b4", "TSNE": "#ff7f0e"}
             for mu, fam in zip(fam_mu, fam_lbl, strict=False):
                 ang = np.deg2rad(mu)
-                ax.plot([ang, ang], [0.0, 1.0], color=colors[fam], linewidth=1.8, label=fam)
+                ax.plot(
+                    [ang, ang], [0.0, 1.0], color=colors[fam], linewidth=1.8, label=fam
+                )
             ax.set_theta_zero_location("E")
             ax.set_theta_direction(1)
             ax.set_rticks([])
@@ -1356,16 +1625,25 @@ def main() -> int:
         ax.set_title(gene, fontsize=8)
     fig10.suptitle("Cross-family direction means (localized calls)", y=0.995)
     fig10.tight_layout(rect=[0.0, 0.0, 1.0, 0.97])
-    fig10.savefig(plots_dir / "03_direction_concordance" / "cross_family_direction_arrows.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig10.savefig(
+        plots_dir / "03_direction_concordance" / "cross_family_direction_arrows.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig10)
 
     # -----------------------------
     # Plots 04: exemplar panels
     # -----------------------------
     if exemplar_df.empty:
-        _save_placeholder(plots_dir / "04_exemplar_panels" / "no_exemplars.png", "Exemplar panels", "No exemplars selected")
+        _save_placeholder(
+            plots_dir / "04_exemplar_panels" / "no_exemplars.png",
+            "Exemplar panels",
+            "No exemplars selected",
+        )
     else:
-        rep_umap2 = "umap_nn50_md0.5_s1" if "umap_nn50_md0.5_s1" in emb_map else rep_umap
+        rep_umap2 = (
+            "umap_nn50_md0.5_s1" if "umap_nn50_md0.5_s1" in emb_map else rep_umap
+        )
         rep_tsne2 = "tsne_p50_s1" if "tsne_p50_s1" in emb_map else rep_tsne
 
         for _, ex in exemplar_df.iterrows():
@@ -1376,8 +1654,16 @@ def main() -> int:
 
             expr = np.asarray(expr_by_gene[gene], dtype=float)
             expr_log = np.log1p(np.maximum(expr, 0.0))
-            vmin = float(np.quantile(expr_log, 0.01)) if np.isfinite(expr_log).any() else 0.0
-            vmax = float(np.quantile(expr_log, 0.99)) if np.isfinite(expr_log).any() else 1.0
+            vmin = (
+                float(np.quantile(expr_log, 0.01))
+                if np.isfinite(expr_log).any()
+                else 0.0
+            )
+            vmax = (
+                float(np.quantile(expr_log, 0.99))
+                if np.isfinite(expr_log).any()
+                else 1.0
+            )
             if np.isclose(vmin, vmax):
                 vmax = vmin + 1e-6
 
@@ -1395,7 +1681,11 @@ def main() -> int:
                     worst = nm
                     break
             if worst is None:
-                worst = str(sub_gene["embedding_name"].iloc[0]) if not sub_gene.empty else "pca2d"
+                worst = (
+                    str(sub_gene["embedding_name"].iloc[0])
+                    if not sub_gene.empty
+                    else "pca2d"
+                )
             ordered.append(worst)
 
             # ensure unique and existing
@@ -1432,7 +1722,9 @@ def main() -> int:
             polar_pos = {"PCA": (0, 3), "UMAP": (1, 3), "TSNE": (2, 0)}
             for fam in ["PCA", "UMAP", "TSNE"]:
                 nm = family_rep[fam]
-                axp = fig.add_subplot(gs[polar_pos[fam][0], polar_pos[fam][1]], projection="polar")
+                axp = fig.add_subplot(
+                    gs[polar_pos[fam][0], polar_pos[fam][1]], projection="polar"
+                )
                 if nm not in emb_map:
                     axp.axis("off")
                     continue
@@ -1444,7 +1736,11 @@ def main() -> int:
                     q=float(args.q),
                     n_bins=int(args.n_bins),
                     n_perm=int(args.n_perm),
-                    seed=int(args.seed + 900000 + (_stable_token(gene) * 131 + _stable_token(nm)) % 100000),
+                    seed=int(
+                        args.seed
+                        + 900000
+                        + (_stable_token(gene) * 131 + _stable_token(nm)) % 100000
+                    ),
                     with_profiles=True,
                 )
                 row = s0.loc[(s0["gene"] == gene) & (s0["embedding_name"] == nm)]
@@ -1462,23 +1758,42 @@ def main() -> int:
                     axp,
                     title=f"{fam}: {nm}",
                     e_obs=np.asarray(sc["E_obs"], dtype=float),
-                    null_e=np.asarray(sc["null_E"], dtype=float) if sc["null_E"] is not None else None,
+                    null_e=(
+                        np.asarray(sc["null_E"], dtype=float)
+                        if sc["null_E"] is not None
+                        else None
+                    ),
                     stats_text=stats_txt,
                 )
 
             # table inset of all embeddings
             ax_tbl = fig.add_subplot(gs[2, 1:4])
             ax_tbl.axis("off")
-            tab = s0.loc[s0["gene"] == gene, ["embedding_name", "embedding_family", "Z_T", "q_T_within_embedding", "class_label"]].copy()
-            tab = tab.sort_values(by=["embedding_family", "embedding_name"], kind="mergesort")
+            tab = s0.loc[
+                s0["gene"] == gene,
+                [
+                    "embedding_name",
+                    "embedding_family",
+                    "Z_T",
+                    "q_T_within_embedding",
+                    "class_label",
+                ],
+            ].copy()
+            tab = tab.sort_values(
+                by=["embedding_family", "embedding_name"], kind="mergesort"
+            )
             if tab.empty:
                 ax_tbl.text(0.5, 0.5, "No per-embedding rows", ha="center", va="center")
             else:
-                tab["Z_T"] = tab["Z_T"].map(lambda x: f"{float(x):.2f}" if np.isfinite(float(x)) else "nan")
+                tab["Z_T"] = tab["Z_T"].map(
+                    lambda x: f"{float(x):.2f}" if np.isfinite(float(x)) else "nan"
+                )
                 tab["q_T_within_embedding"] = tab["q_T_within_embedding"].map(
                     lambda x: f"{float(x):.2e}" if np.isfinite(float(x)) else "nan"
                 )
-                table_obj = ax_tbl.table(cellText=tab.values, colLabels=tab.columns, loc="center")
+                table_obj = ax_tbl.table(
+                    cellText=tab.values, colLabels=tab.columns, loc="center"
+                )
                 table_obj.auto_set_font_size(False)
                 table_obj.set_fontsize(7)
                 table_obj.scale(1.0, 1.15)
@@ -1486,7 +1801,10 @@ def main() -> int:
 
             fig.suptitle(f"Exemplar: {gene} [{grp}]", y=0.995)
             fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.98])
-            fig.savefig(plots_dir / "04_exemplar_panels" / f"exemplar_{gene}.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+            fig.savefig(
+                plots_dir / "04_exemplar_panels" / f"exemplar_{gene}.png",
+                dpi=DEFAULT_PLOT_STYLE.dpi,
+            )
             plt.close(fig)
 
     # -----------------------------
@@ -1494,8 +1812,16 @@ def main() -> int:
     # -----------------------------
     # Z heatmap genes x embeddings
     if s0.empty:
-        _save_placeholder(plots_dir / "05_embedding_gallery" / "heatmap_ZT.png", "Embedding gallery", "No scores")
-        _save_placeholder(plots_dir / "05_embedding_gallery" / "heatmap_class.png", "Embedding gallery", "No scores")
+        _save_placeholder(
+            plots_dir / "05_embedding_gallery" / "heatmap_ZT.png",
+            "Embedding gallery",
+            "No scores",
+        )
+        _save_placeholder(
+            plots_dir / "05_embedding_gallery" / "heatmap_class.png",
+            "Embedding gallery",
+            "No scores",
+        )
     else:
         g_order = gene_summary["gene"].astype(str).tolist()
         z_mat = (
@@ -1505,8 +1831,16 @@ def main() -> int:
         )
         z_plot = np.nan_to_num(z_mat, nan=0.0)
 
-        fig11, ax11 = plt.subplots(figsize=(0.5 * len(embedding_order) + 4.0, 0.4 * len(g_order) + 3.0))
-        im11 = ax11.imshow(z_plot, aspect="auto", cmap="magma", vmin=0, vmax=max(6.0, float(np.nanpercentile(z_plot, 95))))
+        fig11, ax11 = plt.subplots(
+            figsize=(0.5 * len(embedding_order) + 4.0, 0.4 * len(g_order) + 3.0)
+        )
+        im11 = ax11.imshow(
+            z_plot,
+            aspect="auto",
+            cmap="magma",
+            vmin=0,
+            vmax=max(6.0, float(np.nanpercentile(z_plot, 95))),
+        )
         ax11.set_xticks(np.arange(len(embedding_order)))
         ax11.set_xticklabels(embedding_order, rotation=90, fontsize=7)
         ax11.set_yticks(np.arange(len(g_order)))
@@ -1514,18 +1848,25 @@ def main() -> int:
         ax11.set_title("Z_T across embeddings")
         fig11.colorbar(im11, ax=ax11)
         fig11.tight_layout()
-        fig11.savefig(plots_dir / "05_embedding_gallery" / "heatmap_ZT.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig11.savefig(
+            plots_dir / "05_embedding_gallery" / "heatmap_ZT.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig11)
 
         cls_mat_raw = (
-            s0.assign(class_int=s0["class_label"].map(CLASS_TO_INT).fillna(0).astype(int))
+            s0.assign(
+                class_int=s0["class_label"].map(CLASS_TO_INT).fillna(0).astype(int)
+            )
             .pivot(index="gene", columns="embedding_name", values="class_int")
             .reindex(index=g_order, columns=embedding_order)
             .to_numpy(dtype=float)
         )
         cls_plot = np.nan_to_num(cls_mat_raw, nan=0.0)
 
-        fig12, ax12 = plt.subplots(figsize=(0.5 * len(embedding_order) + 4.0, 0.4 * len(g_order) + 3.0))
+        fig12, ax12 = plt.subplots(
+            figsize=(0.5 * len(embedding_order) + 4.0, 0.4 * len(g_order) + 3.0)
+        )
         im12 = ax12.imshow(cls_plot, aspect="auto", cmap="viridis", vmin=0, vmax=2)
         ax12.set_xticks(np.arange(len(embedding_order)))
         ax12.set_xticklabels(embedding_order, rotation=90, fontsize=7)
@@ -1534,7 +1875,10 @@ def main() -> int:
         ax12.set_title("Class labels across embeddings (0=Not,1=Uni,2=Multi)")
         fig12.colorbar(im12, ax=ax12)
         fig12.tight_layout()
-        fig12.savefig(plots_dir / "05_embedding_gallery" / "heatmap_class.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig12.savefig(
+            plots_dir / "05_embedding_gallery" / "heatmap_class.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig12)
 
     # README

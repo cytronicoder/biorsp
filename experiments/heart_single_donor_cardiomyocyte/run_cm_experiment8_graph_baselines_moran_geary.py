@@ -275,7 +275,11 @@ def _prepare_proc_matrix(
     """
     import scanpy as sc
 
-    x = expr_matrix_cm.toarray().astype(float) if sp.issparse(expr_matrix_cm) else np.asarray(expr_matrix_cm, dtype=float)
+    x = (
+        expr_matrix_cm.toarray().astype(float)
+        if sp.issparse(expr_matrix_cm)
+        else np.asarray(expr_matrix_cm, dtype=float)
+    )
     ad_tmp = ad.AnnData(X=x)
 
     if expr_source.startswith("layer:counts"):
@@ -326,7 +330,12 @@ def _build_embeddings_and_graphs(
         EmbeddingSpec(
             family="UMAP",
             name="umap_repr",
-            params={"n_neighbors": 30, "min_dist": 0.1, "random_state": 0, "n_pcs": n_pcs},
+            params={
+                "n_neighbors": 30,
+                "min_dist": 0.1,
+                "random_state": 0,
+                "n_pcs": n_pcs,
+            },
             coords=umap_xy,
         ),
     ]
@@ -507,7 +516,7 @@ def _gearys_c(x: np.ndarray, w: sp.csr_matrix, row_standardize: bool = True) -> 
 
     w_coo = w_use.tocoo(copy=False)
     diff = x_arr[w_coo.row] - x_arr[w_coo.col]
-    num = float(np.sum(w_coo.data * (diff ** 2)))
+    num = float(np.sum(w_coo.data * (diff**2)))
     s0 = float(w_use.sum())
     if s0 <= 0:
         raise ValueError("Sum weights zero; Geary's C undefined")
@@ -577,7 +586,10 @@ def _score_graph_continuous(
         p_i, z_i = np.nan, np.nan
 
     if np.isfinite(c_obs) and c_valid.size > 0:
-        p_c = float((1.0 + np.sum(np.abs(c_valid - 1.0) >= np.abs(c_obs - 1.0))) / (1.0 + c_valid.size))
+        p_c = float(
+            (1.0 + np.sum(np.abs(c_valid - 1.0) >= np.abs(c_obs - 1.0)))
+            / (1.0 + c_valid.size)
+        )
     else:
         p_c = np.nan
 
@@ -645,7 +657,9 @@ def _safe_spearman(x: np.ndarray, y: np.ndarray) -> float:
     return float(rho) if rho is not None else np.nan
 
 
-def _plot_polar(ax: plt.Axes, e_obs: np.ndarray, null_e: np.ndarray | None, title: str, stats: str) -> None:
+def _plot_polar(
+    ax: plt.Axes, e_obs: np.ndarray, null_e: np.ndarray | None, title: str, stats: str
+) -> None:
     n_bins = int(e_obs.size)
     th_c = theta_bin_centers(n_bins)
     th = np.concatenate([th_c, th_c[:1]])
@@ -654,8 +668,20 @@ def _plot_polar(ax: plt.Axes, e_obs: np.ndarray, null_e: np.ndarray | None, titl
     if null_e is not None:
         hi = np.quantile(null_e, 0.95, axis=0)
         lo = np.quantile(null_e, 0.05, axis=0)
-        ax.plot(th, np.concatenate([hi, hi[:1]]), color="#333", linestyle="--", linewidth=1.0)
-        ax.plot(th, np.concatenate([lo, lo[:1]]), color="#333", linestyle="--", linewidth=1.0)
+        ax.plot(
+            th,
+            np.concatenate([hi, hi[:1]]),
+            color="#333",
+            linestyle="--",
+            linewidth=1.0,
+        )
+        ax.plot(
+            th,
+            np.concatenate([lo, lo[:1]]),
+            color="#333",
+            linestyle="--",
+            linewidth=1.0,
+        )
     ax.set_theta_zero_location("E")
     ax.set_theta_direction(1)
     ax.set_rticks([])
@@ -688,7 +714,9 @@ def _write_readme(
     warnings_log: list[str],
 ) -> None:
     lines: list[str] = []
-    lines.append("CM Experiment #8 (Single-donor): BioRSP vs graph baselines (Moran's I / Geary's C)")
+    lines.append(
+        "CM Experiment #8 (Single-donor): BioRSP vs graph baselines (Moran's I / Geary's C)"
+    )
     lines.append("")
     lines.append("Why this experiment exists")
     lines.append(
@@ -697,8 +725,12 @@ def _write_readme(
     )
     lines.append("")
     lines.append("Method references (conceptual)")
-    lines.append("- Moran's I and Geary's C are standard graph/spatial autocorrelation baselines.")
-    lines.append("- Geary's C null expectation is near 1; C<1 indicates positive autocorrelation.")
+    lines.append(
+        "- Moran's I and Geary's C are standard graph/spatial autocorrelation baselines."
+    )
+    lines.append(
+        "- Geary's C null expectation is near 1; C<1 indicates positive autocorrelation."
+    )
     lines.append("")
     lines.append("Run metadata")
     lines.append(f"- seed: {args.seed}")
@@ -724,8 +756,12 @@ def _write_readme(
         lines.append(f"- {k}: {v}")
     lines.append("")
     lines.append("Interpretation guardrails")
-    lines.append("- BioRSP directions are representation-conditional (phi is not anatomy).")
-    lines.append("- Agreement between methods suggests shared structure; disagreement regimes are diagnostic and not errors.")
+    lines.append(
+        "- BioRSP directions are representation-conditional (phi is not anatomy)."
+    )
+    lines.append(
+        "- Agreement between methods suggests shared structure; disagreement regimes are diagnostic and not errors."
+    )
 
     if warnings_log:
         lines.append("")
@@ -758,8 +794,12 @@ def main() -> int:
 
     adata = ad.read_h5ad(args.h5ad)
 
-    donor_key = _resolve_key_required(adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor")
-    label_key = _resolve_key_required(adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label")
+    donor_key = _resolve_key_required(
+        adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor"
+    )
+    label_key = _resolve_key_required(
+        adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label"
+    )
 
     labels_all = adata.obs[label_key].astype("string").fillna("NA").astype(str)
     donor_ids_all = adata.obs[donor_key].astype("string").fillna("NA").astype(str)
@@ -771,7 +811,9 @@ def main() -> int:
         pd.DataFrame({"donor_id": donor_ids_all.to_numpy(), "is_cm": cm_mask_all})
         .groupby("donor_id", as_index=False)
         .agg(n_cells_total=("is_cm", "size"), n_cm=("is_cm", "sum"))
-        .sort_values(by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True])
+        .sort_values(
+            by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True]
+        )
         .reset_index(drop=True)
     )
     donor_star = str(donor_choice.iloc[0]["donor_id"])
@@ -791,7 +833,13 @@ def main() -> int:
         warnings_log.append(msg)
         print(f"WARNING: {msg}")
 
-    cm_label_counts = labels_donor.loc[cm_mask_donor].value_counts().sort_index().astype(int).to_dict()
+    cm_label_counts = (
+        labels_donor.loc[cm_mask_donor]
+        .value_counts()
+        .sort_index()
+        .astype(int)
+        .to_dict()
+    )
     print("cm_labels_included=" + ", ".join(cm_label_counts.keys()))
 
     expr_matrix_cm, adata_like_cm, expr_source = _choose_expression_source(
@@ -800,7 +848,9 @@ def main() -> int:
         use_raw_arg=bool(args.use_raw),
     )
 
-    extra_genes = _read_extra_genes(str(args.extra_genes_csv), top_n=int(args.top_extra))
+    extra_genes = _read_extra_genes(
+        str(args.extra_genes_csv), top_n=int(args.top_extra)
+    )
     gene_candidates = list(dict.fromkeys(BASE_GENE_PANEL + extra_genes))
     gene_statuses = [_resolve_gene(g, adata_like_cm) for g in gene_candidates]
     gene_panel_df = pd.DataFrame(
@@ -819,11 +869,16 @@ def main() -> int:
     )
     gene_panel_df.to_csv(tables_dir / "gene_panel_status.csv", index=False)
 
-    genes_present = [st for st in gene_statuses if st.present and st.gene_idx is not None]
+    genes_present = [
+        st for st in gene_statuses if st.present and st.gene_idx is not None
+    ]
     if len(genes_present) == 0:
         raise RuntimeError("No genes from panel resolved")
 
-    expr_by_gene = {st.gene: get_feature_vector(expr_matrix_cm, int(st.gene_idx)) for st in genes_present}
+    expr_by_gene = {
+        st.gene: get_feature_vector(expr_matrix_cm, int(st.gene_idx))
+        for st in genes_present
+    }
 
     # Prepare matrix for graph baselines and embedding construction.
     x_proc, prep_note = _prepare_proc_matrix(expr_matrix_cm, expr_source=expr_source)
@@ -855,7 +910,9 @@ def main() -> int:
                     q=float(args.q),
                     n_bins=int(args.n_bins),
                     n_perm=int(args.n_perm_biorsp),
-                    seed=int(args.seed + emb_i * 100000 + gene_i * 123 + mode_i * 17 + 3),
+                    seed=int(
+                        args.seed + emb_i * 100000 + gene_i * 123 + mode_i * 17 + 3
+                    ),
                     with_profiles=False,
                 )
                 biorsp_rows.append(
@@ -882,13 +939,17 @@ def main() -> int:
                 done += 1
                 if done % 40 == 0 or done == total_biorsp_tests:
                     print(f"[BioRSP] {done}/{total_biorsp_tests} tests")
-                    pd.DataFrame(biorsp_rows).to_csv(tables_dir / "biorsp_scores.intermediate.csv", index=False)
+                    pd.DataFrame(biorsp_rows).to_csv(
+                        tables_dir / "biorsp_scores.intermediate.csv", index=False
+                    )
 
     biorsp_df = pd.DataFrame(biorsp_rows)
 
     # BH for BioRSP.
     q_within = np.full(len(biorsp_df), np.nan, dtype=float)
-    for _, idx in biorsp_df.groupby(["embedding", "foreground_mode"], sort=False).groups.items():
+    for _, idx in biorsp_df.groupby(
+        ["embedding", "foreground_mode"], sort=False
+    ).groups.items():
         ids = np.asarray(list(idx), dtype=int)
         p = biorsp_df.loc[ids, "p_T"].to_numpy(dtype=float)
         fin = np.isfinite(p)
@@ -927,7 +988,9 @@ def main() -> int:
     g_done = 0
     for gene_i, st in enumerate(genes_present):
         expr_proc = np.asarray(x_proc[:, int(st.gene_idx)], dtype=float)
-        fg_topq = _top_q_mask(np.asarray(expr_by_gene[st.gene], dtype=float), q=float(args.q)).astype(float)
+        fg_topq = _top_q_mask(
+            np.asarray(expr_by_gene[st.gene], dtype=float), q=float(args.q)
+        ).astype(float)
 
         for k_i, (k, w) in enumerate(sorted(graphs.items(), key=lambda kv: kv[0])):
             cont = _score_graph_continuous(
@@ -980,8 +1043,12 @@ def main() -> int:
             g_done += 1
             if g_done % 20 == 0 or g_done == total_graph_tests:
                 print(f"[Graph] {g_done}/{total_graph_tests} gene-k tests")
-                pd.DataFrame(moran_rows).to_csv(tables_dir / "moran_scores.intermediate.csv", index=False)
-                pd.DataFrame(geary_rows).to_csv(tables_dir / "geary_scores.intermediate.csv", index=False)
+                pd.DataFrame(moran_rows).to_csv(
+                    tables_dir / "moran_scores.intermediate.csv", index=False
+                )
+                pd.DataFrame(geary_rows).to_csv(
+                    tables_dir / "geary_scores.intermediate.csv", index=False
+                )
 
     moran_df = pd.DataFrame(moran_rows)
     geary_df = pd.DataFrame(geary_rows)
@@ -1052,13 +1119,27 @@ def main() -> int:
         q_umap = gb.loc[gb["embedding"] == "umap_repr", "q_T"].to_numpy(dtype=float)
         z_pca = gb.loc[gb["embedding"] == "pca2d", "Z_T"].to_numpy(dtype=float)
         q_pca = gb.loc[gb["embedding"] == "pca2d", "q_T"].to_numpy(dtype=float)
-        peaks_umap = gb.loc[gb["embedding"] == "umap_repr", "peaks_K"].to_numpy(dtype=float)
+        peaks_umap = gb.loc[gb["embedding"] == "umap_repr", "peaks_K"].to_numpy(
+            dtype=float
+        )
 
-        z_umap_val = float(z_umap[0]) if z_umap.size > 0 and np.isfinite(z_umap[0]) else np.nan
-        q_umap_val = float(q_umap[0]) if q_umap.size > 0 and np.isfinite(q_umap[0]) else np.nan
-        z_pca_val = float(z_pca[0]) if z_pca.size > 0 and np.isfinite(z_pca[0]) else np.nan
-        q_pca_val = float(q_pca[0]) if q_pca.size > 0 and np.isfinite(q_pca[0]) else np.nan
-        peaks_umap_val = float(peaks_umap[0]) if peaks_umap.size > 0 and np.isfinite(peaks_umap[0]) else np.nan
+        z_umap_val = (
+            float(z_umap[0]) if z_umap.size > 0 and np.isfinite(z_umap[0]) else np.nan
+        )
+        q_umap_val = (
+            float(q_umap[0]) if q_umap.size > 0 and np.isfinite(q_umap[0]) else np.nan
+        )
+        z_pca_val = (
+            float(z_pca[0]) if z_pca.size > 0 and np.isfinite(z_pca[0]) else np.nan
+        )
+        q_pca_val = (
+            float(q_pca[0]) if q_pca.size > 0 and np.isfinite(q_pca[0]) else np.nan
+        )
+        peaks_umap_val = (
+            float(peaks_umap[0])
+            if peaks_umap.size > 0 and np.isfinite(peaks_umap[0])
+            else np.nan
+        )
 
         biorsp_localized_any = bool(
             np.any(
@@ -1079,9 +1160,17 @@ def main() -> int:
         z_c = gc["Z_C"].to_numpy(dtype=float)
 
         med_z_i = float(np.nanmedian(z_i)) if np.isfinite(z_i).any() else np.nan
-        iqr_z_i = float(np.nanpercentile(z_i, 75) - np.nanpercentile(z_i, 25)) if np.isfinite(z_i).any() else np.nan
+        iqr_z_i = (
+            float(np.nanpercentile(z_i, 75) - np.nanpercentile(z_i, 25))
+            if np.isfinite(z_i).any()
+            else np.nan
+        )
         med_z_c = float(np.nanmedian(z_c)) if np.isfinite(z_c).any() else np.nan
-        iqr_z_c = float(np.nanpercentile(z_c, 75) - np.nanpercentile(z_c, 25)) if np.isfinite(z_c).any() else np.nan
+        iqr_z_c = (
+            float(np.nanpercentile(z_c, 75) - np.nanpercentile(z_c, 25))
+            if np.isfinite(z_c).any()
+            else np.nan
+        )
 
         if biorsp_localized_any and graph_sig_any:
             regime = "Both"
@@ -1134,14 +1223,24 @@ def main() -> int:
     # Correlation matrix (embedding x k)
     corr_rows: list[dict[str, Any]] = []
     for emb in ["pca2d", "umap_repr"]:
-        b = btop.loc[btop["embedding"] == emb, ["gene", "Z_T"]].rename(columns={"Z_T": "Z_B"})
+        b = btop.loc[btop["embedding"] == emb, ["gene", "Z_T"]].rename(
+            columns={"Z_T": "Z_B"}
+        )
         for k in sorted(graphs.keys()):
-            m = moran_df.loc[moran_df["k"] == int(k), ["gene", "Z_I"]].rename(columns={"Z_I": "Z_M"})
-            c = geary_df.loc[geary_df["k"] == int(k), ["gene", "Z_C"]].rename(columns={"Z_C": "Z_C"})
+            m = moran_df.loc[moran_df["k"] == int(k), ["gene", "Z_I"]].rename(
+                columns={"Z_I": "Z_M"}
+            )
+            c = geary_df.loc[geary_df["k"] == int(k), ["gene", "Z_C"]].rename(
+                columns={"Z_C": "Z_C"}
+            )
             bm = b.merge(m, on="gene", how="inner")
             bc = b.merge(c, on="gene", how="inner")
-            rho_bm = _safe_spearman(bm["Z_B"].to_numpy(dtype=float), bm["Z_M"].to_numpy(dtype=float))
-            rho_bc = _safe_spearman(bc["Z_B"].to_numpy(dtype=float), bc["Z_C"].to_numpy(dtype=float))
+            rho_bm = _safe_spearman(
+                bm["Z_B"].to_numpy(dtype=float), bm["Z_M"].to_numpy(dtype=float)
+            )
+            rho_bc = _safe_spearman(
+                bc["Z_B"].to_numpy(dtype=float), bc["Z_C"].to_numpy(dtype=float)
+            )
             corr_rows.append(
                 {
                     "embedding": emb,
@@ -1159,21 +1258,54 @@ def main() -> int:
     ex_rows: list[dict[str, Any]] = []
     if not concord_df.empty:
         both = concord_df.loc[concord_df["agreement_regime"] == "Both"].copy()
-        both["joint_score"] = both["biorsp_Z_umap"].fillna(0.0) + both["moran_Z_median"].fillna(0.0)
+        both["joint_score"] = both["biorsp_Z_umap"].fillna(0.0) + both[
+            "moran_Z_median"
+        ].fillna(0.0)
         both = both.sort_values(by="joint_score", ascending=False).head(3)
         for rank, (_, r) in enumerate(both.iterrows(), start=1):
-            ex_rows.append({"gene": r["gene"], "group": "Both", "rank": rank, "score": float(r["joint_score"])})
+            ex_rows.append(
+                {
+                    "gene": r["gene"],
+                    "group": "Both",
+                    "rank": rank,
+                    "score": float(r["joint_score"]),
+                }
+            )
 
         bo = concord_df.loc[concord_df["agreement_regime"] == "BioRSP-only"].copy()
         bo = bo.sort_values(by="biorsp_Z_umap", ascending=False).head(3)
         for rank, (_, r) in enumerate(bo.iterrows(), start=1):
-            ex_rows.append({"gene": r["gene"], "group": "BioRSP-only", "rank": rank, "score": float(r["biorsp_Z_umap"]) if np.isfinite(r["biorsp_Z_umap"]) else np.nan})
+            ex_rows.append(
+                {
+                    "gene": r["gene"],
+                    "group": "BioRSP-only",
+                    "rank": rank,
+                    "score": (
+                        float(r["biorsp_Z_umap"])
+                        if np.isfinite(r["biorsp_Z_umap"])
+                        else np.nan
+                    ),
+                }
+            )
 
         go = concord_df.loc[concord_df["agreement_regime"] == "Graph-only"].copy()
-        go["graph_score"] = np.maximum(go["moran_Z_median"].fillna(-np.inf), go["geary_Z_median"].fillna(-np.inf))
+        go["graph_score"] = np.maximum(
+            go["moran_Z_median"].fillna(-np.inf), go["geary_Z_median"].fillna(-np.inf)
+        )
         go = go.sort_values(by="graph_score", ascending=False).head(3)
         for rank, (_, r) in enumerate(go.iterrows(), start=1):
-            ex_rows.append({"gene": r["gene"], "group": "Graph-only", "rank": rank, "score": float(r["graph_score"]) if np.isfinite(r["graph_score"]) else np.nan})
+            ex_rows.append(
+                {
+                    "gene": r["gene"],
+                    "group": "Graph-only",
+                    "rank": rank,
+                    "score": (
+                        float(r["graph_score"])
+                        if np.isfinite(r["graph_score"])
+                        else np.nan
+                    ),
+                }
+            )
 
     exemplar_df = pd.DataFrame(ex_rows)
     if not exemplar_df.empty:
@@ -1185,12 +1317,22 @@ def main() -> int:
     # ============================
     umap_xy = emb_map["umap_repr"].coords
     fig0, ax0 = plt.subplots(figsize=(6.0, 5.3))
-    ax0.scatter(umap_xy[:, 0], umap_xy[:, 1], s=5, c="#4c78a8", alpha=0.72, linewidths=0, rasterized=True)
+    ax0.scatter(
+        umap_xy[:, 0],
+        umap_xy[:, 1],
+        s=5,
+        c="#4c78a8",
+        alpha=0.72,
+        linewidths=0,
+        rasterized=True,
+    )
     ax0.set_xticks([])
     ax0.set_yticks([])
     ax0.set_title("CM subset UMAP geometry")
     fig0.tight_layout()
-    fig0.savefig(plots_dir / "00_overview" / "cm_umap_geometry.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig0.savefig(
+        plots_dir / "00_overview" / "cm_umap_geometry.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig0)
 
     fig1, axes1 = plt.subplots(1, len(graphs), figsize=(5.2 * len(graphs), 4.2))
@@ -1204,15 +1346,36 @@ def main() -> int:
         ax.set_xlabel("degree")
         ax.set_ylabel("count")
     fig1.tight_layout()
-    fig1.savefig(plots_dir / "00_overview" / "knn_degree_distributions.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        plots_dir / "00_overview" / "knn_degree_distributions.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig1)
 
     fig2, ax2 = plt.subplots(figsize=(9.8, 3.6))
     ax2.axis("off")
     table_rows = [
-        ["BioRSP", int(args.n_perm_biorsp), int(args.n_bins), f"q={float(args.q):.2f}", "topq"],
-        ["Moran/Geary", int(args.n_perm_graph), "graph", f"k={','.join(map(str, sorted(graphs.keys())))}", "continuous"],
-        ["Moran binary", int(args.n_perm_graph), "graph", f"k={','.join(map(str, sorted(graphs.keys())))}", str(bool(args.compute_moran_binary))],
+        [
+            "BioRSP",
+            int(args.n_perm_biorsp),
+            int(args.n_bins),
+            f"q={float(args.q):.2f}",
+            "topq",
+        ],
+        [
+            "Moran/Geary",
+            int(args.n_perm_graph),
+            "graph",
+            f"k={','.join(map(str, sorted(graphs.keys())))}",
+            "continuous",
+        ],
+        [
+            "Moran binary",
+            int(args.n_perm_graph),
+            "graph",
+            f"k={','.join(map(str, sorted(graphs.keys())))}",
+            str(bool(args.compute_moran_binary)),
+        ],
     ]
     tbl = ax2.table(
         cellText=table_rows,
@@ -1224,14 +1387,19 @@ def main() -> int:
     tbl.scale(1.0, 1.25)
     ax2.set_title(f"Method parameters (n_cells={int(adata_cm.n_obs)})")
     fig2.tight_layout()
-    fig2.savefig(plots_dir / "00_overview" / "method_parameter_table.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig2.savefig(
+        plots_dir / "00_overview" / "method_parameter_table.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig2)
 
     # ============================
     # Plots 01: method strength scatter
     # ============================
     k_ref = 30 if 30 in graphs else int(sorted(graphs.keys())[0])
-    b_um = btop.loc[btop["embedding"] == "umap_repr", ["gene", "Z_T", "peaks_K"]].rename(columns={"Z_T": "Z_B", "peaks_K": "peaks_K"})
+    b_um = btop.loc[
+        btop["embedding"] == "umap_repr", ["gene", "Z_T", "peaks_K"]
+    ].rename(columns={"Z_T": "Z_B", "peaks_K": "peaks_K"})
     m_ref = moran_df.loc[moran_df["k"] == int(k_ref), ["gene", "Z_I"]]
     g_ref = geary_df.loc[geary_df["k"] == int(k_ref), ["gene", "Z_C"]]
     bm = b_um.merge(m_ref, on="gene", how="inner")
@@ -1241,7 +1409,15 @@ def main() -> int:
 
     ax = axes3[0]
     if not bm.empty:
-        ax.scatter(bm["Z_B"], bm["Z_I"], s=90, c="#4c78a8", edgecolors="black", linewidths=0.4, alpha=0.9)
+        ax.scatter(
+            bm["Z_B"],
+            bm["Z_I"],
+            s=90,
+            c="#4c78a8",
+            edgecolors="black",
+            linewidths=0.4,
+            alpha=0.9,
+        )
         for _, r in bm.iterrows():
             ax.text(float(r["Z_B"]), float(r["Z_I"]) + 0.02, str(r["gene"]), fontsize=8)
         ax.set_xlabel("BioRSP Z_T (UMAP)")
@@ -1252,7 +1428,15 @@ def main() -> int:
 
     ax = axes3[1]
     if not bg.empty:
-        ax.scatter(bg["Z_B"], bg["Z_C"], s=90, c="#ff7f0e", edgecolors="black", linewidths=0.4, alpha=0.9)
+        ax.scatter(
+            bg["Z_B"],
+            bg["Z_C"],
+            s=90,
+            c="#ff7f0e",
+            edgecolors="black",
+            linewidths=0.4,
+            alpha=0.9,
+        )
         for _, r in bg.iterrows():
             ax.text(float(r["Z_B"]), float(r["Z_C"]) + 0.02, str(r["gene"]), fontsize=8)
         ax.set_xlabel("BioRSP Z_T (UMAP)")
@@ -1283,7 +1467,10 @@ def main() -> int:
     ax.set_title("BioRSP vs Moran colored by peaks_K")
 
     fig3.tight_layout()
-    fig3.savefig(plots_dir / "01_method_strength_scatter" / "strength_scatter_triptych.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        plots_dir / "01_method_strength_scatter" / "strength_scatter_triptych.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig3)
 
     # ============================
@@ -1291,14 +1478,25 @@ def main() -> int:
     # ============================
     fig4, ax4 = plt.subplots(figsize=(7.0, 5.2))
     reg_order = ["Both", "BioRSP-only", "Graph-only", "None"]
-    reg_counts = {k: int(np.sum(concord_df["agreement_regime"] == k)) for k in reg_order} if not concord_df.empty else {k: 0 for k in reg_order}
-    ax4.bar(np.arange(len(reg_order)), [reg_counts[k] for k in reg_order], color=["#2ca02c", "#1f77b4", "#ff7f0e", "#9e9e9e"])
+    reg_counts = (
+        {k: int(np.sum(concord_df["agreement_regime"] == k)) for k in reg_order}
+        if not concord_df.empty
+        else {k: 0 for k in reg_order}
+    )
+    ax4.bar(
+        np.arange(len(reg_order)),
+        [reg_counts[k] for k in reg_order],
+        color=["#2ca02c", "#1f77b4", "#ff7f0e", "#9e9e9e"],
+    )
     ax4.set_xticks(np.arange(len(reg_order)))
     ax4.set_xticklabels(reg_order, rotation=25, ha="right")
     ax4.set_ylabel("# genes")
     ax4.set_title("Agreement regimes")
     fig4.tight_layout()
-    fig4.savefig(plots_dir / "02_agreement_regimes" / "agreement_regime_counts.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig4.savefig(
+        plots_dir / "02_agreement_regimes" / "agreement_regime_counts.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig4)
 
     fig5, axes5 = plt.subplots(2, 2, figsize=(12.0, 9.0))
@@ -1310,28 +1508,56 @@ def main() -> int:
             ax.axis("off")
             ax.text(0.5, 0.5, f"{reg}: none", ha="center", va="center")
             continue
-        ax.scatter(sub["biorsp_Z_umap"], sub["moran_Z_median"], s=100, c="#4c78a8", alpha=0.88, edgecolors="black", linewidths=0.4)
+        ax.scatter(
+            sub["biorsp_Z_umap"],
+            sub["moran_Z_median"],
+            s=100,
+            c="#4c78a8",
+            alpha=0.88,
+            edgecolors="black",
+            linewidths=0.4,
+        )
         for _, r in sub.iterrows():
-            ax.text(float(r["biorsp_Z_umap"]), float(r["moran_Z_median"]) + 0.02, str(r["gene"]), fontsize=8)
+            ax.text(
+                float(r["biorsp_Z_umap"]),
+                float(r["moran_Z_median"]) + 0.02,
+                str(r["gene"]),
+                fontsize=8,
+            )
         ax.set_xlabel("BioRSP Z_T (UMAP)")
         ax.set_ylabel("Moran median Z_I")
         ax.set_title(reg)
     fig5.tight_layout()
-    fig5.savefig(plots_dir / "02_agreement_regimes" / "regime_faceted_scatter.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig5.savefig(
+        plots_dir / "02_agreement_regimes" / "regime_faceted_scatter.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig5)
 
     # heatmap genes x methods of -log10(q)
-    methods = ["BioRSP-UMAP", "BioRSP-PCA"] + [f"Moran-k{k}" for k in sorted(graphs.keys())] + [f"Geary-k{k}" for k in sorted(graphs.keys())]
+    methods = (
+        ["BioRSP-UMAP", "BioRSP-PCA"]
+        + [f"Moran-k{k}" for k in sorted(graphs.keys())]
+        + [f"Geary-k{k}" for k in sorted(graphs.keys())]
+    )
     genes = concord_df["gene"].astype(str).tolist() if not concord_df.empty else []
     mat_q = np.full((len(genes), len(methods)), np.nan, dtype=float)
     for i, g in enumerate(genes):
-        bu = btop.loc[(btop["gene"] == g) & (btop["embedding"] == "umap_repr"), "q_T"].to_numpy(dtype=float)
-        bp = btop.loc[(btop["gene"] == g) & (btop["embedding"] == "pca2d"), "q_T"].to_numpy(dtype=float)
+        bu = btop.loc[
+            (btop["gene"] == g) & (btop["embedding"] == "umap_repr"), "q_T"
+        ].to_numpy(dtype=float)
+        bp = btop.loc[
+            (btop["gene"] == g) & (btop["embedding"] == "pca2d"), "q_T"
+        ].to_numpy(dtype=float)
         mat_q[i, 0] = bu[0] if bu.size > 0 else np.nan
         mat_q[i, 1] = bp[0] if bp.size > 0 else np.nan
         for j, k in enumerate(sorted(graphs.keys())):
-            q_i = moran_df.loc[(moran_df["gene"] == g) & (moran_df["k"] == int(k)), "q_I"].to_numpy(dtype=float)
-            q_c = geary_df.loc[(geary_df["gene"] == g) & (geary_df["k"] == int(k)), "q_C"].to_numpy(dtype=float)
+            q_i = moran_df.loc[
+                (moran_df["gene"] == g) & (moran_df["k"] == int(k)), "q_I"
+            ].to_numpy(dtype=float)
+            q_c = geary_df.loc[
+                (geary_df["gene"] == g) & (geary_df["k"] == int(k)), "q_C"
+            ].to_numpy(dtype=float)
             mat_q[i, 2 + j] = q_i[0] if q_i.size > 0 else np.nan
             mat_q[i, 2 + len(graphs) + j] = q_c[0] if q_c.size > 0 else np.nan
 
@@ -1340,7 +1566,9 @@ def main() -> int:
         mat_plot = np.nan_to_num(mat_plot, nan=0.0)
         mat_plot = np.clip(mat_plot, 0.0, 8.0)
 
-        fig6, ax6 = plt.subplots(figsize=(0.9 * len(methods) + 3.0, 0.5 * len(genes) + 2.2))
+        fig6, ax6 = plt.subplots(
+            figsize=(0.9 * len(methods) + 3.0, 0.5 * len(genes) + 2.2)
+        )
         im6 = ax6.imshow(mat_plot, aspect="auto", cmap="magma", vmin=0, vmax=8)
         ax6.set_xticks(np.arange(len(methods)))
         ax6.set_xticklabels(methods, rotation=45, ha="right", fontsize=8)
@@ -1349,10 +1577,17 @@ def main() -> int:
         ax6.set_title("-log10(q) across methods")
         fig6.colorbar(im6, ax=ax6)
         fig6.tight_layout()
-        fig6.savefig(plots_dir / "02_agreement_regimes" / "gene_method_q_heatmap.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig6.savefig(
+            plots_dir / "02_agreement_regimes" / "gene_method_q_heatmap.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig6)
     else:
-        _save_placeholder(plots_dir / "02_agreement_regimes" / "gene_method_q_heatmap.png", "Method heatmap", "No genes")
+        _save_placeholder(
+            plots_dir / "02_agreement_regimes" / "gene_method_q_heatmap.png",
+            "Method heatmap",
+            "No genes",
+        )
 
     # ============================
     # Plots 03: rank concordance
@@ -1363,14 +1598,24 @@ def main() -> int:
     mat_m = np.full((len(embs), len(ks)), np.nan, dtype=float)
     mat_g = np.full((len(embs), len(ks)), np.nan, dtype=float)
     for i, emb in enumerate(embs):
-        b = btop.loc[btop["embedding"] == emb, ["gene", "Z_T"]].rename(columns={"Z_T": "Z_B"})
+        b = btop.loc[btop["embedding"] == emb, ["gene", "Z_T"]].rename(
+            columns={"Z_T": "Z_B"}
+        )
         for j, k in enumerate(ks):
-            m = moran_df.loc[moran_df["k"] == int(k), ["gene", "Z_I"]].rename(columns={"Z_I": "Z_M"})
-            c = geary_df.loc[geary_df["k"] == int(k), ["gene", "Z_C"]].rename(columns={"Z_C": "Z_C"})
+            m = moran_df.loc[moran_df["k"] == int(k), ["gene", "Z_I"]].rename(
+                columns={"Z_I": "Z_M"}
+            )
+            c = geary_df.loc[geary_df["k"] == int(k), ["gene", "Z_C"]].rename(
+                columns={"Z_C": "Z_C"}
+            )
             bm = b.merge(m, on="gene", how="inner")
             bc = b.merge(c, on="gene", how="inner")
-            mat_m[i, j] = _safe_spearman(bm["Z_B"].to_numpy(dtype=float), bm["Z_M"].to_numpy(dtype=float))
-            mat_g[i, j] = _safe_spearman(bc["Z_B"].to_numpy(dtype=float), bc["Z_C"].to_numpy(dtype=float))
+            mat_m[i, j] = _safe_spearman(
+                bm["Z_B"].to_numpy(dtype=float), bm["Z_M"].to_numpy(dtype=float)
+            )
+            mat_g[i, j] = _safe_spearman(
+                bc["Z_B"].to_numpy(dtype=float), bc["Z_C"].to_numpy(dtype=float)
+            )
 
     def _plot_corr_heat(mat: np.ndarray, title: str, out: Path) -> None:
         fig, ax = plt.subplots(figsize=(7.2, 4.2))
@@ -1392,8 +1637,16 @@ def main() -> int:
         fig.savefig(out, dpi=DEFAULT_PLOT_STYLE.dpi)
         plt.close(fig)
 
-    _plot_corr_heat(mat_m, "Spearman: BioRSP Z_T vs Moran Z_I", plots_dir / "03_rank_concordance" / "corr_heatmap_moran.png")
-    _plot_corr_heat(mat_g, "Spearman: BioRSP Z_T vs Geary Z_C", plots_dir / "03_rank_concordance" / "corr_heatmap_geary.png")
+    _plot_corr_heat(
+        mat_m,
+        "Spearman: BioRSP Z_T vs Moran Z_I",
+        plots_dir / "03_rank_concordance" / "corr_heatmap_moran.png",
+    )
+    _plot_corr_heat(
+        mat_g,
+        "Spearman: BioRSP Z_T vs Geary Z_C",
+        plots_dir / "03_rank_concordance" / "corr_heatmap_geary.png",
+    )
 
     # boxplot per-k distribution of correlations (across embeddings) for Moran/Geary
     fig7, ax7 = plt.subplots(figsize=(8.0, 5.2))
@@ -1419,14 +1672,21 @@ def main() -> int:
         ax7.text(0.5, 0.5, "No correlation values", ha="center", va="center")
     ax7.set_title("Correlation distributions by k and baseline")
     fig7.tight_layout()
-    fig7.savefig(plots_dir / "03_rank_concordance" / "corr_boxplots_by_k.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig7.savefig(
+        plots_dir / "03_rank_concordance" / "corr_boxplots_by_k.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig7)
 
     # ============================
     # Plots 04: exemplar panels
     # ============================
     if exemplar_df.empty:
-        _save_placeholder(plots_dir / "04_exemplar_panels" / "no_exemplars.png", "Exemplars", "No exemplars selected")
+        _save_placeholder(
+            plots_dir / "04_exemplar_panels" / "no_exemplars.png",
+            "Exemplars",
+            "No exemplars selected",
+        )
     else:
         w30 = graphs[k_ref]
         w30_row = _row_standardize(w30)
@@ -1449,11 +1709,20 @@ def main() -> int:
                 q=float(args.q),
                 n_bins=int(args.n_bins),
                 n_perm=int(args.n_perm_biorsp),
-                seed=int(args.seed + 900000 + int(np.sum(np.frombuffer(gene.encode('utf-8'), dtype=np.uint8)))),
+                seed=int(
+                    args.seed
+                    + 900000
+                    + int(np.sum(np.frombuffer(gene.encode("utf-8"), dtype=np.uint8)))
+                ),
                 with_profiles=True,
             )
 
-            x_cont = np.asarray(x_proc[:, int([st.gene_idx for st in genes_present if st.gene == gene][0])], dtype=float)
+            x_cont = np.asarray(
+                x_proc[
+                    :, int([st.gene_idx for st in genes_present if st.gene == gene][0])
+                ],
+                dtype=float,
+            )
             wx = np.asarray(w30_row.dot(x_cont)).ravel()
             rho_lag = _safe_spearman(x_cont, wx)
 
@@ -1467,7 +1736,15 @@ def main() -> int:
             # A) UMAP feature
             axA = fig8.add_subplot(gs[0, 0])
             ord_idx = np.argsort(expr_log, kind="mergesort")
-            axA.scatter(umap_xy[:, 0], umap_xy[:, 1], c="#dddddd", s=4, alpha=0.25, linewidths=0, rasterized=True)
+            axA.scatter(
+                umap_xy[:, 0],
+                umap_xy[:, 1],
+                c="#dddddd",
+                s=4,
+                alpha=0.25,
+                linewidths=0,
+                rasterized=True,
+            )
             scA = axA.scatter(
                 umap_xy[ord_idx, 0],
                 umap_xy[ord_idx, 1],
@@ -1495,14 +1772,26 @@ def main() -> int:
             _plot_polar(
                 axB,
                 np.asarray(sc_u["E_obs"], dtype=float),
-                np.asarray(sc_u["null_E"], dtype=float) if sc_u["null_E"] is not None else None,
+                (
+                    np.asarray(sc_u["null_E"], dtype=float)
+                    if sc_u["null_E"] is not None
+                    else None
+                ),
                 "BioRSP polar (UMAP)",
                 stats_txt,
             )
 
             # C) Moran scatter x vs W x
             axC = fig8.add_subplot(gs[0, 2])
-            axC.scatter(x_cont, wx, s=12, alpha=0.45, color="#4c78a8", edgecolors="none", rasterized=True)
+            axC.scatter(
+                x_cont,
+                wx,
+                s=12,
+                alpha=0.45,
+                color="#4c78a8",
+                edgecolors="none",
+                rasterized=True,
+            )
             if np.isfinite(rho_lag):
                 axC.set_title(f"Moran scatter (k={k_ref})\nSpearman={rho_lag:.2f}")
             else:
@@ -1531,9 +1820,13 @@ def main() -> int:
             # E) k-sensitivity mini-plot
             axE = fig8.add_subplot(gs[1, 1:3])
             if not mk.empty:
-                axE.plot(mk["k"], mk["Z_I"], marker="o", color="#1f77b4", label="Moran Z_I")
+                axE.plot(
+                    mk["k"], mk["Z_I"], marker="o", color="#1f77b4", label="Moran Z_I"
+                )
             if not gk.empty:
-                axE.plot(gk["k"], gk["Z_C"], marker="s", color="#ff7f0e", label="Geary Z_C")
+                axE.plot(
+                    gk["k"], gk["Z_C"], marker="s", color="#ff7f0e", label="Geary Z_C"
+                )
             axE.axhline(0.0, color="#666", linewidth=0.9)
             axE.set_xlabel("k")
             axE.set_ylabel("Z baseline")
@@ -1542,7 +1835,10 @@ def main() -> int:
 
             fig8.suptitle(f"Exemplar: {gene} [{grp}]", y=0.995)
             fig8.tight_layout(rect=[0.0, 0.0, 1.0, 0.98])
-            fig8.savefig(plots_dir / "04_exemplar_panels" / f"exemplar_{gene}.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+            fig8.savefig(
+                plots_dir / "04_exemplar_panels" / f"exemplar_{gene}.png",
+                dpi=DEFAULT_PLOT_STYLE.dpi,
+            )
             plt.close(fig8)
 
     # ============================
@@ -1560,7 +1856,10 @@ def main() -> int:
     ax9.set_title("Moran Z_I vs k by gene")
     ax9.legend(loc="best", fontsize=7, ncol=2)
     fig9.tight_layout()
-    fig9.savefig(plots_dir / "05_k_sensitivity" / "moran_Z_vs_k_lines.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig9.savefig(
+        plots_dir / "05_k_sensitivity" / "moran_Z_vs_k_lines.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig9)
 
     fig10, ax10 = plt.subplots(figsize=(8.2, 5.8))
@@ -1575,7 +1874,10 @@ def main() -> int:
     ax10.set_title("Geary Z_C vs k by gene")
     ax10.legend(loc="best", fontsize=7, ncol=2)
     fig10.tight_layout()
-    fig10.savefig(plots_dir / "05_k_sensitivity" / "geary_Z_vs_k_lines.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig10.savefig(
+        plots_dir / "05_k_sensitivity" / "geary_Z_vs_k_lines.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig10)
 
     # IQR vs median scatter
@@ -1595,16 +1897,32 @@ def main() -> int:
     sens_df = pd.DataFrame(sens_rows)
     fig11, ax11 = plt.subplots(figsize=(7.2, 5.8))
     if not sens_df.empty:
-        ax11.scatter(sens_df["median_Z_I"], sens_df["iqr_Z_I"], s=95, c="#4c78a8", alpha=0.9, edgecolors="black", linewidths=0.4)
+        ax11.scatter(
+            sens_df["median_Z_I"],
+            sens_df["iqr_Z_I"],
+            s=95,
+            c="#4c78a8",
+            alpha=0.9,
+            edgecolors="black",
+            linewidths=0.4,
+        )
         for _, r in sens_df.iterrows():
-            ax11.text(float(r["median_Z_I"]), float(r["iqr_Z_I"]) + 0.02, str(r["gene"]), fontsize=8)
+            ax11.text(
+                float(r["median_Z_I"]),
+                float(r["iqr_Z_I"]) + 0.02,
+                str(r["gene"]),
+                fontsize=8,
+            )
         ax11.set_xlabel("median_k(Z_I)")
         ax11.set_ylabel("IQR_k(Z_I)")
     else:
         ax11.axis("off")
     ax11.set_title("k-sensitivity diagnostic (Moran)")
     fig11.tight_layout()
-    fig11.savefig(plots_dir / "05_k_sensitivity" / "iqr_vs_median_moran.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig11.savefig(
+        plots_dir / "05_k_sensitivity" / "iqr_vs_median_moran.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig11)
 
     # README
@@ -1655,7 +1973,12 @@ def main() -> int:
     print(f"n_moran_rows={len(moran_df)}")
     print(f"n_geary_rows={len(geary_df)}")
     if not concord_df.empty:
-        print("agreement_counts=" + json.dumps(concord_df["agreement_regime"].value_counts().to_dict(), sort_keys=True))
+        print(
+            "agreement_counts="
+            + json.dumps(
+                concord_df["agreement_regime"].value_counts().to_dict(), sort_keys=True
+            )
+        )
     print(f"results_root={out_root}")
 
     return 0

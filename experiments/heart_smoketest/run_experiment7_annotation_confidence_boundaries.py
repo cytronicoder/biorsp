@@ -139,7 +139,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n_bins", type=int, default=64, help="Angular bin count.")
     p.add_argument("--k", type=int, default=30, help="kNN neighborhood size.")
     p.add_argument("--q_low", type=float, default=0.10, help="Low-confidence quantile.")
-    p.add_argument("--q_high", type=float, default=0.90, help="High-confidence quantile.")
+    p.add_argument(
+        "--q_high", type=float, default=0.90, help="High-confidence quantile."
+    )
     p.add_argument(
         "--random_reps",
         type=int,
@@ -152,7 +154,9 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Write boundary_metrics_per_cell.csv (can be large).",
     )
-    p.add_argument("--embedding_key", default=None, help="Optional embedding key override.")
+    p.add_argument(
+        "--embedding_key", default=None, help="Optional embedding key override."
+    )
     p.add_argument("--donor_key", default=None, help="Optional donor key override.")
     p.add_argument("--label_key", default=None, help="Optional label key override.")
     p.add_argument("--layer", default=None, help="Optional expression layer override.")
@@ -188,7 +192,9 @@ def _resolve_embedding(
 ) -> tuple[str, np.ndarray]:
     if requested_key is not None:
         if requested_key not in adata.obsm:
-            raise KeyError(f"Requested embedding key '{requested_key}' missing in adata.obsm.")
+            raise KeyError(
+                f"Requested embedding key '{requested_key}' missing in adata.obsm."
+            )
         key = str(requested_key)
     else:
         key = "X_umap" if "X_umap" in adata.obsm else str(next(iter(adata.obsm.keys())))
@@ -256,7 +262,9 @@ def _resolve_label_key_required(
     return labels, key
 
 
-def _find_numeric_confidence_key(adata: ad.AnnData) -> tuple[str | None, np.ndarray | None, str]:
+def _find_numeric_confidence_key(
+    adata: ad.AnnData,
+) -> tuple[str | None, np.ndarray | None, str]:
     for key in SCORE_CANDIDATES:
         if key in adata.obs.columns:
             vals = pd.to_numeric(adata.obs[key], errors="coerce").to_numpy(dtype=float)
@@ -273,14 +281,22 @@ def _find_numeric_confidence_key(adata: ad.AnnData) -> tuple[str | None, np.ndar
 
 def _find_matchtype_key(adata: ad.AnnData) -> tuple[str | None, np.ndarray | None]:
     if MATCHTYPE_CANDIDATE in adata.obs.columns:
-        vals = adata.obs[MATCHTYPE_CANDIDATE].astype("string").fillna("NA").astype(str).to_numpy()
+        vals = (
+            adata.obs[MATCHTYPE_CANDIDATE]
+            .astype("string")
+            .fillna("NA")
+            .astype(str)
+            .to_numpy()
+        )
         return MATCHTYPE_CANDIDATE, vals
     return None, None
 
 
 def _is_ambiguous_matchtype(text: str) -> bool:
     t = str(text).lower()
-    if any(x in t for x in ["low", "ambig", "uncertain", "unknown", "partial", "mixed"]):
+    if any(
+        x in t for x in ["low", "ambig", "uncertain", "unknown", "partial", "mixed"]
+    ):
         return True
     # explicit "no" token-like forms to avoid matching arbitrary words.
     if re.search(r"(^|[^a-z])no([^a-z]|$)", t) is not None:
@@ -295,7 +311,9 @@ def _compute_pct_counts_ribo(
     total_counts: np.ndarray,
 ) -> tuple[np.ndarray | None, str]:
     if "pct_counts_ribo" in adata.obs.columns:
-        vals = pd.to_numeric(adata.obs["pct_counts_ribo"], errors="coerce").to_numpy(dtype=float)
+        vals = pd.to_numeric(adata.obs["pct_counts_ribo"], errors="coerce").to_numpy(
+            dtype=float
+        )
         if np.isfinite(vals).sum() > 0:
             fill = float(np.nanmedian(vals))
             vals = np.where(np.isfinite(vals), vals, fill)
@@ -310,13 +328,22 @@ def _compute_pct_counts_ribo(
     if symbol_col is None:
         return None, "missing"
 
-    symbols = adata_like.var[symbol_col].astype("string").fillna("").astype(str).str.upper()
-    ribo_mask = (symbols.str.startswith("RPL") | symbols.str.startswith("RPS")).to_numpy(dtype=bool)
+    symbols = (
+        adata_like.var[symbol_col].astype("string").fillna("").astype(str).str.upper()
+    )
+    ribo_mask = (
+        symbols.str.startswith("RPL") | symbols.str.startswith("RPS")
+    ).to_numpy(dtype=bool)
     if int(ribo_mask.sum()) == 0:
         return None, "missing"
 
-    ribo_counts = np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
-    pct = np.divide(ribo_counts, np.maximum(np.asarray(total_counts, dtype=float), 1e-12)) * 100.0
+    ribo_counts = (
+        np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    )
+    pct = (
+        np.divide(ribo_counts, np.maximum(np.asarray(total_counts, dtype=float), 1e-12))
+        * 100.0
+    )
     return pct, f"computed:{symbol_col}"
 
 
@@ -423,7 +450,9 @@ def _perm_null_continuous_profile(
     )
     t_obs = float(np.max(np.abs(e_obs)))
 
-    used_donor = bool(donor_ids is not None and np.unique(np.asarray(donor_ids).astype(str)).size >= 2)
+    used_donor = bool(
+        donor_ids is not None and np.unique(np.asarray(donor_ids).astype(str)).size >= 2
+    )
     warning_msg = ""
     if not used_donor:
         warning_msg = "continuous null used global shuffling (donor unavailable)."
@@ -433,7 +462,9 @@ def _perm_null_continuous_profile(
     null_t = np.zeros(int(n_perm), dtype=float)
     for i in range(int(n_perm)):
         if used_donor and donor_ids is not None:
-            pvals = _permute_weights_within_donor(x, np.asarray(donor_ids).astype(str), rng)
+            pvals = _permute_weights_within_donor(
+                x, np.asarray(donor_ids).astype(str), rng
+            )
         else:
             pvals = x[rng.permutation(x.size)]
         e_perm = _compute_continuous_profile(
@@ -519,13 +550,19 @@ def _build_lowconf_definitions(
     warnings_log: list[str],
 ) -> list[LowConfDefinition]:
     defs: list[LowConfDefinition] = []
-    n = int(score_vals.size if score_vals is not None else (matchtype_vals.size if matchtype_vals is not None else 0))
+    n = int(
+        score_vals.size
+        if score_vals is not None
+        else (matchtype_vals.size if matchtype_vals is not None else 0)
+    )
 
     if score_key is not None and score_vals is not None:
         x = np.asarray(score_vals, dtype=float)
         finite = np.isfinite(x)
         if int(finite.sum()) < 10:
-            warnings_log.append(f"Score key '{score_key}' has too few finite values; score definition skipped.")
+            warnings_log.append(
+                f"Score key '{score_key}' has too few finite values; score definition skipped."
+            )
         else:
             low_thr = float(np.nanquantile(x[finite], float(q_low)))
             high_thr = float(np.nanquantile(x[finite], float(q_high)))
@@ -593,7 +630,9 @@ def _resolve_marker_vectors(
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", RuntimeWarning)
-                    idx, label, symbol_col, source = resolve_feature_index(adata_like, gene)
+                    idx, label, symbol_col, source = resolve_feature_index(
+                        adata_like, gene
+                    )
                 idx = int(idx)
                 expr = get_feature_vector(expr_matrix, idx)
                 expr = np.asarray(expr, dtype=float).ravel()
@@ -738,7 +777,9 @@ def _mean_boundary_random_controls(
     return {
         "mean_boundary_random": mean_b,
         "T_random": t_rand,
-        "boundary_random_pooled": np.concatenate(pooled_b) if pooled_b else np.zeros(0, dtype=float),
+        "boundary_random_pooled": (
+            np.concatenate(pooled_b) if pooled_b else np.zeros(0, dtype=float)
+        ),
     }
 
 
@@ -786,18 +827,30 @@ def _plot_overview(
             annotate_cluster_medians=False,
         )
     else:
-        _save_placeholder(out_dir / "umap_donor.png", "UMAP by donor", "Donor key unavailable.")
+        _save_placeholder(
+            out_dir / "umap_donor.png", "UMAP by donor", "Donor key unavailable."
+        )
 
     labels_s = pd.Series(labels.astype(str), name="label")
     counts = labels_s.value_counts().sort_values(ascending=False)
     low_frac = labels_s.groupby(labels_s).apply(
-        lambda s: float(np.mean(np.asarray(primary_low_mask, dtype=bool)[s.index.to_numpy(dtype=int)]))
+        lambda s: float(
+            np.mean(
+                np.asarray(primary_low_mask, dtype=bool)[s.index.to_numpy(dtype=int)]
+            )
+        )
     )
     low_frac = low_frac.reindex(counts.index).fillna(0.0)
 
     fig, ax1 = plt.subplots(figsize=(max(8.0, 0.42 * counts.shape[0] + 4.0), 5.2))
     x = np.arange(counts.shape[0], dtype=float)
-    ax1.bar(x, counts.to_numpy(dtype=float), color="#5DA5DA", edgecolor="black", linewidth=0.5)
+    ax1.bar(
+        x,
+        counts.to_numpy(dtype=float),
+        color="#5DA5DA",
+        edgecolor="black",
+        linewidth=0.5,
+    )
     ax1.set_ylabel("# cells")
     ax1.set_xticks(x)
     ax1.set_xticklabels(counts.index.tolist(), rotation=35, ha="right", fontsize=8)
@@ -805,11 +858,15 @@ def _plot_overview(
     ax1.grid(axis="y", alpha=0.25, linewidth=0.6)
 
     ax2 = ax1.twinx()
-    ax2.plot(x, low_frac.to_numpy(dtype=float), color="#D62728", marker="o", linewidth=1.6)
+    ax2.plot(
+        x, low_frac.to_numpy(dtype=float), color="#D62728", marker="o", linewidth=1.6
+    )
     ax2.set_ylim(0.0, 1.0)
     ax2.set_ylabel("low_conf fraction")
     fig.tight_layout()
-    fig.savefig(out_dir / "label_counts_with_lowconf_fraction.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig.savefig(
+        out_dir / "label_counts_with_lowconf_fraction.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig)
 
 
@@ -860,7 +917,9 @@ def _plot_lowconf_umaps(
     ax1.set_title(f"{defn.name}: low-confidence highlight")
     ax1.legend(loc="upper left", fontsize=8, frameon=True)
     fig1.tight_layout()
-    fig1.savefig(out_dir / f"{defn.name}_lowconf_highlight.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        out_dir / f"{defn.name}_lowconf_highlight.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig1)
 
     fig2, ax2 = plt.subplots(figsize=(7.3, 6.0))
@@ -883,12 +942,16 @@ def _plot_lowconf_umaps(
             linewidths=0.0,
             alpha=0.95,
         )
-        fig2.colorbar(hb, ax=ax2, fraction=0.046, pad=0.03, label="low_conf local count")
+        fig2.colorbar(
+            hb, ax=ax2, fraction=0.046, pad=0.03, label="low_conf local count"
+        )
     ax2.set_xticks([])
     ax2.set_yticks([])
     ax2.set_title(f"{defn.name}: low-confidence density")
     fig2.tight_layout()
-    fig2.savefig(out_dir / f"{defn.name}_lowconf_density.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig2.savefig(
+        out_dir / f"{defn.name}_lowconf_density.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig2)
 
     if score_vals is not None:
@@ -944,9 +1007,29 @@ def _plot_biorsp_profiles(
     q_hi = np.quantile(null_e, 0.95, axis=0)
     q_lo = np.quantile(null_e, 0.05, axis=0)
     ax1.plot(th_c, obs_c, color="#8B0000", linewidth=2.0, label="low_conf")
-    ax1.plot(th_c, np.concatenate([q_hi, q_hi[:1]]), color="#444444", linestyle="--", linewidth=1.2, label="null95")
-    ax1.plot(th_c, np.concatenate([q_lo, q_lo[:1]]), color="#444444", linestyle="--", linewidth=1.0, label="null5")
-    ax1.fill_between(th_c, np.concatenate([q_lo, q_lo[:1]]), np.concatenate([q_hi, q_hi[:1]]), color="#B0B0B0", alpha=0.17)
+    ax1.plot(
+        th_c,
+        np.concatenate([q_hi, q_hi[:1]]),
+        color="#444444",
+        linestyle="--",
+        linewidth=1.2,
+        label="null95",
+    )
+    ax1.plot(
+        th_c,
+        np.concatenate([q_lo, q_lo[:1]]),
+        color="#444444",
+        linestyle="--",
+        linewidth=1.0,
+        label="null5",
+    )
+    ax1.fill_between(
+        th_c,
+        np.concatenate([q_lo, q_lo[:1]]),
+        np.concatenate([q_hi, q_hi[:1]]),
+        color="#B0B0B0",
+        alpha=0.17,
+    )
     ax1.set_theta_zero_location("E")
     ax1.set_theta_direction(1)
     ax1.set_thetagrids(np.arange(0, 360, 90))
@@ -973,12 +1056,19 @@ def _plot_biorsp_profiles(
 
     bins = int(min(45, max(12, np.ceil(np.sqrt(null_t.size)))))
     ax2.hist(null_t, bins=bins, color="#779ECB", edgecolor="white", alpha=0.9)
-    ax2.axvline(float(biorsp_row["T_obs"]), color="#8B0000", linestyle="--", linewidth=2.0)
+    ax2.axvline(
+        float(biorsp_row["T_obs"]), color="#8B0000", linestyle="--", linewidth=2.0
+    )
     ax2.set_xlabel("null_T")
     ax2.set_ylabel("count")
     ax2.set_title("Null T distribution")
 
-    high_c = np.concatenate([np.asarray(high_profile, dtype=float), np.asarray(high_profile[:1], dtype=float)])
+    high_c = np.concatenate(
+        [
+            np.asarray(high_profile, dtype=float),
+            np.asarray(high_profile[:1], dtype=float),
+        ]
+    )
     ax3.plot(th_c, obs_c, color="#D62728", linewidth=2.0, label="low_conf")
     ax3.plot(th_c, high_c, color="#1F77B4", linewidth=1.8, label="high_conf")
     ax3.set_theta_zero_location("E")
@@ -989,7 +1079,11 @@ def _plot_biorsp_profiles(
 
     fig.suptitle(f"{defn.name}: BioRSP diagnostics", y=1.02)
     fig.tight_layout()
-    fig.savefig(out_dir / f"{defn.name}_biorsp_profiles.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+    fig.savefig(
+        out_dir / f"{defn.name}_biorsp_profiles.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+        bbox_inches="tight",
+    )
     plt.close(fig)
 
 
@@ -1064,7 +1158,9 @@ def _plot_boundary_metrics(
                 med_x.append(float(np.median(xs[start:stop])))
                 med_y.append(float(np.median(ys[start:stop])))
             if len(med_x) >= 2:
-                ax3.plot(np.asarray(med_x), np.asarray(med_y), color="black", linewidth=2.0)
+                ax3.plot(
+                    np.asarray(med_x), np.asarray(med_y), color="black", linewidth=2.0
+                )
         ax3.set_xlabel("confidence score")
         ax3.set_ylabel("boundary_score")
         ax3.set_title("Confidence vs boundary")
@@ -1072,11 +1168,17 @@ def _plot_boundary_metrics(
     else:
         ax3.axis("off")
         ax3.set_title("Confidence vs boundary")
-        ax3.text(0.5, 0.5, "No numeric confidence score available.", ha="center", va="center")
+        ax3.text(
+            0.5, 0.5, "No numeric confidence score available.", ha="center", va="center"
+        )
 
     fig.suptitle(f"{defn.name}: boundary metrics", y=1.02)
     fig.tight_layout()
-    fig.savefig(out_dir / f"{defn.name}_boundary_metrics.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+    fig.savefig(
+        out_dir / f"{defn.name}_boundary_metrics.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+        bbox_inches="tight",
+    )
     plt.close(fig)
 
 
@@ -1094,14 +1196,26 @@ def _plot_random_controls(
     t_rand = np.asarray(random_controls["T_random"], dtype=float)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12.8, 4.8))
-    ax1.hist(mean_rand, bins=max(8, min(18, mean_rand.size)), color="#72B7B2", edgecolor="white", alpha=0.92)
+    ax1.hist(
+        mean_rand,
+        bins=max(8, min(18, mean_rand.size)),
+        color="#72B7B2",
+        edgecolor="white",
+        alpha=0.92,
+    )
     ax1.axvline(float(mean_b_low), color="#8B0000", linestyle="--", linewidth=1.8)
     ax1.set_xlabel("mean(boundary_score) random foreground")
     ax1.set_ylabel("count")
     ax1.set_title(f"Random control means (p_emp={float(p_emp):.3f})")
     ax1.grid(axis="y", alpha=0.25, linewidth=0.6)
 
-    ax2.hist(t_rand, bins=max(8, min(18, t_rand.size)), color="#4C78A8", edgecolor="white", alpha=0.92)
+    ax2.hist(
+        t_rand,
+        bins=max(8, min(18, t_rand.size)),
+        color="#4C78A8",
+        edgecolor="white",
+        alpha=0.92,
+    )
     ax2.axvline(float(t_obs), color="#8B0000", linestyle="--", linewidth=1.8)
     ax2.set_xlabel("T_random")
     ax2.set_ylabel("count")
@@ -1110,7 +1224,11 @@ def _plot_random_controls(
 
     fig.suptitle(f"{defn.name}: random-mask controls", y=1.02)
     fig.tight_layout()
-    fig.savefig(out_dir / f"{defn.name}_random_controls.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+    fig.savefig(
+        out_dir / f"{defn.name}_random_controls.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+        bbox_inches="tight",
+    )
     plt.close(fig)
 
 
@@ -1150,10 +1268,26 @@ def _plot_marker_checks(
         if required not in pivot_frac.columns:
             pivot_frac[required] = np.nan
 
-    low_mean = pivot_mean.loc["low_conf", markers].to_numpy(dtype=float) if "low_conf" in pivot_mean.index else np.full(len(markers), np.nan)
-    high_mean = pivot_mean.loc["high_conf", markers].to_numpy(dtype=float) if "high_conf" in pivot_mean.index else np.full(len(markers), np.nan)
-    low_frac = pivot_frac.loc["low_conf", markers].to_numpy(dtype=float) if "low_conf" in pivot_frac.index else np.full(len(markers), np.nan)
-    high_frac = pivot_frac.loc["high_conf", markers].to_numpy(dtype=float) if "high_conf" in pivot_frac.index else np.full(len(markers), np.nan)
+    low_mean = (
+        pivot_mean.loc["low_conf", markers].to_numpy(dtype=float)
+        if "low_conf" in pivot_mean.index
+        else np.full(len(markers), np.nan)
+    )
+    high_mean = (
+        pivot_mean.loc["high_conf", markers].to_numpy(dtype=float)
+        if "high_conf" in pivot_mean.index
+        else np.full(len(markers), np.nan)
+    )
+    low_frac = (
+        pivot_frac.loc["low_conf", markers].to_numpy(dtype=float)
+        if "low_conf" in pivot_frac.index
+        else np.full(len(markers), np.nan)
+    )
+    high_frac = (
+        pivot_frac.loc["high_conf", markers].to_numpy(dtype=float)
+        if "high_conf" in pivot_frac.index
+        else np.full(len(markers), np.nan)
+    )
     d_mean = low_mean - high_mean
     d_frac = low_frac - high_frac
 
@@ -1183,21 +1317,38 @@ def _plot_marker_checks(
         low_vals = []
         high_vals = []
         for p in pairs:
-            low_row = pair_rows.loc[(pair_rows["feature"] == p) & (pair_rows["contrast_group"] == "low_conf")]
-            high_row = pair_rows.loc[(pair_rows["feature"] == p) & (pair_rows["contrast_group"] == "high_conf")]
-            low_vals.append(float(low_row["coexpr_rate"].iloc[0]) if not low_row.empty else np.nan)
-            high_vals.append(float(high_row["coexpr_rate"].iloc[0]) if not high_row.empty else np.nan)
+            low_row = pair_rows.loc[
+                (pair_rows["feature"] == p)
+                & (pair_rows["contrast_group"] == "low_conf")
+            ]
+            high_row = pair_rows.loc[
+                (pair_rows["feature"] == p)
+                & (pair_rows["contrast_group"] == "high_conf")
+            ]
+            low_vals.append(
+                float(low_row["coexpr_rate"].iloc[0]) if not low_row.empty else np.nan
+            )
+            high_vals.append(
+                float(high_row["coexpr_rate"].iloc[0]) if not high_row.empty else np.nan
+            )
         ax2.bar(x - width / 2, low_vals, width=width, color="#D62728", label="low_conf")
-        ax2.bar(x + width / 2, high_vals, width=width, color="#1F77B4", label="high_conf")
+        ax2.bar(
+            x + width / 2, high_vals, width=width, color="#1F77B4", label="high_conf"
+        )
         ax2.set_xticks(x)
         ax2.set_xticklabels(pairs, rotation=35, ha="right", fontsize=8)
         ax2.set_ylabel("co-expression rate")
         ax2.set_title("Dual-marker co-expression")
-        ax2.set_ylim(0.0, max(1e-6, np.nanmax(np.asarray(low_vals + high_vals, dtype=float)) * 1.2))
+        ax2.set_ylim(
+            0.0,
+            max(1e-6, np.nanmax(np.asarray(low_vals + high_vals, dtype=float)) * 1.2),
+        )
         ax2.grid(axis="y", alpha=0.25, linewidth=0.6)
         ax2.legend(loc="upper right", fontsize=8, frameon=True)
 
-    ax3.scatter(d_mean, d_frac, c="#2C7FB8", s=65, edgecolors="black", linewidths=0.5, alpha=0.9)
+    ax3.scatter(
+        d_mean, d_frac, c="#2C7FB8", s=65, edgecolors="black", linewidths=0.5, alpha=0.9
+    )
     for i, gene in enumerate(markers):
         ax3.text(float(d_mean[i]) + 0.01, float(d_frac[i]) + 0.002, gene, fontsize=8)
     ax3.axhline(0.0, color="#777777", linestyle="--", linewidth=1.0)
@@ -1209,7 +1360,11 @@ def _plot_marker_checks(
 
     fig.suptitle(f"{defn.name}: marker ambiguity checks", y=1.02)
     fig.tight_layout()
-    fig.savefig(out_dir / f"{defn.name}_marker_checks.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+    fig.savefig(
+        out_dir / f"{defn.name}_marker_checks.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+        bbox_inches="tight",
+    )
     plt.close(fig)
 
 
@@ -1243,7 +1398,15 @@ def _plot_qc_controls(
         for ax, (name, vals) in zip(axes_arr, available):
             x = np.asarray(vals, dtype=float)
             order = np.argsort(x, kind="mergesort")
-            ax.scatter(umap_xy[:, 0], umap_xy[:, 1], c="#D4D4D4", s=3.0, alpha=0.25, linewidths=0, rasterized=True)
+            ax.scatter(
+                umap_xy[:, 0],
+                umap_xy[:, 1],
+                c="#D4D4D4",
+                s=3.0,
+                alpha=0.25,
+                linewidths=0,
+                rasterized=True,
+            )
             sc = ax.scatter(
                 umap_xy[order, 0],
                 umap_xy[order, 1],
@@ -1278,11 +1441,17 @@ def _plot_qc_controls(
             ax.set_title(f"{name} + low_conf outline")
             fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.03)
         fig.tight_layout()
-        fig.savefig(out_dir / f"{defn.name}_qc_umap_overlay.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+        fig.savefig(
+            out_dir / f"{defn.name}_qc_umap_overlay.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+            bbox_inches="tight",
+        )
         plt.close(fig)
 
     if score_vals is not None and len(available) > 0:
-        fig2, axes2 = plt.subplots(1, len(available), figsize=(5.5 * len(available), 4.9))
+        fig2, axes2 = plt.subplots(
+            1, len(available), figsize=(5.5 * len(available), 4.9)
+        )
         if not isinstance(axes2, np.ndarray):
             axes2_arr = np.array([axes2])
         else:
@@ -1306,7 +1475,11 @@ def _plot_qc_controls(
             ax.set_title(f"{name} vs confidence")
             ax.grid(alpha=0.25, linewidth=0.6)
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{defn.name}_qc_vs_confidence.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+        fig2.savefig(
+            out_dir / f"{defn.name}_qc_vs_confidence.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+            bbox_inches="tight",
+        )
         plt.close(fig2)
     else:
         _save_placeholder(
@@ -1325,10 +1498,20 @@ def _plot_qc_controls(
         f"qc_risk: {rho_row.get('qc_risk', np.nan):.4f}",
         f"sim_qc_profile_max: {rho_row.get('sim_qc_profile_max', np.nan):.4f}",
     ]
-    ax3.text(0.03, 0.95, "\n".join(lines), ha="left", va="top", family="monospace", fontsize=10)
+    ax3.text(
+        0.03,
+        0.95,
+        "\n".join(lines),
+        ha="left",
+        va="top",
+        family="monospace",
+        fontsize=10,
+    )
     ax3.set_title("QC correlation summary")
     fig3.tight_layout()
-    fig3.savefig(out_dir / f"{defn.name}_qc_rho_summary.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        out_dir / f"{defn.name}_qc_rho_summary.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig3)
 
 
@@ -1350,7 +1533,16 @@ def main() -> int:
     p_random = plots_dir / "04_random_controls"
     p_marker = plots_dir / "05_marker_checks"
     p_qc = plots_dir / "06_qc_controls"
-    for d in [tables_dir, p_overview, p_lowumap, p_biorsp, p_boundary, p_random, p_marker, p_qc]:
+    for d in [
+        tables_dir,
+        p_overview,
+        p_lowumap,
+        p_biorsp,
+        p_boundary,
+        p_random,
+        p_marker,
+        p_qc,
+    ]:
         d.mkdir(parents=True, exist_ok=True)
 
     warnings_log: list[str] = []
@@ -1404,8 +1596,12 @@ def main() -> int:
 
     total_counts = _total_counts_vector(adata, expr_matrix)
     pct_mt_raw, pct_mt_source = _pct_mt_vector(adata, expr_matrix, adata_like)
-    pct_mt = None if pct_mt_source == "proxy:zeros" else np.asarray(pct_mt_raw, dtype=float)
-    pct_ribo, pct_ribo_source = _compute_pct_counts_ribo(adata, expr_matrix, adata_like, total_counts)
+    pct_mt = (
+        None if pct_mt_source == "proxy:zeros" else np.asarray(pct_mt_raw, dtype=float)
+    )
+    pct_ribo, pct_ribo_source = _compute_pct_counts_ribo(
+        adata, expr_matrix, adata_like, total_counts
+    )
     qc_covars: dict[str, np.ndarray | None] = {
         "total_counts": np.asarray(total_counts, dtype=float),
         "pct_counts_mt": pct_mt,
@@ -1445,7 +1641,14 @@ def main() -> int:
                 "Z_T": float(robust_z(float(perm["T_obs"]), null_t)),
                 "coverage_C": float(coverage_from_null(e_obs, null_e, q=0.95)),
                 "peaks_K": int(peak_count(e_obs, null_e, smooth_w=3, q_prom=0.95)),
-                "phi_hat_deg": float(np.degrees(theta_bin_centers(int(args.n_bins))[int(np.argmax(np.abs(e_obs)))]) % 360.0),
+                "phi_hat_deg": float(
+                    np.degrees(
+                        theta_bin_centers(int(args.n_bins))[
+                            int(np.argmax(np.abs(e_obs)))
+                        ]
+                    )
+                    % 360.0
+                ),
                 "used_donor_stratified": bool(perm["used_donor_stratified"]),
                 "notes": "QC pseudo-feature continuous control",
             }
@@ -1459,7 +1662,11 @@ def main() -> int:
     qc_assoc_rows: dict[str, dict[str, Any]] = {}
 
     label_counts = pd.Series(labels).value_counts().sort_values(ascending=False)
-    major_labels = label_counts.loc[label_counts >= max(50, int(0.01 * labels.size))].index.astype(str).tolist()
+    major_labels = (
+        label_counts.loc[label_counts >= max(50, int(0.01 * labels.size))]
+        .index.astype(str)
+        .tolist()
+    )
 
     for di, defn in enumerate(defs):
         low = np.asarray(defn.low_mask, dtype=bool)
@@ -1505,7 +1712,10 @@ def main() -> int:
 
         sim_qc_vals: list[tuple[str, float]] = []
         for qname, qprof in qc_profiles.items():
-            sim = _cosine_similarity(np.asarray(art["E_phi_obs"], dtype=float), np.asarray(qprof, dtype=float))
+            sim = _cosine_similarity(
+                np.asarray(art["E_phi_obs"], dtype=float),
+                np.asarray(qprof, dtype=float),
+            )
             if np.isfinite(sim):
                 sim_qc_vals.append((qname, sim))
         if sim_qc_vals:
@@ -1541,7 +1751,12 @@ def main() -> int:
             "qc_risk": float(qc_risk),
             "qc_driven_like": bool(
                 (float(summary["p_T"]) <= 0.05)
-                and ((float(qc_risk) >= QC_RISK_THRESH) or (np.isfinite(best_qc_sim) and float(best_qc_sim) >= QC_SIM_THRESH))
+                and (
+                    (float(qc_risk) >= QC_RISK_THRESH)
+                    or (
+                        np.isfinite(best_qc_sim) and float(best_qc_sim) >= QC_SIM_THRESH
+                    )
+                )
             ),
             "perm_warning": str(summary["perm_warning"]),
         }
@@ -1565,7 +1780,9 @@ def main() -> int:
         high_b = b[high]
         if int(low_b.size) > 0 and int(high_b.size) > 0:
             mw = mannwhitneyu(low_b, high_b, alternative="two-sided")
-            cliffs = _cliffs_delta_from_u(float(mw.statistic), int(low_b.size), int(high_b.size))
+            cliffs = _cliffs_delta_from_u(
+                float(mw.statistic), int(low_b.size), int(high_b.size)
+            )
             mw_u = float(mw.statistic)
             mw_p = float(mw.pvalue)
         else:
@@ -1576,7 +1793,11 @@ def main() -> int:
         mean_low = float(np.mean(low_b)) if low_b.size > 0 else float("nan")
         mean_high = float(np.mean(high_b)) if high_b.size > 0 else float("nan")
         rand_mean = np.asarray(random_controls["mean_boundary_random"], dtype=float)
-        p_emp = float((1.0 + np.sum(rand_mean >= mean_low)) / (1.0 + rand_mean.size)) if rand_mean.size > 0 else float("nan")
+        p_emp = (
+            float((1.0 + np.sum(rand_mean >= mean_low)) / (1.0 + rand_mean.size))
+            if rand_mean.size > 0
+            else float("nan")
+        )
 
         boundary_rows.append(
             {
@@ -1590,12 +1811,20 @@ def main() -> int:
                 "mw_U": mw_u,
                 "mw_p": mw_p,
                 "cliffs_delta": cliffs,
-                "mean_B_random_mean": float(np.mean(rand_mean)) if rand_mean.size > 0 else float("nan"),
-                "mean_B_random_sd": float(np.std(rand_mean)) if rand_mean.size > 0 else float("nan"),
+                "mean_B_random_mean": (
+                    float(np.mean(rand_mean)) if rand_mean.size > 0 else float("nan")
+                ),
+                "mean_B_random_sd": (
+                    float(np.std(rand_mean)) if rand_mean.size > 0 else float("nan")
+                ),
                 "p_emp_random": p_emp,
                 "T_obs": float(summary["T_obs"]),
-                "T_random_mean": float(np.mean(np.asarray(random_controls["T_random"], dtype=float))),
-                "T_random_sd": float(np.std(np.asarray(random_controls["T_random"], dtype=float))),
+                "T_random_mean": float(
+                    np.mean(np.asarray(random_controls["T_random"], dtype=float))
+                ),
+                "T_random_sd": float(
+                    np.std(np.asarray(random_controls["T_random"], dtype=float))
+                ),
             }
         )
 
@@ -1609,7 +1838,9 @@ def main() -> int:
             b_low_lbl = b[low_lbl]
             b_high_lbl = b[high_lbl]
             mw_l = mannwhitneyu(b_low_lbl, b_high_lbl, alternative="two-sided")
-            delta_l = _cliffs_delta_from_u(float(mw_l.statistic), int(b_low_lbl.size), int(b_high_lbl.size))
+            delta_l = _cliffs_delta_from_u(
+                float(mw_l.statistic), int(b_low_lbl.size), int(b_high_lbl.size)
+            )
             boundary_rows.append(
                 {
                     "definition": defn.name,
@@ -1665,7 +1896,9 @@ def main() -> int:
 
     lowconf_biorsp_df = pd.DataFrame(biorsp_rows)
     if not lowconf_biorsp_df.empty:
-        lowconf_biorsp_df["q_T"] = bh_fdr(lowconf_biorsp_df["p_T"].to_numpy(dtype=float))
+        lowconf_biorsp_df["q_T"] = bh_fdr(
+            lowconf_biorsp_df["p_T"].to_numpy(dtype=float)
+        )
 
     boundary_enrich_df = pd.DataFrame(boundary_rows)
 
@@ -1690,8 +1923,14 @@ def main() -> int:
                             "feature_type": "gene",
                             "feature": gene,
                             "panel_group": group,
-                            "mean_log1p": float(np.mean(np.log1p(np.maximum(vals, 0.0)))) if vals.size > 0 else np.nan,
-                            "frac_expr": float(np.mean(vals > 0.0)) if vals.size > 0 else np.nan,
+                            "mean_log1p": (
+                                float(np.mean(np.log1p(np.maximum(vals, 0.0))))
+                                if vals.size > 0
+                                else np.nan
+                            ),
+                            "frac_expr": (
+                                float(np.mean(vals > 0.0)) if vals.size > 0 else np.nan
+                            ),
                             "coexpr_rate": np.nan,
                         }
                     )
@@ -1713,7 +1952,11 @@ def main() -> int:
                         "panel_group": "dual_marker",
                         "mean_log1p": np.nan,
                         "frac_expr": np.nan,
-                        "coexpr_rate": float(np.mean(both[gmask])) if int(gmask.sum()) > 0 else np.nan,
+                        "coexpr_rate": (
+                            float(np.mean(both[gmask]))
+                            if int(gmask.sum()) > 0
+                            else np.nan
+                        ),
                     }
                 )
 
@@ -1797,8 +2040,12 @@ def main() -> int:
             "notes": "QC covariate source.",
         },
     ]
-    pd.DataFrame(confidence_keys_rows).to_csv(tables_dir / "confidence_keys_used.csv", index=False)
-    pd.DataFrame(lowdef_rows).to_csv(tables_dir / "lowconf_definitions.csv", index=False)
+    pd.DataFrame(confidence_keys_rows).to_csv(
+        tables_dir / "confidence_keys_used.csv", index=False
+    )
+    pd.DataFrame(lowdef_rows).to_csv(
+        tables_dir / "lowconf_definitions.csv", index=False
+    )
 
     if bool(args.save_per_cell):
         per_cell = boundary_df.copy()
@@ -1813,11 +2060,17 @@ def main() -> int:
             per_cell[f"is_{defn.name}_high"] = np.asarray(defn.high_mask, dtype=bool)
         per_cell.to_csv(tables_dir / "boundary_metrics_per_cell.csv", index=False)
 
-    lowconf_out = pd.concat([lowconf_biorsp_df, pd.DataFrame(qc_profile_rows)], ignore_index=True)
+    lowconf_out = pd.concat(
+        [lowconf_biorsp_df, pd.DataFrame(qc_profile_rows)], ignore_index=True
+    )
     lowconf_out.to_csv(tables_dir / "lowconf_biorsp_summary.csv", index=False)
-    boundary_enrich_df.to_csv(tables_dir / "boundary_enrichment_summary.csv", index=False)
+    boundary_enrich_df.to_csv(
+        tables_dir / "boundary_enrichment_summary.csv", index=False
+    )
     marker_out = marker_summary_df.merge(
-        marker_resolve_df[["gene", "panel_group", "status"]].rename(columns={"gene": "feature", "status": "feature_status"}),
+        marker_resolve_df[["gene", "panel_group", "status"]].rename(
+            columns={"gene": "feature", "status": "feature_status"}
+        ),
         on=["feature", "panel_group"],
         how="left",
     )
@@ -1846,15 +2099,21 @@ def main() -> int:
         )
 
     # Marker/doublet plausibility brief.
-    dual_rows = marker_summary_df.loc[marker_summary_df["feature_type"] == "pair"].copy()
+    dual_rows = marker_summary_df.loc[
+        marker_summary_df["feature_type"] == "pair"
+    ].copy()
     marker_lines: list[str] = []
     for defn in defs:
         sub = dual_rows.loc[dual_rows["definition"] == defn.name]
         if sub.empty:
             continue
         for pair in sorted(sub["feature"].astype(str).unique().tolist()):
-            low_row = sub.loc[(sub["feature"] == pair) & (sub["contrast_group"] == "low_conf")]
-            high_row = sub.loc[(sub["feature"] == pair) & (sub["contrast_group"] == "high_conf")]
+            low_row = sub.loc[
+                (sub["feature"] == pair) & (sub["contrast_group"] == "low_conf")
+            ]
+            high_row = sub.loc[
+                (sub["feature"] == pair) & (sub["contrast_group"] == "high_conf")
+            ]
             if low_row.empty or high_row.empty:
                 continue
             low_rate = float(low_row["coexpr_rate"].iloc[0])
@@ -1917,16 +2176,24 @@ def main() -> int:
     print(f"donor_key_used={donor_key_used if donor_key_used is not None else 'None'}")
     print(f"label_key_used={label_key_used}")
     print(f"confidence_score_key_used={score_key if score_key is not None else 'None'}")
-    print(f"cl_match_type_key_used={matchtype_key if matchtype_key is not None else 'None'}")
+    print(
+        f"cl_match_type_key_used={matchtype_key if matchtype_key is not None else 'None'}"
+    )
     print(f"expression_source_used={expr_source}")
     print(
         f"n_cells={int(adata.n_obs)} n_bins={int(args.n_bins)} n_perm={int(args.n_perm)} k={int(args.k)} random_reps={int(args.random_reps)}"
     )
     print(f"definitions_used={','.join([d.name for d in defs])}")
     print(f"confidence_keys_csv={(tables_dir / 'confidence_keys_used.csv').as_posix()}")
-    print(f"lowconf_biorsp_csv={(tables_dir / 'lowconf_biorsp_summary.csv').as_posix()}")
-    print(f"boundary_enrichment_csv={(tables_dir / 'boundary_enrichment_summary.csv').as_posix()}")
-    print(f"marker_ambiguity_csv={(tables_dir / 'marker_ambiguity_summary.csv').as_posix()}")
+    print(
+        f"lowconf_biorsp_csv={(tables_dir / 'lowconf_biorsp_summary.csv').as_posix()}"
+    )
+    print(
+        f"boundary_enrichment_csv={(tables_dir / 'boundary_enrichment_summary.csv').as_posix()}"
+    )
+    print(
+        f"marker_ambiguity_csv={(tables_dir / 'marker_ambiguity_summary.csv').as_posix()}"
+    )
     print(f"results_root={outdir.as_posix()}")
     return 0
 

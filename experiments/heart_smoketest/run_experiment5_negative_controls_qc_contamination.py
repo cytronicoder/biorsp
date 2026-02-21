@@ -1472,7 +1472,6 @@ def _plot_flagged_gene_panels(
         expr = np.asarray(art["expr"], dtype=float)
         e_obs = np.asarray(art["E_phi_obs"], dtype=float)
         null_e = np.asarray(art["null_E_phi"], dtype=float)
-        null_t = np.asarray(art["null_T"], dtype=float)
         xy = np.asarray(art["xy"], dtype=float)
         center = np.asarray(art["center"], dtype=float)
 

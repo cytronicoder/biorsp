@@ -165,7 +165,9 @@ def _save_placeholder(path: Path, title: str, message: str) -> None:
     plt.close(fig)
 
 
-def _safe_numeric_obs(adata: ad.AnnData, keys: list[str]) -> tuple[np.ndarray | None, str | None]:
+def _safe_numeric_obs(
+    adata: ad.AnnData, keys: list[str]
+) -> tuple[np.ndarray | None, str | None]:
     for key in keys:
         if key not in adata.obs.columns:
             continue
@@ -178,7 +180,9 @@ def _safe_numeric_obs(adata: ad.AnnData, keys: list[str]) -> tuple[np.ndarray | 
     return None, None
 
 
-def _resolve_key_required(adata: ad.AnnData, requested: str | None, candidates: list[str], purpose: str) -> str:
+def _resolve_key_required(
+    adata: ad.AnnData, requested: str | None, candidates: list[str], purpose: str
+) -> str:
     if requested is not None:
         if requested in adata.obs.columns:
             return str(requested)
@@ -189,7 +193,9 @@ def _resolve_key_required(adata: ad.AnnData, requested: str | None, candidates: 
     raise KeyError(f"No {purpose} key found. Tried: {', '.join(candidates)}")
 
 
-def _choose_expression_source(adata: ad.AnnData, layer_arg: str | None, use_raw_arg: bool) -> tuple[Any, Any, str]:
+def _choose_expression_source(
+    adata: ad.AnnData, layer_arg: str | None, use_raw_arg: bool
+) -> tuple[Any, Any, str]:
     if layer_arg is not None or use_raw_arg:
         return _resolve_expr_matrix(adata, layer=layer_arg, use_raw=bool(use_raw_arg))
     if "counts" in adata.layers:
@@ -212,11 +218,17 @@ def _is_cm_label(label: str) -> bool:
     return "cm" in tokens
 
 
-def _prepare_embedding_input(adata_cm: ad.AnnData, expr_matrix_cm: Any, expr_source: str) -> tuple[ad.AnnData, str]:
+def _prepare_embedding_input(
+    adata_cm: ad.AnnData, expr_matrix_cm: Any, expr_source: str
+) -> tuple[ad.AnnData, str]:
     import scanpy as sc
 
     adata_embed = ad.AnnData(
-        X=expr_matrix_cm.copy() if hasattr(expr_matrix_cm, "copy") else np.array(expr_matrix_cm),
+        X=(
+            expr_matrix_cm.copy()
+            if hasattr(expr_matrix_cm, "copy")
+            else np.array(expr_matrix_cm)
+        ),
         obs=adata_cm.obs.copy(),
     )
     if expr_source.startswith("layer:counts"):
@@ -230,7 +242,9 @@ def _prepare_embedding_input(adata_cm: ad.AnnData, expr_matrix_cm: Any, expr_sou
     return adata_embed, note
 
 
-def _compute_fixed_embeddings(adata_embed: ad.AnnData, seed: int, k_pca: int) -> tuple[list[EmbeddingSpec], int]:
+def _compute_fixed_embeddings(
+    adata_embed: ad.AnnData, seed: int, k_pca: int
+) -> tuple[list[EmbeddingSpec], int]:
     import scanpy as sc
 
     n_cells, n_vars = adata_embed.n_obs, adata_embed.n_vars
@@ -258,7 +272,12 @@ def _compute_fixed_embeddings(adata_embed: ad.AnnData, seed: int, k_pca: int) ->
         EmbeddingSpec(
             key="umap_repr",
             coords=umap[:, :2].copy(),
-            params={"n_neighbors": 30, "min_dist": 0.1, "random_state": 0, "n_pcs": n_pcs},
+            params={
+                "n_neighbors": 30,
+                "min_dist": 0.1,
+                "random_state": 0,
+                "n_pcs": n_pcs,
+            },
         ),
     ]
     return specs, n_pcs
@@ -355,7 +374,9 @@ def _integer_like_counts(arr: np.ndarray, n_check: int = 20000) -> bool:
     return bool(np.allclose(x, np.round(x), atol=1e-8))
 
 
-def _build_embedding_geoms(specs: list[EmbeddingSpec], n_bins: int) -> dict[str, EmbeddingGeom]:
+def _build_embedding_geoms(
+    specs: list[EmbeddingSpec], n_bins: int
+) -> dict[str, EmbeddingGeom]:
     out: dict[str, EmbeddingGeom] = {}
     for emb in specs:
         center = compute_vantage_point(emb.coords, method="mean")
@@ -466,7 +487,9 @@ def _score_foreground(
     }
 
 
-def _ensure_qc_metrics(adata_cm: ad.AnnData, layer_for_qc: str | None) -> tuple[pd.DataFrame, dict[str, str], list[str]]:
+def _ensure_qc_metrics(
+    adata_cm: ad.AnnData, layer_for_qc: str | None
+) -> tuple[pd.DataFrame, dict[str, str], list[str]]:
     import scanpy as sc
 
     warn_log: list[str] = []
@@ -490,7 +513,9 @@ def _ensure_qc_metrics(adata_cm: ad.AnnData, layer_for_qc: str | None) -> tuple[
 
     have_total = "total_counts" in adata_cm.obs.columns
     have_ngenes = "n_genes_by_counts" in adata_cm.obs.columns
-    have_mt = ("pct_counts_mt" in adata_cm.obs.columns) or ("pct_counts_mito" in adata_cm.obs.columns)
+    have_mt = ("pct_counts_mt" in adata_cm.obs.columns) or (
+        "pct_counts_mito" in adata_cm.obs.columns
+    )
     have_ribo = "pct_counts_ribo" in adata_cm.obs.columns
 
     if not (have_total and have_ngenes and have_mt and have_ribo):
@@ -517,8 +542,13 @@ def _ensure_qc_metrics(adata_cm: ad.AnnData, layer_for_qc: str | None) -> tuple[
         info["calculate_qc_metrics"] = "not_needed"
 
     # Harmonize aliases.
-    if "pct_counts_mt" not in adata_cm.obs.columns and "pct_counts_mito" in adata_cm.obs.columns:
-        adata_cm.obs["pct_counts_mt"] = pd.to_numeric(adata_cm.obs["pct_counts_mito"], errors="coerce")
+    if (
+        "pct_counts_mt" not in adata_cm.obs.columns
+        and "pct_counts_mito" in adata_cm.obs.columns
+    ):
+        adata_cm.obs["pct_counts_mt"] = pd.to_numeric(
+            adata_cm.obs["pct_counts_mito"], errors="coerce"
+        )
         info["pct_counts_mt_alias"] = "pct_counts_mito"
     if "total_counts" not in adata_cm.obs.columns:
         arr, key = _safe_numeric_obs(adata_cm, ["n_counts", "total_umis", "nUMI"])
@@ -528,7 +558,12 @@ def _ensure_qc_metrics(adata_cm: ad.AnnData, layer_for_qc: str | None) -> tuple[
 
     # Build summary table.
     rows = []
-    for col in ["total_counts", "n_genes_by_counts", "pct_counts_mt", "pct_counts_ribo"]:
+    for col in [
+        "total_counts",
+        "n_genes_by_counts",
+        "pct_counts_mt",
+        "pct_counts_ribo",
+    ]:
         if col not in adata_cm.obs.columns:
             rows.append(
                 {
@@ -547,7 +582,15 @@ def _ensure_qc_metrics(adata_cm: ad.AnnData, layer_for_qc: str | None) -> tuple[
         vals = pd.to_numeric(adata_cm.obs[col], errors="coerce").to_numpy(dtype=float)
         miss = float(np.mean(~np.isfinite(vals)))
         if np.isnan(vals).any():
-            vals = np.where(np.isfinite(vals), vals, np.nanmedian(vals[np.isfinite(vals)]) if np.isfinite(vals).any() else 0.0)
+            vals = np.where(
+                np.isfinite(vals),
+                vals,
+                (
+                    np.nanmedian(vals[np.isfinite(vals)])
+                    if np.isfinite(vals).any()
+                    else 0.0
+                ),
+            )
         rows.append(
             {
                 "metric": col,
@@ -577,7 +620,12 @@ def _try_scrublet(
 
     layer_name = _resolve_layer_name(expr_source)
     if layer_name != "counts":
-        return None, None, "skipped_non_counts", "Scrublet skipped: counts layer not selected as expression source."
+        return (
+            None,
+            None,
+            "skipped_non_counts",
+            "Scrublet skipped: counts layer not selected as expression source.",
+        )
 
     try:
         import scanpy.external as sce
@@ -586,22 +634,39 @@ def _try_scrublet(
 
     try:
         # Scrublet expects count-like matrix in X.
-        x_counts = expr_matrix_cm.copy() if hasattr(expr_matrix_cm, "copy") else np.asarray(expr_matrix_cm)
+        x_counts = (
+            expr_matrix_cm.copy()
+            if hasattr(expr_matrix_cm, "copy")
+            else np.asarray(expr_matrix_cm)
+        )
         ad_scr = ad.AnnData(
             X=x_counts,
             obs=adata_cm.obs.copy(),
             var=adata_cm.var.copy(),
         )
-        sce.pp.scrublet(ad_scr, expected_doublet_rate=0.05, random_state=int(seed), verbose=False)
-        score = pd.to_numeric(ad_scr.obs.get("doublet_score"), errors="coerce").to_numpy(dtype=float)
+        sce.pp.scrublet(
+            ad_scr, expected_doublet_rate=0.05, random_state=int(seed), verbose=False
+        )
+        score = pd.to_numeric(
+            ad_scr.obs.get("doublet_score"), errors="coerce"
+        ).to_numpy(dtype=float)
         pred = ad_scr.obs.get("predicted_doublet")
         pred_arr = None
         if pred is not None:
             pred_arr = pd.Series(pred).astype(bool).to_numpy(dtype=bool)
         if score is None or int(np.isfinite(score).sum()) == 0:
-            return None, None, "failed_no_score", "Scrublet ran but did not produce usable doublet_score."
+            return (
+                None,
+                None,
+                "failed_no_score",
+                "Scrublet ran but did not produce usable doublet_score.",
+            )
         if np.isnan(score).any():
-            score = np.where(np.isfinite(score), score, float(np.nanmedian(score[np.isfinite(score)])))
+            score = np.where(
+                np.isfinite(score),
+                score,
+                float(np.nanmedian(score[np.isfinite(score)])),
+            )
         return score, pred_arr, "ok", None
     except Exception as exc:  # pragma: no cover
         return None, None, f"failed:{exc}", f"Scrublet failed: {exc}"
@@ -628,7 +693,9 @@ def _random_sets_detection_matched(
         return [], np.zeros((0, n_cells), dtype=float), np.zeros(0, dtype=float)
 
     if sp.issparse(expr_matrix):
-        det = np.asarray((expr_matrix > 0).sum(axis=0)).ravel().astype(float) / max(1.0, float(n_cells))
+        det = np.asarray((expr_matrix > 0).sum(axis=0)).ravel().astype(float) / max(
+            1.0, float(n_cells)
+        )
     else:
         det = (np.asarray(expr_matrix, dtype=float) > 0).mean(axis=0).astype(float)
 
@@ -694,16 +761,38 @@ def _plot_polar_with_null(
     n_bins = int(np.asarray(e_obs).size)
     th_cent = theta_bin_centers(n_bins)
     th = np.concatenate([th_cent, th_cent[:1]])
-    obs = np.concatenate([np.asarray(e_obs, dtype=float), np.asarray(e_obs[:1], dtype=float)])
+    obs = np.concatenate(
+        [np.asarray(e_obs, dtype=float), np.asarray(e_obs[:1], dtype=float)]
+    )
 
     ax1.plot(th, obs, color="#8B0000", linewidth=2.2, label="obs")
     if null_e is not None and np.asarray(null_e).size > 0:
         ne = np.asarray(null_e, dtype=float)
         hi = np.quantile(ne, 0.95, axis=0)
         lo = np.quantile(ne, 0.05, axis=0)
-        ax1.plot(th, np.concatenate([hi, hi[:1]]), color="#333333", linestyle="--", linewidth=1.2, label="null 95%")
-        ax1.plot(th, np.concatenate([lo, lo[:1]]), color="#333333", linestyle="--", linewidth=1.0, label="null 5%")
-        ax1.fill_between(th, np.concatenate([lo, lo[:1]]), np.concatenate([hi, hi[:1]]), color="#B9B9B9", alpha=0.18)
+        ax1.plot(
+            th,
+            np.concatenate([hi, hi[:1]]),
+            color="#333333",
+            linestyle="--",
+            linewidth=1.2,
+            label="null 95%",
+        )
+        ax1.plot(
+            th,
+            np.concatenate([lo, lo[:1]]),
+            color="#333333",
+            linestyle="--",
+            linewidth=1.0,
+            label="null 5%",
+        )
+        ax1.fill_between(
+            th,
+            np.concatenate([lo, lo[:1]]),
+            np.concatenate([hi, hi[:1]]),
+            color="#B9B9B9",
+            alpha=0.18,
+        )
     ax1.set_theta_zero_location("E")
     ax1.set_theta_direction(1)
     ax1.set_thetagrids(np.arange(0, 360, 90))
@@ -753,7 +842,9 @@ def _plot_heatmap(
     if mat.size == 0:
         _save_placeholder(out_png, title, "No data")
         return
-    fig, ax = plt.subplots(figsize=(1.0 * len(col_labels) + 3.0, 0.36 * len(row_labels) + 2.4))
+    fig, ax = plt.subplots(
+        figsize=(1.0 * len(col_labels) + 3.0, 0.36 * len(row_labels) + 2.4)
+    )
     im = ax.imshow(mat, aspect="auto", cmap=cmap, vmin=vmin, vmax=vmax)
     ax.set_xticks(np.arange(len(col_labels)))
     ax.set_xticklabels(col_labels, rotation=45, ha="right", fontsize=8)
@@ -812,7 +903,9 @@ def _write_readme(
     warnings_log: list[str],
 ) -> None:
     lines: list[str] = []
-    lines.append("CM Experiment #6 (Single-donor): QC/contamination negative controls and confounding diagnosis")
+    lines.append(
+        "CM Experiment #6 (Single-donor): QC/contamination negative controls and confounding diagnosis"
+    )
     lines.append("")
     lines.append("Hypothesis")
     lines.append(
@@ -821,9 +914,15 @@ def _write_readme(
     )
     lines.append("")
     lines.append("Inference setup")
-    lines.append("- Single donor only (donor_star selected by max cardiomyocyte count).")
-    lines.append("- Localized signal based on permutation-calibrated q<=0.05 under top-quantile foreground.")
-    lines.append("- QC-driven flag requires localized signal and (qc_risk>=0.35 OR profile_qc_risk>=0.70).")
+    lines.append(
+        "- Single donor only (donor_star selected by max cardiomyocyte count)."
+    )
+    lines.append(
+        "- Localized signal based on permutation-calibrated q<=0.05 under top-quantile foreground."
+    )
+    lines.append(
+        "- QC-driven flag requires localized signal and (qc_risk>=0.35 OR profile_qc_risk>=0.70)."
+    )
     lines.append("")
     lines.append("Run metadata")
     lines.append(f"- seed: {args.seed}")
@@ -905,13 +1004,16 @@ def main() -> int:
     ]:
         d.mkdir(parents=True, exist_ok=True)
 
-    rng = np.random.default_rng(int(args.seed))
     warnings_log: list[str] = []
 
     adata = ad.read_h5ad(args.h5ad)
 
-    donor_key = _resolve_key_required(adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor")
-    label_key = _resolve_key_required(adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label")
+    donor_key = _resolve_key_required(
+        adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor"
+    )
+    label_key = _resolve_key_required(
+        adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label"
+    )
 
     labels_all = adata.obs[label_key].astype("string").fillna("NA").astype(str)
     donor_ids_all = adata.obs[donor_key].astype("string").fillna("NA").astype(str)
@@ -923,7 +1025,9 @@ def main() -> int:
         pd.DataFrame({"donor_id": donor_ids_all.to_numpy(), "is_cm": cm_mask_all})
         .groupby("donor_id", as_index=False)
         .agg(n_cells_total=("is_cm", "size"), n_cm=("is_cm", "sum"))
-        .sort_values(by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True])
+        .sort_values(
+            by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True]
+        )
         .reset_index(drop=True)
     )
     donor_star = str(donor_choice.iloc[0]["donor_id"])
@@ -948,15 +1052,21 @@ def main() -> int:
         adata_cm, layer_arg=args.layer, use_raw_arg=bool(args.use_raw)
     )
 
-    expr_dense_probe = _to_dense(expr_matrix_cm[:, : min(32, int(expr_matrix_cm.shape[1]))])
+    expr_dense_probe = _to_dense(
+        expr_matrix_cm[:, : min(32, int(expr_matrix_cm.shape[1]))]
+    )
     integer_like = _integer_like_counts(expr_dense_probe)
     if expr_source in {"X", "raw"} and not integer_like:
         msg = "Expression source appears log/continuous; absolute-count interpretation is limited."
         warnings_log.append(msg)
         print(f"WARNING: {msg}")
 
-    adata_embed, embed_note = _prepare_embedding_input(adata_cm, expr_matrix_cm, expr_source)
-    embeddings, n_pcs_used = _compute_fixed_embeddings(adata_embed, seed=int(args.seed), k_pca=int(args.k_pca))
+    adata_embed, embed_note = _prepare_embedding_input(
+        adata_cm, expr_matrix_cm, expr_source
+    )
+    embeddings, n_pcs_used = _compute_fixed_embeddings(
+        adata_embed, seed=int(args.seed), k_pca=int(args.k_pca)
+    )
     geom_map = _build_embedding_geoms(embeddings, n_bins=int(args.n_bins))
 
     # QC metrics.
@@ -964,10 +1074,16 @@ def main() -> int:
     qc_metrics_df, qc_info, qc_warns = _ensure_qc_metrics(adata_cm, layer_for_qc)
     warnings_log.extend(qc_warns)
 
-    total_counts, total_key = _safe_numeric_obs(adata_cm, ["total_counts", "n_counts", "total_umis", "nUMI"])
+    total_counts, total_key = _safe_numeric_obs(
+        adata_cm, ["total_counts", "n_counts", "total_umis", "nUMI"]
+    )
     n_genes_by_counts, ng_key = _safe_numeric_obs(adata_cm, ["n_genes_by_counts"])
-    pct_mt, mt_key = _safe_numeric_obs(adata_cm, ["pct_counts_mt", "pct_counts_mito", "percent.mt", "pct_mt"])
-    pct_ribo, ribo_key = _safe_numeric_obs(adata_cm, ["pct_counts_ribo", "percent.ribo", "pct_ribo"])
+    pct_mt, mt_key = _safe_numeric_obs(
+        adata_cm, ["pct_counts_mt", "pct_counts_mito", "percent.mt", "pct_mt"]
+    )
+    pct_ribo, ribo_key = _safe_numeric_obs(
+        adata_cm, ["pct_counts_ribo", "percent.ribo", "pct_ribo"]
+    )
 
     qc_metric_sources = {
         "total_counts": str(total_key),
@@ -996,7 +1112,9 @@ def main() -> int:
         adata_cm.obs["predicted_doublet"] = predicted_doublet
 
     # Resolve genes.
-    extra_genes = _read_extra_genes(str(args.extra_genes_csv), top_n=int(args.top_extra))
+    extra_genes = _read_extra_genes(
+        str(args.extra_genes_csv), top_n=int(args.top_extra)
+    )
     panel_genes = list(CM_PANEL) + extra_genes
     panel_genes = list(dict.fromkeys(panel_genes))
 
@@ -1007,7 +1125,9 @@ def main() -> int:
 
     # Ambient genes and score.
     resolved_ambient = [_resolve_gene(adata_like_cm, g) for g in AMBIENT_CANDIDATES]
-    ambient_present = [r for r in resolved_ambient if r.present and r.gene_idx is not None]
+    ambient_present = [
+        r for r in resolved_ambient if r.present and r.gene_idx is not None
+    ]
     ambient_indices = [int(r.gene_idx) for r in ambient_present]
     ambient_score = _ambient_score(expr_matrix_cm, ambient_indices)
 
@@ -1105,7 +1225,9 @@ def main() -> int:
             rows.append(row)
 
             # Store profiles for QC pseudo-features and genes in topq mode.
-            if feature_types[name] in {"qc", "ambient", "doublet"} or (feature_types[name] == "gene" and fg_mode == "F1_topq"):
+            if feature_types[name] in {"qc", "ambient", "doublet"} or (
+                feature_types[name] == "gene" and fg_mode == "F1_topq"
+            ):
                 detail_map[(emb.key, name, fg_mode)] = {
                     "E_obs": score["E_obs"],
                     "null_E": score["null_E"],
@@ -1117,14 +1239,18 @@ def main() -> int:
             test_count += 1
             if test_count % 50 == 0 or test_count == total_tests:
                 print(f"[Scoring] {test_count}/{total_tests} tests completed")
-                pd.DataFrame(rows).to_csv(tables_dir / "feature_scores_long.intermediate.csv", index=False)
+                pd.DataFrame(rows).to_csv(
+                    tables_dir / "feature_scores_long.intermediate.csv", index=False
+                )
 
     feature_scores = pd.DataFrame(rows)
 
     # BH within embedding x foreground x feature_type.
     if not feature_scores.empty:
         qvals = np.full(len(feature_scores), np.nan, dtype=float)
-        for _, idx in feature_scores.groupby(["embedding", "foreground_mode", "feature_type"], sort=False).groups.items():
+        for _, idx in feature_scores.groupby(
+            ["embedding", "foreground_mode", "feature_type"], sort=False
+        ).groups.items():
             part = feature_scores.loc[idx, "p_T"].to_numpy(dtype=float)
             fin = np.isfinite(part)
             if int(fin.sum()) == 0:
@@ -1156,14 +1282,30 @@ def main() -> int:
                 "feature_name": feat,
                 "feature_type": ftype,
                 "foreground_mode": fg_mode,
-                "T_obs": float(rr["T_obs"]) if np.isfinite(float(rr["T_obs"])) else np.nan,
+                "T_obs": (
+                    float(rr["T_obs"]) if np.isfinite(float(rr["T_obs"])) else np.nan
+                ),
                 "p_T": float(rr["p_T"]) if np.isfinite(float(rr["p_T"])) else np.nan,
                 "q_T": float(rr["q_T"]) if np.isfinite(float(rr["q_T"])) else np.nan,
                 "Z_T": float(rr["Z_T"]) if np.isfinite(float(rr["Z_T"])) else np.nan,
-                "coverage_C": float(rr["coverage_C"]) if np.isfinite(float(rr["coverage_C"])) else np.nan,
-                "peaks_K": float(rr["peaks_K"]) if np.isfinite(float(rr["peaks_K"])) else np.nan,
-                "phi_hat_deg": float(rr["phi_hat_deg"]) if np.isfinite(float(rr["phi_hat_deg"])) else np.nan,
-                "E_phi_json": json.dumps(np.asarray(det["E_obs"], dtype=float).tolist()),
+                "coverage_C": (
+                    float(rr["coverage_C"])
+                    if np.isfinite(float(rr["coverage_C"]))
+                    else np.nan
+                ),
+                "peaks_K": (
+                    float(rr["peaks_K"])
+                    if np.isfinite(float(rr["peaks_K"]))
+                    else np.nan
+                ),
+                "phi_hat_deg": (
+                    float(rr["phi_hat_deg"])
+                    if np.isfinite(float(rr["phi_hat_deg"]))
+                    else np.nan
+                ),
+                "E_phi_json": json.dumps(
+                    np.asarray(det["E_obs"], dtype=float).tolist()
+                ),
             }
         )
     qc_profile_df = pd.DataFrame(prof_rows)
@@ -1171,11 +1313,21 @@ def main() -> int:
 
     # Gene QC association (full data, topq foreground).
     qc_covars: dict[str, np.ndarray | None] = {
-        "total_counts": np.asarray(total_counts, dtype=float) if total_counts is not None else None,
-        "pct_counts_mt": np.asarray(pct_mt, dtype=float) if pct_mt is not None else None,
-        "pct_counts_ribo": np.asarray(pct_ribo, dtype=float) if pct_ribo is not None else None,
+        "total_counts": (
+            np.asarray(total_counts, dtype=float) if total_counts is not None else None
+        ),
+        "pct_counts_mt": (
+            np.asarray(pct_mt, dtype=float) if pct_mt is not None else None
+        ),
+        "pct_counts_ribo": (
+            np.asarray(pct_ribo, dtype=float) if pct_ribo is not None else None
+        ),
         "ambient_score": np.asarray(ambient_score, dtype=float),
-        "doublet_score": np.asarray(doublet_score, dtype=float) if doublet_score is not None else None,
+        "doublet_score": (
+            np.asarray(doublet_score, dtype=float)
+            if doublet_score is not None
+            else None
+        ),
     }
 
     assoc_rows = []
@@ -1187,7 +1339,9 @@ def main() -> int:
         rho_ribo = _safe_spearman(fg, qc_covars["pct_counts_ribo"])
         rho_amb = _safe_spearman(fg, qc_covars["ambient_score"])
         rho_dbl = _safe_spearman(fg, qc_covars["doublet_score"])
-        vals_rho = np.array([rho_total, rho_mt, rho_ribo, rho_amb, rho_dbl], dtype=float)
+        vals_rho = np.array(
+            [rho_total, rho_mt, rho_ribo, rho_amb, rho_dbl], dtype=float
+        )
         fin = vals_rho[np.isfinite(vals_rho)]
         qc_risk = float(np.max(np.abs(fin))) if fin.size > 0 else 0.0
         assoc_rows.append(
@@ -1206,7 +1360,13 @@ def main() -> int:
 
     # Profile similarity genes vs QC pseudo-features.
     sim_rows = []
-    qc_features_for_sim = ["total_counts", "pct_counts_mt", "pct_counts_ribo", "ambient_score", "doublet_score"]
+    qc_features_for_sim = [
+        "total_counts",
+        "pct_counts_mt",
+        "pct_counts_ribo",
+        "ambient_score",
+        "doublet_score",
+    ]
     for emb in [e.key for e in embeddings]:
         for r in genes_present:
             gene_key = (emb, r.gene, "F1_topq")
@@ -1219,8 +1379,12 @@ def main() -> int:
                 if q_key not in detail_map:
                     sims[f"sim_{qf}"] = np.nan
                     continue
-                sims[f"sim_{qf}"] = _cosine_similarity(gprof, np.asarray(detail_map[q_key]["E_obs"], dtype=float))
-            sim_vals = np.array([sims.get(f"sim_{x}", np.nan) for x in qc_features_for_sim], dtype=float)
+                sims[f"sim_{qf}"] = _cosine_similarity(
+                    gprof, np.asarray(detail_map[q_key]["E_obs"], dtype=float)
+                )
+            sim_vals = np.array(
+                [sims.get(f"sim_{x}", np.nan) for x in qc_features_for_sim], dtype=float
+            )
             fin = sim_vals[np.isfinite(sim_vals)]
             risk = float(np.max(fin)) if fin.size > 0 else np.nan
 
@@ -1244,7 +1408,8 @@ def main() -> int:
 
     # QC-driven flags.
     topq_gene_scores = feature_scores.loc[
-        (feature_scores["feature_type"] == "gene") & (feature_scores["foreground_mode"] == "F1_topq")
+        (feature_scores["feature_type"] == "gene")
+        & (feature_scores["foreground_mode"] == "F1_topq")
     ].copy()
 
     flag_rows = []
@@ -1253,17 +1418,29 @@ def main() -> int:
         g_scores = topq_gene_scores.loc[topq_gene_scores["feature_name"] == g]
         if g_scores.empty:
             continue
-        loc_mask = (g_scores["q_T"].to_numpy(dtype=float) <= Q_SIG) & np.isfinite(g_scores["q_T"].to_numpy(dtype=float))
+        loc_mask = (g_scores["q_T"].to_numpy(dtype=float) <= Q_SIG) & np.isfinite(
+            g_scores["q_T"].to_numpy(dtype=float)
+        )
         localized_any = bool(np.any(loc_mask))
-        best_idx = int(np.nanargmax(g_scores["Z_T"].to_numpy(dtype=float))) if np.isfinite(g_scores["Z_T"].to_numpy(dtype=float)).any() else 0
+        best_idx = (
+            int(np.nanargmax(g_scores["Z_T"].to_numpy(dtype=float)))
+            if np.isfinite(g_scores["Z_T"].to_numpy(dtype=float)).any()
+            else 0
+        )
         best_row = g_scores.iloc[best_idx]
 
         assoc_row = assoc_df.loc[assoc_df["gene"] == g]
         assoc_one = assoc_row.iloc[0] if not assoc_row.empty else pd.Series(dtype=float)
-        qc_risk = float(assoc_one.get("qc_risk", np.nan)) if not assoc_row.empty else np.nan
+        qc_risk = (
+            float(assoc_one.get("qc_risk", np.nan)) if not assoc_row.empty else np.nan
+        )
 
         g_sim = sim_df.loc[sim_df["gene"] == g]
-        profile_qc_risk = float(np.nanmax(g_sim["profile_qc_risk"].to_numpy(dtype=float))) if not g_sim.empty else np.nan
+        profile_qc_risk = (
+            float(np.nanmax(g_sim["profile_qc_risk"].to_numpy(dtype=float)))
+            if not g_sim.empty
+            else np.nan
+        )
 
         qc_driven = bool(
             localized_any
@@ -1275,12 +1452,24 @@ def main() -> int:
 
         # Most likely confounder.
         conf_scores: list[tuple[str, float]] = []
-        for k in ["rho_total_counts", "rho_pct_counts_mt", "rho_pct_counts_ribo", "rho_ambient_score", "rho_doublet_score"]:
+        for k in [
+            "rho_total_counts",
+            "rho_pct_counts_mt",
+            "rho_pct_counts_ribo",
+            "rho_ambient_score",
+            "rho_doublet_score",
+        ]:
             v = assoc_one.get(k, np.nan) if not assoc_row.empty else np.nan
             if np.isfinite(float(v)):
                 conf_scores.append((k, abs(float(v))))
         if not g_sim.empty:
-            for k in ["sim_total_counts", "sim_pct_counts_mt", "sim_pct_counts_ribo", "sim_ambient_score", "sim_doublet_score"]:
+            for k in [
+                "sim_total_counts",
+                "sim_pct_counts_mt",
+                "sim_pct_counts_ribo",
+                "sim_ambient_score",
+                "sim_doublet_score",
+            ]:
                 vv = g_sim[k].to_numpy(dtype=float)
                 if np.isfinite(vv).any():
                     conf_scores.append((k, float(np.nanmax(vv))))
@@ -1293,8 +1482,16 @@ def main() -> int:
                 "gene": g,
                 "localized_any_topq": localized_any,
                 "best_embedding": str(best_row["embedding"]),
-                "best_q_T": float(best_row["q_T"]) if np.isfinite(float(best_row["q_T"])) else np.nan,
-                "best_Z_T": float(best_row["Z_T"]) if np.isfinite(float(best_row["Z_T"])) else np.nan,
+                "best_q_T": (
+                    float(best_row["q_T"])
+                    if np.isfinite(float(best_row["q_T"]))
+                    else np.nan
+                ),
+                "best_Z_T": (
+                    float(best_row["Z_T"])
+                    if np.isfinite(float(best_row["Z_T"]))
+                    else np.nan
+                ),
                 "qc_risk": qc_risk,
                 "profile_qc_risk": profile_qc_risk,
                 "qc_driven": qc_driven,
@@ -1315,7 +1512,11 @@ def main() -> int:
         ]
         if amb_row.empty:
             continue
-        amb_z = float(amb_row.iloc[0]["Z_T"]) if np.isfinite(float(amb_row.iloc[0]["Z_T"])) else np.nan
+        amb_z = (
+            float(amb_row.iloc[0]["Z_T"])
+            if np.isfinite(float(amb_row.iloc[0]["Z_T"]))
+            else np.nan
+        )
 
         rand_z = feature_scores.loc[
             (feature_scores["feature_type"] == "randomset")
@@ -1353,9 +1554,17 @@ def main() -> int:
                     "embedding": emb,
                     "kind": "randomset",
                     "set_id": nm,
-                    "ambient_Z_T": float(rr.iloc[0]["Z_T"]) if np.isfinite(float(rr.iloc[0]["Z_T"])) else np.nan,
+                    "ambient_Z_T": (
+                        float(rr.iloc[0]["Z_T"])
+                        if np.isfinite(float(rr.iloc[0]["Z_T"]))
+                        else np.nan
+                    ),
                     "empirical_p": np.nan,
-                    "mean_detection": float(random_mean_det[i]) if i < random_mean_det.size else np.nan,
+                    "mean_detection": (
+                        float(random_mean_det[i])
+                        if i < random_mean_det.size
+                        else np.nan
+                    ),
                 }
             )
 
@@ -1376,7 +1585,11 @@ def main() -> int:
             colorbar_label="log1p(total_counts)",
         )
     else:
-        _save_placeholder(plots_dir / "00_overview" / "umap_log1p_total_counts.png", "total_counts", "Unavailable")
+        _save_placeholder(
+            plots_dir / "00_overview" / "umap_log1p_total_counts.png",
+            "total_counts",
+            "Unavailable",
+        )
 
     if pct_mt is not None:
         save_numeric_umap(
@@ -1388,7 +1601,11 @@ def main() -> int:
             colorbar_label="pct_counts_mt",
         )
     else:
-        _save_placeholder(plots_dir / "00_overview" / "umap_pct_counts_mt.png", "pct_counts_mt", "Unavailable")
+        _save_placeholder(
+            plots_dir / "00_overview" / "umap_pct_counts_mt.png",
+            "pct_counts_mt",
+            "Unavailable",
+        )
 
     save_numeric_umap(
         umap_xy,
@@ -1418,7 +1635,9 @@ def main() -> int:
     # QC metrics table figure.
     fig, ax = plt.subplots(figsize=(11.2, 3.8))
     ax.axis("off")
-    tbl_df = qc_metrics_df[["metric", "available", "source", "mean", "median", "std", "missing_frac"]].copy()
+    tbl_df = qc_metrics_df[
+        ["metric", "available", "source", "mean", "median", "std", "missing_frac"]
+    ].copy()
     tbl_df["mean"] = tbl_df["mean"].round(4)
     tbl_df["median"] = tbl_df["median"].round(4)
     tbl_df["std"] = tbl_df["std"].round(4)
@@ -1428,7 +1647,9 @@ def main() -> int:
     tbl.scale(1.0, 1.3)
     ax.set_title("QC metrics availability and summaries")
     fig.tight_layout()
-    fig.savefig(plots_dir / "00_overview" / "qc_metrics_table.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig.savefig(
+        plots_dir / "00_overview" / "qc_metrics_table.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig)
 
     # -----------------------
@@ -1455,7 +1676,10 @@ def main() -> int:
         ax.set_xlabel(xlabel)
         ax.set_ylabel("count")
     fig1.tight_layout()
-    fig1.savefig(plots_dir / "01_qc_distributions" / "hist_qc_metrics.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        plots_dir / "01_qc_distributions" / "hist_qc_metrics.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig1)
 
     # Joint: log1p_total_counts vs log1p_n_genes_by_counts.
@@ -1472,10 +1696,15 @@ def main() -> int:
         ax2.set_ylabel("log1p(n_genes_by_counts)")
     else:
         ax2.axis("off")
-        ax2.text(0.5, 0.5, "Counts or genes metric unavailable", ha="center", va="center")
+        ax2.text(
+            0.5, 0.5, "Counts or genes metric unavailable", ha="center", va="center"
+        )
     ax2.set_title("QC joint: counts vs genes")
     fig2.tight_layout()
-    fig2.savefig(plots_dir / "01_qc_distributions" / "joint_counts_vs_genes.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig2.savefig(
+        plots_dir / "01_qc_distributions" / "joint_counts_vs_genes.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig2)
 
     # Joint: mt vs counts.
@@ -1492,16 +1721,31 @@ def main() -> int:
         ax3.set_ylabel("pct_counts_mt")
     else:
         ax3.axis("off")
-        ax3.text(0.5, 0.5, "total_counts or pct_counts_mt unavailable", ha="center", va="center")
+        ax3.text(
+            0.5,
+            0.5,
+            "total_counts or pct_counts_mt unavailable",
+            ha="center",
+            va="center",
+        )
     ax3.set_title("QC joint: mt vs counts")
     fig3.tight_layout()
-    fig3.savefig(plots_dir / "01_qc_distributions" / "joint_mt_vs_counts.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        plots_dir / "01_qc_distributions" / "joint_mt_vs_counts.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig3)
 
     # -----------------------
     # Plot 02: QC pseudo-feature RSP.
     # -----------------------
-    pseudo_targets = ["total_counts", "pct_counts_mt", "pct_counts_ribo", "ambient_score", "doublet_score"]
+    pseudo_targets = [
+        "total_counts",
+        "pct_counts_mt",
+        "pct_counts_ribo",
+        "ambient_score",
+        "doublet_score",
+    ]
     for feat in pseudo_targets:
         for emb in [e.key for e in embeddings]:
             key = (emb, feat, "F1_topq")
@@ -1524,12 +1768,22 @@ def main() -> int:
                 f"phi={float(rr['phi_hat_deg']):.1f}"
             )
             _plot_polar_with_null(
-                out_png=plots_dir / "02_qc_pseudofeature_rsp" / f"qc_rsp_{feat}_{emb}.png",
+                out_png=plots_dir
+                / "02_qc_pseudofeature_rsp"
+                / f"qc_rsp_{feat}_{emb}.png",
                 title=f"{emb}: {feat}",
                 e_obs=np.asarray(det["E_obs"], dtype=float),
-                null_e=np.asarray(det["null_E"], dtype=float) if det["null_E"] is not None else None,
+                null_e=(
+                    np.asarray(det["null_E"], dtype=float)
+                    if det["null_E"] is not None
+                    else None
+                ),
                 t_obs=float(det["T_obs"]),
-                null_t=np.asarray(det["null_T"], dtype=float) if det["null_T"] is not None else None,
+                null_t=(
+                    np.asarray(det["null_T"], dtype=float)
+                    if det["null_T"] is not None
+                    else None
+                ),
                 stats_text=stats_txt,
             )
 
@@ -1554,11 +1808,35 @@ def main() -> int:
         x = assoc_plot_df["qc_risk"].to_numpy(dtype=float)
         y = assoc_plot_df["best_Z_T"].to_numpy(dtype=float)
         if int(np.sum(m0)) > 0:
-            ax4.scatter(x[m0], y[m0], s=70, c="#4c78a8", alpha=0.85, edgecolors="black", linewidths=0.35, label="not flagged")
+            ax4.scatter(
+                x[m0],
+                y[m0],
+                s=70,
+                c="#4c78a8",
+                alpha=0.85,
+                edgecolors="black",
+                linewidths=0.35,
+                label="not flagged",
+            )
         if int(np.sum(m1)) > 0:
-            ax4.scatter(x[m1], y[m1], s=105, c="#d62728", marker="*", alpha=0.95, edgecolors="black", linewidths=0.5, label="QC-driven")
+            ax4.scatter(
+                x[m1],
+                y[m1],
+                s=105,
+                c="#d62728",
+                marker="*",
+                alpha=0.95,
+                edgecolors="black",
+                linewidths=0.5,
+                label="QC-driven",
+            )
         for _, rr in assoc_plot_df.iterrows():
-            ax4.text(float(rr["qc_risk"]), float(rr["best_Z_T"]) + 0.02, str(rr["gene"]), fontsize=8)
+            ax4.text(
+                float(rr["qc_risk"]),
+                float(rr["best_Z_T"]) + 0.02,
+                str(rr["gene"]),
+                fontsize=8,
+            )
         ax4.axvline(QC_RISK_THRESH, color="#333", linestyle="--")
         ax4.set_xlabel("qc_risk")
         ax4.set_ylabel("best gene Z_T (topq)")
@@ -1568,11 +1846,20 @@ def main() -> int:
         ax4.text(0.5, 0.5, "No association data", ha="center", va="center")
     ax4.set_title("qc_risk vs gene Z_T")
     fig4.tight_layout()
-    fig4.savefig(plots_dir / "03_gene_vs_qc_association" / "qc_risk_vs_gene_ZT.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig4.savefig(
+        plots_dir / "03_gene_vs_qc_association" / "qc_risk_vs_gene_ZT.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig4)
 
     # Rho heatmap.
-    rho_cols = ["rho_total_counts", "rho_pct_counts_mt", "rho_pct_counts_ribo", "rho_ambient_score", "rho_doublet_score"]
+    rho_cols = [
+        "rho_total_counts",
+        "rho_pct_counts_mt",
+        "rho_pct_counts_ribo",
+        "rho_ambient_score",
+        "rho_doublet_score",
+    ]
     if not assoc_df.empty:
         hdf = assoc_df.set_index("gene")[rho_cols]
         _plot_heatmap(
@@ -1593,10 +1880,16 @@ def main() -> int:
         )
 
     # Top 10 QC-driven scatter gene vs top confounder.
-    top_qc = flags_df.loc[flags_df["qc_driven"]].sort_values(by="best_Z_T", ascending=False).head(10)
+    top_qc = (
+        flags_df.loc[flags_df["qc_driven"]]
+        .sort_values(by="best_Z_T", ascending=False)
+        .head(10)
+    )
     if top_qc.empty:
         _save_placeholder(
-            plots_dir / "03_gene_vs_qc_association" / "top_qc_driven_gene_vs_confounder.png",
+            plots_dir
+            / "03_gene_vs_qc_association"
+            / "top_qc_driven_gene_vs_confounder.png",
             "Top QC-driven",
             "No QC-driven genes flagged",
         )
@@ -1610,7 +1903,9 @@ def main() -> int:
             ax = ax_arr[i]
             gene = str(rr["gene"])
             conf = str(rr["most_likely_confounder"])
-            gvals = np.asarray(feature_values.get(gene, np.zeros(adata_cm.n_obs)), dtype=float)
+            gvals = np.asarray(
+                feature_values.get(gene, np.zeros(adata_cm.n_obs)), dtype=float
+            )
             # choose scatter covariate by conf name fallback.
             if "total_counts" in conf:
                 cvals = qc_covars["total_counts"]
@@ -1632,11 +1927,21 @@ def main() -> int:
                 cname = "pct_counts_mt"
             if cvals is None:
                 ax.axis("off")
-                ax.text(0.5, 0.5, f"{gene}: {cname} unavailable", ha="center", va="center")
+                ax.text(
+                    0.5, 0.5, f"{gene}: {cname} unavailable", ha="center", va="center"
+                )
                 continue
             x = np.asarray(cvals, dtype=float)
             y = np.log1p(np.maximum(gvals, 0.0))
-            ax.scatter(x, y, s=11, alpha=0.42, color="#4c78a8", edgecolors="none", rasterized=True)
+            ax.scatter(
+                x,
+                y,
+                s=11,
+                alpha=0.42,
+                color="#4c78a8",
+                edgecolors="none",
+                rasterized=True,
+            )
             rho = _safe_spearman((y > np.quantile(y, 0.9)).astype(float), x)
             ax.set_title(f"{gene} vs {cname} (rho={rho:.2f})")
             ax.set_xlabel(cname)
@@ -1644,24 +1949,45 @@ def main() -> int:
         for j in range(i + 1, len(ax_arr)):
             ax_arr[j].axis("off")
         fig5.tight_layout()
-        fig5.savefig(plots_dir / "03_gene_vs_qc_association" / "top_qc_driven_gene_vs_confounder.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig5.savefig(
+            plots_dir
+            / "03_gene_vs_qc_association"
+            / "top_qc_driven_gene_vs_confounder.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig5)
 
     # -----------------------
     # Plot 04: Profile similarity.
     # -----------------------
     if sim_df.empty:
-        _save_placeholder(plots_dir / "04_profile_similarity" / "heatmap_profile_similarity.png", "Profile similarity", "No data")
-        _save_placeholder(plots_dir / "04_profile_similarity" / "profile_qc_risk_vs_gene_ZT.png", "Profile risk", "No data")
+        _save_placeholder(
+            plots_dir / "04_profile_similarity" / "heatmap_profile_similarity.png",
+            "Profile similarity",
+            "No data",
+        )
+        _save_placeholder(
+            plots_dir / "04_profile_similarity" / "profile_qc_risk_vs_gene_ZT.png",
+            "Profile risk",
+            "No data",
+        )
     else:
-        sim_cols = ["sim_total_counts", "sim_pct_counts_mt", "sim_pct_counts_ribo", "sim_ambient_score", "sim_doublet_score"]
+        sim_cols = [
+            "sim_total_counts",
+            "sim_pct_counts_mt",
+            "sim_pct_counts_ribo",
+            "sim_ambient_score",
+            "sim_doublet_score",
+        ]
         sim_gene_max = (
             sim_df.groupby("gene", as_index=False)[sim_cols + ["profile_qc_risk"]]
             .max(numeric_only=True)
             .set_index("gene")
         )
         _plot_heatmap(
-            out_png=plots_dir / "04_profile_similarity" / "heatmap_profile_similarity.png",
+            out_png=plots_dir
+            / "04_profile_similarity"
+            / "heatmap_profile_similarity.png",
             mat=np.nan_to_num(sim_gene_max[sim_cols].to_numpy(dtype=float), nan=0.0),
             row_labels=sim_gene_max.index.astype(str).tolist(),
             col_labels=sim_cols,
@@ -1689,12 +2015,36 @@ def main() -> int:
             x = sim_plot_df["profile_qc_risk"].to_numpy(dtype=float)
             y = sim_plot_df["best_Z_T"].to_numpy(dtype=float)
             if int(np.sum(m0)) > 0:
-                ax6.scatter(x[m0], y[m0], s=70, c="#4c78a8", alpha=0.86, edgecolors="black", linewidths=0.35)
+                ax6.scatter(
+                    x[m0],
+                    y[m0],
+                    s=70,
+                    c="#4c78a8",
+                    alpha=0.86,
+                    edgecolors="black",
+                    linewidths=0.35,
+                )
             if int(np.sum(m1)) > 0:
-                ax6.scatter(x[m1], y[m1], s=110, c="#d62728", marker="*", alpha=0.95, edgecolors="black", linewidths=0.5)
+                ax6.scatter(
+                    x[m1],
+                    y[m1],
+                    s=110,
+                    c="#d62728",
+                    marker="*",
+                    alpha=0.95,
+                    edgecolors="black",
+                    linewidths=0.5,
+                )
             for _, rr in sim_plot_df.iterrows():
-                if np.isfinite(float(rr.get("profile_qc_risk", np.nan))) and np.isfinite(float(rr.get("best_Z_T", np.nan))):
-                    ax6.text(float(rr["profile_qc_risk"]), float(rr["best_Z_T"]) + 0.02, str(rr["gene"]), fontsize=8)
+                if np.isfinite(
+                    float(rr.get("profile_qc_risk", np.nan))
+                ) and np.isfinite(float(rr.get("best_Z_T", np.nan))):
+                    ax6.text(
+                        float(rr["profile_qc_risk"]),
+                        float(rr["best_Z_T"]) + 0.02,
+                        str(rr["gene"]),
+                        fontsize=8,
+                    )
             ax6.axvline(SIM_QC_THRESH, color="#333", linestyle="--")
             ax6.set_xlabel("profile_qc_risk")
             ax6.set_ylabel("best gene Z_T")
@@ -1702,11 +2052,18 @@ def main() -> int:
             ax6.axis("off")
         ax6.set_title("Profile QC risk vs gene Z_T")
         fig6.tight_layout()
-        fig6.savefig(plots_dir / "04_profile_similarity" / "profile_qc_risk_vs_gene_ZT.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig6.savefig(
+            plots_dir / "04_profile_similarity" / "profile_qc_risk_vs_gene_ZT.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig6)
 
     # Overlay polar for top QC-driven genes.
-    top_overlay = flags_df.loc[flags_df["qc_driven"]].sort_values(by="best_Z_T", ascending=False).head(6)
+    top_overlay = (
+        flags_df.loc[flags_df["qc_driven"]]
+        .sort_values(by="best_Z_T", ascending=False)
+        .head(6)
+    )
     if top_overlay.empty:
         _save_placeholder(
             plots_dir / "04_profile_similarity" / "overlay_top_qcdriven_profiles.png",
@@ -1748,15 +2105,31 @@ def main() -> int:
             qe = np.asarray(detail_map[q_key]["E_obs"], dtype=float)
             th = theta_bin_centers(len(ge))
             th = np.concatenate([th, th[:1]])
-            ax.plot(th, np.concatenate([ge, ge[:1]]), color="#8B0000", linewidth=2.0, label=gene)
-            ax.plot(th, np.concatenate([qe, qe[:1]]), color="#2E8B57", linewidth=1.8, linestyle="--", label=qf)
+            ax.plot(
+                th,
+                np.concatenate([ge, ge[:1]]),
+                color="#8B0000",
+                linewidth=2.0,
+                label=gene,
+            )
+            ax.plot(
+                th,
+                np.concatenate([qe, qe[:1]]),
+                color="#2E8B57",
+                linewidth=1.8,
+                linestyle="--",
+                label=qf,
+            )
             ax.set_theta_zero_location("E")
             ax.set_theta_direction(1)
             ax.set_rticks([])
             ax.set_title(f"{gene} vs {qf} ({emb})", fontsize=8)
             ax.legend(loc="upper right", fontsize=7, frameon=True)
         fig7.tight_layout()
-        fig7.savefig(plots_dir / "04_profile_similarity" / "overlay_top_qcdriven_profiles.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig7.savefig(
+            plots_dir / "04_profile_similarity" / "overlay_top_qcdriven_profiles.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig7)
 
     # -----------------------
@@ -1778,18 +2151,29 @@ def main() -> int:
         bins = int(min(30, max(8, np.ceil(np.sqrt(rnd.size)))))
         ax8.hist(rnd, bins=bins, color="#729FCF", edgecolor="white", alpha=0.9)
         if amb.size > 0 and np.isfinite(amb[0]):
-            ax8.axvline(float(amb[0]), color="#8B0000", linestyle="--", linewidth=2.0, label="ambient_score")
+            ax8.axvline(
+                float(amb[0]),
+                color="#8B0000",
+                linestyle="--",
+                linewidth=2.0,
+                label="ambient_score",
+            )
             ax8.legend(loc="best")
         ax8.set_xlabel("Z_T")
         ax8.set_ylabel("count")
         ax8.set_title(f"{emb}: random matched-set Z_T vs ambient_score")
         fig8.tight_layout()
-        fig8.savefig(plots_dir / "05_ambient_controls" / f"ambient_random_Z_{emb}.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig8.savefig(
+            plots_dir / "05_ambient_controls" / f"ambient_random_Z_{emb}.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig8)
 
     # 2) gene Z vs sim_ambient
     sim_ambient_df = (
-        sim_df.groupby("gene", as_index=False)["sim_ambient_score"].max(numeric_only=True)
+        sim_df.groupby("gene", as_index=False)["sim_ambient_score"].max(
+            numeric_only=True
+        )
         if not sim_df.empty and "sim_ambient_score" in sim_df.columns
         else pd.DataFrame(columns=["gene", "sim_ambient_score"])
     )
@@ -1811,8 +2195,15 @@ def main() -> int:
             linewidths=0.35,
         )
         for _, rr in amb_scatter_df.iterrows():
-            if np.isfinite(float(rr.get("sim_ambient_score", np.nan))) and np.isfinite(float(rr.get("best_Z_T", np.nan))):
-                ax9.text(float(rr["sim_ambient_score"]), float(rr["best_Z_T"]) + 0.02, str(rr["gene"]), fontsize=8)
+            if np.isfinite(float(rr.get("sim_ambient_score", np.nan))) and np.isfinite(
+                float(rr.get("best_Z_T", np.nan))
+            ):
+                ax9.text(
+                    float(rr["sim_ambient_score"]),
+                    float(rr["best_Z_T"]) + 0.02,
+                    str(rr["gene"]),
+                    fontsize=8,
+                )
         ax9.axvline(SIM_QC_THRESH, color="#333", linestyle="--")
         ax9.set_xlabel("sim_ambient")
         ax9.set_ylabel("best gene Z_T")
@@ -1820,7 +2211,10 @@ def main() -> int:
         ax9.axis("off")
     ax9.set_title("Gene Z_T vs ambient-profile similarity")
     fig9.tight_layout()
-    fig9.savefig(plots_dir / "05_ambient_controls" / "gene_Z_vs_sim_ambient.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig9.savefig(
+        plots_dir / "05_ambient_controls" / "gene_Z_vs_sim_ambient.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig9)
 
     # 3) if ambient localized, side-by-side UMAP ambient + top high-sim genes
@@ -1842,7 +2236,9 @@ def main() -> int:
 
     if ambient_loc_any and (not sim_ambient_df.empty):
         top_sim_genes = (
-            sim_ambient_df.sort_values(by="sim_ambient_score", ascending=False)["gene"].astype(str).tolist()[:3]
+            sim_ambient_df.sort_values(by="sim_ambient_score", ascending=False)["gene"]
+            .astype(str)
+            .tolist()[:3]
         )
         n_pan = 1 + len(top_sim_genes)
         fig10, axes10 = plt.subplots(1, n_pan, figsize=(5.0 * n_pan, 4.8))
@@ -1883,7 +2279,10 @@ def main() -> int:
             fig10.colorbar(scg, ax=ax, fraction=0.046, pad=0.03)
 
         fig10.tight_layout()
-        fig10.savefig(plots_dir / "05_ambient_controls" / "ambient_vs_high_sim_genes_umap.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig10.savefig(
+            plots_dir / "05_ambient_controls" / "ambient_vs_high_sim_genes_umap.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig10)
     else:
         _save_placeholder(
@@ -1896,10 +2295,22 @@ def main() -> int:
     # Plot 06: Flagged exemplars.
     # -----------------------
     if flags_df.empty:
-        _save_placeholder(plots_dir / "06_flagged_exemplars" / "exemplar_none.png", "Exemplars", "No gene flag rows")
+        _save_placeholder(
+            plots_dir / "06_flagged_exemplars" / "exemplar_none.png",
+            "Exemplars",
+            "No gene flag rows",
+        )
     else:
-        qc_ex = flags_df.loc[flags_df["qc_driven"]].sort_values(by="best_Z_T", ascending=False).head(6)
-        clean_ex = flags_df.loc[(flags_df["clean_localized"])].sort_values(by="best_Z_T", ascending=False).head(6)
+        qc_ex = (
+            flags_df.loc[flags_df["qc_driven"]]
+            .sort_values(by="best_Z_T", ascending=False)
+            .head(6)
+        )
+        clean_ex = (
+            flags_df.loc[(flags_df["clean_localized"])]
+            .sort_values(by="best_Z_T", ascending=False)
+            .head(6)
+        )
         exemplar_rows = []
         for _, rr in qc_ex.iterrows():
             exemplar_rows.append(("QCdriven", rr))
@@ -1917,7 +2328,9 @@ def main() -> int:
                 gene = str(rr["gene"])
                 emb = str(rr["best_embedding"])
                 conf = str(rr["most_likely_confounder"])
-                gvals = np.asarray(feature_values.get(gene, np.zeros(adata_cm.n_obs)), dtype=float)
+                gvals = np.asarray(
+                    feature_values.get(gene, np.zeros(adata_cm.n_obs)), dtype=float
+                )
 
                 # map conf feature
                 if "total_counts" in conf:
@@ -1940,7 +2353,15 @@ def main() -> int:
                 axA = fig11.add_subplot(gs[0, 0])
                 valsA = np.log1p(np.maximum(gvals, 0.0))
                 ordA = np.argsort(valsA, kind="mergesort")
-                axA.scatter(umap_xy[:, 0], umap_xy[:, 1], c="#d9d9d9", s=4, alpha=0.3, linewidths=0, rasterized=True)
+                axA.scatter(
+                    umap_xy[:, 0],
+                    umap_xy[:, 1],
+                    c="#d9d9d9",
+                    s=4,
+                    alpha=0.3,
+                    linewidths=0,
+                    rasterized=True,
+                )
                 scA = axA.scatter(
                     umap_xy[ordA, 0],
                     umap_xy[ordA, 1],
@@ -1963,7 +2384,9 @@ def main() -> int:
                     ge = np.asarray(detail_map[g_key]["E_obs"], dtype=float)
                     th = theta_bin_centers(len(ge))
                     th = np.concatenate([th, th[:1]])
-                    axB.plot(th, np.concatenate([ge, ge[:1]]), color="#8B0000", linewidth=2.0)
+                    axB.plot(
+                        th, np.concatenate([ge, ge[:1]]), color="#8B0000", linewidth=2.0
+                    )
                     grow = feature_scores.loc[
                         (feature_scores["feature_name"] == gene)
                         & (feature_scores["embedding"] == emb)
@@ -1972,9 +2395,29 @@ def main() -> int:
                     if not grow.empty:
                         gr = grow.iloc[0]
                         txt = f"Z={float(gr['Z_T']):.2f}\nq={float(gr['q_T']):.2e}\nC={float(gr['coverage_C']):.3f}\nK={int(gr['peaks_K']) if np.isfinite(gr['peaks_K']) else -1}"
-                        axB.text(0.02, 0.02, txt, transform=axB.transAxes, fontsize=8, ha="left", va="bottom", bbox={"facecolor": "white", "edgecolor": "#999", "alpha": 0.85})
+                        axB.text(
+                            0.02,
+                            0.02,
+                            txt,
+                            transform=axB.transAxes,
+                            fontsize=8,
+                            ha="left",
+                            va="bottom",
+                            bbox={
+                                "facecolor": "white",
+                                "edgecolor": "#999",
+                                "alpha": 0.85,
+                            },
+                        )
                 else:
-                    axB.text(0.5, 0.5, "profile missing", transform=axB.transAxes, ha="center", va="center")
+                    axB.text(
+                        0.5,
+                        0.5,
+                        "profile missing",
+                        transform=axB.transAxes,
+                        ha="center",
+                        va="center",
+                    )
                 axB.set_theta_zero_location("E")
                 axB.set_theta_direction(1)
                 axB.set_rticks([])
@@ -1987,9 +2430,18 @@ def main() -> int:
                     qe = np.asarray(detail_map[q_key]["E_obs"], dtype=float)
                     th = theta_bin_centers(len(qe))
                     th = np.concatenate([th, th[:1]])
-                    axC.plot(th, np.concatenate([qe, qe[:1]]), color="#2E8B57", linewidth=2.0)
+                    axC.plot(
+                        th, np.concatenate([qe, qe[:1]]), color="#2E8B57", linewidth=2.0
+                    )
                 else:
-                    axC.text(0.5, 0.5, "profile missing", transform=axC.transAxes, ha="center", va="center")
+                    axC.text(
+                        0.5,
+                        0.5,
+                        "profile missing",
+                        transform=axC.transAxes,
+                        ha="center",
+                        va="center",
+                    )
                 axC.set_theta_zero_location("E")
                 axC.set_theta_direction(1)
                 axC.set_rticks([])
@@ -2004,7 +2456,15 @@ def main() -> int:
                 else:
                     x = np.asarray(cvals, dtype=float)
                     y = np.log1p(np.maximum(gvals, 0.0))
-                    axD.scatter(x, y, s=11, alpha=0.45, color="#4c78a8", edgecolors="none", rasterized=True)
+                    axD.scatter(
+                        x,
+                        y,
+                        s=11,
+                        alpha=0.45,
+                        color="#4c78a8",
+                        edgecolors="none",
+                        rasterized=True,
+                    )
                     rho = _safe_spearman((y > np.quantile(y, 0.9)).astype(float), x)
                     axD.set_xlabel(qf)
                     axD.set_ylabel(f"log1p({gene})")
@@ -2022,7 +2482,11 @@ def main() -> int:
                 plt.close(fig11)
 
     # Write README.
-    ambient_emp_rows = ambient_null_df.loc[ambient_null_df["kind"] == "ambient"].copy() if not ambient_null_df.empty else pd.DataFrame()
+    ambient_emp_rows = (
+        ambient_null_df.loc[ambient_null_df["kind"] == "ambient"].copy()
+        if not ambient_null_df.empty
+        else pd.DataFrame()
+    )
     _write_readme(
         out_root / "README.txt",
         args=args,
@@ -2073,7 +2537,9 @@ def main() -> int:
     print(f"scrublet_status={scrublet_status}")
     print(f"ambient_genes_present={len(ambient_present)}")
     print(f"n_features_scored={int(len(feature_scores))}")
-    print(f"n_genes_qc_flagged={int(np.sum(flags_df['qc_driven'].to_numpy(dtype=bool)) if not flags_df.empty else 0)}")
+    print(
+        f"n_genes_qc_flagged={int(np.sum(flags_df['qc_driven'].to_numpy(dtype=bool)) if not flags_df.empty else 0)}"
+    )
     print(f"results_root={out_root}")
 
     return 0

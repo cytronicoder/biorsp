@@ -40,7 +40,11 @@ from biorsp.core.geometry import (
     compute_vantage_point,
     theta_bin_centers,
 )
-from biorsp.pipeline.hierarchy import _pct_mt_vector, _resolve_expr_matrix, _total_counts_vector
+from biorsp.pipeline.hierarchy import (
+    _pct_mt_vector,
+    _resolve_expr_matrix,
+    _total_counts_vector,
+)
 from biorsp.plotting.qc import save_numeric_umap
 from biorsp.plotting.styles import DEFAULT_PLOT_STYLE, apply_plot_style
 from biorsp.stats.permutation import perm_null_T_and_profile
@@ -109,14 +113,18 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="CM Experiment #5: split-half + bootstrap reproducibility (single donor CM)."
     )
-    p.add_argument("--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input .h5ad")
+    p.add_argument(
+        "--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input .h5ad"
+    )
     p.add_argument(
         "--out",
         default="experiments/heart_single_donor_cardiomyocyte/results/cm_experiment5_resampling_reproducibility",
         help="Output root",
     )
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--q", type=float, default=0.10, help="Top-quantile foreground for F1")
+    p.add_argument(
+        "--q", type=float, default=0.10, help="Top-quantile foreground for F1"
+    )
     p.add_argument("--n_bins", type=int, default=64)
     p.add_argument("--n_perm_split", type=int, default=300)
     p.add_argument("--n_perm_boot", type=int, default=200)
@@ -142,7 +150,9 @@ def _save_placeholder(path: Path, title: str, message: str) -> None:
     plt.close(fig)
 
 
-def _resolve_key_required(adata: ad.AnnData, requested: str | None, candidates: list[str], purpose: str) -> str:
+def _resolve_key_required(
+    adata: ad.AnnData, requested: str | None, candidates: list[str], purpose: str
+) -> str:
     if requested is not None:
         if requested in adata.obs.columns:
             return str(requested)
@@ -153,7 +163,9 @@ def _resolve_key_required(adata: ad.AnnData, requested: str | None, candidates: 
     raise KeyError(f"No {purpose} key found. Tried: {', '.join(candidates)}")
 
 
-def _choose_expression_source(adata: ad.AnnData, layer_arg: str | None, use_raw_arg: bool) -> tuple[Any, Any, str]:
+def _choose_expression_source(
+    adata: ad.AnnData, layer_arg: str | None, use_raw_arg: bool
+) -> tuple[Any, Any, str]:
     if layer_arg is not None or use_raw_arg:
         return _resolve_expr_matrix(adata, layer=layer_arg, use_raw=bool(use_raw_arg))
     if "counts" in adata.layers:
@@ -176,7 +188,9 @@ def _is_cm_label(label: str) -> bool:
     return "cm" in tokens
 
 
-def _safe_numeric_obs(adata: ad.AnnData, keys: list[str]) -> tuple[np.ndarray | None, str | None]:
+def _safe_numeric_obs(
+    adata: ad.AnnData, keys: list[str]
+) -> tuple[np.ndarray | None, str | None]:
     for key in keys:
         if key not in adata.obs.columns:
             continue
@@ -190,11 +204,17 @@ def _safe_numeric_obs(adata: ad.AnnData, keys: list[str]) -> tuple[np.ndarray | 
     return None, None
 
 
-def _prepare_embedding_input(adata_cm: ad.AnnData, expr_matrix_cm: Any, expr_source: str) -> tuple[ad.AnnData, str]:
+def _prepare_embedding_input(
+    adata_cm: ad.AnnData, expr_matrix_cm: Any, expr_source: str
+) -> tuple[ad.AnnData, str]:
     import scanpy as sc
 
     adata_embed = ad.AnnData(
-        X=expr_matrix_cm.copy() if hasattr(expr_matrix_cm, "copy") else np.array(expr_matrix_cm),
+        X=(
+            expr_matrix_cm.copy()
+            if hasattr(expr_matrix_cm, "copy")
+            else np.array(expr_matrix_cm)
+        ),
         obs=adata_cm.obs.copy(),
     )
     if expr_source.startswith("layer:counts"):
@@ -210,7 +230,9 @@ def _prepare_embedding_input(adata_cm: ad.AnnData, expr_matrix_cm: Any, expr_sou
     return adata_embed, note
 
 
-def _compute_fixed_embeddings(adata_embed: ad.AnnData, seed: int, k_pca: int) -> tuple[list[EmbeddingSpec], int]:
+def _compute_fixed_embeddings(
+    adata_embed: ad.AnnData, seed: int, k_pca: int
+) -> tuple[list[EmbeddingSpec], int]:
     import scanpy as sc
 
     n_cells, n_vars = adata_embed.n_obs, adata_embed.n_vars
@@ -230,11 +252,20 @@ def _compute_fixed_embeddings(adata_embed: ad.AnnData, seed: int, k_pca: int) ->
     umap = np.asarray(adata_embed.obsm["X_umap"], dtype=float)
 
     specs = [
-        EmbeddingSpec(key="pca2d", coords=pca[:, :2].copy(), params={"n_pcs": n_pcs, "seed": int(seed)}),
+        EmbeddingSpec(
+            key="pca2d",
+            coords=pca[:, :2].copy(),
+            params={"n_pcs": n_pcs, "seed": int(seed)},
+        ),
         EmbeddingSpec(
             key="umap_repr",
             coords=umap[:, :2].copy(),
-            params={"n_neighbors": 30, "min_dist": 0.1, "random_state": 0, "n_pcs": n_pcs},
+            params={
+                "n_neighbors": 30,
+                "min_dist": 0.1,
+                "random_state": 0,
+                "n_pcs": n_pcs,
+            },
         ),
     ]
     return specs, n_pcs
@@ -577,7 +608,12 @@ def _score_sample_set(
                 block_df["q_T"] = qvals
                 block_df["class_label"] = [
                     _classify(float(q), float(k), bool(u))
-                    for q, k, u in zip(block_df["q_T"], block_df["peaks_K"], block_df["underpowered_flag"], strict=False)
+                    for q, k, u in zip(
+                        block_df["q_T"],
+                        block_df["peaks_K"],
+                        block_df["underpowered_flag"],
+                        strict=False,
+                    )
                 ]
                 rows.extend(block_df.to_dict(orient="records"))
 
@@ -627,18 +663,38 @@ def _summarize_split_half(split_df: pd.DataFrame) -> pd.DataFrame:
 
     rows = []
     for (emb, fg), sub in merged.groupby(["embedding", "foreground_mode"], sort=False):
-        pear = _pearson(sub["Z_T_half1"].to_numpy(dtype=float), sub["Z_T_half2"].to_numpy(dtype=float))
-        spear = _spearman(sub["Z_T_half1"].to_numpy(dtype=float), sub["Z_T_half2"].to_numpy(dtype=float))
+        pear = _pearson(
+            sub["Z_T_half1"].to_numpy(dtype=float),
+            sub["Z_T_half2"].to_numpy(dtype=float),
+        )
+        spear = _spearman(
+            sub["Z_T_half1"].to_numpy(dtype=float),
+            sub["Z_T_half2"].to_numpy(dtype=float),
+        )
 
         for _, r in sub.iterrows():
             z1 = float(r["Z_T_half1"]) if np.isfinite(float(r["Z_T_half1"])) else np.nan
             z2 = float(r["Z_T_half2"]) if np.isfinite(float(r["Z_T_half2"])) else np.nan
-            p1 = float(r["phi_hat_deg_half1"]) if np.isfinite(float(r["phi_hat_deg_half1"])) else np.nan
-            p2 = float(r["phi_hat_deg_half2"]) if np.isfinite(float(r["phi_hat_deg_half2"])) else np.nan
+            p1 = (
+                float(r["phi_hat_deg_half1"])
+                if np.isfinite(float(r["phi_hat_deg_half1"]))
+                else np.nan
+            )
+            p2 = (
+                float(r["phi_hat_deg_half2"])
+                if np.isfinite(float(r["phi_hat_deg_half2"]))
+                else np.nan
+            )
             dZ = float(abs(z1 - z2)) if np.isfinite(z1) and np.isfinite(z2) else np.nan
-            dPhi = _circular_distance_deg(p1, p2) if np.isfinite(p1) and np.isfinite(p2) else np.nan
+            dPhi = (
+                _circular_distance_deg(p1, p2)
+                if np.isfinite(p1) and np.isfinite(p2)
+                else np.nan
+            )
             if np.isfinite(p1) and np.isfinite(p2):
-                _, r_pair, circ_sd_pair = _circular_stats_deg(np.asarray([p1, p2], dtype=float))
+                _, r_pair, circ_sd_pair = _circular_stats_deg(
+                    np.asarray([p1, p2], dtype=float)
+                )
             else:
                 r_pair, circ_sd_pair = np.nan, np.nan
             both_sig = bool(
@@ -655,8 +711,16 @@ def _summarize_split_half(split_df: pd.DataFrame) -> pd.DataFrame:
                     "foreground_mode": str(fg),
                     "Z_T_half1": z1,
                     "Z_T_half2": z2,
-                    "q_T_half1": float(r["q_T_half1"]) if np.isfinite(float(r["q_T_half1"])) else np.nan,
-                    "q_T_half2": float(r["q_T_half2"]) if np.isfinite(float(r["q_T_half2"])) else np.nan,
+                    "q_T_half1": (
+                        float(r["q_T_half1"])
+                        if np.isfinite(float(r["q_T_half1"]))
+                        else np.nan
+                    ),
+                    "q_T_half2": (
+                        float(r["q_T_half2"])
+                        if np.isfinite(float(r["q_T_half2"]))
+                        else np.nan
+                    ),
                     "phi_half1_deg": p1,
                     "phi_half2_deg": p2,
                     "delta_Z": dZ,
@@ -673,7 +737,9 @@ def _summarize_split_half(split_df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def _init_boot_acc(keys: list[tuple[str, str, str]]) -> dict[tuple[str, str, str], dict[str, list[float]]]:
+def _init_boot_acc(
+    keys: list[tuple[str, str, str]],
+) -> dict[tuple[str, str, str], dict[str, list[float]]]:
     acc = {}
     for k in keys:
         acc[k] = {
@@ -687,7 +753,9 @@ def _init_boot_acc(keys: list[tuple[str, str, str]]) -> dict[tuple[str, str, str
     return acc
 
 
-def _boot_progress_table(acc: dict[tuple[str, str, str], dict[str, list[float]]], reps_done: int) -> pd.DataFrame:
+def _boot_progress_table(
+    acc: dict[tuple[str, str, str], dict[str, list[float]]], reps_done: int
+) -> pd.DataFrame:
     rows = []
     for key, d in acc.items():
         gene, emb, fg = key
@@ -723,9 +791,18 @@ def _bootstrap_repro(
     seed: int,
     save_boot_long: bool,
     out_tables_dir: Path,
-) -> tuple[pd.DataFrame, pd.DataFrame | None, dict[tuple[str, str, str], dict[str, list[float]]]]:
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame | None,
+    dict[tuple[str, str, str], dict[str, list[float]]],
+]:
     fg_modes = ["F0_detect", "F1_topq"]
-    keys = [(st.gene, emb.key, fg) for st in genes_present for emb in embeddings for fg in fg_modes]
+    keys = [
+        (st.gene, emb.key, fg)
+        for st in genes_present
+        for emb in embeddings
+        for fg in fg_modes
+    ]
     acc = _init_boot_acc(keys)
 
     rng = np.random.default_rng(int(seed))
@@ -748,7 +825,14 @@ def _bootstrap_repro(
                         q_top=float(q_top),
                         n_bins=int(n_bins),
                         n_perm=int(n_perm_boot),
-                        seed=int(seed + 1000000 + b * 10000 + emb_i * 1000 + fg_i * 100 + g_i * 13),
+                        seed=int(
+                            seed
+                            + 1000000
+                            + b * 10000
+                            + emb_i * 1000
+                            + fg_i * 100
+                            + g_i * 13
+                        ),
                         keep_profiles=False,
                     )
                     block_rows.append(
@@ -780,16 +864,32 @@ def _bootstrap_repro(
                 block["q_T"] = qvals
 
                 for _, r in block.iterrows():
-                    key = (str(r["gene"]), str(r["embedding"]), str(r["foreground_mode"]))
-                    acc[key]["Z"].append(float(r["Z_T"]) if np.isfinite(float(r["Z_T"])) else np.nan)
+                    key = (
+                        str(r["gene"]),
+                        str(r["embedding"]),
+                        str(r["foreground_mode"]),
+                    )
+                    acc[key]["Z"].append(
+                        float(r["Z_T"]) if np.isfinite(float(r["Z_T"])) else np.nan
+                    )
                     acc[key]["coverage"].append(
-                        float(r["coverage_C"]) if np.isfinite(float(r["coverage_C"])) else np.nan
+                        float(r["coverage_C"])
+                        if np.isfinite(float(r["coverage_C"]))
+                        else np.nan
                     )
-                    acc[key]["peaks"].append(float(r["peaks_K"]) if np.isfinite(float(r["peaks_K"])) else np.nan)
+                    acc[key]["peaks"].append(
+                        float(r["peaks_K"])
+                        if np.isfinite(float(r["peaks_K"]))
+                        else np.nan
+                    )
                     acc[key]["phi"].append(
-                        float(r["phi_hat_deg"]) if np.isfinite(float(r["phi_hat_deg"])) else np.nan
+                        float(r["phi_hat_deg"])
+                        if np.isfinite(float(r["phi_hat_deg"]))
+                        else np.nan
                     )
-                    acc[key]["q"].append(float(r["q_T"]) if np.isfinite(float(r["q_T"])) else np.nan)
+                    acc[key]["q"].append(
+                        float(r["q_T"]) if np.isfinite(float(r["q_T"])) else np.nan
+                    )
                     acc[key]["underpowered"].append(bool(r["underpowered_flag"]))
 
                 if bool(save_boot_long):
@@ -798,10 +898,13 @@ def _bootstrap_repro(
         if (b + 1) % 20 == 0 or (b + 1) == int(boot_reps):
             print(f"[Bootstrap] completed {b + 1}/{int(boot_reps)} replicates")
             prog = _boot_progress_table(acc, reps_done=b + 1)
-            prog.to_csv(out_tables_dir / "bootstrap_summary.intermediate.csv", index=False)
+            prog.to_csv(
+                out_tables_dir / "bootstrap_summary.intermediate.csv", index=False
+            )
             if bool(save_boot_long):
                 pd.DataFrame(boot_rows).to_csv(
-                    out_tables_dir / "bootstrap_scores_long.intermediate.csv", index=False
+                    out_tables_dir / "bootstrap_scores_long.intermediate.csv",
+                    index=False,
                 )
 
     # Summarize.
@@ -859,7 +962,10 @@ def _bootstrap_repro(
         else:
             phi_mean, R, circ_sd = np.nan, np.nan, np.nan
 
-        cond_sig = bool((np.isfinite(median_q) and median_q <= Q_SIG) or (np.isfinite(frac_sig) and frac_sig >= 0.60))
+        cond_sig = bool(
+            (np.isfinite(median_q) and median_q <= Q_SIG)
+            or (np.isfinite(frac_sig) and frac_sig >= 0.60)
+        )
         bootstrap_repro = bool(
             cond_sig
             and np.isfinite(z_lo)
@@ -891,7 +997,9 @@ def _bootstrap_repro(
                 "R": R,
                 "circ_sd": circ_sd,
                 "bootstrap_reproducible": bootstrap_repro,
-                "underpowered_fraction": float(np.mean(under)) if under.size > 0 else np.nan,
+                "underpowered_fraction": (
+                    float(np.mean(under)) if under.size > 0 else np.nan
+                ),
             }
         )
 
@@ -918,7 +1026,9 @@ def _plot_overview(
     for gene in ["TNNT2", "NPPA"]:
         expr = expr_by_gene.get(gene, None)
         if expr is None:
-            _save_placeholder(out_dir / f"umap_{gene}.png", f"UMAP {gene}", f"{gene} missing")
+            _save_placeholder(
+                out_dir / f"umap_{gene}.png", f"UMAP {gene}", f"{gene} missing"
+            )
             continue
         save_numeric_umap(
             umap_coords,
@@ -933,7 +1043,13 @@ def _plot_overview(
     if total_counts is None:
         ax.axis("off")
         ax.set_title("Split strategy histogram")
-        ax.text(0.5, 0.5, f"total_counts unavailable\nmethod={split_method}", ha="center", va="center")
+        ax.text(
+            0.5,
+            0.5,
+            f"total_counts unavailable\nmethod={split_method}",
+            ha="center",
+            va="center",
+        )
     else:
         h1 = total_counts[split_assign == 1]
         h2 = total_counts[split_assign == 2]
@@ -959,7 +1075,9 @@ def _plot_overview(
         ax.set_ylabel("density")
         ax.legend(loc="best")
     fig.tight_layout()
-    fig.savefig(out_dir / "split_strategy_hist_total_counts.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig.savefig(
+        out_dir / "split_strategy_hist_total_counts.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig)
 
 
@@ -973,29 +1091,61 @@ def _plot_split_half(
         _save_placeholder(out_dir / "empty.png", "Split-half", "No split-half scores")
         return
 
-    for (emb, fg), sub in split_summary.groupby(["embedding", "foreground_mode"], sort=False):
+    for (emb, fg), sub in split_summary.groupby(
+        ["embedding", "foreground_mode"], sort=False
+    ):
         # 1) Scatter Z1 vs Z2.
         fig1, ax1 = plt.subplots(figsize=(7.0, 6.0))
         x = sub["Z_T_half1"].to_numpy(dtype=float)
         y = sub["Z_T_half2"].to_numpy(dtype=float)
-        ax1.scatter(x, y, s=90, c="#4c78a8", edgecolors="black", linewidths=0.4, alpha=0.88)
+        ax1.scatter(
+            x, y, s=90, c="#4c78a8", edgecolors="black", linewidths=0.4, alpha=0.88
+        )
         for _, r in sub.iterrows():
-            ax1.text(float(r["Z_T_half1"]), float(r["Z_T_half2"]) + 0.02, str(r["gene"]), fontsize=8)
-        lo = np.nanmin(np.concatenate([x, y])) if np.isfinite(np.concatenate([x, y])).any() else 0.0
-        hi = np.nanmax(np.concatenate([x, y])) if np.isfinite(np.concatenate([x, y])).any() else 1.0
+            ax1.text(
+                float(r["Z_T_half1"]),
+                float(r["Z_T_half2"]) + 0.02,
+                str(r["gene"]),
+                fontsize=8,
+            )
+        lo = (
+            np.nanmin(np.concatenate([x, y]))
+            if np.isfinite(np.concatenate([x, y])).any()
+            else 0.0
+        )
+        hi = (
+            np.nanmax(np.concatenate([x, y]))
+            if np.isfinite(np.concatenate([x, y])).any()
+            else 1.0
+        )
         ax1.plot([lo, hi], [lo, hi], linestyle="--", color="#444444")
         ax1.set_xlabel("Z_T half1")
         ax1.set_ylabel("Z_T half2")
         ax1.set_title(f"{emb} / {fg}: split-half Z concordance")
         fig1.tight_layout()
-        fig1.savefig(out_dir / f"{emb}_{fg}_scatter_Z1_vs_Z2.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig1.savefig(
+            out_dir / f"{emb}_{fg}_scatter_Z1_vs_Z2.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig1)
 
         # 2) Bland-Altman.
         fig2, ax2 = plt.subplots(figsize=(7.4, 6.0))
-        mean_z = 0.5 * (sub["Z_T_half1"].to_numpy(dtype=float) + sub["Z_T_half2"].to_numpy(dtype=float))
-        diff_z = sub["Z_T_half1"].to_numpy(dtype=float) - sub["Z_T_half2"].to_numpy(dtype=float)
-        ax2.scatter(mean_z, diff_z, s=90, c="#f58518", edgecolors="black", linewidths=0.4, alpha=0.88)
+        mean_z = 0.5 * (
+            sub["Z_T_half1"].to_numpy(dtype=float)
+            + sub["Z_T_half2"].to_numpy(dtype=float)
+        )
+        diff_z = sub["Z_T_half1"].to_numpy(dtype=float) - sub["Z_T_half2"].to_numpy(
+            dtype=float
+        )
+        ax2.scatter(
+            mean_z,
+            diff_z,
+            s=90,
+            c="#f58518",
+            edgecolors="black",
+            linewidths=0.4,
+            alpha=0.88,
+        )
         for _, r in sub.iterrows():
             mz = 0.5 * (float(r["Z_T_half1"]) + float(r["Z_T_half2"]))
             dz = float(r["Z_T_half1"]) - float(r["Z_T_half2"])
@@ -1009,7 +1159,9 @@ def _plot_split_half(
         ax2.set_ylabel("Z1-Z2")
         ax2.set_title(f"{emb} / {fg}: Bland–Altman")
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_{fg}_bland_altman.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_{fg}_bland_altman.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig2)
 
         # 3) Side-by-side bars Z1/Z2 with significance markers.
@@ -1020,21 +1172,33 @@ def _plot_split_half(
         w = 0.38
         z1 = sub2["Z_T_half1"].to_numpy(dtype=float)
         z2 = sub2["Z_T_half2"].to_numpy(dtype=float)
-        b1 = ax3.bar(x - w / 2, z1, width=w, color="#1f77b4", label="half1")
-        b2 = ax3.bar(x + w / 2, z2, width=w, color="#ff7f0e", label="half2")
+        _ = ax3.bar(x - w / 2, z1, width=w, color="#1f77b4", label="half1")
+        _ = ax3.bar(x + w / 2, z2, width=w, color="#ff7f0e", label="half2")
         sig = sub2["half_consistent_significant"].to_numpy(dtype=bool)
         for i, s in enumerate(sig.tolist()):
             if not s:
                 continue
-            ymax = np.nanmax([z1[i], z2[i]]) if np.isfinite([z1[i], z2[i]]).any() else 0.0
-            ax3.text(i, ymax + 0.15, "*", ha="center", va="bottom", fontsize=14, color="#d62728")
+            ymax = (
+                np.nanmax([z1[i], z2[i]]) if np.isfinite([z1[i], z2[i]]).any() else 0.0
+            )
+            ax3.text(
+                i,
+                ymax + 0.15,
+                "*",
+                ha="center",
+                va="bottom",
+                fontsize=14,
+                color="#d62728",
+            )
         ax3.set_xticks(x)
         ax3.set_xticklabels(genes, rotation=45, ha="right")
         ax3.set_ylabel("Z_T")
         ax3.set_title(f"{emb} / {fg}: split-half Z per gene (* both halves q<=0.05)")
         ax3.legend(loc="best")
         fig3.tight_layout()
-        fig3.savefig(out_dir / f"{emb}_{fg}_bars_Z_half1_half2.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig3.savefig(
+            out_dir / f"{emb}_{fg}_bars_Z_half1_half2.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig3)
 
 
@@ -1066,10 +1230,16 @@ def _plot_bootstrap_distributions(
             )
     boot_plot_df = pd.DataFrame(rows)
 
-    for (emb, fg), sub_sum in boot_summary.groupby(["embedding", "foreground_mode"], sort=False):
-        sub_z = boot_plot_df.loc[(boot_plot_df["embedding"] == emb) & (boot_plot_df["foreground_mode"] == fg)]
+    for (emb, fg), sub_sum in boot_summary.groupby(
+        ["embedding", "foreground_mode"], sort=False
+    ):
+        sub_z = boot_plot_df.loc[
+            (boot_plot_df["embedding"] == emb) & (boot_plot_df["foreground_mode"] == fg)
+        ]
         genes_sorted = (
-            sub_sum.sort_values(by="Z_median", ascending=False)["gene"].astype(str).tolist()
+            sub_sum.sort_values(by="Z_median", ascending=False)["gene"]
+            .astype(str)
+            .tolist()
         )
 
         # 1) Box/violin-ish (boxplot for robustness).
@@ -1083,7 +1253,9 @@ def _plot_bootstrap_distributions(
         ax1.set_ylabel("Bootstrap Z_T")
         ax1.set_title(f"{emb} / {fg}: bootstrap Z_T distributions")
         fig1.tight_layout()
-        fig1.savefig(out_dir / f"{emb}_{fg}_bootstrap_Z_boxplot.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig1.savefig(
+            out_dir / f"{emb}_{fg}_bootstrap_Z_boxplot.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig1)
 
         # 2) Median + CI errorbars.
@@ -1108,7 +1280,9 @@ def _plot_bootstrap_distributions(
         ax2.set_ylabel("Z_T median ± 95% CI")
         ax2.set_title(f"{emb} / {fg}: bootstrap median Z_T with CI")
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_{fg}_bootstrap_Z_CI.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_{fg}_bootstrap_Z_CI.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig2)
 
         # 3) Histogram of fraction significant across genes.
@@ -1122,27 +1296,46 @@ def _plot_bootstrap_distributions(
         ax3.set_ylabel("# genes")
         ax3.set_title(f"{emb} / {fg}: fraction_significant distribution")
         fig3.tight_layout()
-        fig3.savefig(out_dir / f"{emb}_{fg}_fraction_significant_hist.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig3.savefig(
+            out_dir / f"{emb}_{fg}_fraction_significant_hist.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig3)
 
 
-def _plot_repro_maps(out_dir: Path, boot_summary: pd.DataFrame, calls_df: pd.DataFrame) -> None:
+def _plot_repro_maps(
+    out_dir: Path, boot_summary: pd.DataFrame, calls_df: pd.DataFrame
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if boot_summary.empty or calls_df.empty:
         _save_placeholder(out_dir / "empty.png", "Reproducibility maps", "No summaries")
         return
 
     boot_summary = boot_summary.copy()
-    boot_summary["emb_fg"] = boot_summary["embedding"].astype(str) + "|" + boot_summary["foreground_mode"].astype(str)
+    boot_summary["emb_fg"] = (
+        boot_summary["embedding"].astype(str)
+        + "|"
+        + boot_summary["foreground_mode"].astype(str)
+    )
     calls_df = calls_df.copy()
-    calls_df["emb_fg"] = calls_df["embedding"].astype(str) + "|" + calls_df["foreground_mode"].astype(str)
+    calls_df["emb_fg"] = (
+        calls_df["embedding"].astype(str)
+        + "|"
+        + calls_df["foreground_mode"].astype(str)
+    )
 
     genes = sorted(boot_summary["gene"].astype(str).unique().tolist())
     combos = sorted(boot_summary["emb_fg"].astype(str).unique().tolist())
 
-    p_frac = boot_summary.pivot(index="gene", columns="emb_fg", values="fraction_significant").reindex(index=genes, columns=combos)
-    p_low = boot_summary.pivot(index="gene", columns="emb_fg", values="Z_ci_low").reindex(index=genes, columns=combos)
-    p_flag = calls_df.pivot(index="gene", columns="emb_fg", values="reproducible_localized").reindex(index=genes, columns=combos)
+    p_frac = boot_summary.pivot(
+        index="gene", columns="emb_fg", values="fraction_significant"
+    ).reindex(index=genes, columns=combos)
+    p_low = boot_summary.pivot(
+        index="gene", columns="emb_fg", values="Z_ci_low"
+    ).reindex(index=genes, columns=combos)
+    p_flag = calls_df.pivot(
+        index="gene", columns="emb_fg", values="reproducible_localized"
+    ).reindex(index=genes, columns=combos)
 
     mat_frac = np.nan_to_num(p_frac.to_numpy(dtype=float), nan=0.0)
     mat_low = np.nan_to_num(p_low.to_numpy(dtype=float), nan=0.0)
@@ -1157,7 +1350,9 @@ def _plot_repro_maps(out_dir: Path, boot_summary: pd.DataFrame, calls_df: pd.Dat
     ax1.set_title("fraction_significant")
     fig1.colorbar(im1, ax=ax1)
     fig1.tight_layout()
-    fig1.savefig(out_dir / "heatmap_fraction_significant.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        out_dir / "heatmap_fraction_significant.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig1)
 
     fig2, ax2 = plt.subplots(figsize=(1.1 * len(combos) + 3.0, 0.6 * len(genes) + 2.0))
@@ -1193,11 +1388,15 @@ def _plot_direction_stability(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if boot_summary.empty:
-        _save_placeholder(out_dir / "empty.png", "Direction stability", "No bootstrap summary")
+        _save_placeholder(
+            out_dir / "empty.png", "Direction stability", "No bootstrap summary"
+        )
         return
 
     # Circular plots per embedding/foreground.
-    for (emb, fg), sub in boot_summary.groupby(["embedding", "foreground_mode"], sort=False):
+    for (emb, fg), sub in boot_summary.groupby(
+        ["embedding", "foreground_mode"], sort=False
+    ):
         genes = sub["gene"].astype(str).tolist()
         n_cols = 4
         n_rows = int(np.ceil(len(genes) / n_cols)) if len(genes) > 0 else 1
@@ -1215,12 +1414,25 @@ def _plot_direction_stability(
             mask = np.isfinite(phi) & np.isfinite(q) & (q <= Q_SIG)
             ph = phi[mask]
             if ph.size == 0:
-                ax.text(0.5, 0.5, "no sig", transform=ax.transAxes, ha="center", va="center", fontsize=8)
+                ax.text(
+                    0.5,
+                    0.5,
+                    "no sig",
+                    transform=ax.transAxes,
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                )
             else:
                 rad = np.deg2rad(ph)
                 ax.scatter(rad, np.ones_like(rad), s=24, c="#1f77b4", alpha=0.85)
                 mu, R, csd = _circular_stats_deg(ph)
-                ax.plot([np.deg2rad(mu), np.deg2rad(mu)], [0.0, 1.1], color="#d62728", linewidth=2.0)
+                ax.plot(
+                    [np.deg2rad(mu), np.deg2rad(mu)],
+                    [0.0, 1.1],
+                    color="#d62728",
+                    linewidth=2.0,
+                )
                 ax.text(
                     0.02,
                     0.02,
@@ -1238,7 +1450,9 @@ def _plot_direction_stability(
 
         fig.suptitle(f"{emb} / {fg}: bootstrap phi (significant reps)", y=0.995)
         fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.97])
-        fig.savefig(out_dir / f"{emb}_{fg}_bootstrap_phi_grid.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig.savefig(
+            out_dir / f"{emb}_{fg}_bootstrap_phi_grid.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig)
 
         # R vs fraction significant.
@@ -1253,25 +1467,42 @@ def _plot_direction_stability(
             alpha=0.9,
         )
         for _, r in sub.iterrows():
-            ax2.text(float(r["R"]), float(r["fraction_significant"]) + 0.01, str(r["gene"]), fontsize=8)
+            ax2.text(
+                float(r["R"]),
+                float(r["fraction_significant"]) + 0.01,
+                str(r["gene"]),
+                fontsize=8,
+            )
         ax2.axvline(0.60, color="#444", linestyle="--")
         ax2.axhline(0.60, color="#444", linestyle=":")
         ax2.set_xlabel("R")
         ax2.set_ylabel("fraction_significant")
         ax2.set_title(f"{emb} / {fg}: R vs fraction_significant")
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_{fg}_R_vs_fraction_significant.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_{fg}_R_vs_fraction_significant.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig2)
 
         # Split-half phi comparison on circle + arc.
         sub_split = split_summary.loc[
-            (split_summary["embedding"] == emb) & (split_summary["foreground_mode"] == fg)
+            (split_summary["embedding"] == emb)
+            & (split_summary["foreground_mode"] == fg)
         ]
         fig3 = plt.figure(figsize=(7.6, 7.0))
         ax3 = fig3.add_subplot(111, projection="polar")
         for _, r in sub_split.iterrows():
-            p1 = float(r["phi_half1_deg"]) if np.isfinite(float(r["phi_half1_deg"])) else np.nan
-            p2 = float(r["phi_half2_deg"]) if np.isfinite(float(r["phi_half2_deg"])) else np.nan
+            p1 = (
+                float(r["phi_half1_deg"])
+                if np.isfinite(float(r["phi_half1_deg"]))
+                else np.nan
+            )
+            p2 = (
+                float(r["phi_half2_deg"])
+                if np.isfinite(float(r["phi_half2_deg"]))
+                else np.nan
+            )
             if not (np.isfinite(p1) and np.isfinite(p2)):
                 continue
             a1 = np.deg2rad(p1)
@@ -1286,11 +1517,15 @@ def _plot_direction_stability(
         ax3.set_rticks([])
         ax3.set_title(f"{emb} / {fg}: split-half phi1/phi2 with arc")
         fig3.tight_layout()
-        fig3.savefig(out_dir / f"{emb}_{fg}_split_half_phi_arc.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig3.savefig(
+            out_dir / f"{emb}_{fg}_split_half_phi_arc.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig3)
 
 
-def _plot_qc_controls(out_dir: Path, calls_df: pd.DataFrame, qc_audit_df: pd.DataFrame) -> None:
+def _plot_qc_controls(
+    out_dir: Path, calls_df: pd.DataFrame, qc_audit_df: pd.DataFrame
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if calls_df.empty or qc_audit_df.empty:
         _save_placeholder(out_dir / "empty.png", "QC controls", "No data")
@@ -1327,7 +1562,12 @@ def _plot_qc_controls(out_dir: Path, calls_df: pd.DataFrame, qc_audit_df: pd.Dat
             label="reproducible",
         )
     for _, r in calls_df.iterrows():
-        ax1.text(float(r["qc_risk"]), float(r["boot_Z_median"]) + 0.01, f"{r['gene']}|{r['embedding']}|{r['foreground_mode']}", fontsize=7)
+        ax1.text(
+            float(r["qc_risk"]),
+            float(r["boot_Z_median"]) + 0.01,
+            f"{r['gene']}|{r['embedding']}|{r['foreground_mode']}",
+            fontsize=7,
+        )
     ax1.axvline(QC_RISK_THRESH, color="#444", linestyle="--", linewidth=1.0)
     ax1.set_xlabel("qc_risk")
     ax1.set_ylabel("bootstrap median Z_T")
@@ -1335,7 +1575,9 @@ def _plot_qc_controls(out_dir: Path, calls_df: pd.DataFrame, qc_audit_df: pd.Dat
     if int(np.sum(flag)) > 0:
         ax1.legend(loc="best")
     fig1.tight_layout()
-    fig1.savefig(out_dir / "qc_risk_vs_bootstrap_medianZ.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        out_dir / "qc_risk_vs_bootstrap_medianZ.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig1)
 
     # 2) rho_mt vs rho_counts on full data QC audit.
@@ -1350,7 +1592,12 @@ def _plot_qc_controls(out_dir: Path, calls_df: pd.DataFrame, qc_audit_df: pd.Dat
         linewidths=0.4,
     )
     for _, r in qc_audit_df.iterrows():
-        ax2.text(float(r["rho_total_counts"]), float(r["rho_pct_mt"]) + 0.01, f"{r['gene']}|{r['foreground_mode']}", fontsize=8)
+        ax2.text(
+            float(r["rho_total_counts"]),
+            float(r["rho_pct_mt"]) + 0.01,
+            f"{r['gene']}|{r['foreground_mode']}",
+            fontsize=8,
+        )
     ax2.axvline(0.0, color="#666", linewidth=0.9)
     ax2.axhline(0.0, color="#666", linewidth=0.9)
     ax2.set_xlabel("rho_total_counts")
@@ -1361,9 +1608,19 @@ def _plot_qc_controls(out_dir: Path, calls_df: pd.DataFrame, qc_audit_df: pd.Dat
     plt.close(fig2)
 
 
-def _plot_polar(ax: plt.Axes, detail: dict[str, Any] | None, title: str, stats_text: str = "") -> None:
+def _plot_polar(
+    ax: plt.Axes, detail: dict[str, Any] | None, title: str, stats_text: str = ""
+) -> None:
     if detail is None or detail.get("E_obs") is None:
-        ax.text(0.5, 0.5, "no profile", transform=ax.transAxes, ha="center", va="center", fontsize=8)
+        ax.text(
+            0.5,
+            0.5,
+            "no profile",
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            fontsize=8,
+        )
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_title(title)
@@ -1381,8 +1638,20 @@ def _plot_polar(ax: plt.Axes, detail: dict[str, Any] | None, title: str, stats_t
         ne = np.asarray(null_e, dtype=float)
         hi = np.quantile(ne, 0.95, axis=0)
         lo = np.quantile(ne, 0.05, axis=0)
-        ax.plot(th, np.concatenate([hi, hi[:1]]), color="#333", linestyle="--", linewidth=1.0)
-        ax.plot(th, np.concatenate([lo, lo[:1]]), color="#333", linestyle="--", linewidth=0.9)
+        ax.plot(
+            th,
+            np.concatenate([hi, hi[:1]]),
+            color="#333",
+            linestyle="--",
+            linewidth=1.0,
+        )
+        ax.plot(
+            th,
+            np.concatenate([lo, lo[:1]]),
+            color="#333",
+            linestyle="--",
+            linewidth=0.9,
+        )
 
     ax.set_theta_zero_location("E")
     ax.set_theta_direction(1)
@@ -1416,16 +1685,32 @@ def _plot_exemplar_panels(
         return
 
     repro = calls_df.loc[calls_df["reproducible_localized"]].copy()
-    unstable = calls_df.loc[(calls_df["full_localized"]) & (~calls_df["reproducible_localized"])].copy()
+    unstable = calls_df.loc[
+        (calls_df["full_localized"]) & (~calls_df["reproducible_localized"])
+    ].copy()
 
     sel = []
     if not repro.empty:
-        sel.extend(repro.sort_values(by=["fraction_significant", "boot_Z_median"], ascending=[False, False]).head(2).to_dict(orient="records"))
+        sel.extend(
+            repro.sort_values(
+                by=["fraction_significant", "boot_Z_median"], ascending=[False, False]
+            )
+            .head(2)
+            .to_dict(orient="records")
+        )
     if not unstable.empty:
-        sel.extend(unstable.sort_values(by=["full_Z_T", "fraction_significant"], ascending=[False, True]).head(2).to_dict(orient="records"))
+        sel.extend(
+            unstable.sort_values(
+                by=["full_Z_T", "fraction_significant"], ascending=[False, True]
+            )
+            .head(2)
+            .to_dict(orient="records")
+        )
 
     if len(sel) == 0:
-        _save_placeholder(out_dir / "no_exemplars.png", "Exemplar panels", "No exemplar calls found")
+        _save_placeholder(
+            out_dir / "no_exemplars.png", "Exemplar panels", "No exemplar calls found"
+        )
         return
 
     used = set()
@@ -1448,8 +1733,12 @@ def _plot_exemplar_panels(
 
         coords = embeddings_map[emb].coords
         x_plot = np.log1p(np.maximum(np.asarray(expr, dtype=float), 0.0))
-        vmin = float(np.quantile(x_plot, 0.01)) if np.isfinite(x_plot).sum() > 0 else 0.0
-        vmax = float(np.quantile(x_plot, 0.99)) if np.isfinite(x_plot).sum() > 0 else 1.0
+        vmin = (
+            float(np.quantile(x_plot, 0.01)) if np.isfinite(x_plot).sum() > 0 else 0.0
+        )
+        vmax = (
+            float(np.quantile(x_plot, 0.99)) if np.isfinite(x_plot).sum() > 0 else 1.0
+        )
         if np.isclose(vmin, vmax):
             vmax = vmin + 1e-6
 
@@ -1487,7 +1776,15 @@ def _plot_exemplar_panels(
         # A) feature map
         axA = fig.add_subplot(gs[0, 0])
         ord_idx = np.argsort(x_plot, kind="mergesort")
-        axA.scatter(coords[:, 0], coords[:, 1], c="#dddddd", s=5, alpha=0.25, linewidths=0, rasterized=True)
+        axA.scatter(
+            coords[:, 0],
+            coords[:, 1],
+            c="#dddddd",
+            s=5,
+            alpha=0.25,
+            linewidths=0,
+            rasterized=True,
+        )
         sc = axA.scatter(
             coords[ord_idx, 0],
             coords[ord_idx, 1],
@@ -1542,9 +1839,21 @@ def _plot_exemplar_panels(
                 axE.hist(z, bins=bins, color="#7aa6d6", edgecolor="white", alpha=0.95)
                 if not row_boot.empty:
                     rb = row_boot.iloc[0]
-                    lo = float(rb["Z_ci_low"]) if np.isfinite(float(rb["Z_ci_low"])) else np.nan
-                    hi = float(rb["Z_ci_high"]) if np.isfinite(float(rb["Z_ci_high"])) else np.nan
-                    med = float(rb["Z_median"]) if np.isfinite(float(rb["Z_median"])) else np.nan
+                    lo = (
+                        float(rb["Z_ci_low"])
+                        if np.isfinite(float(rb["Z_ci_low"]))
+                        else np.nan
+                    )
+                    hi = (
+                        float(rb["Z_ci_high"])
+                        if np.isfinite(float(rb["Z_ci_high"]))
+                        else np.nan
+                    )
+                    med = (
+                        float(rb["Z_median"])
+                        if np.isfinite(float(rb["Z_median"]))
+                        else np.nan
+                    )
                     if np.isfinite(lo):
                         axE.axvline(lo, color="#d62728", linestyle=":", linewidth=1.2)
                     if np.isfinite(hi):
@@ -1567,14 +1876,27 @@ def _plot_exemplar_panels(
             mask = np.isfinite(phi) & np.isfinite(q) & (q <= Q_SIG)
             ph = phi[mask]
             if ph.size == 0:
-                axF.text(0.5, 0.5, "no sig bootstrap phis", transform=axF.transAxes, ha="center", va="center", fontsize=8)
+                axF.text(
+                    0.5,
+                    0.5,
+                    "no sig bootstrap phis",
+                    transform=axF.transAxes,
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                )
                 axF.set_xticks([])
                 axF.set_yticks([])
             else:
                 rad = np.deg2rad(ph)
                 axF.scatter(rad, np.ones_like(rad), s=24, c="#1f77b4", alpha=0.85)
                 mu, R, csd = _circular_stats_deg(ph)
-                axF.plot([np.deg2rad(mu), np.deg2rad(mu)], [0.0, 1.1], color="#d62728", linewidth=2.0)
+                axF.plot(
+                    [np.deg2rad(mu), np.deg2rad(mu)],
+                    [0.0, 1.1],
+                    color="#d62728",
+                    linewidth=2.0,
+                )
                 axF.set_theta_zero_location("E")
                 axF.set_theta_direction(1)
                 axF.set_rticks([])
@@ -1587,7 +1909,9 @@ def _plot_exemplar_panels(
             fontsize=12,
         )
         fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.97])
-        fig.savefig(out_dir / f"exemplar_{gene}_{emb}_{fg}.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig.savefig(
+            out_dir / f"exemplar_{gene}_{emb}_{fg}.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig)
 
 
@@ -1615,7 +1939,9 @@ def _write_readme(
     calls_df: pd.DataFrame,
 ) -> None:
     lines: list[str] = []
-    lines.append("CM Experiment #5 (Single-donor): Split-half + bootstrap reproducibility of BioRSP")
+    lines.append(
+        "CM Experiment #5 (Single-donor): Split-half + bootstrap reproducibility of BioRSP"
+    )
     lines.append("")
     lines.append("Hypothesis")
     lines.append(
@@ -1624,9 +1950,15 @@ def _write_readme(
     )
     lines.append("")
     lines.append("Single-donor rigor")
-    lines.append("- No donor replication claim; this is within-donor reproducibility only.")
-    lines.append("- Split-half + bootstrap with per-resample permutation null calibration.")
-    lines.append("- Direction stability summarized by mean resultant length R and circular SD.")
+    lines.append(
+        "- No donor replication claim; this is within-donor reproducibility only."
+    )
+    lines.append(
+        "- Split-half + bootstrap with per-resample permutation null calibration."
+    )
+    lines.append(
+        "- Direction stability summarized by mean resultant length R and circular SD."
+    )
     lines.append("")
     lines.append("Run metadata")
     lines.append(f"- seed: {seed}")
@@ -1652,9 +1984,15 @@ def _write_readme(
     lines.append("")
 
     lines.append("Final call rule")
-    lines.append("reproducible_localized = split_repro AND bootstrap_repro AND (qc_risk < 0.35)")
-    lines.append("where split_repro requires both halves significant + delta_phi<=45° + delta_Z<=2")
-    lines.append("and bootstrap_repro requires lowerCI(Z)>0 + R>=0.6 + fraction_significant>=0.6")
+    lines.append(
+        "reproducible_localized = split_repro AND bootstrap_repro AND (qc_risk < 0.35)"
+    )
+    lines.append(
+        "where split_repro requires both halves significant + delta_phi<=45° + delta_Z<=2"
+    )
+    lines.append(
+        "and bootstrap_repro requires lowerCI(Z)>0 + R>=0.6 + fraction_significant>=0.6"
+    )
     lines.append("")
 
     if not calls_df.empty:
@@ -1664,8 +2002,14 @@ def _write_readme(
             lines.append(
                 "- reproducible calls: "
                 + ", ".join(
-                    calls_df.loc[calls_df["reproducible_localized"], ["gene", "embedding", "foreground_mode"]]
-                    .apply(lambda r: f"{r['gene']}|{r['embedding']}|{r['foreground_mode']}", axis=1)
+                    calls_df.loc[
+                        calls_df["reproducible_localized"],
+                        ["gene", "embedding", "foreground_mode"],
+                    ]
+                    .apply(
+                        lambda r: f"{r['gene']}|{r['embedding']}|{r['foreground_mode']}",
+                        axis=1,
+                    )
                     .tolist()
                 )
             )
@@ -1694,8 +2038,12 @@ def main() -> int:
 
     adata = ad.read_h5ad(args.h5ad)
 
-    donor_key = _resolve_key_required(adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor")
-    label_key = _resolve_key_required(adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label")
+    donor_key = _resolve_key_required(
+        adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor"
+    )
+    label_key = _resolve_key_required(
+        adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label"
+    )
 
     labels_all = adata.obs[label_key].astype("string").fillna("NA").astype(str)
     cm_mask_all = labels_all.map(_is_cm_label).to_numpy(dtype=bool)
@@ -1707,7 +2055,9 @@ def main() -> int:
         pd.DataFrame({"donor_id": donor_ids_all.to_numpy(), "is_cm": cm_mask_all})
         .groupby("donor_id", as_index=False)
         .agg(n_cells_total=("is_cm", "size"), n_cm=("is_cm", "sum"))
-        .sort_values(by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True])
+        .sort_values(
+            by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True]
+        )
         .reset_index(drop=True)
     )
     donor_star = str(donor_choice.iloc[0]["donor_id"])
@@ -1729,7 +2079,9 @@ def main() -> int:
         print(f"cm_label_count[{label}]={int(count)}")
 
     if int(adata_cm.n_obs) < 2000:
-        print(f"WARNING: adata_cm.n_obs={int(adata_cm.n_obs)} < 2000 (cm_underpowered=True)")
+        print(
+            f"WARNING: adata_cm.n_obs={int(adata_cm.n_obs)} < 2000 (cm_underpowered=True)"
+        )
 
     expr_matrix_cm, adata_like_cm, expr_source = _choose_expression_source(
         adata_cm,
@@ -1738,29 +2090,38 @@ def main() -> int:
     )
 
     # QC covariates.
-    total_counts, key_total = _safe_numeric_obs(adata_cm, ["total_counts", "n_counts", "n_genes_by_counts"])
+    total_counts, _ = _safe_numeric_obs(
+        adata_cm, ["total_counts", "n_counts", "n_genes_by_counts"]
+    )
     if total_counts is None:
         total_counts = _total_counts_vector(adata_cm, expr_matrix_cm)
-        key_total = "computed:expr_sum"
 
-    pct_mt, key_mt = _safe_numeric_obs(adata_cm, ["pct_counts_mt", "percent.mt", "pct_mt"])
+    pct_mt, _ = _safe_numeric_obs(adata_cm, ["pct_counts_mt", "percent.mt", "pct_mt"])
     if pct_mt is None:
-        pct_mt, key_mt2 = _pct_mt_vector(adata_cm, expr_matrix_cm, adata_like_cm)
-        key_mt = key_mt2
+        pct_mt, _ = _pct_mt_vector(adata_cm, expr_matrix_cm, adata_like_cm)
 
-    pct_ribo, key_ribo = _safe_numeric_obs(adata_cm, ["pct_counts_ribo", "percent.ribo", "pct_ribo"])
+    pct_ribo, key_ribo = _safe_numeric_obs(
+        adata_cm, ["pct_counts_ribo", "percent.ribo", "pct_ribo"]
+    )
 
     # Panel.
     panel_status, panel_df = _resolve_panel(adata_like_cm)
     panel_df.to_csv(tables_dir / "gene_panel_status.csv", index=False)
-    genes_present = [st for st in panel_status if st.present and st.gene_idx is not None]
+    genes_present = [
+        st for st in panel_status if st.present and st.gene_idx is not None
+    ]
     if len(genes_present) == 0:
         raise RuntimeError("No panel genes resolved in selected expression namespace")
 
-    expr_by_gene = {st.gene: get_feature_vector(expr_matrix_cm, int(st.gene_idx)) for st in genes_present}
+    expr_by_gene = {
+        st.gene: get_feature_vector(expr_matrix_cm, int(st.gene_idx))
+        for st in genes_present
+    }
 
     # Embeddings.
-    adata_embed, embed_note = _prepare_embedding_input(adata_cm, expr_matrix_cm, expr_source)
+    adata_embed, embed_note = _prepare_embedding_input(
+        adata_cm, expr_matrix_cm, expr_source
+    )
     embeddings, n_pcs_used = _compute_fixed_embeddings(
         adata_embed,
         seed=int(args.seed),
@@ -1774,7 +2135,9 @@ def main() -> int:
     h1_idx, h2_idx, split_method, split_assign = _make_split_halves(
         n_cells=n_cells,
         seed=int(args.seed),
-        strat_values=np.asarray(total_counts, dtype=float) if total_counts is not None else None,
+        strat_values=(
+            np.asarray(total_counts, dtype=float) if total_counts is not None else None
+        ),
     )
 
     split_rows_h1, detail_h1 = _score_sample_set(
@@ -1819,7 +2182,9 @@ def main() -> int:
     split_scores_df = pd.DataFrame(split_rows_h1 + split_rows_h2 + full_rows)
     split_scores_df.to_csv(tables_dir / "split_half_scores.csv", index=False)
 
-    split_summary_df = _summarize_split_half(split_scores_df.loc[split_scores_df["sample"].isin(["half1", "half2"])])
+    split_summary_df = _summarize_split_half(
+        split_scores_df.loc[split_scores_df["sample"].isin(["half1", "half2"])]
+    )
     split_summary_df.to_csv(tables_dir / "split_half_repro_summary.csv", index=False)
 
     detail_map = {}
@@ -1856,9 +2221,20 @@ def main() -> int:
             else:
                 fg = _top_q_mask(expr, q=float(args.q))
             ff = fg.astype(float)
-            rho_tc = _safe_spearman(ff, np.asarray(total_counts, dtype=float) if total_counts is not None else None)
-            rho_mt = _safe_spearman(ff, np.asarray(pct_mt, dtype=float) if pct_mt is not None else None)
-            rho_rb = _safe_spearman(ff, np.asarray(pct_ribo, dtype=float) if pct_ribo is not None else None)
+            rho_tc = _safe_spearman(
+                ff,
+                (
+                    np.asarray(total_counts, dtype=float)
+                    if total_counts is not None
+                    else None
+                ),
+            )
+            rho_mt = _safe_spearman(
+                ff, np.asarray(pct_mt, dtype=float) if pct_mt is not None else None
+            )
+            rho_rb = _safe_spearman(
+                ff, np.asarray(pct_ribo, dtype=float) if pct_ribo is not None else None
+            )
             vals = np.array([rho_tc, rho_mt, rho_rb], dtype=float)
             fin = vals[np.isfinite(vals)]
             qc_risk = float(np.max(np.abs(fin))) if fin.size > 0 else 0.0
@@ -1895,10 +2271,13 @@ def main() -> int:
         brow = b.iloc[0]
 
         q = qc_audit_df.loc[
-            (qc_audit_df["gene"] == gene)
-            & (qc_audit_df["foreground_mode"] == fg)
+            (qc_audit_df["gene"] == gene) & (qc_audit_df["foreground_mode"] == fg)
         ]
-        qrow = q.iloc[0] if not q.empty else pd.Series({"qc_risk": np.nan, "qc_driven": False})
+        qrow = (
+            q.iloc[0]
+            if not q.empty
+            else pd.Series({"qc_risk": np.nan, "qc_driven": False})
+        )
 
         f = full_df.loc[
             (full_df["gene"] == gene)
@@ -1916,11 +2295,17 @@ def main() -> int:
         )
 
         boot_repro = bool(brow["bootstrap_reproducible"])
-        qc_ok = bool(np.isfinite(float(qrow["qc_risk"])) and float(qrow["qc_risk"]) < QC_RISK_THRESH)
+        qc_ok = bool(
+            np.isfinite(float(qrow["qc_risk"]))
+            and float(qrow["qc_risk"]) < QC_RISK_THRESH
+        )
         if not np.isfinite(float(qrow["qc_risk"])):
             qc_ok = True
 
-        full_localized = bool(np.isfinite(float(frow.get("q_T", np.nan))) and float(frow.get("q_T", np.nan)) <= Q_SIG)
+        full_localized = bool(
+            np.isfinite(float(frow.get("q_T", np.nan)))
+            and float(frow.get("q_T", np.nan)) <= Q_SIG
+        )
 
         final = bool(split_repro and boot_repro and qc_ok)
 
@@ -1931,20 +2316,58 @@ def main() -> int:
                 "foreground_mode": fg,
                 "split_repro": split_repro,
                 "bootstrap_repro": boot_repro,
-                "qc_risk": float(qrow["qc_risk"]) if np.isfinite(float(qrow["qc_risk"])) else np.nan,
+                "qc_risk": (
+                    float(qrow["qc_risk"])
+                    if np.isfinite(float(qrow["qc_risk"]))
+                    else np.nan
+                ),
                 "qc_ok": qc_ok,
                 "reproducible_localized": final,
                 "full_localized": full_localized,
-                "half_consistent_significant": bool(srow["half_consistent_significant"]),
-                "delta_Z": float(srow["delta_Z"]) if np.isfinite(float(srow["delta_Z"])) else np.nan,
-                "delta_phi_deg": float(srow["delta_phi_deg"]) if np.isfinite(float(srow["delta_phi_deg"])) else np.nan,
-                "fraction_significant": float(brow["fraction_significant"]) if np.isfinite(float(brow["fraction_significant"])) else np.nan,
-                "boot_Z_median": float(brow["Z_median"]) if np.isfinite(float(brow["Z_median"])) else np.nan,
-                "boot_Z_ci_low": float(brow["Z_ci_low"]) if np.isfinite(float(brow["Z_ci_low"])) else np.nan,
-                "boot_Z_ci_high": float(brow["Z_ci_high"]) if np.isfinite(float(brow["Z_ci_high"])) else np.nan,
+                "half_consistent_significant": bool(
+                    srow["half_consistent_significant"]
+                ),
+                "delta_Z": (
+                    float(srow["delta_Z"])
+                    if np.isfinite(float(srow["delta_Z"]))
+                    else np.nan
+                ),
+                "delta_phi_deg": (
+                    float(srow["delta_phi_deg"])
+                    if np.isfinite(float(srow["delta_phi_deg"]))
+                    else np.nan
+                ),
+                "fraction_significant": (
+                    float(brow["fraction_significant"])
+                    if np.isfinite(float(brow["fraction_significant"]))
+                    else np.nan
+                ),
+                "boot_Z_median": (
+                    float(brow["Z_median"])
+                    if np.isfinite(float(brow["Z_median"]))
+                    else np.nan
+                ),
+                "boot_Z_ci_low": (
+                    float(brow["Z_ci_low"])
+                    if np.isfinite(float(brow["Z_ci_low"]))
+                    else np.nan
+                ),
+                "boot_Z_ci_high": (
+                    float(brow["Z_ci_high"])
+                    if np.isfinite(float(brow["Z_ci_high"]))
+                    else np.nan
+                ),
                 "boot_R": float(brow["R"]) if np.isfinite(float(brow["R"])) else np.nan,
-                "full_q_T": float(frow.get("q_T", np.nan)) if np.isfinite(float(frow.get("q_T", np.nan))) else np.nan,
-                "full_Z_T": float(frow.get("Z_T", np.nan)) if np.isfinite(float(frow.get("Z_T", np.nan))) else np.nan,
+                "full_q_T": (
+                    float(frow.get("q_T", np.nan))
+                    if np.isfinite(float(frow.get("q_T", np.nan)))
+                    else np.nan
+                ),
+                "full_Z_T": (
+                    float(frow.get("Z_T", np.nan))
+                    if np.isfinite(float(frow.get("Z_T", np.nan)))
+                    else np.nan
+                ),
             }
         )
 
@@ -1956,14 +2379,18 @@ def main() -> int:
         plots_dir / "00_overview",
         umap_coords=emb_map["umap_repr"].coords,
         expr_by_gene=expr_by_gene,
-        total_counts=np.asarray(total_counts, dtype=float) if total_counts is not None else None,
+        total_counts=(
+            np.asarray(total_counts, dtype=float) if total_counts is not None else None
+        ),
         split_assign=split_assign,
         split_method=split_method,
     )
 
     _plot_split_half(
         plots_dir / "01_split_half",
-        split_scores=split_scores_df.loc[split_scores_df["sample"].isin(["half1", "half2"])],
+        split_scores=split_scores_df.loc[
+            split_scores_df["sample"].isin(["half1", "half2"])
+        ],
         split_summary=split_summary_df,
     )
 
@@ -2063,7 +2490,9 @@ def main() -> int:
     print(f"boot_reps={int(args.boot_reps)}")
     print(f"n_tests_split={int(len(split_scores_df))}")
     print(f"n_calls={int(len(calls_df))}")
-    print(f"reproducible_calls={int(np.sum(calls_df['reproducible_localized'].to_numpy(dtype=bool)) if not calls_df.empty else 0)}")
+    print(
+        f"reproducible_calls={int(np.sum(calls_df['reproducible_localized'].to_numpy(dtype=bool)) if not calls_df.empty else 0)}"
+    )
     print(f"results_root={out_root}")
 
     return 0

@@ -285,7 +285,9 @@ def _analyze_donor_directionality(
     if n_cells < 3:
         raise ValueError("Need at least 3 cells for donor directionality analysis.")
 
-    donor_cat = pd.Categorical(donors, categories=sorted(pd.Index(donors).unique().tolist()))
+    donor_cat = pd.Categorical(
+        donors, categories=sorted(pd.Index(donors).unique().tolist())
+    )
     donor_levels = donor_cat.categories.astype(str).tolist()
     donor_codes = donor_cat.codes.astype(int)
     n_donors = int(len(donor_levels))
@@ -413,7 +415,9 @@ def _compute_mixing_metrics(
     if n < 3:
         raise ValueError("Need at least 3 cells for neighborhood mixing metrics.")
 
-    donor_cat = pd.Categorical(donors, categories=sorted(pd.Index(donors).unique().tolist()))
+    donor_cat = pd.Categorical(
+        donors, categories=sorted(pd.Index(donors).unique().tolist())
+    )
     donor_levels = donor_cat.categories.astype(str).tolist()
     donor_codes = donor_cat.codes.astype(int)
     n_donors = int(len(donor_levels))
@@ -474,9 +478,7 @@ def _compute_mixing_metrics(
                 "mixing_scaled": float(
                     per_cell_df.loc[mask, "diversity"].median() / float(n_donors)
                 ),
-                "kbet_accept_rate": float(
-                    per_cell_df.loc[mask, "kbet_accept"].mean()
-                ),
+                "kbet_accept_rate": float(per_cell_df.loc[mask, "kbet_accept"].mean()),
                 "n_cells": int(mask.sum()),
             }
         )
@@ -556,12 +558,20 @@ def _plot_overview(
             "No cell-type label key found.",
         )
 
-    counts = pd.Series(np.asarray(donor_ids).astype(str)).value_counts().sort_values(
-        ascending=False
+    counts = (
+        pd.Series(np.asarray(donor_ids).astype(str))
+        .value_counts()
+        .sort_values(ascending=False)
     )
     fig, ax = plt.subplots(figsize=(10.2, 4.8))
     x = np.arange(counts.shape[0], dtype=float)
-    ax.bar(x, counts.to_numpy(dtype=float), color="#5DA5DA", edgecolor="black", linewidth=0.5)
+    ax.bar(
+        x,
+        counts.to_numpy(dtype=float),
+        color="#5DA5DA",
+        edgecolor="black",
+        linewidth=0.5,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(counts.index.tolist(), rotation=40, ha="right", fontsize=8)
     ax.set_ylabel("# cells")
@@ -716,7 +726,9 @@ def _plot_donor_directionality(
             bbox={"facecolor": "white", "edgecolor": "#999999", "alpha": 0.85},
         )
         ax2.set_title("RSP profile + null envelope")
-        ax2.legend(loc="upper right", bbox_to_anchor=(1.18, 1.2), fontsize=8, frameon=True)
+        ax2.legend(
+            loc="upper right", bbox_to_anchor=(1.18, 1.2), fontsize=8, frameon=True
+        )
 
         bins = int(min(45, max(12, np.ceil(np.sqrt(null_t.size)))))
         ax3.hist(null_t, bins=bins, color="#779ECB", edgecolor="white", alpha=0.9)
@@ -754,7 +766,9 @@ def _plot_mixing_metrics(
     vals = per_cell_mix["iLISI"].to_numpy(dtype=float)
     ax1.hist(vals, bins=45, color="#4C78A8", edgecolor="white", alpha=0.9)
     med = float(np.median(vals))
-    ax1.axvline(med, color="#8B0000", linestyle="--", linewidth=1.8, label=f"median={med:.2f}")
+    ax1.axvline(
+        med, color="#8B0000", linestyle="--", linewidth=1.8, label=f"median={med:.2f}"
+    )
     ax1.set_xlabel("iLISI")
     ax1.set_ylabel("count")
     ax1.set_title("Per-cell iLISI distribution")
@@ -764,9 +778,15 @@ def _plot_mixing_metrics(
     fig1.savefig(out_dir / "per_cell_iLISI_hist.png", dpi=DEFAULT_PLOT_STYLE.dpi)
     plt.close(fig1)
 
-    donors_order = donor_summary.sort_values(by="n_cells", ascending=False)["donor_id"].astype(str).tolist()
+    donors_order = (
+        donor_summary.sort_values(by="n_cells", ascending=False)["donor_id"]
+        .astype(str)
+        .tolist()
+    )
     data = [
-        per_cell_mix.loc[per_cell_mix["donor_id"].astype(str) == d, "iLISI"].to_numpy(dtype=float)
+        per_cell_mix.loc[per_cell_mix["donor_id"].astype(str) == d, "iLISI"].to_numpy(
+            dtype=float
+        )
         for d in donors_order
     ]
     fig2, ax2 = plt.subplots(figsize=(max(8.5, 0.45 * len(donors_order) + 4.0), 5.2))
@@ -796,7 +816,9 @@ def _plot_mixing_metrics(
         linewidths=0.5,
         alpha=0.9,
     )
-    for _, row in donor_summary.sort_values(by="Z_T", ascending=False).head(5).iterrows():
+    for _, row in (
+        donor_summary.sort_values(by="Z_T", ascending=False).head(5).iterrows()
+    ):
         ax3.text(
             float(row["n_cells"]) + 12.0,
             float(row["mixing_scaled"]) + 0.004,
@@ -809,7 +831,9 @@ def _plot_mixing_metrics(
     ax3.set_title("Donor cell count vs mixing_scaled")
     ax3.grid(alpha=0.25, linewidth=0.6)
     fig3.tight_layout()
-    fig3.savefig(out_dir / "donor_size_vs_mixing_scaled.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        out_dir / "donor_size_vs_mixing_scaled.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig3)
 
     fig4, ax4 = plt.subplots(figsize=(max(8.2, 0.42 * len(donors_order) + 4.0), 4.8))
@@ -857,7 +881,11 @@ def _plot_composition_controls(
         )
         return
 
-    donors_order = donor_summary.sort_values(by="n_cells", ascending=False)["donor_id"].astype(str).tolist()
+    donors_order = (
+        donor_summary.sort_values(by="n_cells", ascending=False)["donor_id"]
+        .astype(str)
+        .tolist()
+    )
     props = composition_props.copy()
     props = props.loc[[d for d in donors_order if d in props.index]]
     celltypes = props.columns.astype(str).tolist()
@@ -887,11 +915,26 @@ def _plot_composition_controls(
     ax1.set_title("Donor-by-celltype composition (stacked)")
     ax1.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=7, frameon=True)
     fig1.tight_layout()
-    fig1.savefig(out_dir / "donor_celltype_stacked.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+    fig1.savefig(
+        out_dir / "donor_celltype_stacked.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+        bbox_inches="tight",
+    )
     plt.close(fig1)
 
-    fig2, ax2 = plt.subplots(figsize=(max(8.0, 0.42 * props.shape[1] + 3.0), max(5.0, 0.28 * props.shape[0] + 2.8)))
-    im = ax2.imshow(props.to_numpy(dtype=float), aspect="auto", cmap="viridis", vmin=0.0, vmax=max(1e-6, float(np.nanmax(props.to_numpy(dtype=float)))))
+    fig2, ax2 = plt.subplots(
+        figsize=(
+            max(8.0, 0.42 * props.shape[1] + 3.0),
+            max(5.0, 0.28 * props.shape[0] + 2.8),
+        )
+    )
+    im = ax2.imshow(
+        props.to_numpy(dtype=float),
+        aspect="auto",
+        cmap="viridis",
+        vmin=0.0,
+        vmax=max(1e-6, float(np.nanmax(props.to_numpy(dtype=float)))),
+    )
     ax2.set_xticks(np.arange(props.shape[1], dtype=int))
     ax2.set_xticklabels(celltypes, rotation=40, ha="right", fontsize=8)
     ax2.set_yticks(np.arange(props.shape[0], dtype=int))
@@ -916,7 +959,9 @@ def _plot_composition_controls(
             linewidths=0.6,
             alpha=0.9,
         )
-        for _, row in donor_summary.sort_values(by="Z_T", ascending=False).head(5).iterrows():
+        for _, row in (
+            donor_summary.sort_values(by="Z_T", ascending=False).head(5).iterrows()
+        ):
             ax3.text(
                 float(row[skew_col]) + 0.005,
                 float(row["Z_T"]) + 0.04,
@@ -958,8 +1003,12 @@ def _plot_within_celltype(
         )
         return
 
-    donor_palette_levels = sorted(pd.Index(np.asarray(donor_ids).astype(str)).unique().tolist())
-    donor_color_map = {d: plt.get_cmap("tab20")(i % 20) for i, d in enumerate(donor_palette_levels)}
+    donor_palette_levels = sorted(
+        pd.Index(np.asarray(donor_ids).astype(str)).unique().tolist()
+    )
+    donor_color_map = {
+        d: plt.get_cmap("tab20")(i % 20) for i, d in enumerate(donor_palette_levels)
+    }
 
     labels = np.asarray(label_values).astype(str)
     donors = np.asarray(donor_ids).astype(str)
@@ -1041,7 +1090,9 @@ def _plot_within_celltype(
         aggfunc="first",
     )
     for ct in heat.columns.tolist():
-        low_mask = within_df.loc[within_df["celltype"] == ct, ["donor_id", "n_cells_in_celltype_donor"]].set_index("donor_id")["n_cells_in_celltype_donor"]
+        low_mask = within_df.loc[
+            within_df["celltype"] == ct, ["donor_id", "n_cells_in_celltype_donor"]
+        ].set_index("donor_id")["n_cells_in_celltype_donor"]
         low_mask = low_mask.reindex(heat.index)
         heat.loc[low_mask < 20, ct] = np.nan
 
@@ -1071,7 +1122,9 @@ def _plot_within_celltype(
         cbar = fig_h.colorbar(im, ax=ax_h, fraction=0.046, pad=0.03)
         cbar.set_label("Z_T")
         fig_h.tight_layout()
-        fig_h.savefig(out_dir / "within_celltype_ZT_heatmap.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig_h.savefig(
+            out_dir / "within_celltype_ZT_heatmap.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig_h)
 
 
@@ -1098,7 +1151,9 @@ def _build_within_celltype_table(
         mask = labels == ct
         n_ct = int(mask.sum())
         if n_ct < 100:
-            warnings_log.append(f"Skipped celltype '{ct}' (n={n_ct}) due to low cell count.")
+            warnings_log.append(
+                f"Skipped celltype '{ct}' (n={n_ct}) due to low cell count."
+            )
             continue
         donors_ct = donors[mask]
         if np.unique(donors_ct).size < 2:
@@ -1232,16 +1287,14 @@ def main() -> int:
         how="left",
     )
     donor_summary["strong_donor_directionality"] = (
-        ((donor_summary["q_T"] <= Q_SIG) & (donor_summary["Z_T"] >= Z_STRONG))
-        | (
-            (donor_summary["coverage_C"] >= COVERAGE_STRONG)
-            & (donor_summary["Z_T"] >= Z_MODERATE)
-        )
+        (donor_summary["q_T"] <= Q_SIG) & (donor_summary["Z_T"] >= Z_STRONG)
+    ) | (
+        (donor_summary["coverage_C"] >= COVERAGE_STRONG)
+        & (donor_summary["Z_T"] >= Z_MODERATE)
     )
     donor_summary["poor_mixing"] = (
-        (donor_summary["mixing_scaled"] <= POOR_MIXING_SCALED)
-        | (donor_summary["mixing_median_iLISI"] <= POOR_MIXING_ILISI)
-    )
+        donor_summary["mixing_scaled"] <= POOR_MIXING_SCALED
+    ) | (donor_summary["mixing_median_iLISI"] <= POOR_MIXING_ILISI)
     donor_summary["confounding_flag"] = (
         donor_summary["strong_donor_directionality"] | donor_summary["poor_mixing"]
     )
@@ -1302,9 +1355,9 @@ def main() -> int:
         ]
     ].copy()
     if "composition_skew" in donor_summary.columns:
-        donor_summary_out["composition_skew"] = donor_summary["composition_skew"].to_numpy(
-            dtype=float
-        )
+        donor_summary_out["composition_skew"] = donor_summary[
+            "composition_skew"
+        ].to_numpy(dtype=float)
 
     donor_summary_csv = tables_dir / "donor_summary.csv"
     donor_summary_out.to_csv(donor_summary_csv, index=False)

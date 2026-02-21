@@ -666,7 +666,6 @@ def _plot_gene_donor_panel(
     expr = np.asarray(global_art["expr"], dtype=float)
     e_obs = np.asarray(global_art["E_phi_obs"], dtype=float)
     null_e = np.asarray(global_art["null_E_phi"], dtype=float)
-    null_t = np.asarray(global_art["null_T"], dtype=float)
 
     # 1) global UMAP feature.
     log_expr = np.log1p(np.maximum(expr, 0.0))

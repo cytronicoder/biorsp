@@ -177,27 +177,47 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--seed", type=int, default=0, help="Random seed.")
     p.add_argument("--n_perm", type=int, default=200, help="Permutation count.")
     p.add_argument("--n_bins", type=int, default=64, help="Angular bins.")
-    p.add_argument("--k", type=int, default=30, help="kNN neighbors for Moran baseline.")
+    p.add_argument(
+        "--k", type=int, default=30, help="kNN neighbors for Moran baseline."
+    )
     p.add_argument(
         "--mode",
         choices=["hvg", "top_detected", "list"],
         default="hvg",
         help="Gene evaluation mode.",
     )
-    p.add_argument("--max_genes", type=int, default=5000, help="Gene cap for hvg/top_detected modes.")
-    p.add_argument("--gene_list", default=None, help="Path to newline-separated gene list for mode=list.")
-    p.add_argument("--q", type=float, default=0.10, help="Top quantile for donor-quantile foreground mode B.")
+    p.add_argument(
+        "--max_genes",
+        type=int,
+        default=5000,
+        help="Gene cap for hvg/top_detected modes.",
+    )
+    p.add_argument(
+        "--gene_list",
+        default=None,
+        help="Path to newline-separated gene list for mode=list.",
+    )
+    p.add_argument(
+        "--q",
+        type=float,
+        default=0.10,
+        help="Top quantile for donor-quantile foreground mode B.",
+    )
     p.add_argument(
         "--run_de_baseline",
         type=_str2bool,
         default=False,
         help="Run optional DE baseline (scanpy rank_genes_groups).",
     )
-    p.add_argument("--embedding_key", default=None, help="Optional embedding key override.")
+    p.add_argument(
+        "--embedding_key", default=None, help="Optional embedding key override."
+    )
     p.add_argument("--donor_key", default=None, help="Optional donor key override.")
     p.add_argument("--label_key", default=None, help="Optional label key override.")
     p.add_argument("--layer", default=None, help="Optional expression layer override.")
-    p.add_argument("--use_raw", action="store_true", help="Use adata.raw instead of X/layers.")
+    p.add_argument(
+        "--use_raw", action="store_true", help="Use adata.raw instead of X/layers."
+    )
     p.add_argument(
         "--top_candidates",
         type=int,
@@ -231,7 +251,9 @@ def _resolve_embedding(
 ) -> tuple[str, np.ndarray]:
     if requested_key is not None:
         if requested_key not in adata.obsm:
-            raise KeyError(f"Requested embedding key '{requested_key}' missing in adata.obsm.")
+            raise KeyError(
+                f"Requested embedding key '{requested_key}' missing in adata.obsm."
+            )
         key = str(requested_key)
     else:
         key = "X_umap" if "X_umap" in adata.obsm else str(next(iter(adata.obsm.keys())))
@@ -299,7 +321,9 @@ def _compute_pct_counts_ribo(
     total_counts: np.ndarray,
 ) -> tuple[np.ndarray | None, str]:
     if "pct_counts_ribo" in adata.obs.columns:
-        vals = pd.to_numeric(adata.obs["pct_counts_ribo"], errors="coerce").to_numpy(dtype=float)
+        vals = pd.to_numeric(adata.obs["pct_counts_ribo"], errors="coerce").to_numpy(
+            dtype=float
+        )
         if np.isfinite(vals).sum() > 0:
             fill = float(np.nanmedian(vals))
             vals = np.where(np.isfinite(vals), vals, fill)
@@ -314,13 +338,22 @@ def _compute_pct_counts_ribo(
     if symbol_col is None:
         return None, "missing"
 
-    symbols = adata_like.var[symbol_col].astype("string").fillna("").astype(str).str.upper()
-    ribo_mask = (symbols.str.startswith("RPL") | symbols.str.startswith("RPS")).to_numpy(dtype=bool)
+    symbols = (
+        adata_like.var[symbol_col].astype("string").fillna("").astype(str).str.upper()
+    )
+    ribo_mask = (
+        symbols.str.startswith("RPL") | symbols.str.startswith("RPS")
+    ).to_numpy(dtype=bool)
     if int(ribo_mask.sum()) == 0:
         return None, "missing"
 
-    ribo_counts = np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
-    pct = np.divide(ribo_counts, np.maximum(np.asarray(total_counts, dtype=float), 1e-12)) * 100.0
+    ribo_counts = (
+        np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    )
+    pct = (
+        np.divide(ribo_counts, np.maximum(np.asarray(total_counts, dtype=float), 1e-12))
+        * 100.0
+    )
     return pct, f"computed:{symbol_col}"
 
 
@@ -427,7 +460,9 @@ def _perm_null_continuous_profile(
     )
     t_obs = float(np.max(np.abs(e_obs)))
 
-    used_donor = bool(donor_ids is not None and np.unique(np.asarray(donor_ids).astype(str)).size >= 2)
+    used_donor = bool(
+        donor_ids is not None and np.unique(np.asarray(donor_ids).astype(str)).size >= 2
+    )
     warning_msg = ""
     if not used_donor:
         warning_msg = "continuous null used global shuffling (donor unavailable)."
@@ -437,7 +472,9 @@ def _perm_null_continuous_profile(
     null_t = np.zeros(int(n_perm), dtype=float)
     for i in range(int(n_perm)):
         if used_donor and donor_ids is not None:
-            pvals = _permute_weights_within_donor(x, np.asarray(donor_ids).astype(str), rng)
+            pvals = _permute_weights_within_donor(
+                x, np.asarray(donor_ids).astype(str), rng
+            )
         else:
             pvals = x[rng.permutation(x.size)]
         e_perm = _compute_continuous_profile(
@@ -681,14 +718,22 @@ def _compute_moran_baseline(
             continue
         counter += 1
         if counter == 1 or counter % 200 == 0 or counter == n_genes:
-            print(f"[Moran] scoring {counter}/{n_genes}: {g.requested_gene}", flush=True)
+            print(
+                f"[Moran] scoring {counter}/{n_genes}: {g.requested_gene}", flush=True
+            )
         x = np.asarray(get_feature_vector(expr_matrix, int(g.gene_idx)), dtype=float)
         x = np.log1p(np.maximum(x, 0.0))
         try:
             m = float(morans_i(x, w, row_standardize=True))
         except Exception:
             m = float("nan")
-        rows.append({"gene": g.requested_gene, "moran_I": m, "moran_method": "biorsp.stats.moran"})
+        rows.append(
+            {
+                "gene": g.requested_gene,
+                "moran_I": m,
+                "moran_method": "biorsp.stats.moran",
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -701,16 +746,30 @@ def _run_de_baseline(
 ) -> tuple[pd.DataFrame, str, list[str]]:
     warnings_log: list[str] = []
     if not bool(run_flag):
-        return pd.DataFrame(columns=["gene", "de_rank", "de_group"]), "disabled", warnings_log
+        return (
+            pd.DataFrame(columns=["gene", "de_rank", "de_group"]),
+            "disabled",
+            warnings_log,
+        )
     if label_key is None or label_key not in adata.obs.columns:
-        warnings_log.append("DE baseline requested but no label key available; skipped.")
-        return pd.DataFrame(columns=["gene", "de_rank", "de_group"]), "skipped_no_label", warnings_log
+        warnings_log.append(
+            "DE baseline requested but no label key available; skipped."
+        )
+        return (
+            pd.DataFrame(columns=["gene", "de_rank", "de_group"]),
+            "skipped_no_label",
+            warnings_log,
+        )
 
     try:
         import scanpy as sc  # type: ignore
     except Exception as exc:
         warnings_log.append(f"DE baseline skipped: scanpy import failed ({exc}).")
-        return pd.DataFrame(columns=["gene", "de_rank", "de_group"]), "scanpy_unavailable", warnings_log
+        return (
+            pd.DataFrame(columns=["gene", "de_rank", "de_group"]),
+            "scanpy_unavailable",
+            warnings_log,
+        )
 
     try:
         ad = adata.copy()
@@ -726,11 +785,21 @@ def _run_de_baseline(
         rg = ad.uns.get("rank_genes_groups", {})
         names = rg.get("names", None)
         if names is None:
-            warnings_log.append("DE baseline skipped: rank_genes_groups produced no names.")
-            return pd.DataFrame(columns=["gene", "de_rank", "de_group"]), "de_empty", warnings_log
+            warnings_log.append(
+                "DE baseline skipped: rank_genes_groups produced no names."
+            )
+            return (
+                pd.DataFrame(columns=["gene", "de_rank", "de_group"]),
+                "de_empty",
+                warnings_log,
+            )
 
         best: dict[str, tuple[int, str]] = {}
-        groups = names.dtype.names if hasattr(names, "dtype") and names.dtype.names is not None else []
+        groups = (
+            names.dtype.names
+            if hasattr(names, "dtype") and names.dtype.names is not None
+            else []
+        )
         for grp in groups:
             arr = np.asarray(names[grp]).astype(str)
             for r, gene in enumerate(arr, start=1):
@@ -745,7 +814,11 @@ def _run_de_baseline(
         return pd.DataFrame(rows), "scanpy.rank_genes_groups.wilcoxon", warnings_log
     except Exception as exc:
         warnings_log.append(f"DE baseline failed ({exc}); skipped.")
-        return pd.DataFrame(columns=["gene", "de_rank", "de_group"]), "de_failed", warnings_log
+        return (
+            pd.DataFrame(columns=["gene", "de_rank", "de_group"]),
+            "de_failed",
+            warnings_log,
+        )
 
 
 def _plot_overview(
@@ -772,7 +845,9 @@ def _plot_overview(
             annotate_cluster_medians=False,
         )
     else:
-        _save_placeholder(out_dir / "umap_by_donor.png", "UMAP donor", "Donor key unavailable.")
+        _save_placeholder(
+            out_dir / "umap_by_donor.png", "UMAP donor", "Donor key unavailable."
+        )
 
     if label_key is not None and label_key in adata.obs.columns:
         plot_categorical_umap(
@@ -784,7 +859,9 @@ def _plot_overview(
             annotate_cluster_medians=False,
         )
     else:
-        _save_placeholder(out_dir / "umap_by_label.png", "UMAP label", "Label key unavailable.")
+        _save_placeholder(
+            out_dir / "umap_by_label.png", "UMAP label", "Label key unavailable."
+        )
 
     save_numeric_umap(
         umap_xy=umap_xy,
@@ -807,7 +884,11 @@ def _plot_overview(
             vantage_point=(float(center_xy[0]), float(center_xy[1])),
         )
     else:
-        _save_placeholder(out_dir / "umap_pct_counts_mt.png", "pct_counts_mt", "pct_counts_mt unavailable.")
+        _save_placeholder(
+            out_dir / "umap_pct_counts_mt.png",
+            "pct_counts_mt",
+            "pct_counts_mt unavailable.",
+        )
 
     if pct_ribo is not None:
         save_numeric_umap(
@@ -820,7 +901,11 @@ def _plot_overview(
             vantage_point=(float(center_xy[0]), float(center_xy[1])),
         )
     else:
-        _save_placeholder(out_dir / "umap_pct_counts_ribo.png", "pct_counts_ribo", "pct_counts_ribo unavailable.")
+        _save_placeholder(
+            out_dir / "umap_pct_counts_ribo.png",
+            "pct_counts_ribo",
+            "pct_counts_ribo unavailable.",
+        )
 
 
 def _plot_distributions(
@@ -831,19 +916,45 @@ def _plot_distributions(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if mode_df.empty:
-        _save_placeholder(out_dir / "distributions.png", "Distributions", "No scored genes.")
+        _save_placeholder(
+            out_dir / "distributions.png", "Distributions", "No scored genes."
+        )
         return
 
     fig, axes = plt.subplots(3, 2, figsize=(12.0, 13.0))
 
     for mode, color in [(MODE_A, "#1F77B4"), (MODE_B, "#FF7F0E")]:
         sub = mode_df.loc[mode_df["mode"] == mode]
-        axes[0, 0].hist(sub["Z_T"].to_numpy(dtype=float), bins=40, alpha=0.55, label=mode, color=color)
+        axes[0, 0].hist(
+            sub["Z_T"].to_numpy(dtype=float),
+            bins=40,
+            alpha=0.55,
+            label=mode,
+            color=color,
+        )
         q = np.maximum(sub["q_T"].to_numpy(dtype=float), 1e-300)
         axes[0, 1].hist(-np.log10(q), bins=40, alpha=0.55, label=mode, color=color)
-        axes[1, 0].hist(sub["coverage_C"].to_numpy(dtype=float), bins=35, alpha=0.55, label=mode, color=color)
-        axes[1, 1].hist(sub["peaks_K"].to_numpy(dtype=float), bins=np.arange(-0.5, 8.5, 1.0), alpha=0.55, label=mode, color=color)
-        axes[2, 0].hist(sub["prev"].to_numpy(dtype=float), bins=35, alpha=0.55, label=mode, color=color)
+        axes[1, 0].hist(
+            sub["coverage_C"].to_numpy(dtype=float),
+            bins=35,
+            alpha=0.55,
+            label=mode,
+            color=color,
+        )
+        axes[1, 1].hist(
+            sub["peaks_K"].to_numpy(dtype=float),
+            bins=np.arange(-0.5, 8.5, 1.0),
+            alpha=0.55,
+            label=mode,
+            color=color,
+        )
+        axes[2, 0].hist(
+            sub["prev"].to_numpy(dtype=float),
+            bins=35,
+            alpha=0.55,
+            label=mode,
+            color=color,
+        )
 
     axes[0, 0].set_title("Z_T distribution")
     axes[0, 0].set_xlabel("Z_T")
@@ -872,9 +983,17 @@ def _plot_distributions(
 
     counts = summary_df["final_class"].value_counts().reindex(CLASS_ORDER).fillna(0.0)
     x = np.arange(counts.shape[0], dtype=float)
-    axes[2, 1].bar(x, counts.to_numpy(dtype=float), color=[CLASS_COLORS.get(c, "#888888") for c in counts.index.tolist()], edgecolor="black", linewidth=0.5)
+    axes[2, 1].bar(
+        x,
+        counts.to_numpy(dtype=float),
+        color=[CLASS_COLORS.get(c, "#888888") for c in counts.index.tolist()],
+        edgecolor="black",
+        linewidth=0.5,
+    )
     axes[2, 1].set_xticks(x)
-    axes[2, 1].set_xticklabels(counts.index.tolist(), rotation=30, ha="right", fontsize=8)
+    axes[2, 1].set_xticklabels(
+        counts.index.tolist(), rotation=30, ha="right", fontsize=8
+    )
     axes[2, 1].set_ylabel("count")
     axes[2, 1].set_title("Final class counts")
 
@@ -893,7 +1012,9 @@ def _plot_score_space(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if summary_df.empty:
-        _save_placeholder(out_dir / "score1_vs_score2_scatter.png", "Score space", "No scored genes.")
+        _save_placeholder(
+            out_dir / "score1_vs_score2_scatter.png", "Score space", "No scored genes."
+        )
         return
 
     fig1, ax1 = plt.subplots(figsize=(8.4, 6.3))
@@ -910,21 +1031,33 @@ def _plot_score_space(
         )
     top = summary_df.sort_values(by="triage_score", ascending=False).head(20)
     for _, row in top.iterrows():
-        ax1.text(float(row["median_Z"]) + 0.04, float(row["median_coverage"]) + 0.003, str(row["gene"]), fontsize=7)
+        ax1.text(
+            float(row["median_Z"]) + 0.04,
+            float(row["median_coverage"]) + 0.003,
+            str(row["gene"]),
+            fontsize=7,
+        )
     ax1.set_xlabel("score_1 = median_Z")
     ax1.set_ylabel("score_2 = median_coverage")
     ax1.set_title("Genome-wide triage score space")
     ax1.grid(alpha=0.25, linewidth=0.6)
     ax1.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=8, frameon=True)
     fig1.tight_layout()
-    fig1.savefig(out_dir / "score1_vs_score2_scatter.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+    fig1.savefig(
+        out_dir / "score1_vs_score2_scatter.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+        bbox_inches="tight",
+    )
     plt.close(fig1)
 
     fig2, ax2 = plt.subplots(figsize=(8.0, 5.8))
     jitter = np.random.default_rng(0).uniform(-0.12, 0.12, size=summary_df.shape[0])
     x = summary_df["peaks_K_median"].to_numpy(dtype=float) + jitter
     y = summary_df["median_Z"].to_numpy(dtype=float)
-    c = [CLASS_COLORS.get(v, "#666666") for v in summary_df["final_class"].astype(str).tolist()]
+    c = [
+        CLASS_COLORS.get(v, "#666666")
+        for v in summary_df["final_class"].astype(str).tolist()
+    ]
     ax2.scatter(x, y, c=c, s=60, alpha=0.85, edgecolors="black", linewidths=0.4)
     ax2.set_xlabel("peaks_K_median")
     ax2.set_ylabel("median_Z")
@@ -940,7 +1073,10 @@ def _plot_score_space(
     ax3.scatter(
         xa,
         yb,
-        c=[CLASS_COLORS.get(v, "#666666") for v in summary_df["final_class"].astype(str).tolist()],
+        c=[
+            CLASS_COLORS.get(v, "#666666")
+            for v in summary_df["final_class"].astype(str).tolist()
+        ],
         s=60,
         alpha=0.86,
         edgecolors="black",
@@ -948,9 +1084,18 @@ def _plot_score_space(
     )
     lim = max(float(np.nanmax(xa)), float(np.nanmax(yb)), 1.0)
     ax3.plot([0, lim], [0, lim], linestyle="--", color="#555555", linewidth=1.3)
-    unstable = summary_df.loc[(summary_df["sig_A"] ^ summary_df["sig_B"])].sort_values(by="median_Z", ascending=False).head(20)
+    unstable = (
+        summary_df.loc[(summary_df["sig_A"] ^ summary_df["sig_B"])]
+        .sort_values(by="median_Z", ascending=False)
+        .head(20)
+    )
     for _, row in unstable.iterrows():
-        ax3.text(float(row["Z_T_A"]) + 0.03, float(row["Z_T_B"]) + 0.03, str(row["gene"]), fontsize=7)
+        ax3.text(
+            float(row["Z_T_A"]) + 0.03,
+            float(row["Z_T_B"]) + 0.03,
+            str(row["gene"]),
+            fontsize=7,
+        )
     ax3.set_xlabel("Z_T_A (binary)")
     ax3.set_ylabel("Z_T_B (donor-quantile)")
     ax3.set_title("Foreground robustness: mode A vs mode B")
@@ -968,7 +1113,9 @@ def _plot_baseline_comparisons(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if summary_df.empty:
-        _save_placeholder(out_dir / "MoranI_vs_medianZ.png", "Baseline comparison", "No scored genes.")
+        _save_placeholder(
+            out_dir / "MoranI_vs_medianZ.png", "Baseline comparison", "No scored genes."
+        )
         return
 
     fig1, ax1 = plt.subplots(figsize=(8.2, 6.0))
@@ -977,7 +1124,10 @@ def _plot_baseline_comparisons(
     ax1.scatter(
         sub["moran_I"].to_numpy(dtype=float),
         sub["median_Z"].to_numpy(dtype=float),
-        c=[CLASS_COLORS.get(v, "#666666") for v in sub["final_class"].astype(str).tolist()],
+        c=[
+            CLASS_COLORS.get(v, "#666666")
+            for v in sub["final_class"].astype(str).tolist()
+        ],
         s=60,
         alpha=0.86,
         edgecolors="black",
@@ -991,9 +1141,18 @@ def _plot_baseline_comparisons(
     if sub.shape[0] > 0:
         mz_cut = float(np.nanquantile(sub["median_Z"].to_numpy(dtype=float), 0.90))
         mor_cut = float(np.nanmedian(sub["moran_I"].to_numpy(dtype=float)))
-        cand = sub.loc[(sub["median_Z"] >= mz_cut) & (sub["moran_I"] <= mor_cut)].sort_values(by="median_Z", ascending=False).head(10)
+        cand = (
+            sub.loc[(sub["median_Z"] >= mz_cut) & (sub["moran_I"] <= mor_cut)]
+            .sort_values(by="median_Z", ascending=False)
+            .head(10)
+        )
         for _, row in cand.iterrows():
-            ax1.text(float(row["moran_I"]) + 0.003, float(row["median_Z"]) + 0.03, str(row["gene"]), fontsize=8)
+            ax1.text(
+                float(row["moran_I"]) + 0.003,
+                float(row["median_Z"]) + 0.03,
+                str(row["gene"]),
+                fontsize=8,
+            )
 
     fig1.tight_layout()
     fig1.savefig(out_dir / "MoranI_vs_medianZ.png", dpi=DEFAULT_PLOT_STYLE.dpi)
@@ -1003,7 +1162,10 @@ def _plot_baseline_comparisons(
     ax2.scatter(
         sub["moran_I"].to_numpy(dtype=float),
         sub["median_coverage"].to_numpy(dtype=float),
-        c=[CLASS_COLORS.get(v, "#666666") for v in sub["final_class"].astype(str).tolist()],
+        c=[
+            CLASS_COLORS.get(v, "#666666")
+            for v in sub["final_class"].astype(str).tolist()
+        ],
         s=60,
         alpha=0.86,
         edgecolors="black",
@@ -1025,7 +1187,9 @@ def _plot_baseline_comparisons(
         )
     else:
         fig3, ax3 = plt.subplots(figsize=(8.2, 6.0))
-        plot_df = summary_df.loc[np.isfinite(summary_df["de_rank"].to_numpy(dtype=float))].copy()
+        plot_df = summary_df.loc[
+            np.isfinite(summary_df["de_rank"].to_numpy(dtype=float))
+        ].copy()
         if plot_df.empty:
             _save_placeholder(
                 out_dir / "DE_rank_vs_triage_score.png",
@@ -1036,7 +1200,10 @@ def _plot_baseline_comparisons(
             ax3.scatter(
                 plot_df["de_rank"].to_numpy(dtype=float),
                 plot_df["triage_score"].to_numpy(dtype=float),
-                c=[CLASS_COLORS.get(v, "#666666") for v in plot_df["final_class"].astype(str).tolist()],
+                c=[
+                    CLASS_COLORS.get(v, "#666666")
+                    for v in plot_df["final_class"].astype(str).tolist()
+                ],
                 s=58,
                 alpha=0.86,
                 edgecolors="black",
@@ -1047,14 +1214,29 @@ def _plot_baseline_comparisons(
             ax3.set_ylabel("triage_score")
             ax3.set_title("DE rank vs triage score")
             ax3.grid(alpha=0.25, linewidth=0.6)
-            hit = plot_df.loc[
-                (plot_df["final_class"].isin(["Localized–unimodal", "Localized–multimodal"]))
-                & (plot_df["de_rank"] > 100)
-            ].sort_values(by="triage_score", ascending=False).head(10)
+            hit = (
+                plot_df.loc[
+                    (
+                        plot_df["final_class"].isin(
+                            ["Localized–unimodal", "Localized–multimodal"]
+                        )
+                    )
+                    & (plot_df["de_rank"] > 100)
+                ]
+                .sort_values(by="triage_score", ascending=False)
+                .head(10)
+            )
             for _, row in hit.iterrows():
-                ax3.text(float(row["de_rank"]) * 1.02, float(row["triage_score"]) + 0.002, str(row["gene"]), fontsize=7)
+                ax3.text(
+                    float(row["de_rank"]) * 1.02,
+                    float(row["triage_score"]) + 0.002,
+                    str(row["gene"]),
+                    fontsize=7,
+                )
             fig3.tight_layout()
-            fig3.savefig(out_dir / "DE_rank_vs_triage_score.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+            fig3.savefig(
+                out_dir / "DE_rank_vs_triage_score.png", dpi=DEFAULT_PLOT_STYLE.dpi
+            )
             plt.close(fig3)
 
 
@@ -1065,14 +1247,19 @@ def _plot_qc_controls(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if summary_df.empty:
-        _save_placeholder(out_dir / "qc_risk_vs_medianZ.png", "QC controls", "No scored genes.")
+        _save_placeholder(
+            out_dir / "qc_risk_vs_medianZ.png", "QC controls", "No scored genes."
+        )
         return
 
     fig1, ax1 = plt.subplots(figsize=(7.8, 5.8))
     ax1.scatter(
         summary_df["qc_risk_max"].to_numpy(dtype=float),
         summary_df["median_Z"].to_numpy(dtype=float),
-        c=[CLASS_COLORS.get(v, "#666666") for v in summary_df["final_class"].astype(str).tolist()],
+        c=[
+            CLASS_COLORS.get(v, "#666666")
+            for v in summary_df["final_class"].astype(str).tolist()
+        ],
         s=60,
         alpha=0.86,
         edgecolors="black",
@@ -1091,7 +1278,10 @@ def _plot_qc_controls(
     ax2.scatter(
         summary_df["rho_mt_median"].to_numpy(dtype=float),
         summary_df["rho_counts_median"].to_numpy(dtype=float),
-        c=[CLASS_COLORS.get(v, "#666666") for v in summary_df["final_class"].astype(str).tolist()],
+        c=[
+            CLASS_COLORS.get(v, "#666666")
+            for v in summary_df["final_class"].astype(str).tolist()
+        ],
         s=60,
         alpha=0.86,
         edgecolors="black",
@@ -1109,7 +1299,10 @@ def _plot_qc_controls(
     ax3.scatter(
         summary_df["sim_qc_max"].to_numpy(dtype=float),
         summary_df["median_Z"].to_numpy(dtype=float),
-        c=[CLASS_COLORS.get(v, "#666666") for v in summary_df["final_class"].astype(str).tolist()],
+        c=[
+            CLASS_COLORS.get(v, "#666666")
+            for v in summary_df["final_class"].astype(str).tolist()
+        ],
         s=60,
         alpha=0.86,
         edgecolors="black",
@@ -1136,7 +1329,9 @@ def _select_exemplar_genes(summary_df: pd.DataFrame) -> list[tuple[str, str]]:
         ("Ubiquitous (non-localized)", 4),
     ]
     for cls, k in spec:
-        sub = summary_df.loc[summary_df["final_class"] == cls].sort_values(by="triage_score", ascending=False)
+        sub = summary_df.loc[summary_df["final_class"] == cls].sort_values(
+            by="triage_score", ascending=False
+        )
         for _, row in sub.head(k).iterrows():
             gene = str(row["gene"])
             if gene in seen:
@@ -1166,7 +1361,11 @@ def _plot_exemplar_panels(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if len(exemplars) == 0:
-        _save_placeholder(out_dir / "no_exemplars.png", "Exemplar panels", "No exemplar genes selected.")
+        _save_placeholder(
+            out_dir / "no_exemplars.png",
+            "Exemplar panels",
+            "No exemplar genes selected.",
+        )
         return
 
     for i, (cls, gene) in enumerate(exemplars):
@@ -1217,7 +1416,15 @@ def _plot_exemplar_panels(
 
         log_expr = np.log1p(np.maximum(expr, 0.0))
         order = np.argsort(log_expr, kind="mergesort")
-        ax1.scatter(umap_xy[:, 0], umap_xy[:, 1], c="#D2D2D2", s=3.5, alpha=0.33, linewidths=0, rasterized=True)
+        ax1.scatter(
+            umap_xy[:, 0],
+            umap_xy[:, 1],
+            c="#D2D2D2",
+            s=3.5,
+            alpha=0.33,
+            linewidths=0,
+            rasterized=True,
+        )
         sc = ax1.scatter(
             umap_xy[order, 0],
             umap_xy[order, 1],
@@ -1228,7 +1435,15 @@ def _plot_exemplar_panels(
             linewidths=0,
             rasterized=True,
         )
-        ax1.scatter([float(center_xy[0])], [float(center_xy[1])], marker="X", s=70, c="black", edgecolors="white", linewidths=0.8)
+        ax1.scatter(
+            [float(center_xy[0])],
+            [float(center_xy[1])],
+            marker="X",
+            s=70,
+            c="black",
+            edgecolors="white",
+            linewidths=0.8,
+        )
         ax1.set_xticks([])
         ax1.set_yticks([])
         ax1.set_title(f"{gene}: log1p expr")
@@ -1242,13 +1457,34 @@ def _plot_exemplar_panels(
             q_hi = np.quantile(null_e, 0.95, axis=0)
             q_lo = np.quantile(null_e, 0.05, axis=0)
             ax.plot(thc, obs_c, color="#8B0000", linewidth=2.0)
-            ax.plot(thc, np.concatenate([q_hi, q_hi[:1]]), color="#444444", linestyle="--", linewidth=1.1)
-            ax.plot(thc, np.concatenate([q_lo, q_lo[:1]]), color="#444444", linestyle="--", linewidth=1.0)
+            ax.plot(
+                thc,
+                np.concatenate([q_hi, q_hi[:1]]),
+                color="#444444",
+                linestyle="--",
+                linewidth=1.1,
+            )
+            ax.plot(
+                thc,
+                np.concatenate([q_lo, q_lo[:1]]),
+                color="#444444",
+                linestyle="--",
+                linewidth=1.0,
+            )
             ax.set_theta_zero_location("E")
             ax.set_theta_direction(1)
             ax.set_thetagrids(np.arange(0, 360, 90))
             ax.set_title(title)
-            ax.text(0.02, 0.02, ann, transform=ax.transAxes, fontsize=7, ha="left", va="bottom", bbox={"facecolor": "white", "edgecolor": "#999999", "alpha": 0.8})
+            ax.text(
+                0.02,
+                0.02,
+                ann,
+                transform=ax.transAxes,
+                fontsize=7,
+                ha="left",
+                va="bottom",
+                bbox={"facecolor": "white", "edgecolor": "#999999", "alpha": 0.8},
+            )
 
         annA = f"q={float(row['q_T_A']):.2e}\nZ={float(row['Z_T_A']):.2f}\nC={float(row['coverage_C_A']):.3f}\nK={int(row['peaks_K_A'])}"
         annB = f"q={float(row['q_T_B']):.2e}\nZ={float(row['Z_T_B']):.2f}\nC={float(row['coverage_C_B']):.3f}\nK={int(row['peaks_K_B'])}"
@@ -1256,10 +1492,28 @@ def _plot_exemplar_panels(
         _polar(ax3, eB, nEB, "Mode B polar", annB)
 
         bins = int(min(45, max(12, np.ceil(np.sqrt(max(tA.size, tB.size))))))
-        ax4.hist(tA, bins=bins, color="#4C78A8", alpha=0.55, label="null_T A", edgecolor="white")
-        ax4.hist(tB, bins=bins, color="#F58518", alpha=0.55, label="null_T B", edgecolor="white")
-        ax4.axvline(float(permA["T_obs"]), color="#1F77B4", linestyle="--", linewidth=1.8)
-        ax4.axvline(float(permB["T_obs"]), color="#B23A00", linestyle="--", linewidth=1.8)
+        ax4.hist(
+            tA,
+            bins=bins,
+            color="#4C78A8",
+            alpha=0.55,
+            label="null_T A",
+            edgecolor="white",
+        )
+        ax4.hist(
+            tB,
+            bins=bins,
+            color="#F58518",
+            alpha=0.55,
+            label="null_T B",
+            edgecolor="white",
+        )
+        ax4.axvline(
+            float(permA["T_obs"]), color="#1F77B4", linestyle="--", linewidth=1.8
+        )
+        ax4.axvline(
+            float(permB["T_obs"]), color="#B23A00", linestyle="--", linewidth=1.8
+        )
         ax4.set_xlabel("null_T")
         ax4.set_ylabel("count")
         ax4.set_title("Null T histograms")
@@ -1267,7 +1521,11 @@ def _plot_exemplar_panels(
 
         fig.suptitle(f"Exemplar [{cls}] {gene}", y=1.02)
         fig.tight_layout()
-        fig.savefig(out_dir / f"exemplar_{_sanitize_name(cls)}_{_sanitize_name(gene)}.png", dpi=DEFAULT_PLOT_STYLE.dpi, bbox_inches="tight")
+        fig.savefig(
+            out_dir / f"exemplar_{_sanitize_name(cls)}_{_sanitize_name(gene)}.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+            bbox_inches="tight",
+        )
         plt.close(fig)
 
 
@@ -1308,13 +1566,19 @@ def main() -> int:
 
     donor_ids, donor_key_used = _resolve_donor_ids_optional(adata, args.donor_key)
     if donor_ids is None:
-        warnings_log.append("Donor key missing/<2 donors: using global permutation nulls.")
+        warnings_log.append(
+            "Donor key missing/<2 donors: using global permutation nulls."
+        )
     label_values, label_key_used = _resolve_label_key_optional(adata, args.label_key)
 
     total_counts = _total_counts_vector(adata, expr_matrix)
     pct_mt_raw, pct_mt_source = _pct_mt_vector(adata, expr_matrix, adata_like)
-    pct_mt = None if pct_mt_source == "proxy:zeros" else np.asarray(pct_mt_raw, dtype=float)
-    pct_ribo, pct_ribo_source = _compute_pct_counts_ribo(adata, expr_matrix, adata_like, total_counts)
+    pct_mt = (
+        None if pct_mt_source == "proxy:zeros" else np.asarray(pct_mt_raw, dtype=float)
+    )
+    pct_ribo, pct_ribo_source = _compute_pct_counts_ribo(
+        adata, expr_matrix, adata_like, total_counts
+    )
     if pct_mt is None:
         warnings_log.append("pct_counts_mt unavailable.")
     if pct_ribo is None:
@@ -1377,7 +1641,10 @@ def main() -> int:
     for gi, g in enumerate(found_genes, start=1):
         if gi == 1 or gi % 200 == 0 or gi == n_target:
             elapsed = time.time() - t_start
-            print(f"[Scoring] gene {gi}/{n_target} elapsed={elapsed:.1f}s: {g.requested_gene}", flush=True)
+            print(
+                f"[Scoring] gene {gi}/{n_target} elapsed={elapsed:.1f}s: {g.requested_gene}",
+                flush=True,
+            )
 
         expr = np.asarray(get_feature_vector(expr_matrix, int(g.gene_idx)), dtype=float)
         f_A = expr > 0.0
@@ -1414,7 +1681,9 @@ def main() -> int:
             rho_counts = _safe_spearman(f.astype(float), qc_covars["total_counts"])
             rho_mt = _safe_spearman(f.astype(float), qc_covars["pct_counts_mt"])
             rho_ribo = _safe_spearman(f.astype(float), qc_covars["pct_counts_ribo"])
-            finite_rho = [abs(v) for v in [rho_counts, rho_mt, rho_ribo] if np.isfinite(v)]
+            finite_rho = [
+                abs(v) for v in [rho_counts, rho_mt, rho_ribo] if np.isfinite(v)
+            ]
             qc_risk = float(max(finite_rho)) if finite_rho else 0.0
 
             sim_vals = []
@@ -1451,7 +1720,9 @@ def main() -> int:
                     "sim_qc": sim_qc,
                     "best_qc_feature": best_qc_name,
                     "used_donor_stratified": bool(perm["used_donor_stratified"]),
-                    "donor_key_used": donor_key_used if donor_key_used is not None else "",
+                    "donor_key_used": (
+                        donor_key_used if donor_key_used is not None else ""
+                    ),
                     "perm_warning": str(perm.get("warning", "")),
                 }
             )
@@ -1462,7 +1733,9 @@ def main() -> int:
         for mode_name in MODE_ORDER:
             mask = mode_df["mode"] == mode_name
             if int(mask.sum()) > 0:
-                mode_df.loc[mask, "q_T"] = bh_fdr(mode_df.loc[mask, "p_T"].to_numpy(dtype=float))
+                mode_df.loc[mask, "q_T"] = bh_fdr(
+                    mode_df.loc[mask, "p_T"].to_numpy(dtype=float)
+                )
 
     # Build per-gene summary by combining two modes.
     summary_rows: list[dict[str, Any]] = []
@@ -1479,7 +1752,10 @@ def main() -> int:
         nfgA = int(a["n_fg"])
         nfgB = int(b["n_fg"])
 
-        underpowered = bool(((prevA < P_MIN) or (nfgA < MIN_FG)) and ((prevB < P_MIN) or (nfgB < MIN_FG)))
+        underpowered = bool(
+            ((prevA < P_MIN) or (nfgA < MIN_FG))
+            and ((prevB < P_MIN) or (nfgB < MIN_FG))
+        )
 
         sigA = bool(float(a["q_T"]) <= Q_SIG)
         sigB = bool(float(b["q_T"]) <= Q_SIG)
@@ -1499,13 +1775,25 @@ def main() -> int:
         )
 
         qc_risk_max = float(max(float(a["qc_risk"]), float(b["qc_risk"])))
-        sim_qc_max = float(np.nanmax(np.asarray([a["sim_qc"], b["sim_qc"]], dtype=float)))
-        qc_driven = bool((sigA or sigB) and ((qc_risk_max >= QC_RISK_THRESH) or (np.isfinite(sim_qc_max) and sim_qc_max >= SIM_QC_THRESH)))
+        sim_qc_max = float(
+            np.nanmax(np.asarray([a["sim_qc"], b["sim_qc"]], dtype=float))
+        )
+        qc_driven = bool(
+            (sigA or sigB)
+            and (
+                (qc_risk_max >= QC_RISK_THRESH)
+                or (np.isfinite(sim_qc_max) and sim_qc_max >= SIM_QC_THRESH)
+            )
+        )
 
-        peaks_med = int(round(float(np.median([float(a["peaks_K"]), float(b["peaks_K"])]))))
+        peaks_med = int(
+            round(float(np.median([float(a["peaks_K"]), float(b["peaks_K"])])))
+        )
         median_z = float(np.median([float(a["Z_T"]), float(b["Z_T"])]))
         median_cov = float(np.median([float(a["coverage_C"]), float(b["coverage_C"])]))
-        triage_score = float(median_z * median_cov * (1.0 - np.clip(qc_risk_max, 0.0, 1.0)))
+        triage_score = float(
+            median_z * median_cov * (1.0 - np.clip(qc_risk_max, 0.0, 1.0))
+        )
 
         if underpowered:
             final_class = "Underpowered"
@@ -1550,9 +1838,19 @@ def main() -> int:
                 "rho_mt_B": float(b["rho_mt"]),
                 "rho_ribo_A": float(a["rho_ribo"]),
                 "rho_ribo_B": float(b["rho_ribo"]),
-                "rho_counts_median": float(np.nanmedian(np.asarray([a["rho_counts"], b["rho_counts"]], dtype=float))),
-                "rho_mt_median": float(np.nanmedian(np.asarray([a["rho_mt"], b["rho_mt"]], dtype=float))),
-                "rho_ribo_median": float(np.nanmedian(np.asarray([a["rho_ribo"], b["rho_ribo"]], dtype=float))),
+                "rho_counts_median": float(
+                    np.nanmedian(
+                        np.asarray([a["rho_counts"], b["rho_counts"]], dtype=float)
+                    )
+                ),
+                "rho_mt_median": float(
+                    np.nanmedian(np.asarray([a["rho_mt"], b["rho_mt"]], dtype=float))
+                ),
+                "rho_ribo_median": float(
+                    np.nanmedian(
+                        np.asarray([a["rho_ribo"], b["rho_ribo"]], dtype=float)
+                    )
+                ),
                 "qc_risk_max": qc_risk_max,
                 "sim_qc_A": float(a["sim_qc"]),
                 "sim_qc_B": float(b["sim_qc"]),
@@ -1593,17 +1891,29 @@ def main() -> int:
     )
     warnings_log.extend(de_warn)
     if not de_df.empty:
-        summary_df = summary_df.merge(de_df[["gene", "de_rank", "de_group"]], on="gene", how="left")
+        summary_df = summary_df.merge(
+            de_df[["gene", "de_rank", "de_group"]], on="gene", how="left"
+        )
     else:
         summary_df["de_rank"] = np.nan
         summary_df["de_group"] = ""
 
     # Final tables.
-    mode_df = mode_df.sort_values(by=["mode", "q_T", "gene"], ascending=[True, True, True], kind="mergesort")
-    summary_df = summary_df.sort_values(by=["triage_score", "median_Z"], ascending=[False, False], kind="mergesort")
-    top_candidates_df = summary_df.loc[
-        summary_df["final_class"].isin(["Localized–unimodal", "Localized–multimodal"])
-    ].head(int(args.top_candidates)).copy()
+    mode_df = mode_df.sort_values(
+        by=["mode", "q_T", "gene"], ascending=[True, True, True], kind="mergesort"
+    )
+    summary_df = summary_df.sort_values(
+        by=["triage_score", "median_Z"], ascending=[False, False], kind="mergesort"
+    )
+    top_candidates_df = (
+        summary_df.loc[
+            summary_df["final_class"].isin(
+                ["Localized–unimodal", "Localized–multimodal"]
+            )
+        ]
+        .head(int(args.top_candidates))
+        .copy()
+    )
     qc_flag_df = summary_df.loc[summary_df["final_class"] == "QC-driven"].copy()
 
     genes_scored_df.to_csv(tables_dir / "genes_scored.csv", index=False)
@@ -1707,10 +2017,16 @@ def main() -> int:
         f"n_cells={int(adata.n_obs)} n_bins={int(args.n_bins)} n_perm={int(args.n_perm)} k={int(args.k)} mode={args.mode} max_genes={int(args.max_genes)}"
     )
     print(f"evaluation_logic={eval_logic}")
-    print(f"genes_requested={int(genes_scored_df.shape[0])} genes_resolved={int(sum(genes_scored_df['found'].astype(bool)))}")
-    print(f"per_gene_mode_scores_csv={(tables_dir / 'per_gene_mode_scores.csv').as_posix()}")
+    print(
+        f"genes_requested={int(genes_scored_df.shape[0])} genes_resolved={int(sum(genes_scored_df['found'].astype(bool)))}"
+    )
+    print(
+        f"per_gene_mode_scores_csv={(tables_dir / 'per_gene_mode_scores.csv').as_posix()}"
+    )
     print(f"per_gene_summary_csv={(tables_dir / 'per_gene_summary.csv').as_posix()}")
-    print(f"top_candidates_csv={(tables_dir / 'top_candidates_localized.csv').as_posix()}")
+    print(
+        f"top_candidates_csv={(tables_dir / 'top_candidates_localized.csv').as_posix()}"
+    )
     print(f"moran_baseline_csv={(tables_dir / 'moran_baseline.csv').as_posix()}")
     print(f"results_root={outdir.as_posix()}")
     return 0
@@ -1718,4 +2034,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

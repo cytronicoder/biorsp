@@ -43,7 +43,11 @@ from biorsp.core.geometry import (
     compute_vantage_point,
     theta_bin_centers,
 )
-from biorsp.pipeline.hierarchy import _pct_mt_vector, _resolve_expr_matrix, _total_counts_vector
+from biorsp.pipeline.hierarchy import (
+    _pct_mt_vector,
+    _resolve_expr_matrix,
+    _total_counts_vector,
+)
 from biorsp.plotting.qc import save_numeric_umap
 from biorsp.plotting.styles import DEFAULT_PLOT_STYLE, apply_plot_style
 from biorsp.stats.permutation import perm_null_T_and_profile
@@ -71,9 +75,7 @@ CM_MARKER_PANEL: dict[str, list[str]] = {
     "Calcium handling": ["RYR2", "PLN", "ATP2A2"],
 }
 
-CM_PANEL_PROVENANCE = (
-    "Pre-registered CM panel from CM-1/CM-2 plan: contractile/core, calcium handling, stress."
-)
+CM_PANEL_PROVENANCE = "Pre-registered CM panel from CM-1/CM-2 plan: contractile/core, calcium handling, stress."
 
 QC_CANDIDATES = {
     "total_counts": ["total_counts", "n_counts", "n_genes_by_counts"],
@@ -81,7 +83,12 @@ QC_CANDIDATES = {
     "pct_counts_ribo": ["pct_counts_ribo", "percent.ribo", "pct_ribo"],
 }
 
-CLASS_ORDER = ["Localized–unimodal", "Localized–multimodal", "Not-localized", "Underpowered"]
+CLASS_ORDER = [
+    "Localized–unimodal",
+    "Localized–multimodal",
+    "Not-localized",
+    "Underpowered",
+]
 CLASS_COLORS = {
     "Localized–unimodal": "#1f77b4",
     "Localized–multimodal": "#ff7f0e",
@@ -141,7 +148,9 @@ def parse_args() -> argparse.Namespace:
             "CM Experiment #2: threshold sensitivity of BioRSP localization in a single donor's cardiomyocytes."
         )
     )
-    p.add_argument("--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input .h5ad")
+    p.add_argument(
+        "--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input .h5ad"
+    )
     p.add_argument(
         "--out",
         default="experiments/heart_single_donor_cardiomyocyte/results/cm_experiment2_threshold_sensitivity",
@@ -150,7 +159,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--seed", type=int, default=0, help="Global random seed")
     p.add_argument("--n_perm", type=int, default=300, help="Permutation count")
     p.add_argument("--n_bins", type=int, default=64, help="Angular bin count")
-    p.add_argument("--k_pca", type=int, default=50, help="PCA dimensionality for embedding construction")
+    p.add_argument(
+        "--k_pca",
+        type=int,
+        default=50,
+        help="PCA dimensionality for embedding construction",
+    )
     p.add_argument(
         "--q_list",
         type=float,
@@ -165,7 +179,9 @@ def parse_args() -> argparse.Namespace:
         help="Enable optional T4 per-gene threshold heuristic (default: False)",
     )
     p.add_argument("--layer", default=None, help="Optional layer override")
-    p.add_argument("--use_raw", action="store_true", help="Use adata.raw as expression source")
+    p.add_argument(
+        "--use_raw", action="store_true", help="Use adata.raw as expression source"
+    )
     p.add_argument("--donor_key", default=None, help="Optional donor key override")
     p.add_argument("--label_key", default=None, help="Optional label key override")
     return p.parse_args()
@@ -212,13 +228,19 @@ def _choose_expression_source(
         warning = source in {"X", "raw"}
         return expr_matrix, adata_like, source, warning
     if "counts" in adata.layers:
-        expr_matrix, adata_like, source = _resolve_expr_matrix(adata, layer="counts", use_raw=False)
+        expr_matrix, adata_like, source = _resolve_expr_matrix(
+            adata, layer="counts", use_raw=False
+        )
         return expr_matrix, adata_like, source, False
-    expr_matrix, adata_like, source = _resolve_expr_matrix(adata, layer=None, use_raw=False)
+    expr_matrix, adata_like, source = _resolve_expr_matrix(
+        adata, layer=None, use_raw=False
+    )
     return expr_matrix, adata_like, source, True
 
 
-def _safe_numeric_obs(adata: ad.AnnData, keys: list[str]) -> tuple[np.ndarray | None, str | None]:
+def _safe_numeric_obs(
+    adata: ad.AnnData, keys: list[str]
+) -> tuple[np.ndarray | None, str | None]:
     for key in keys:
         if key not in adata.obs.columns:
             continue
@@ -260,7 +282,9 @@ def _compute_pct_counts_ribo(
     if int(ribo_mask.sum()) == 0:
         return None, "missing"
 
-    ribo_counts = np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    ribo_counts = (
+        np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    )
     pct_ribo = np.divide(ribo_counts, np.maximum(total_counts, 1e-12)) * 100.0
     return pct_ribo, f"computed:{symbol_col}"
 
@@ -342,7 +366,9 @@ def _resolve_gene_panel(adata_like: Any) -> tuple[list[GeneStatus], pd.DataFrame
     return statuses, pd.DataFrame(rows)
 
 
-def _is_integer_like_matrix(expr_matrix: Any, seed: int, sample_n: int = 200000) -> bool:
+def _is_integer_like_matrix(
+    expr_matrix: Any, seed: int, sample_n: int = 200000
+) -> bool:
     rng = np.random.default_rng(int(seed))
     if hasattr(expr_matrix, "data"):
         data = np.asarray(expr_matrix.data, dtype=float)
@@ -369,7 +395,11 @@ def _prepare_embedding_input(
     import scanpy as sc
 
     adata_embed = ad.AnnData(
-        X=expr_matrix_cm.copy() if hasattr(expr_matrix_cm, "copy") else np.array(expr_matrix_cm),
+        X=(
+            expr_matrix_cm.copy()
+            if hasattr(expr_matrix_cm, "copy")
+            else np.array(expr_matrix_cm)
+        ),
         obs=adata_cm.obs.copy(),
     )
 
@@ -419,7 +449,12 @@ def _compute_fixed_embeddings(
         EmbeddingSpec(
             key="umap_repr",
             coords=umap[:, :2].copy(),
-            params={"n_neighbors": 30, "min_dist": 0.1, "random_state": 0, "n_pcs": n_pcs},
+            params={
+                "n_neighbors": 30,
+                "min_dist": 0.1,
+                "random_state": 0,
+                "n_pcs": n_pcs,
+            },
         ),
     ]
     return specs, n_pcs
@@ -475,7 +510,9 @@ def _build_threshold_schemes(
                 "threshold_id": s.threshold_id,
                 "threshold_label": s.threshold_label,
                 "family": s.family,
-                "threshold_param": "" if s.threshold_param is None else s.threshold_param,
+                "threshold_param": (
+                    "" if s.threshold_param is None else s.threshold_param
+                ),
                 "enabled": s.enabled,
                 "reason": s.reason,
             }
@@ -600,11 +637,15 @@ def _build_foreground(
         return x > 0.0, 0.0
 
     if scheme.threshold_id.startswith("T1_abs_ge"):
-        thr = float(scheme.threshold_param if scheme.threshold_param is not None else 0.0)
+        thr = float(
+            scheme.threshold_param if scheme.threshold_param is not None else 0.0
+        )
         return x >= thr, thr
 
     if scheme.threshold_id.startswith("T2_top_q"):
-        q = float(scheme.threshold_param if scheme.threshold_param is not None else 0.10)
+        q = float(
+            scheme.threshold_param if scheme.threshold_param is not None else 0.10
+        )
         return _top_k_mask(x, q=q), q
 
     if scheme.threshold_id == "T4_gene_specific":
@@ -634,7 +675,9 @@ def _safe_spearman(x: np.ndarray, y: np.ndarray | None) -> float:
     return float(rho)
 
 
-def _assign_bh_per_group(df: pd.DataFrame, p_col: str, group_cols: list[str], out_col: str) -> pd.DataFrame:
+def _assign_bh_per_group(
+    df: pd.DataFrame, p_col: str, group_cols: list[str], out_col: str
+) -> pd.DataFrame:
     out = df.copy()
     out[out_col] = np.nan
     for _, idx in out.groupby(group_cols).groups.items():
@@ -705,7 +748,9 @@ def _score_all_tests(
     qc_pct_mt: np.ndarray | None,
     qc_pct_ribo: np.ndarray | None,
     out_tables_dir: Path,
-) -> tuple[pd.DataFrame, dict[tuple[str, str, str], dict[str, Any]], dict[str, np.ndarray]]:
+) -> tuple[
+    pd.DataFrame, dict[tuple[str, str, str], dict[str, Any]], dict[str, np.ndarray]
+]:
     rows: list[dict[str, Any]] = []
     cache_profiles: dict[tuple[str, str, str], dict[str, Any]] = {}
     expr_by_gene: dict[str, np.ndarray] = {}
@@ -733,7 +778,9 @@ def _score_all_tests(
 
             gene_specific_thr = None
             if any(s.threshold_id == "T4_gene_specific" for s in thresholds_scored):
-                gene_specific_thr = _gene_specific_threshold(expr, seed=seed + gene_i + emb_i * 100)
+                gene_specific_thr = _gene_specific_threshold(
+                    expr, seed=seed + gene_i + emb_i * 100
+                )
 
             for thr_i, scheme in enumerate(thresholds_scored):
                 f, param_used = _build_foreground(
@@ -744,7 +791,9 @@ def _score_all_tests(
                 n_cells = int(f.size)
                 n_fg = int(f.sum())
                 prev = float(n_fg / max(1, n_cells))
-                underpowered = bool(prev < UNDERPOWERED_PREV or n_fg < UNDERPOWERED_MIN_FG)
+                underpowered = bool(
+                    prev < UNDERPOWERED_PREV or n_fg < UNDERPOWERED_MIN_FG
+                )
 
                 # QC audit on thresholded foreground.
                 f_float = f.astype(float)
@@ -753,7 +802,9 @@ def _score_all_tests(
                 rho_ribo = _safe_spearman(f_float, qc_pct_ribo)
                 qc_vals = np.array([rho_counts, rho_mt, rho_ribo], dtype=float)
                 finite_qc = qc_vals[np.isfinite(qc_vals)]
-                qc_risk = float(np.max(np.abs(finite_qc))) if finite_qc.size > 0 else 0.0
+                qc_risk = (
+                    float(np.max(np.abs(finite_qc))) if finite_qc.size > 0 else 0.0
+                )
                 qc_risky = bool(qc_risk >= QC_RISK_THRESH)
 
                 # Observed profile.
@@ -784,7 +835,9 @@ def _score_all_tests(
                         coverage_c = float("nan")
                         peaks_k = float("nan")
                     else:
-                        perm_seed = int(seed + emb_i * 100000 + gene_i * 1000 + thr_i * 19 + 13)
+                        perm_seed = int(
+                            seed + emb_i * 100000 + gene_i * 1000 + thr_i * 19 + 13
+                        )
                         perm = perm_null_T_and_profile(
                             expr=f.astype(float),
                             theta=theta,
@@ -801,7 +854,9 @@ def _score_all_tests(
                         p_t = float(perm["p_T"])
                         z_t = float(robust_z(float(perm["T_obs"]), null_t))
                         coverage_c = float(coverage_from_null(e_obs, null_e, q=0.95))
-                        peaks_k = float(peak_count(e_obs, null_e, smooth_w=3, q_prom=0.95))
+                        peaks_k = float(
+                            peak_count(e_obs, null_e, smooth_w=3, q_prom=0.95)
+                        )
 
                         cache_key = (status.gene, emb.key, scheme.threshold_id)
                         if scheme.threshold_id in rep_threshold_ids:
@@ -820,7 +875,11 @@ def _score_all_tests(
                     "threshold_id": scheme.threshold_id,
                     "threshold_label": scheme.threshold_label,
                     "threshold_family": scheme.family,
-                    "threshold_param": float(param_used) if param_used is not None and np.isfinite(float(param_used)) else np.nan,
+                    "threshold_param": (
+                        float(param_used)
+                        if param_used is not None and np.isfinite(float(param_used))
+                        else np.nan
+                    ),
                     "n_cells": n_cells,
                     "prev": prev,
                     "n_fg": n_fg,
@@ -845,7 +904,10 @@ def _score_all_tests(
 
                 if test_counter % 50 == 0:
                     tmp = pd.DataFrame(rows)
-                    tmp.to_csv(out_tables_dir / "per_test_scores_long.intermediate.csv", index=False)
+                    tmp.to_csv(
+                        out_tables_dir / "per_test_scores_long.intermediate.csv",
+                        index=False,
+                    )
                     print(
                         f"[Progress] scored tests {test_counter}; "
                         f"intermediate -> {out_tables_dir / 'per_test_scores_long.intermediate.csv'}"
@@ -896,7 +958,9 @@ def _summarize_gene_embedding(long_df: pd.DataFrame) -> pd.DataFrame:
 
         sig_fraction = float(np.mean(np.isfinite(q) & (q <= Q_SIG)))
         class_counts = classes.value_counts(dropna=False)
-        dominant_class = str(class_counts.index[0]) if len(class_counts) > 0 else "Not-localized"
+        dominant_class = (
+            str(class_counts.index[0]) if len(class_counts) > 0 else "Not-localized"
+        )
         stable_class_fraction = float(class_counts.iloc[0] / max(1, len(classes)))
 
         sig_phi = sub.loc[
@@ -919,7 +983,11 @@ def _summarize_gene_embedding(long_df: pd.DataFrame) -> pd.DataFrame:
         median_z = float(np.median(z_fin)) if z_fin.size > 0 else float("nan")
 
         qc_vals = sub["qc_risk"].to_numpy(dtype=float)
-        qc_risky_fraction = float(np.mean(qc_vals >= QC_RISK_THRESH)) if qc_vals.size > 0 else float("nan")
+        qc_risky_fraction = (
+            float(np.mean(qc_vals >= QC_RISK_THRESH))
+            if qc_vals.size > 0
+            else float("nan")
+        )
 
         rows.append(
             {
@@ -941,7 +1009,10 @@ def _summarize_gene_embedding(long_df: pd.DataFrame) -> pd.DataFrame:
 
     out = pd.DataFrame(rows)
     if not out.empty:
-        out = out.sort_values(by=["embedding", "robust_localized", "sig_fraction", "median_Z"], ascending=[True, False, False, False])
+        out = out.sort_values(
+            by=["embedding", "robust_localized", "sig_fraction", "median_Z"],
+            ascending=[True, False, False, False],
+        )
     return out
 
 
@@ -949,27 +1020,83 @@ def _summarize_gene_overall(summary_df: pd.DataFrame) -> pd.DataFrame:
     if summary_df.empty:
         return pd.DataFrame()
 
-    emb_pivot = summary_df.pivot(index="gene", columns="embedding", values="robust_localized")
-    frac_pivot = summary_df.pivot(index="gene", columns="embedding", values="sig_fraction")
+    emb_pivot = summary_df.pivot(
+        index="gene", columns="embedding", values="robust_localized"
+    )
+    frac_pivot = summary_df.pivot(
+        index="gene", columns="embedding", values="sig_fraction"
+    )
     R_pivot = summary_df.pivot(index="gene", columns="embedding", values="R")
-    class_pivot = summary_df.pivot(index="gene", columns="embedding", values="dominant_class")
+    class_pivot = summary_df.pivot(
+        index="gene", columns="embedding", values="dominant_class"
+    )
 
     genes = summary_df["gene"].astype(str).unique().tolist()
     rows: list[dict[str, Any]] = []
     for gene in genes:
-        robust_pca = bool(emb_pivot.loc[gene, "pca2d"]) if "pca2d" in emb_pivot.columns and gene in emb_pivot.index and pd.notna(emb_pivot.loc[gene, "pca2d"]) else False
-        robust_umap = bool(emb_pivot.loc[gene, "umap_repr"]) if "umap_repr" in emb_pivot.columns and gene in emb_pivot.index and pd.notna(emb_pivot.loc[gene, "umap_repr"]) else False
-        sig_pca = float(frac_pivot.loc[gene, "pca2d"]) if "pca2d" in frac_pivot.columns and gene in frac_pivot.index and pd.notna(frac_pivot.loc[gene, "pca2d"]) else float("nan")
-        sig_umap = float(frac_pivot.loc[gene, "umap_repr"]) if "umap_repr" in frac_pivot.columns and gene in frac_pivot.index and pd.notna(frac_pivot.loc[gene, "umap_repr"]) else float("nan")
-        R_pca = float(R_pivot.loc[gene, "pca2d"]) if "pca2d" in R_pivot.columns and gene in R_pivot.index and pd.notna(R_pivot.loc[gene, "pca2d"]) else float("nan")
-        R_umap = float(R_pivot.loc[gene, "umap_repr"]) if "umap_repr" in R_pivot.columns and gene in R_pivot.index and pd.notna(R_pivot.loc[gene, "umap_repr"]) else float("nan")
-        class_pca = str(class_pivot.loc[gene, "pca2d"]) if "pca2d" in class_pivot.columns and gene in class_pivot.index and pd.notna(class_pivot.loc[gene, "pca2d"]) else ""
-        class_umap = str(class_pivot.loc[gene, "umap_repr"]) if "umap_repr" in class_pivot.columns and gene in class_pivot.index and pd.notna(class_pivot.loc[gene, "umap_repr"]) else ""
+        robust_pca = (
+            bool(emb_pivot.loc[gene, "pca2d"])
+            if "pca2d" in emb_pivot.columns
+            and gene in emb_pivot.index
+            and pd.notna(emb_pivot.loc[gene, "pca2d"])
+            else False
+        )
+        robust_umap = (
+            bool(emb_pivot.loc[gene, "umap_repr"])
+            if "umap_repr" in emb_pivot.columns
+            and gene in emb_pivot.index
+            and pd.notna(emb_pivot.loc[gene, "umap_repr"])
+            else False
+        )
+        sig_pca = (
+            float(frac_pivot.loc[gene, "pca2d"])
+            if "pca2d" in frac_pivot.columns
+            and gene in frac_pivot.index
+            and pd.notna(frac_pivot.loc[gene, "pca2d"])
+            else float("nan")
+        )
+        sig_umap = (
+            float(frac_pivot.loc[gene, "umap_repr"])
+            if "umap_repr" in frac_pivot.columns
+            and gene in frac_pivot.index
+            and pd.notna(frac_pivot.loc[gene, "umap_repr"])
+            else float("nan")
+        )
+        R_pca = (
+            float(R_pivot.loc[gene, "pca2d"])
+            if "pca2d" in R_pivot.columns
+            and gene in R_pivot.index
+            and pd.notna(R_pivot.loc[gene, "pca2d"])
+            else float("nan")
+        )
+        R_umap = (
+            float(R_pivot.loc[gene, "umap_repr"])
+            if "umap_repr" in R_pivot.columns
+            and gene in R_pivot.index
+            and pd.notna(R_pivot.loc[gene, "umap_repr"])
+            else float("nan")
+        )
+        class_pca = (
+            str(class_pivot.loc[gene, "pca2d"])
+            if "pca2d" in class_pivot.columns
+            and gene in class_pivot.index
+            and pd.notna(class_pivot.loc[gene, "pca2d"])
+            else ""
+        )
+        class_umap = (
+            str(class_pivot.loc[gene, "umap_repr"])
+            if "umap_repr" in class_pivot.columns
+            and gene in class_pivot.index
+            and pd.notna(class_pivot.loc[gene, "umap_repr"])
+            else ""
+        )
 
         rows.append(
             {
                 "gene": gene,
-                "marker_group": str(summary_df.loc[summary_df["gene"] == gene, "marker_group"].iloc[0]),
+                "marker_group": str(
+                    summary_df.loc[summary_df["gene"] == gene, "marker_group"].iloc[0]
+                ),
                 "robust_localized_pca2d": robust_pca,
                 "robust_localized_umap_repr": robust_umap,
                 "robust_both_embeddings": bool(robust_pca and robust_umap),
@@ -983,7 +1110,10 @@ def _summarize_gene_overall(summary_df: pd.DataFrame) -> pd.DataFrame:
         )
 
     out = pd.DataFrame(rows)
-    out = out.sort_values(by=["robust_both_embeddings", "sig_fraction_umap_repr", "sig_fraction_pca2d"], ascending=[False, False, False])
+    out = out.sort_values(
+        by=["robust_both_embeddings", "sig_fraction_umap_repr", "sig_fraction_pca2d"],
+        ascending=[False, False, False],
+    )
     return out
 
 
@@ -1065,11 +1195,17 @@ def _plot_threshold_trajectories(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if long_df.empty:
-        _save_placeholder(out_dir / "threshold_trajectories_empty.png", "Threshold trajectories", "No scored tests.")
+        _save_placeholder(
+            out_dir / "threshold_trajectories_empty.png",
+            "Threshold trajectories",
+            "No scored tests.",
+        )
         return
 
     for emb, sub_e in long_df.groupby("embedding", sort=False):
-        ordered_ids = sorted(sub_e["threshold_id"].astype(str).unique().tolist(), key=_threshold_sort_key)
+        ordered_ids = sorted(
+            sub_e["threshold_id"].astype(str).unique().tolist(), key=_threshold_sort_key
+        )
         x_map = {tid: i for i, tid in enumerate(ordered_ids)}
 
         robust_genes = set(
@@ -1083,7 +1219,9 @@ def _plot_threshold_trajectories(
         fig1, ax1 = plt.subplots(figsize=(11.0, 6.0))
         for gene, sub_g in sub_e.groupby("gene", sort=False):
             sub_g = sub_g.sort_values(by="threshold_id", key=lambda s: s.map(x_map))
-            xs = np.array([x_map[t] for t in sub_g["threshold_id"].astype(str)], dtype=float)
+            xs = np.array(
+                [x_map[t] for t in sub_g["threshold_id"].astype(str)], dtype=float
+            )
             ys = sub_g["Z_T"].to_numpy(dtype=float)
             lw = 2.5 if str(gene) in robust_genes else 1.2
             alpha = 0.95 if str(gene) in robust_genes else 0.65
@@ -1094,7 +1232,9 @@ def _plot_threshold_trajectories(
         ax1.set_xlabel("Threshold scheme")
         ax1.set_title(f"{emb}: threshold trajectory of Z_T (robust genes emphasized)")
         ax1.axhline(0.0, color="#444444", linewidth=0.8)
-        ax1.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8, frameon=True)
+        ax1.legend(
+            loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8, frameon=True
+        )
         fig1.tight_layout()
         fig1.savefig(out_dir / f"{emb}_trajectory_ZT.png", dpi=DEFAULT_PLOT_STYLE.dpi)
         plt.close(fig1)
@@ -1112,26 +1252,47 @@ def _plot_threshold_trajectories(
                 ax2.scatter(
                     float(row["Z_T"]),
                     float(row["coverage_C"]),
-                    c=[thr_colors[str(row["threshold_id"]) ]],
+                    c=[thr_colors[str(row["threshold_id"])]],
                     s=70,
                     alpha=0.9,
                     edgecolors="black",
                     linewidths=0.3,
                 )
-            if str(gene) in robust_genes and np.isfinite(zx).any() and np.isfinite(cy).any():
+            if (
+                str(gene) in robust_genes
+                and np.isfinite(zx).any()
+                and np.isfinite(cy).any()
+            ):
                 idx = np.nanargmax(np.nan_to_num(zx, nan=-np.inf))
                 ax2.text(float(zx[idx]), float(cy[idx]) + 0.005, str(gene), fontsize=8)
 
         handles = [
-            plt.Line2D([0], [0], marker="o", color="none", markerfacecolor=thr_colors[t], markeredgecolor="black", markersize=7, label=t)
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="none",
+                markerfacecolor=thr_colors[t],
+                markeredgecolor="black",
+                markersize=7,
+                label=t,
+            )
             for t in ordered_ids
         ]
-        ax2.legend(handles=handles, loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8, frameon=True)
+        ax2.legend(
+            handles=handles,
+            loc="upper left",
+            bbox_to_anchor=(1.01, 1.0),
+            fontsize=8,
+            frameon=True,
+        )
         ax2.set_xlabel("Z_T")
         ax2.set_ylabel("coverage_C")
         ax2.set_title(f"{emb}: score-space trajectories across thresholds")
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_trajectory_score_space.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_trajectory_score_space.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig2)
 
         # 3) Heatmap genes x thresholds for Z_T.
@@ -1140,7 +1301,9 @@ def _plot_threshold_trajectories(
         mat = np.nan_to_num(pivot.to_numpy(dtype=float), nan=0.0)
         mat = np.clip(mat, -10.0, 10.0)
 
-        fig3, ax3 = plt.subplots(figsize=(1.2 * len(ordered_ids) + 3.0, 0.55 * len(pivot.index) + 2.2))
+        fig3, ax3 = plt.subplots(
+            figsize=(1.2 * len(ordered_ids) + 3.0, 0.55 * len(pivot.index) + 2.2)
+        )
         im = ax3.imshow(mat, aspect="auto", cmap="magma")
         ax3.set_xticks(np.arange(len(ordered_ids)))
         ax3.set_xticklabels(ordered_ids, rotation=35, ha="right")
@@ -1159,7 +1322,9 @@ def _plot_threshold_trajectories(
 def _plot_class_stability(out_dir: Path, long_df: pd.DataFrame) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if long_df.empty:
-        _save_placeholder(out_dir / "class_stability_empty.png", "Class stability", "No scored tests.")
+        _save_placeholder(
+            out_dir / "class_stability_empty.png", "Class stability", "No scored tests."
+        )
         return
 
     # 1) Confusion-like transition matrix across ordered thresholds.
@@ -1168,7 +1333,10 @@ def _plot_class_stability(out_dir: Path, long_df: pd.DataFrame) -> None:
     matrix = np.zeros((len(classes), len(classes)), dtype=float)
 
     for (_, emb), sub in long_df.groupby(["gene", "embedding"], sort=False):
-        sub = sub.sort_values(by="threshold_id", key=lambda s: s.map(lambda x: _threshold_sort_key(str(x))))
+        sub = sub.sort_values(
+            by="threshold_id",
+            key=lambda s: s.map(lambda x: _threshold_sort_key(str(x))),
+        )
         labels = sub["class_label"].astype(str).tolist()
         for a, b in zip(labels[:-1], labels[1:], strict=False):
             ia = class_to_idx.get(a, None)
@@ -1195,9 +1363,7 @@ def _plot_class_stability(out_dir: Path, long_df: pd.DataFrame) -> None:
 
     # 2) Stacked bars: class fractions per gene, per embedding.
     for emb, sub_e in long_df.groupby("embedding", sort=False):
-        frac = (
-            sub_e.groupby(["gene", "class_label"]).size().unstack(fill_value=0)
-        )
+        frac = sub_e.groupby(["gene", "class_label"]).size().unstack(fill_value=0)
         for c in classes:
             if c not in frac.columns:
                 frac[c] = 0
@@ -1224,9 +1390,13 @@ def _plot_class_stability(out_dir: Path, long_df: pd.DataFrame) -> None:
         ax2.set_ylabel("Fraction of thresholds")
         ax2.set_xlabel("Gene")
         ax2.set_title(f"{emb}: class fraction across thresholds")
-        ax2.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8, frameon=True)
+        ax2.legend(
+            loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=8, frameon=True
+        )
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_class_fraction_per_gene.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_class_fraction_per_gene.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig2)
 
 
@@ -1237,7 +1407,11 @@ def _plot_direction_stability(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if long_df.empty or summary_df.empty:
-        _save_placeholder(out_dir / "direction_stability_empty.png", "Direction stability", "No scored tests.")
+        _save_placeholder(
+            out_dir / "direction_stability_empty.png",
+            "Direction stability",
+            "No scored tests.",
+        )
         return
 
     for emb, sum_e in summary_df.groupby("embedding", sort=False):
@@ -1257,7 +1431,15 @@ def _plot_direction_stability(
             phi = sub["phi_hat_deg"].to_numpy(dtype=float)
             phi = phi[np.isfinite(phi)]
             if phi.size == 0:
-                ax.text(0.5, 0.5, "No sig thresholds", transform=ax.transAxes, ha="center", va="center", fontsize=8)
+                ax.text(
+                    0.5,
+                    0.5,
+                    "No sig thresholds",
+                    transform=ax.transAxes,
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                )
             else:
                 rad = np.deg2rad(phi)
                 ax.scatter(rad, np.ones_like(rad), s=30, c="#1f77b4", alpha=0.85)
@@ -1281,7 +1463,10 @@ def _plot_direction_stability(
 
         fig.suptitle(f"{emb}: phi stability across significant thresholds", y=0.995)
         fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.98])
-        fig.savefig(out_dir / f"{emb}_phi_circular_small_multiples.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig.savefig(
+            out_dir / f"{emb}_phi_circular_small_multiples.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig)
 
         # R vs sig_fraction and circ_sd vs sig_fraction.
@@ -1290,20 +1475,30 @@ def _plot_direction_stability(
             sum_e["R"].to_numpy(dtype=float),
             sum_e["sig_fraction"].to_numpy(dtype=float),
             s=100,
-            c=[CLASS_COLORS.get(str(c), "#777777") for c in sum_e["dominant_class"].astype(str)],
+            c=[
+                CLASS_COLORS.get(str(c), "#777777")
+                for c in sum_e["dominant_class"].astype(str)
+            ],
             edgecolors="black",
             linewidths=0.4,
             alpha=0.9,
         )
         for _, row in sum_e.iterrows():
-            ax2.text(float(row["R"]), float(row["sig_fraction"]) + 0.01, str(row["gene"]), fontsize=8)
+            ax2.text(
+                float(row["R"]),
+                float(row["sig_fraction"]) + 0.01,
+                str(row["gene"]),
+                fontsize=8,
+            )
         ax2.axvline(0.60, color="#444444", linestyle="--", linewidth=1.0)
         ax2.axhline(0.60, color="#444444", linestyle=":", linewidth=1.0)
         ax2.set_xlabel("R (direction stability)")
         ax2.set_ylabel("sig_fraction")
         ax2.set_title(f"{emb}: R vs sig_fraction")
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_R_vs_sig_fraction.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_R_vs_sig_fraction.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig2)
 
         fig3, ax3 = plt.subplots(figsize=(7.6, 5.8))
@@ -1311,18 +1506,28 @@ def _plot_direction_stability(
             sum_e["circ_sd"].to_numpy(dtype=float),
             sum_e["sig_fraction"].to_numpy(dtype=float),
             s=100,
-            c=[CLASS_COLORS.get(str(c), "#777777") for c in sum_e["dominant_class"].astype(str)],
+            c=[
+                CLASS_COLORS.get(str(c), "#777777")
+                for c in sum_e["dominant_class"].astype(str)
+            ],
             edgecolors="black",
             linewidths=0.4,
             alpha=0.9,
         )
         for _, row in sum_e.iterrows():
-            ax3.text(float(row["circ_sd"]), float(row["sig_fraction"]) + 0.01, str(row["gene"]), fontsize=8)
+            ax3.text(
+                float(row["circ_sd"]),
+                float(row["sig_fraction"]) + 0.01,
+                str(row["gene"]),
+                fontsize=8,
+            )
         ax3.set_xlabel("circ_sd")
         ax3.set_ylabel("sig_fraction")
         ax3.set_title(f"{emb}: circ_sd vs sig_fraction")
         fig3.tight_layout()
-        fig3.savefig(out_dir / f"{emb}_circsd_vs_sig_fraction.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig3.savefig(
+            out_dir / f"{emb}_circsd_vs_sig_fraction.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig3)
 
 
@@ -1339,7 +1544,9 @@ def _plot_per_gene_panels(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if len(genes_present) == 0:
-        _save_placeholder(out_dir / "no_genes.png", "Per-gene panels", "No panel genes resolved.")
+        _save_placeholder(
+            out_dir / "no_genes.png", "Per-gene panels", "No panel genes resolved."
+        )
         return
 
     rep_thresholds = ["T0_detection", "T2_top_q10"]
@@ -1369,13 +1576,26 @@ def _plot_per_gene_panels(
             if emb_key not in embeddings_map:
                 continue
             coords = embeddings_map[emb_key].coords
-            sub = long_df.loc[(long_df["gene"] == gene) & (long_df["embedding"] == emb_key)].copy()
-            sub = sub.sort_values(by="threshold_id", key=lambda s: s.map(lambda x: _threshold_sort_key(str(x))))
+            sub = long_df.loc[
+                (long_df["gene"] == gene) & (long_df["embedding"] == emb_key)
+            ].copy()
+            sub = sub.sort_values(
+                by="threshold_id",
+                key=lambda s: s.map(lambda x: _threshold_sort_key(str(x))),
+            )
 
             # A) Feature plot
             ax_feat = fig.add_subplot(gs[row_i, 0])
             order = np.argsort(x_plot, kind="mergesort")
-            ax_feat.scatter(coords[:, 0], coords[:, 1], c="#dddddd", s=5, alpha=0.28, linewidths=0, rasterized=True)
+            ax_feat.scatter(
+                coords[:, 0],
+                coords[:, 1],
+                c="#dddddd",
+                s=5,
+                alpha=0.28,
+                linewidths=0,
+                rasterized=True,
+            )
             sc = ax_feat.scatter(
                 coords[order, 0],
                 coords[order, 1],
@@ -1402,7 +1622,15 @@ def _plot_per_gene_panels(
                 key = (gene, emb_key, thr_id)
                 row_match = sub.loc[sub["threshold_id"] == thr_id]
                 if row_match.empty:
-                    ax_pol.text(0.5, 0.5, f"{thr_id}\nnot scored", transform=ax_pol.transAxes, ha="center", va="center", fontsize=8)
+                    ax_pol.text(
+                        0.5,
+                        0.5,
+                        f"{thr_id}\nnot scored",
+                        transform=ax_pol.transAxes,
+                        ha="center",
+                        va="center",
+                        fontsize=8,
+                    )
                     ax_pol.set_xticks([])
                     ax_pol.set_yticks([])
                     continue
@@ -1410,7 +1638,15 @@ def _plot_per_gene_panels(
                 r = row_match.iloc[0]
                 cache = cache_profiles.get(key, None)
                 if cache is None or cache.get("null_E_phi") is None:
-                    ax_pol.text(0.5, 0.5, f"{thr_id}\nunderpowered/no null", transform=ax_pol.transAxes, ha="center", va="center", fontsize=8)
+                    ax_pol.text(
+                        0.5,
+                        0.5,
+                        f"{thr_id}\nunderpowered/no null",
+                        transform=ax_pol.transAxes,
+                        ha="center",
+                        va="center",
+                        fontsize=8,
+                    )
                     ax_pol.set_xticks([])
                     ax_pol.set_yticks([])
                     continue
@@ -1441,8 +1677,12 @@ def _plot_per_gene_panels(
             # C) Threshold summary table in last column.
             ax_tbl = fig.add_subplot(gs[row_i, 4])
             ax_tbl.axis("off")
-            table_df = sub[["threshold_id", "Z_T", "q_T_within_threshold", "class_label"]].copy()
-            table_df["Z_T"] = table_df["Z_T"].map(lambda x: "nan" if not np.isfinite(float(x)) else f"{float(x):.2f}")
+            table_df = sub[
+                ["threshold_id", "Z_T", "q_T_within_threshold", "class_label"]
+            ].copy()
+            table_df["Z_T"] = table_df["Z_T"].map(
+                lambda x: "nan" if not np.isfinite(float(x)) else f"{float(x):.2f}"
+            )
             table_df["q_T_within_threshold"] = table_df["q_T_within_threshold"].map(
                 lambda x: "nan" if not np.isfinite(float(x)) else f"{float(x):.2e}"
             )
@@ -1458,7 +1698,9 @@ def _plot_per_gene_panels(
             tbl.scale(1.0, 1.12)
             ax_tbl.set_title(f"{emb_key}: all thresholds", fontsize=9)
 
-        fig.suptitle(f"{gene}: threshold sensitivity panels (PCA + UMAP)", y=0.995, fontsize=13)
+        fig.suptitle(
+            f"{gene}: threshold sensitivity panels (PCA + UMAP)", y=0.995, fontsize=13
+        )
         fig.tight_layout(rect=[0.0, 0.0, 0.90, 0.98])
         fig.savefig(out_dir / f"gene_{gene}.png", dpi=DEFAULT_PLOT_STYLE.dpi)
         plt.close(fig)
@@ -1476,12 +1718,16 @@ def _plot_qc_controls(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if long_df.empty:
-        _save_placeholder(out_dir / "qc_controls_empty.png", "QC controls", "No scored tests.")
+        _save_placeholder(
+            out_dir / "qc_controls_empty.png", "QC controls", "No scored tests."
+        )
         return
 
     # 1) qc_risk vs Z_T
     fig1, ax1 = plt.subplots(figsize=(8.6, 6.1))
-    thr_ids = sorted(long_df["threshold_id"].astype(str).unique().tolist(), key=_threshold_sort_key)
+    thr_ids = sorted(
+        long_df["threshold_id"].astype(str).unique().tolist(), key=_threshold_sort_key
+    )
     cmap = plt.get_cmap("tab10")
     color_map = {tid: cmap(i % 10) for i, tid in enumerate(thr_ids)}
 
@@ -1540,7 +1786,11 @@ def _plot_qc_controls(
     row = long_df.iloc[idx]
     gene = str(row["gene"])
     thr_id = str(row["threshold_id"])
-    thr_param = float(row["threshold_param"]) if np.isfinite(float(row["threshold_param"])) else np.nan
+    thr_param = (
+        float(row["threshold_param"])
+        if np.isfinite(float(row["threshold_param"]))
+        else np.nan
+    )
 
     expr = expr_by_gene.get(gene, None)
     f_overlay = None
@@ -1548,8 +1798,16 @@ def _plot_qc_controls(
         scheme_map = {s.threshold_id: s for s in thresholds_scored}
         scheme = scheme_map.get(thr_id, None)
         if scheme is not None:
-            gene_thr = thr_param if thr_id == "T4_gene_specific" and np.isfinite(thr_param) else None
-            f_overlay, _ = _build_foreground(expr=np.asarray(expr, dtype=float), scheme=scheme, gene_specific_thr=gene_thr)
+            gene_thr = (
+                thr_param
+                if thr_id == "T4_gene_specific" and np.isfinite(thr_param)
+                else None
+            )
+            f_overlay, _ = _build_foreground(
+                expr=np.asarray(expr, dtype=float),
+                scheme=scheme,
+                gene_specific_thr=gene_thr,
+            )
 
     fig3, ax3 = plt.subplots(figsize=(7.6, 6.0))
     order = np.argsort(qc_pct_mt, kind="mergesort")
@@ -1585,7 +1843,9 @@ def _plot_qc_controls(
     cb = fig3.colorbar(sc, ax=ax3, fraction=0.046, pad=0.03)
     cb.set_label("pct_counts_mt")
     fig3.tight_layout()
-    fig3.savefig(out_dir / "umap_pctmt_overlay_most_qc_risky.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        out_dir / "umap_pctmt_overlay_most_qc_risky.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig3)
 
 
@@ -1616,7 +1876,9 @@ def _write_readme(
     per_gene_overall_summary: pd.DataFrame,
 ) -> None:
     lines: list[str] = []
-    lines.append("CM Experiment #2 (Single-donor): Threshold sensitivity of BioRSP localization")
+    lines.append(
+        "CM Experiment #2 (Single-donor): Threshold sensitivity of BioRSP localization"
+    )
     lines.append("")
     lines.append("Hypothesis")
     lines.append(
@@ -1625,7 +1887,9 @@ def _write_readme(
     )
     lines.append("")
     lines.append("Interpretation guardrail")
-    lines.append("BioRSP direction phi is representation-conditional and not physical tissue direction.")
+    lines.append(
+        "BioRSP direction phi is representation-conditional and not physical tissue direction."
+    )
     lines.append("")
     lines.append("Run metadata")
     lines.append(f"- seed: {seed}")
@@ -1648,8 +1912,12 @@ def _write_readme(
     lines.append("Thresholding notes")
     lines.append(f"- counts_thresholds_enabled: {counts_thresholds_enabled}")
     lines.append(f"- counts_integer_like: {integer_like_counts}")
-    lines.append(f"- enable_gene_specific_threshold(T4): {enable_gene_specific_threshold}")
-    lines.append("- T3 local quantile is explicitly documented but aliased to T2 in CM-only subset (not separately scored).")
+    lines.append(
+        f"- enable_gene_specific_threshold(T4): {enable_gene_specific_threshold}"
+    )
+    lines.append(
+        "- T3 local quantile is explicitly documented but aliased to T2 in CM-only subset (not separately scored)."
+    )
     lines.append("")
     lines.append("QC covariate sources")
     for key, source in qc_sources.items():
@@ -1684,7 +1952,9 @@ def _write_readme(
         lines.append("")
 
     if not per_gene_overall_summary.empty:
-        both = per_gene_overall_summary.loc[per_gene_overall_summary["robust_both_embeddings"]]
+        both = per_gene_overall_summary.loc[
+            per_gene_overall_summary["robust_both_embeddings"]
+        ]
         lines.append("Robust in both embeddings")
         if both.empty:
             lines.append("- none")
@@ -1721,8 +1991,12 @@ def main() -> int:
 
     adata = ad.read_h5ad(args.h5ad)
 
-    donor_key = _resolve_key_required(adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor")
-    label_key = _resolve_key_required(adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="cell-type label")
+    donor_key = _resolve_key_required(
+        adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor"
+    )
+    label_key = _resolve_key_required(
+        adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="cell-type label"
+    )
 
     labels_all = adata.obs[label_key].astype("string").fillna("NA").astype(str)
     cm_mask_all = labels_all.map(_is_cm_label).to_numpy(dtype=bool)
@@ -1736,7 +2010,9 @@ def main() -> int:
         pd.DataFrame({"donor_id": donor_ids_all.to_numpy(), "is_cm": cm_mask_all})
         .groupby("donor_id", as_index=False)
         .agg(n_cells_total=("is_cm", "size"), n_cm=("is_cm", "sum"))
-        .sort_values(by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True])
+        .sort_values(
+            by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True]
+        )
         .reset_index(drop=True)
     )
     donor_star = str(donor_choice.iloc[0]["donor_id"])
@@ -1759,10 +2035,12 @@ def main() -> int:
             f"(n_cm={int(adata_cm.n_obs)})."
         )
 
-    expr_matrix_cm, adata_like_cm, expr_source, expr_warning = _choose_expression_source(
-        adata_cm,
-        layer_arg=args.layer,
-        use_raw_arg=bool(args.use_raw),
+    expr_matrix_cm, adata_like_cm, expr_source, expr_warning = (
+        _choose_expression_source(
+            adata_cm,
+            layer_arg=args.layer,
+            use_raw_arg=bool(args.use_raw),
+        )
     )
 
     # Resolve CM gene panel.
@@ -1770,7 +2048,9 @@ def main() -> int:
     gene_panel_df.to_csv(tables_dir / "gene_panel_status.csv", index=False)
 
     # QC covariates in CM subset.
-    qc_total_counts, total_key = _safe_numeric_obs(adata_cm, QC_CANDIDATES["total_counts"])
+    qc_total_counts, total_key = _safe_numeric_obs(
+        adata_cm, QC_CANDIDATES["total_counts"]
+    )
     if qc_total_counts is None:
         qc_total_counts = _total_counts_vector(adata_cm, expr_matrix_cm)
         total_key = "computed:expr_sum"
@@ -1794,7 +2074,9 @@ def main() -> int:
     }
 
     # Build fixed embeddings (PCA2D + representative UMAP).
-    adata_embed, embed_prep_note = _prepare_embedding_input(adata_cm, expr_matrix_cm, expr_source)
+    adata_embed, embed_prep_note = _prepare_embedding_input(
+        adata_cm, expr_matrix_cm, expr_source
+    )
     embeddings, n_pcs_used = _compute_fixed_embeddings(
         adata_embed,
         seed=int(args.seed),
@@ -1804,7 +2086,9 @@ def main() -> int:
 
     # Threshold scheme setup.
     counts_integer_like = _is_integer_like_matrix(expr_matrix_cm, seed=int(args.seed))
-    counts_thresholds_enabled = bool(expr_source.startswith("layer:counts") and counts_integer_like)
+    counts_thresholds_enabled = bool(
+        expr_source.startswith("layer:counts") and counts_integer_like
+    )
 
     thresholds_scored, threshold_table = _build_threshold_schemes(
         q_list=[float(q) for q in args.q_list],
@@ -1822,21 +2106,35 @@ def main() -> int:
         n_bins=int(args.n_bins),
         n_perm=int(args.n_perm),
         seed=int(args.seed),
-        qc_total_counts=np.asarray(qc_total_counts, dtype=float) if qc_total_counts is not None else None,
+        qc_total_counts=(
+            np.asarray(qc_total_counts, dtype=float)
+            if qc_total_counts is not None
+            else None
+        ),
         qc_pct_mt=np.asarray(qc_pct_mt, dtype=float) if qc_pct_mt is not None else None,
-        qc_pct_ribo=np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None,
+        qc_pct_ribo=(
+            np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None
+        ),
         out_tables_dir=tables_dir,
     )
 
     long_df.to_csv(tables_dir / "per_test_scores_long.csv", index=False)
 
     per_gene_embedding_summary = _summarize_gene_embedding(long_df)
-    per_gene_embedding_summary.to_csv(tables_dir / "per_gene_embedding_summary.csv", index=False)
+    per_gene_embedding_summary.to_csv(
+        tables_dir / "per_gene_embedding_summary.csv", index=False
+    )
 
     per_gene_overall_summary = _summarize_gene_overall(per_gene_embedding_summary)
-    per_gene_overall_summary.to_csv(tables_dir / "per_gene_overall_summary.csv", index=False)
+    per_gene_overall_summary.to_csv(
+        tables_dir / "per_gene_overall_summary.csv", index=False
+    )
 
-    qc_audit = long_df.loc[long_df["qc_risk"] >= QC_RISK_THRESH].copy() if not long_df.empty else pd.DataFrame()
+    qc_audit = (
+        long_df.loc[long_df["qc_risk"] >= QC_RISK_THRESH].copy()
+        if not long_df.empty
+        else pd.DataFrame()
+    )
     qc_audit.to_csv(tables_dir / "qc_audit_thresholds.csv", index=False)
 
     # Plot outputs.
@@ -1863,7 +2161,9 @@ def main() -> int:
         summary_df=per_gene_embedding_summary,
     )
 
-    genes_present = [g.gene for g in gene_statuses if g.present and g.gene_idx is not None]
+    genes_present = [
+        g.gene for g in gene_statuses if g.present and g.gene_idx is not None
+    ]
     _plot_per_gene_panels(
         out_dir=plots_dir / "04_per_gene_panels",
         genes_present=genes_present,
@@ -1939,16 +2239,22 @@ def main() -> int:
     print(f"expression_source_used={expr_source}")
     print(f"counts_integer_like={counts_integer_like}")
     print(f"counts_thresholds_enabled={counts_thresholds_enabled}")
-    print(f"thresholds_scored={json.dumps([s.threshold_id for s in thresholds_scored])}")
+    print(
+        f"thresholds_scored={json.dumps([s.threshold_id for s in thresholds_scored])}"
+    )
     print(f"n_tests={int(len(long_df))}")
     print(f"cm_labels_included={json.dumps(cm_labels_included)}")
     print(f"results_root={out_root}")
 
     if not per_gene_overall_summary.empty:
-        both = per_gene_overall_summary.loc[per_gene_overall_summary["robust_both_embeddings"]]
+        both = per_gene_overall_summary.loc[
+            per_gene_overall_summary["robust_both_embeddings"]
+        ]
         print(f"robust_both_embeddings_genes={int(len(both))}")
         if len(both) > 0:
-            print("robust_both_gene_list=" + ",".join(both["gene"].astype(str).tolist()))
+            print(
+                "robust_both_gene_list=" + ",".join(both["gene"].astype(str).tolist())
+            )
 
     return 0
 

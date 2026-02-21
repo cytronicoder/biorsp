@@ -46,7 +46,11 @@ from biorsp.core.geometry import (
     compute_vantage_point,
     theta_bin_centers,
 )
-from biorsp.pipeline.hierarchy import _pct_mt_vector, _resolve_expr_matrix, _total_counts_vector
+from biorsp.pipeline.hierarchy import (
+    _pct_mt_vector,
+    _resolve_expr_matrix,
+    _total_counts_vector,
+)
 from biorsp.plotting.qc import plot_categorical_umap, save_numeric_umap
 from biorsp.plotting.styles import DEFAULT_PLOT_STYLE, apply_plot_style
 from biorsp.stats.permutation import perm_null_T_and_profile
@@ -80,7 +84,13 @@ CM_PANEL_PROVENANCE = (
 )
 
 QC_CANDIDATES = {
-    "total_counts": ["total_counts", "n_counts", "total_umis", "nUMI", "n_genes_by_counts"],
+    "total_counts": [
+        "total_counts",
+        "n_counts",
+        "total_umis",
+        "nUMI",
+        "n_genes_by_counts",
+    ],
     "pct_counts_mt": ["pct_counts_mt", "percent.mt", "pct_mt"],
     "pct_counts_ribo": ["pct_counts_ribo", "percent.ribo", "pct_ribo"],
 }
@@ -130,19 +140,34 @@ def parse_args() -> argparse.Namespace:
             "CM Experiment #1: single-donor cardiomyocyte embedding stability for BioRSP axis-like programs."
         )
     )
-    p.add_argument("--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input AnnData .h5ad")
+    p.add_argument(
+        "--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input AnnData .h5ad"
+    )
     p.add_argument(
         "--out",
         default="experiments/heart_single_donor_cardiomyocyte/results/cm_experiment1_embedding_stability",
         help="Output directory",
     )
     p.add_argument("--seed", type=int, default=0, help="Global seed")
-    p.add_argument("--n_perm", type=int, default=300, help="Permutations per gene per embedding")
+    p.add_argument(
+        "--n_perm", type=int, default=300, help="Permutations per gene per embedding"
+    )
     p.add_argument("--n_bins", type=int, default=64, help="Angular bins")
-    p.add_argument("--k_pca", type=int, default=50, help="PCA components for neighbor graph and t-SNE input")
-    p.add_argument("--fast", action="store_true", help="Reduce embedding combinations for quick iteration")
+    p.add_argument(
+        "--k_pca",
+        type=int,
+        default=50,
+        help="PCA components for neighbor graph and t-SNE input",
+    )
+    p.add_argument(
+        "--fast",
+        action="store_true",
+        help="Reduce embedding combinations for quick iteration",
+    )
     p.add_argument("--layer", default=None, help="Optional layer override")
-    p.add_argument("--use_raw", action="store_true", help="Use adata.raw as expression source")
+    p.add_argument(
+        "--use_raw", action="store_true", help="Use adata.raw as expression source"
+    )
     p.add_argument("--donor_key", default=None, help="Optional donor key override")
     p.add_argument("--label_key", default=None, help="Optional label key override")
     return p.parse_args()
@@ -183,11 +208,15 @@ def _choose_expression_source(
             adata, layer="counts", use_raw=False
         )
         return expr_matrix, adata_like, source, False
-    expr_matrix, adata_like, source = _resolve_expr_matrix(adata, layer=None, use_raw=False)
+    expr_matrix, adata_like, source = _resolve_expr_matrix(
+        adata, layer=None, use_raw=False
+    )
     return expr_matrix, adata_like, source, True
 
 
-def _safe_numeric_obs(adata: ad.AnnData, keys: list[str]) -> tuple[np.ndarray | None, str | None]:
+def _safe_numeric_obs(
+    adata: ad.AnnData, keys: list[str]
+) -> tuple[np.ndarray | None, str | None]:
     for key in keys:
         if key not in adata.obs.columns:
             continue
@@ -228,7 +257,9 @@ def _compute_pct_counts_ribo(
     if int(ribo_mask.sum()) == 0:
         return None, "missing"
 
-    ribo_counts = np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    ribo_counts = (
+        np.asarray(expr_matrix[:, ribo_mask].sum(axis=1)).ravel().astype(float)
+    )
     pct_ribo = np.divide(ribo_counts, np.maximum(total_counts, 1e-12)) * 100.0
     return pct_ribo, f"computed:{symbol_col}"
 
@@ -381,7 +412,11 @@ def _prepare_embedding_input(
     import scanpy as sc
 
     adata_embed = ad.AnnData(
-        X=expr_matrix_cm.copy() if hasattr(expr_matrix_cm, "copy") else np.array(expr_matrix_cm),
+        X=(
+            expr_matrix_cm.copy()
+            if hasattr(expr_matrix_cm, "copy")
+            else np.array(expr_matrix_cm)
+        ),
         obs=adata_cm.obs.copy(),
     )
 
@@ -463,7 +498,9 @@ def _compute_embedding_grid(
                             "random_state": int(rs),
                             "n_pcs": n_pcs,
                         },
-                        coords=np.asarray(adata_embed.obsm["X_umap"], dtype=float)[:, :2].copy(),
+                        coords=np.asarray(adata_embed.obsm["X_umap"], dtype=float)[
+                            :, :2
+                        ].copy(),
                     )
                 )
 
@@ -484,7 +521,11 @@ def _compute_embedding_grid(
                 EmbeddingSpec(
                     key=key,
                     embedding_type="tSNE",
-                    params={"perplexity": float(perp), "random_state": int(rs), "n_pcs": n_pcs},
+                    params={
+                        "perplexity": float(perp),
+                        "random_state": int(rs),
+                        "n_pcs": n_pcs,
+                    },
                     coords=coords,
                 )
             )
@@ -610,8 +651,12 @@ def _score_embeddings(
             if emb.key == representative_embedding_key:
                 rep_cache[status.gene] = {
                     "E_phi_obs": np.asarray(e_obs, dtype=float),
-                    "null_E_phi": None if null_e is None else np.asarray(null_e, dtype=float),
-                    "null_T": None if null_t is None else np.asarray(null_t, dtype=float),
+                    "null_E_phi": (
+                        None if null_e is None else np.asarray(null_e, dtype=float)
+                    ),
+                    "null_T": (
+                        None if null_t is None else np.asarray(null_t, dtype=float)
+                    ),
                     "theta": np.asarray(theta, dtype=float),
                     "center": np.asarray(center, dtype=float),
                     "embedding_key": emb.key,
@@ -683,7 +728,9 @@ def _gene_stability_summary(scores_df: pd.DataFrame) -> pd.DataFrame:
         dominant_class = str(counts.index[0]) if len(counts) > 0 else "Not-localized"
         class_stability = float(counts.iloc[0] / max(1, len(sub)))
 
-        sig_phi = sub.loc[sub["q_T_within_embedding"] <= Q_SIG, "phi_hat_deg"].to_numpy(dtype=float)
+        sig_phi = sub.loc[sub["q_T_within_embedding"] <= Q_SIG, "phi_hat_deg"].to_numpy(
+            dtype=float
+        )
         sig_phi = sig_phi[np.isfinite(sig_phi)]
         if sig_phi.size > 0:
             mu_deg, R, circ_sd = _circular_stats_deg(sig_phi)
@@ -719,7 +766,10 @@ def _gene_stability_summary(scores_df: pd.DataFrame) -> pd.DataFrame:
 
     out = pd.DataFrame(rows)
     if not out.empty:
-        out = out.sort_values(by=["robust_axis_like", "frac_sig", "median_Z"], ascending=[False, False, False])
+        out = out.sort_values(
+            by=["robust_axis_like", "frac_sig", "median_Z"],
+            ascending=[False, False, False],
+        )
     return out
 
 
@@ -814,19 +864,29 @@ def _plot_overview(
     ax1.set_title("Cardiomyocyte counts per donor (donor_star highlighted)")
     ax1.tick_params(axis="x", rotation=70)
     fig1.tight_layout()
-    fig1.savefig(out_dir / "cardiomyocyte_counts_per_donor.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        out_dir / "cardiomyocyte_counts_per_donor.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig1)
 
     # Donor_star label composition.
     fig2, ax2 = plt.subplots(figsize=(9.6, 5.0))
     lc = label_counts_donor.sort_values(ascending=False)
-    ax2.bar(lc.index.astype(str), lc.values, color="#4c78a8", edgecolor="white", linewidth=0.8)
+    ax2.bar(
+        lc.index.astype(str),
+        lc.values,
+        color="#4c78a8",
+        edgecolor="white",
+        linewidth=0.8,
+    )
     ax2.set_title(f"Cell-type composition within donor_star={donor_star}")
     ax2.set_ylabel("Cell count")
     ax2.set_xlabel("Label")
     ax2.tick_params(axis="x", rotation=70)
     fig2.tight_layout()
-    fig2.savefig(out_dir / "donor_star_celltype_composition.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig2.savefig(
+        out_dir / "donor_star_celltype_composition.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig2)
 
 
@@ -842,7 +902,9 @@ def _plot_gene_panels(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if len(genes_present) == 0:
-        _save_placeholder(out_dir / "no_genes.png", "Per-gene panels", "No CM panel genes resolved.")
+        _save_placeholder(
+            out_dir / "no_genes.png", "Per-gene panels", "No CM panel genes resolved."
+        )
         return
 
     fixed_keys = [
@@ -959,19 +1021,46 @@ def _plot_gene_panels(
                 lo = np.quantile(null_e_arr, 0.05, axis=0)
                 hi_plot = np.concatenate([hi, hi[:1]])
                 lo_plot = np.concatenate([lo, lo[:1]])
-                ax_polar.plot(th, hi_plot, color="#333333", linestyle="--", linewidth=1.3, label="null 95%")
-                ax_polar.plot(th, lo_plot, color="#333333", linestyle="--", linewidth=1.0, label="null 5%")
+                ax_polar.plot(
+                    th,
+                    hi_plot,
+                    color="#333333",
+                    linestyle="--",
+                    linewidth=1.3,
+                    label="null 95%",
+                )
+                ax_polar.plot(
+                    th,
+                    lo_plot,
+                    color="#333333",
+                    linestyle="--",
+                    linewidth=1.0,
+                    label="null 5%",
+                )
                 ax_polar.fill_between(th, lo_plot, hi_plot, color="#999999", alpha=0.22)
 
                 nt = np.asarray(null_t, dtype=float).ravel()
                 bins_hist = int(min(40, max(10, np.ceil(np.sqrt(max(10, nt.size))))))
-                ax_hist.hist(nt, bins=bins_hist, color="#7aa6d6", edgecolor="white", alpha=0.95)
-                ax_hist.axvline(float(rep_row_s["T_obs"]), color="#8B0000", linestyle="--", linewidth=2.0)
+                ax_hist.hist(
+                    nt, bins=bins_hist, color="#7aa6d6", edgecolor="white", alpha=0.95
+                )
+                ax_hist.axvline(
+                    float(rep_row_s["T_obs"]),
+                    color="#8B0000",
+                    linestyle="--",
+                    linewidth=2.0,
+                )
                 ax_hist.set_title(f"null_T histogram ({rep_key})")
                 ax_hist.set_xlabel("T under null")
                 ax_hist.set_ylabel("count")
             else:
-                ax_hist.text(0.5, 0.5, "Underpowered\n(no permutation null)", ha="center", va="center")
+                ax_hist.text(
+                    0.5,
+                    0.5,
+                    "Underpowered\n(no permutation null)",
+                    ha="center",
+                    va="center",
+                )
                 ax_hist.set_xticks([])
                 ax_hist.set_yticks([])
 
@@ -980,7 +1069,9 @@ def _plot_gene_panels(
             ax_polar.set_title(f"RSP polar ({rep_key})")
             ax_polar.legend(loc="upper right", fontsize=8)
         else:
-            ax_polar.text(0.5, 0.5, "No representative RSP profile", ha="center", va="center")
+            ax_polar.text(
+                0.5, 0.5, "No representative RSP profile", ha="center", va="center"
+            )
             ax_polar.set_xticks([])
             ax_polar.set_yticks([])
             ax_hist.axis("off")
@@ -1030,22 +1121,36 @@ def _plot_embedding_stability(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if scores_df.empty or stability_df.empty:
-        _save_placeholder(out_dir / "heatmap_ZT.png", "Embedding stability", "No scored genes.")
-        _save_placeholder(out_dir / "heatmap_qT.png", "Embedding stability", "No scored genes.")
-        _save_placeholder(out_dir / "robustness_scatter.png", "Embedding stability", "No scored genes.")
+        _save_placeholder(
+            out_dir / "heatmap_ZT.png", "Embedding stability", "No scored genes."
+        )
+        _save_placeholder(
+            out_dir / "heatmap_qT.png", "Embedding stability", "No scored genes."
+        )
+        _save_placeholder(
+            out_dir / "robustness_scatter.png",
+            "Embedding stability",
+            "No scored genes.",
+        )
         return
 
     pivot_z = scores_df.pivot(index="gene", columns="embedding_key", values="Z_T")
-    pivot_q = scores_df.pivot(index="gene", columns="embedding_key", values="q_T_within_embedding")
+    pivot_q = scores_df.pivot(
+        index="gene", columns="embedding_key", values="q_T_within_embedding"
+    )
 
-    gene_order_idx = _ordered_gene_index(np.nan_to_num(pivot_z.to_numpy(dtype=float), nan=0.0))
+    gene_order_idx = _ordered_gene_index(
+        np.nan_to_num(pivot_z.to_numpy(dtype=float), nan=0.0)
+    )
     gene_order = pivot_z.index[gene_order_idx]
 
     emb_order = list(pivot_z.columns)
     mat_z = pivot_z.loc[gene_order, emb_order].to_numpy(dtype=float)
     mat_q = pivot_q.loc[gene_order, emb_order].to_numpy(dtype=float)
 
-    fig1, ax1 = plt.subplots(figsize=(1.1 * len(emb_order) + 4.5, 0.55 * len(gene_order) + 2.2))
+    fig1, ax1 = plt.subplots(
+        figsize=(1.1 * len(emb_order) + 4.5, 0.55 * len(gene_order) + 2.2)
+    )
     im1 = ax1.imshow(np.nan_to_num(mat_z, nan=0.0), aspect="auto", cmap="magma")
     ax1.set_title("Genes x embeddings: Z_T")
     ax1.set_xlabel("Embedding")
@@ -1057,10 +1162,14 @@ def _plot_embedding_stability(
     cb1 = fig1.colorbar(im1, ax=ax1, shrink=0.86)
     cb1.set_label("Z_T")
     fig1.tight_layout()
-    fig1.savefig(out_dir / "heatmap_genes_embeddings_ZT.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig1.savefig(
+        out_dir / "heatmap_genes_embeddings_ZT.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig1)
 
-    fig2, ax2 = plt.subplots(figsize=(1.1 * len(emb_order) + 4.5, 0.55 * len(gene_order) + 2.2))
+    fig2, ax2 = plt.subplots(
+        figsize=(1.1 * len(emb_order) + 4.5, 0.55 * len(gene_order) + 2.2)
+    )
     q_cap = np.minimum(np.nan_to_num(mat_q, nan=1.0), 0.2)
     im2 = ax2.imshow(q_cap, aspect="auto", cmap="viridis_r", vmin=0.0, vmax=0.2)
     ax2.set_title("Genes x embeddings: q_T within embedding (capped at 0.2)")
@@ -1073,11 +1182,18 @@ def _plot_embedding_stability(
     cb2 = fig2.colorbar(im2, ax=ax2, shrink=0.86)
     cb2.set_label("q_T_within_embedding")
     fig2.tight_layout()
-    fig2.savefig(out_dir / "heatmap_genes_embeddings_qT.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig2.savefig(
+        out_dir / "heatmap_genes_embeddings_qT.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig2)
 
     fig3, ax3 = plt.subplots(figsize=(8.2, 6.2))
-    for cls in ["Localized-unimodal", "Localized-multimodal", "Not-localized", "Underpowered"]:
+    for cls in [
+        "Localized-unimodal",
+        "Localized-multimodal",
+        "Not-localized",
+        "Underpowered",
+    ]:
         sub = stability_df.loc[stability_df["dominant_class"] == cls]
         if sub.empty:
             continue
@@ -1095,7 +1211,12 @@ def _plot_embedding_stability(
 
     top = stability_df.sort_values(by="median_Z", ascending=False).head(8)
     for _, row in top.iterrows():
-        ax3.text(float(row["median_Z"]), float(row["frac_sig"]) + 0.015, str(row["gene"]), fontsize=8)
+        ax3.text(
+            float(row["median_Z"]),
+            float(row["frac_sig"]) + 0.015,
+            str(row["gene"]),
+            fontsize=8,
+        )
 
     ax3.axhline(0.70, color="#444444", linestyle="--", linewidth=1.0)
     ax3.axvline(4.0, color="#444444", linestyle=":", linewidth=1.0)
@@ -1104,7 +1225,10 @@ def _plot_embedding_stability(
     ax3.set_title("Embedding robustness scatter (size ~ R, color ~ dominant class)")
     ax3.legend(loc="best", fontsize=8, frameon=True)
     fig3.tight_layout()
-    fig3.savefig(out_dir / "robustness_scatter_medianZ_vs_fracsig.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        out_dir / "robustness_scatter_medianZ_vs_fracsig.png",
+        dpi=DEFAULT_PLOT_STYLE.dpi,
+    )
     plt.close(fig3)
 
 
@@ -1116,8 +1240,14 @@ def _plot_direction_stability(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if scores_df.empty or stability_df.empty:
-        _save_placeholder(out_dir / "phi_circular_small_multiples.png", "Direction stability", "No scored genes.")
-        _save_placeholder(out_dir / "R_vs_frac_sig.png", "Direction stability", "No scored genes.")
+        _save_placeholder(
+            out_dir / "phi_circular_small_multiples.png",
+            "Direction stability",
+            "No scored genes.",
+        )
+        _save_placeholder(
+            out_dir / "R_vs_frac_sig.png", "Direction stability", "No scored genes."
+        )
         return
 
     genes = stability_df["gene"].astype(str).tolist()
@@ -1128,11 +1258,21 @@ def _plot_direction_stability(
     fig = plt.figure(figsize=(4.2 * n_cols, 3.8 * n_rows))
     for i, gene in enumerate(genes):
         ax = fig.add_subplot(n_rows, n_cols, i + 1, projection="polar")
-        sub = scores_df.loc[(scores_df["gene"] == gene) & (scores_df["q_T_within_embedding"] <= Q_SIG)]
+        sub = scores_df.loc[
+            (scores_df["gene"] == gene) & (scores_df["q_T_within_embedding"] <= Q_SIG)
+        ]
         phi = sub["phi_hat_deg"].to_numpy(dtype=float)
         phi = phi[np.isfinite(phi)]
         if phi.size == 0:
-            ax.text(0.5, 0.5, "No sig embeddings", transform=ax.transAxes, ha="center", va="center", fontsize=8)
+            ax.text(
+                0.5,
+                0.5,
+                "No sig embeddings",
+                transform=ax.transAxes,
+                ha="center",
+                va="center",
+                fontsize=8,
+            )
         else:
             rad = np.deg2rad(phi)
             ax.scatter(rad, np.ones_like(rad), s=26, c="#1f77b4", alpha=0.85)
@@ -1156,21 +1296,31 @@ def _plot_direction_stability(
 
     fig.suptitle("Direction stability across significant embeddings (phi-hat)", y=0.995)
     fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.98])
-    fig.savefig(out_dir / "phi_circular_small_multiples.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig.savefig(
+        out_dir / "phi_circular_small_multiples.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig)
 
     fig2, ax2 = plt.subplots(figsize=(7.8, 5.8))
     ax2.scatter(
         stability_df["R"].to_numpy(dtype=float),
         stability_df["frac_sig"].to_numpy(dtype=float),
-        c=[CLASS_COLORS.get(str(c), "#555555") for c in stability_df["dominant_class"].astype(str)],
+        c=[
+            CLASS_COLORS.get(str(c), "#555555")
+            for c in stability_df["dominant_class"].astype(str)
+        ],
         s=100,
         alpha=0.9,
         edgecolors="black",
         linewidths=0.4,
     )
     for _, row in stability_df.iterrows():
-        ax2.text(float(row["R"]), float(row["frac_sig"]) + 0.012, str(row["gene"]), fontsize=8)
+        ax2.text(
+            float(row["R"]),
+            float(row["frac_sig"]) + 0.012,
+            str(row["gene"]),
+            fontsize=8,
+        )
     ax2.axvline(0.60, color="#333333", linestyle="--", linewidth=1.0)
     ax2.axhline(0.70, color="#333333", linestyle=":", linewidth=1.0)
     ax2.set_xlabel("R (circular concentration)")
@@ -1231,7 +1381,10 @@ def _plot_qc_controls(
         cb2.set_label("pct_counts_mt")
 
         fig.tight_layout()
-        fig.savefig(out_dir / "rep_embedding_qc_totalcounts_pctmt.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig.savefig(
+            out_dir / "rep_embedding_qc_totalcounts_pctmt.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig)
     else:
         _save_placeholder(
@@ -1268,7 +1421,11 @@ def _plot_qc_controls(
 
     fig2, ax2 = plt.subplots(figsize=(7.8, 6.1))
     sizes = 60 + 35 * np.nan_to_num(np.abs(qcdf["Z_T"].to_numpy(dtype=float)), nan=0.0)
-    colors = np.where(qcdf["q_T_within_embedding"].to_numpy(dtype=float) <= Q_SIG, "#d62728", "#4c78a8")
+    colors = np.where(
+        qcdf["q_T_within_embedding"].to_numpy(dtype=float) <= Q_SIG,
+        "#d62728",
+        "#4c78a8",
+    )
     ax2.scatter(
         qcdf["rho_counts"].to_numpy(dtype=float),
         qcdf["rho_mt"].to_numpy(dtype=float),
@@ -1279,12 +1436,19 @@ def _plot_qc_controls(
         linewidths=0.5,
     )
     for _, row in qcdf.iterrows():
-        ax2.text(float(row["rho_counts"]), float(row["rho_mt"]) + 0.01, str(row["gene"]), fontsize=8)
+        ax2.text(
+            float(row["rho_counts"]),
+            float(row["rho_mt"]) + 0.01,
+            str(row["gene"]),
+            fontsize=8,
+        )
     ax2.axvline(0.0, color="#666666", linewidth=0.9)
     ax2.axhline(0.0, color="#666666", linewidth=0.9)
     ax2.set_xlabel("Spearman rho(f, total_counts)")
     ax2.set_ylabel("Spearman rho(f, pct_counts_mt)")
-    ax2.set_title("QC correlation audit (size ~ |Z_T|, red=significant representative embedding)")
+    ax2.set_title(
+        "QC correlation audit (size ~ |Z_T|, red=significant representative embedding)"
+    )
     fig2.tight_layout()
     fig2.savefig(out_dir / "qc_rho_mt_vs_rho_counts.png", dpi=DEFAULT_PLOT_STYLE.dpi)
     plt.close(fig2)
@@ -1302,14 +1466,21 @@ def _plot_qc_controls(
             linewidths=0.4,
         )
         for _, row in qcdf.iterrows():
-            ax3.text(float(row["rho_counts"]), float(row["rho_ribo"]) + 0.01, str(row["gene"]), fontsize=8)
+            ax3.text(
+                float(row["rho_counts"]),
+                float(row["rho_ribo"]) + 0.01,
+                str(row["gene"]),
+                fontsize=8,
+            )
         ax3.axvline(0.0, color="#666666", linewidth=0.9)
         ax3.axhline(0.0, color="#666666", linewidth=0.9)
         ax3.set_xlabel("Spearman rho(f, total_counts)")
         ax3.set_ylabel("Spearman rho(f, pct_counts_ribo)")
         ax3.set_title("QC audit: ribosomal correlation")
         fig3.tight_layout()
-        fig3.savefig(out_dir / "qc_rho_ribo_vs_rho_counts.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig3.savefig(
+            out_dir / "qc_rho_ribo_vs_rho_counts.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig3)
 
 
@@ -1338,11 +1509,15 @@ def _write_readme(
     robust_genes = []
     if not stability_df.empty:
         robust_genes = (
-            stability_df.loc[stability_df["robust_axis_like"], "gene"].astype(str).tolist()
+            stability_df.loc[stability_df["robust_axis_like"], "gene"]
+            .astype(str)
+            .tolist()
         )
 
     lines: list[str] = []
-    lines.append("CM Experiment #1 (Single-donor): Cardiomyocyte axis stability across embeddings")
+    lines.append(
+        "CM Experiment #1 (Single-donor): Cardiomyocyte axis stability across embeddings"
+    )
     lines.append("")
     lines.append("Hypothesis")
     lines.append(
@@ -1441,7 +1616,9 @@ def main() -> int:
         pd.DataFrame({"donor_id": donor_ids_all.to_numpy(), "is_cm": cm_mask_all})
         .groupby("donor_id", as_index=False)
         .agg(n_cells_total=("is_cm", "size"), n_cm=("is_cm", "sum"))
-        .sort_values(by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True])
+        .sort_values(
+            by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True]
+        )
         .reset_index(drop=True)
     )
     donor_star = str(donor_summary.iloc[0]["donor_id"])
@@ -1453,7 +1630,9 @@ def main() -> int:
     cm_mask_donor = labels_donor.map(_is_cm_label).to_numpy(dtype=bool)
 
     if int(cm_mask_donor.sum()) == 0:
-        raise RuntimeError(f"Selected donor_star={donor_star} has zero cardiomyocytes after filtering.")
+        raise RuntimeError(
+            f"Selected donor_star={donor_star} has zero cardiomyocytes after filtering."
+        )
 
     adata_cm = adata_donor[cm_mask_donor].copy()
     cm_underpowered = bool(int(adata_cm.n_obs) < 2000)
@@ -1463,10 +1642,12 @@ def main() -> int:
             f"(n_cm={int(adata_cm.n_obs)})."
         )
 
-    expr_matrix_cm, adata_like_cm, expr_source, expr_warning = _choose_expression_source(
-        adata_cm,
-        layer_arg=args.layer,
-        use_raw_arg=bool(args.use_raw),
+    expr_matrix_cm, adata_like_cm, expr_source, expr_warning = (
+        _choose_expression_source(
+            adata_cm,
+            layer_arg=args.layer,
+            use_raw_arg=bool(args.use_raw),
+        )
     )
 
     expr_matrix_donor, adata_like_donor, _, _ = _choose_expression_source(
@@ -1480,14 +1661,18 @@ def main() -> int:
     gene_panel_df.to_csv(tables_dir / "gene_panel_status.csv", index=False)
 
     # Build QC covariates on CM subset for audit.
-    qc_total_counts, total_key = _safe_numeric_obs(adata_cm, QC_CANDIDATES["total_counts"])
+    qc_total_counts, total_key = _safe_numeric_obs(
+        adata_cm, QC_CANDIDATES["total_counts"]
+    )
     if qc_total_counts is None:
         qc_total_counts = _total_counts_vector(adata_cm, expr_matrix_cm)
         total_key = "computed:expr_sum"
 
     qc_pct_mt_obs, mt_key = _safe_numeric_obs(adata_cm, QC_CANDIDATES["pct_counts_mt"])
     if qc_pct_mt_obs is None:
-        qc_pct_mt_obs, mt_source = _pct_mt_vector(adata_cm, expr_matrix_cm, adata_like_cm)
+        qc_pct_mt_obs, mt_source = _pct_mt_vector(
+            adata_cm, expr_matrix_cm, adata_like_cm
+        )
         mt_key = mt_source
     qc_pct_ribo, ribo_key = _compute_pct_counts_ribo(
         adata_cm,
@@ -1561,7 +1746,9 @@ def main() -> int:
     stability_df = _gene_stability_summary(scores_df)
     if not stability_df.empty and not qc_df.empty:
         qc_medians = (
-            scores_df.groupby("gene", as_index=False)[["rho_counts", "rho_mt", "rho_ribo"]]
+            scores_df.groupby("gene", as_index=False)[
+                ["rho_counts", "rho_mt", "rho_ribo"]
+            ]
             .median(numeric_only=True)
             .rename(
                 columns={
@@ -1574,8 +1761,9 @@ def main() -> int:
         stability_df = stability_df.merge(qc_medians, on="gene", how="left")
         stability_df["qc_risk"] = np.nanmax(
             np.abs(
-                stability_df[["rho_counts_median", "rho_mt_median", "rho_ribo_median"]]
-                .to_numpy(dtype=float)
+                stability_df[
+                    ["rho_counts_median", "rho_mt_median", "rho_ribo_median"]
+                ].to_numpy(dtype=float)
             ),
             axis=1,
         )
@@ -1595,9 +1783,19 @@ def main() -> int:
         rep_coords=rep_coords,
         rep_key=representative_key,
         tnnt2_expr=tnnt2_expr,
-        qc_total_counts=np.asarray(qc_total_counts, dtype=float) if qc_total_counts is not None else None,
-        qc_pct_mt=np.asarray(qc_pct_mt_obs, dtype=float) if qc_pct_mt_obs is not None else None,
-        qc_pct_ribo=np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None,
+        qc_total_counts=(
+            np.asarray(qc_total_counts, dtype=float)
+            if qc_total_counts is not None
+            else None
+        ),
+        qc_pct_mt=(
+            np.asarray(qc_pct_mt_obs, dtype=float)
+            if qc_pct_mt_obs is not None
+            else None
+        ),
+        qc_pct_ribo=(
+            np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None
+        ),
     )
 
     # Save representative categorical map for CM subset labels (optional context).
@@ -1617,7 +1815,9 @@ def main() -> int:
         )
 
     # Gene-level panels.
-    genes_present = [g.gene for g in gene_statuses if g.present and g.gene_idx is not None]
+    genes_present = [
+        g.gene for g in gene_statuses if g.present and g.gene_idx is not None
+    ]
     _plot_gene_panels(
         out_dir=plots_dir / "01_per_gene_panels",
         genes_present=genes_present,
@@ -1643,9 +1843,19 @@ def main() -> int:
         out_dir=plots_dir / "04_qc_controls",
         rep_coords=rep_coords,
         rep_key=representative_key,
-        qc_total_counts=np.asarray(qc_total_counts, dtype=float) if qc_total_counts is not None else None,
-        qc_pct_mt=np.asarray(qc_pct_mt_obs, dtype=float) if qc_pct_mt_obs is not None else None,
-        qc_pct_ribo=np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None,
+        qc_total_counts=(
+            np.asarray(qc_total_counts, dtype=float)
+            if qc_total_counts is not None
+            else None
+        ),
+        qc_pct_mt=(
+            np.asarray(qc_pct_mt_obs, dtype=float)
+            if qc_pct_mt_obs is not None
+            else None
+        ),
+        qc_pct_ribo=(
+            np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None
+        ),
         scores_df=scores_df,
     )
 
@@ -1703,7 +1913,10 @@ def main() -> int:
         robust = stability_df.loc[stability_df["robust_axis_like"]]
         print(f"robust_axis_like_genes={int(len(robust))}")
         if len(robust) > 0:
-            print("robust_axis_like_gene_list=" + ",".join(robust["gene"].astype(str).tolist()))
+            print(
+                "robust_axis_like_gene_list="
+                + ",".join(robust["gene"].astype(str).tolist())
+            )
 
     return 0
 

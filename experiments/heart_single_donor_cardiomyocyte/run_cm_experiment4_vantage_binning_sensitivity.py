@@ -44,7 +44,11 @@ from biorsp.core.geometry import (
     compute_vantage_point,
     theta_bin_centers,
 )
-from biorsp.pipeline.hierarchy import _pct_mt_vector, _resolve_expr_matrix, _total_counts_vector
+from biorsp.pipeline.hierarchy import (
+    _pct_mt_vector,
+    _resolve_expr_matrix,
+    _total_counts_vector,
+)
 from biorsp.plotting.qc import save_numeric_umap
 from biorsp.plotting.styles import DEFAULT_PLOT_STYLE, apply_plot_style
 from biorsp.stats.permutation import perm_null_T_and_profile
@@ -117,7 +121,9 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="CM Experiment #4: BioRSP-internal robustness to vantage + angular binning."
     )
-    p.add_argument("--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input .h5ad")
+    p.add_argument(
+        "--h5ad", default="data/processed/HT_pca_umap.h5ad", help="Input .h5ad"
+    )
     p.add_argument(
         "--out",
         default="experiments/heart_single_donor_cardiomyocyte/results/cm_experiment4_vantage_binning_sensitivity",
@@ -125,15 +131,21 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--seed", type=int, default=0, help="Random seed")
     p.add_argument("--n_perm", type=int, default=300, help="Permutation count")
-    p.add_argument("--bins", type=int, nargs="+", default=[32, 64, 128], help="Angular bin sweep")
+    p.add_argument(
+        "--bins", type=int, nargs="+", default=[32, 64, 128], help="Angular bin sweep"
+    )
     p.add_argument(
         "--foregrounds",
         nargs="+",
         default=["detect", "topq"],
         help="Foreground modes from {detect, topq}",
     )
-    p.add_argument("--q", type=float, default=0.10, help="Top-quantile for topq foreground")
-    p.add_argument("--k_pca", type=int, default=50, help="PCA dimensionality for UMAP construction")
+    p.add_argument(
+        "--q", type=float, default=0.10, help="Top-quantile for topq foreground"
+    )
+    p.add_argument(
+        "--k_pca", type=int, default=50, help="PCA dimensionality for UMAP construction"
+    )
     p.add_argument("--layer", default=None, help="Optional expression layer override")
     p.add_argument("--use_raw", action="store_true", help="Use adata.raw")
     p.add_argument("--donor_key", default=None, help="Optional donor key override")
@@ -180,7 +192,9 @@ def _choose_expression_source(
     return _resolve_expr_matrix(adata, layer=None, use_raw=False)
 
 
-def _safe_numeric_obs(adata: ad.AnnData, keys: list[str]) -> tuple[np.ndarray | None, str | None]:
+def _safe_numeric_obs(
+    adata: ad.AnnData, keys: list[str]
+) -> tuple[np.ndarray | None, str | None]:
     for key in keys:
         if key not in adata.obs.columns:
             continue
@@ -217,7 +231,11 @@ def _prepare_embedding_input(
     import scanpy as sc
 
     adata_embed = ad.AnnData(
-        X=expr_matrix_cm.copy() if hasattr(expr_matrix_cm, "copy") else np.array(expr_matrix_cm),
+        X=(
+            expr_matrix_cm.copy()
+            if hasattr(expr_matrix_cm, "copy")
+            else np.array(expr_matrix_cm)
+        ),
         obs=adata_cm.obs.copy(),
     )
     if expr_source.startswith("layer:counts"):
@@ -233,7 +251,9 @@ def _prepare_embedding_input(
     return adata_embed, note
 
 
-def _compute_fixed_embeddings(adata_embed: ad.AnnData, seed: int, k_pca: int) -> tuple[list[EmbeddingSpec], int]:
+def _compute_fixed_embeddings(
+    adata_embed: ad.AnnData, seed: int, k_pca: int
+) -> tuple[list[EmbeddingSpec], int]:
     import scanpy as sc
 
     n_cells, n_vars = adata_embed.n_obs, adata_embed.n_vars
@@ -253,11 +273,20 @@ def _compute_fixed_embeddings(adata_embed: ad.AnnData, seed: int, k_pca: int) ->
     umap = np.asarray(adata_embed.obsm["X_umap"], dtype=float)
 
     specs = [
-        EmbeddingSpec(key="pca2d", coords=pca[:, :2].copy(), params={"n_pcs": n_pcs, "seed": int(seed)}),
+        EmbeddingSpec(
+            key="pca2d",
+            coords=pca[:, :2].copy(),
+            params={"n_pcs": n_pcs, "seed": int(seed)},
+        ),
         EmbeddingSpec(
             key="umap_repr",
             coords=umap[:, :2].copy(),
-            params={"n_neighbors": 30, "min_dist": 0.1, "random_state": 0, "n_pcs": n_pcs},
+            params={
+                "n_neighbors": 30,
+                "min_dist": 0.1,
+                "random_state": 0,
+                "n_pcs": n_pcs,
+            },
         ),
     ]
     return specs, n_pcs
@@ -370,7 +399,9 @@ def _top_q_mask(expr: np.ndarray, q: float) -> np.ndarray:
     return out
 
 
-def _approx_medoid_index(coords: np.ndarray, seed: int, max_candidates: int = 1000) -> int:
+def _approx_medoid_index(
+    coords: np.ndarray, seed: int, max_candidates: int = 1000
+) -> int:
     xy = np.asarray(coords, dtype=float)
     n = xy.shape[0]
     if n == 0:
@@ -379,7 +410,9 @@ def _approx_medoid_index(coords: np.ndarray, seed: int, max_candidates: int = 10
         candidates = np.arange(n, dtype=int)
     else:
         rng = np.random.default_rng(int(seed))
-        candidates = np.sort(rng.choice(n, size=int(max_candidates), replace=False).astype(int))
+        candidates = np.sort(
+            rng.choice(n, size=int(max_candidates), replace=False).astype(int)
+        )
 
     best_idx = int(candidates[0])
     best_score = np.inf
@@ -420,7 +453,10 @@ def _compute_vantages(coords: np.ndarray, seed: int) -> dict[str, np.ndarray]:
     density = xy[dens_idx].astype(float)
 
     centered = xy - centroid[None, :]
-    if centered.shape[0] >= 2 and np.nanstd(centered[:, 0]) + np.nanstd(centered[:, 1]) > 0:
+    if (
+        centered.shape[0] >= 2
+        and np.nanstd(centered[:, 0]) + np.nanstd(centered[:, 1]) > 0
+    ):
         _, _, vt = np.linalg.svd(centered, full_matrices=False)
         pc1 = vt[0, :]
         norm = float(np.linalg.norm(pc1))
@@ -494,7 +530,9 @@ def _score_all(
             if "detect" in fg_modes:
                 fg_map["F0_detect"] = np.asarray(expr, dtype=float) > 0.0
             if "topq" in fg_modes:
-                fg_map["F1_topq"] = _top_q_mask(np.asarray(expr, dtype=float), q=float(q_top))
+                fg_map["F1_topq"] = _top_q_mask(
+                    np.asarray(expr, dtype=float), q=float(q_top)
+                )
 
             for fg_name, fg in fg_map.items():
                 ff = fg.astype(float)
@@ -514,11 +552,15 @@ def _score_all(
                         g = geom_map[(v_id, int(b))]
                         theta = np.asarray(g["theta"], dtype=float)
                         bin_id = np.asarray(g["bin_id"], dtype=int)
-                        bin_counts_total = np.asarray(g["bin_counts_total"], dtype=float)
+                        bin_counts_total = np.asarray(
+                            g["bin_counts_total"], dtype=float
+                        )
 
                         for s_id in smoothing_levels:
                             combo = _combo_label(v_id, int(b), s_id)
-                            underpowered = bool(prev < UNDERPOWERED_PREV or n_fg < UNDERPOWERED_MIN_FG)
+                            underpowered = bool(
+                                prev < UNDERPOWERED_PREV or n_fg < UNDERPOWERED_MIN_FG
+                            )
 
                             if n_fg == 0 or n_fg == n_cells:
                                 e_obs = np.zeros(int(b), dtype=float)
@@ -539,7 +581,10 @@ def _score_all(
                                 )
                                 t_obs = float(np.max(np.abs(e_obs)))
                                 phi_idx = int(np.argmax(np.abs(e_obs)))
-                                phi_hat = float(np.degrees(theta_bin_centers(int(b))[phi_idx]) % 360.0)
+                                phi_hat = float(
+                                    np.degrees(theta_bin_centers(int(b))[phi_idx])
+                                    % 360.0
+                                )
 
                                 if underpowered:
                                     p_t = np.nan
@@ -547,7 +592,14 @@ def _score_all(
                                     coverage = np.nan
                                     peaks = np.nan
                                 else:
-                                    perm_seed = int(seed + emb_i * 100000 + g_i * 10000 + v_i * 1000 + b_i * 100 + (0 if fg_name == "F0_detect" else 1))
+                                    perm_seed = int(
+                                        seed
+                                        + emb_i * 100000
+                                        + g_i * 10000
+                                        + v_i * 1000
+                                        + b_i * 100
+                                        + (0 if fg_name == "F0_detect" else 1)
+                                    )
                                     perm = perm_null_T_and_profile(
                                         expr=fg.astype(float),
                                         theta=theta,
@@ -563,8 +615,14 @@ def _score_all(
                                     null_t = np.asarray(perm["null_T"], dtype=float)
                                     p_t = float(perm["p_T"])
                                     z_t = float(robust_z(float(perm["T_obs"]), null_t))
-                                    coverage = float(coverage_from_null(e_obs, null_e, q=0.95))
-                                    peaks = float(peak_count(e_obs, null_e, smooth_w=3, q_prom=0.95))
+                                    coverage = float(
+                                        coverage_from_null(e_obs, null_e, q=0.95)
+                                    )
+                                    peaks = float(
+                                        peak_count(
+                                            e_obs, null_e, smooth_w=3, q_prom=0.95
+                                        )
+                                    )
 
                             row = {
                                 "donor_id": donor_star,
@@ -581,11 +639,27 @@ def _score_all(
                                 "n_fg": n_fg,
                                 "n_cells": n_cells,
                                 "T_obs": float(t_obs),
-                                "p_T": float(p_t) if np.isfinite(float(p_t)) else np.nan,
-                                "Z_T": float(z_t) if np.isfinite(float(z_t)) else np.nan,
-                                "coverage_C": float(coverage) if np.isfinite(float(coverage)) else np.nan,
-                                "peaks_K": float(peaks) if np.isfinite(float(peaks)) else np.nan,
-                                "phi_hat_deg": float(phi_hat) if np.isfinite(float(phi_hat)) else np.nan,
+                                "p_T": (
+                                    float(p_t) if np.isfinite(float(p_t)) else np.nan
+                                ),
+                                "Z_T": (
+                                    float(z_t) if np.isfinite(float(z_t)) else np.nan
+                                ),
+                                "coverage_C": (
+                                    float(coverage)
+                                    if np.isfinite(float(coverage))
+                                    else np.nan
+                                ),
+                                "peaks_K": (
+                                    float(peaks)
+                                    if np.isfinite(float(peaks))
+                                    else np.nan
+                                ),
+                                "phi_hat_deg": (
+                                    float(phi_hat)
+                                    if np.isfinite(float(phi_hat))
+                                    else np.nan
+                                ),
                                 "underpowered_flag": bool(underpowered),
                                 "rho_total_counts": float(rho_tc),
                                 "rho_pct_mt": float(rho_mt),
@@ -597,7 +671,8 @@ def _score_all(
 
                             if test_counter % 50 == 0:
                                 pd.DataFrame(rows).to_csv(
-                                    out_tables_dir / "per_test_scores_long.intermediate.csv",
+                                    out_tables_dir
+                                    / "per_test_scores_long.intermediate.csv",
                                     index=False,
                                 )
                                 print(
@@ -611,7 +686,9 @@ def _score_all(
 
     # BH within embedding x foreground x (vantage,bins,smoothing) across genes.
     df["q_T_within_condition"] = np.nan
-    for _, idx in df.groupby(["embedding", "foreground_mode", "vantage_id", "n_bins", "smoothing_id"]).groups.items():
+    for _, idx in df.groupby(
+        ["embedding", "foreground_mode", "vantage_id", "n_bins", "smoothing_id"]
+    ).groups.items():
         p = df.loc[idx, "p_T"].to_numpy(dtype=float)
         finite = np.isfinite(p)
         if int(finite.sum()) == 0:
@@ -633,7 +710,12 @@ def _score_all(
 
     df["class_label"] = [
         _classify(float(q), float(k), bool(u))
-        for q, k, u in zip(df["q_T_within_condition"], df["peaks_K"], df["underpowered_flag"], strict=False)
+        for q, k, u in zip(
+            df["q_T_within_condition"],
+            df["peaks_K"],
+            df["underpowered_flag"],
+            strict=False,
+        )
     ]
 
     return df
@@ -644,7 +726,9 @@ def _summarize_stability(long_df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     rows = []
-    for (gene, emb, fg), sub in long_df.groupby(["gene", "embedding", "foreground_mode"], sort=False):
+    for (gene, emb, fg), sub in long_df.groupby(
+        ["gene", "embedding", "foreground_mode"], sort=False
+    ):
         q = sub["q_T_within_condition"].to_numpy(dtype=float)
         sig = np.isfinite(q) & (q <= Q_SIG)
         frac_sig = float(np.mean(sig))
@@ -654,7 +738,9 @@ def _summarize_stability(long_df: pd.DataFrame) -> pd.DataFrame:
         class_mode = str(cc.index[0]) if len(cc) > 0 else "Not-localized"
         class_stability = float(cc.iloc[0] / max(1, len(sub)))
 
-        phi = sub.loc[sig & np.isfinite(sub["phi_hat_deg"]), "phi_hat_deg"].to_numpy(dtype=float)
+        phi = sub.loc[sig & np.isfinite(sub["phi_hat_deg"]), "phi_hat_deg"].to_numpy(
+            dtype=float
+        )
         if phi.size > 0:
             phi_mean, R, circ_sd = _circular_stats_deg(phi)
         else:
@@ -753,7 +839,9 @@ def _sensitivity_attribution(long_df: pd.DataFrame) -> pd.DataFrame:
         fb = float(max(0.0, min(1.0, ss_b / ss_total)))
         fs = float(max(0.0, min(1.0, ss_s / ss_total)))
 
-        dom = max([("vantage", fv), ("bins", fb), ("smoothing", fs)], key=lambda x: x[1])[0]
+        dom = max(
+            [("vantage", fv), ("bins", fb), ("smoothing", fs)], key=lambda x: x[1]
+        )[0]
 
         rows.append(
             {
@@ -770,7 +858,9 @@ def _sensitivity_attribution(long_df: pd.DataFrame) -> pd.DataFrame:
         )
 
     out = pd.DataFrame(rows)
-    out = out.sort_values(by=["embedding", "foreground_mode", "var_total"], ascending=[True, True, False])
+    out = out.sort_values(
+        by=["embedding", "foreground_mode", "var_total"], ascending=[True, True, False]
+    )
     return out
 
 
@@ -785,7 +875,9 @@ def _plot_overview(
     for gene in ["TNNT2", "MYH7"]:
         expr = expr_by_gene.get(gene, None)
         if expr is None:
-            _save_placeholder(out_dir / f"umap_{gene}.png", f"UMAP {gene}", f"{gene} missing")
+            _save_placeholder(
+                out_dir / f"umap_{gene}.png", f"UMAP {gene}", f"{gene} missing"
+            )
             continue
         save_numeric_umap(
             umap_coords,
@@ -798,7 +890,9 @@ def _plot_overview(
 
     fig, ax = plt.subplots(figsize=(12.8, 4.8))
     ax.axis("off")
-    show = parameter_grid_df[["combo_id", "vantage_id", "n_bins", "smoothing_id"]].copy()
+    show = parameter_grid_df[
+        ["combo_id", "vantage_id", "n_bins", "smoothing_id"]
+    ].copy()
     tbl = ax.table(
         cellText=show.values,
         colLabels=show.columns,
@@ -827,16 +921,34 @@ def _plot_stability_heatmaps(
         return
 
     for (emb, fg), sub in long_df.groupby(["embedding", "foreground_mode"], sort=False):
-        piv_z = sub.pivot(index="gene", columns="combo_id", values="Z_T").reindex(index=gene_order, columns=combo_order)
-        piv_q = sub.pivot(index="gene", columns="combo_id", values="q_T_within_condition").reindex(index=gene_order, columns=combo_order)
-        piv_k = sub.pivot(index="gene", columns="combo_id", values="peaks_K").reindex(index=gene_order, columns=combo_order)
+        piv_z = sub.pivot(index="gene", columns="combo_id", values="Z_T").reindex(
+            index=gene_order, columns=combo_order
+        )
+        piv_q = sub.pivot(
+            index="gene", columns="combo_id", values="q_T_within_condition"
+        ).reindex(index=gene_order, columns=combo_order)
+        piv_k = sub.pivot(index="gene", columns="combo_id", values="peaks_K").reindex(
+            index=gene_order, columns=combo_order
+        )
 
-        mat_z = np.clip(np.nan_to_num(piv_z.to_numpy(dtype=float), nan=0.0), -10.0, 10.0)
-        mat_q = np.clip(-np.log10(np.clip(np.nan_to_num(piv_q.to_numpy(dtype=float), nan=1.0), 1e-300, None)), 0.0, 5.0)
+        mat_z = np.clip(
+            np.nan_to_num(piv_z.to_numpy(dtype=float), nan=0.0), -10.0, 10.0
+        )
+        mat_q = np.clip(
+            -np.log10(
+                np.clip(
+                    np.nan_to_num(piv_q.to_numpy(dtype=float), nan=1.0), 1e-300, None
+                )
+            ),
+            0.0,
+            5.0,
+        )
         mat_k = np.nan_to_num(piv_k.to_numpy(dtype=float), nan=-1.0)
 
         # Z heatmap
-        fig1, ax1 = plt.subplots(figsize=(1.0 * len(combo_order) + 3.6, 0.6 * len(gene_order) + 2.2))
+        fig1, ax1 = plt.subplots(
+            figsize=(1.0 * len(combo_order) + 3.6, 0.6 * len(gene_order) + 2.2)
+        )
         im1 = ax1.imshow(mat_z, aspect="auto", cmap="magma", vmin=-10, vmax=10)
         ax1.set_xticks(np.arange(len(combo_order)))
         ax1.set_xticklabels(combo_order, rotation=60, ha="right", fontsize=7)
@@ -850,7 +962,9 @@ def _plot_stability_heatmaps(
         plt.close(fig1)
 
         # -log10 q heatmap
-        fig2, ax2 = plt.subplots(figsize=(1.0 * len(combo_order) + 3.6, 0.6 * len(gene_order) + 2.2))
+        fig2, ax2 = plt.subplots(
+            figsize=(1.0 * len(combo_order) + 3.6, 0.6 * len(gene_order) + 2.2)
+        )
         im2 = ax2.imshow(mat_q, aspect="auto", cmap="viridis", vmin=0, vmax=5)
         ax2.set_xticks(np.arange(len(combo_order)))
         ax2.set_xticklabels(combo_order, rotation=60, ha="right", fontsize=7)
@@ -860,11 +974,15 @@ def _plot_stability_heatmaps(
         cb2 = fig2.colorbar(im2, ax=ax2)
         cb2.set_label("-log10(q), cap=5")
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_{fg}_heatmap_neglog10q.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_{fg}_heatmap_neglog10q.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig2)
 
         # peaks_K heatmap
-        fig3, ax3 = plt.subplots(figsize=(1.0 * len(combo_order) + 3.6, 0.6 * len(gene_order) + 2.2))
+        fig3, ax3 = plt.subplots(
+            figsize=(1.0 * len(combo_order) + 3.6, 0.6 * len(gene_order) + 2.2)
+        )
         im3 = ax3.imshow(mat_k, aspect="auto", cmap="cividis")
         ax3.set_xticks(np.arange(len(combo_order)))
         ax3.set_xticklabels(combo_order, rotation=60, ha="right", fontsize=7)
@@ -874,11 +992,15 @@ def _plot_stability_heatmaps(
         cb3 = fig3.colorbar(im3, ax=ax3)
         cb3.set_label("peaks_K")
         fig3.tight_layout()
-        fig3.savefig(out_dir / f"{emb}_{fg}_heatmap_peaksK.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig3.savefig(
+            out_dir / f"{emb}_{fg}_heatmap_peaksK.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig3)
 
 
-def _plot_direction_stability(out_dir: Path, long_df: pd.DataFrame, summary_df: pd.DataFrame) -> None:
+def _plot_direction_stability(
+    out_dir: Path, long_df: pd.DataFrame, summary_df: pd.DataFrame
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if long_df.empty or summary_df.empty:
         _save_placeholder(out_dir / "empty.png", "Direction stability", "No tests")
@@ -893,7 +1015,9 @@ def _plot_direction_stability(out_dir: Path, long_df: pd.DataFrame, summary_df: 
         fig = plt.figure(figsize=(4.0 * n_cols, 3.2 * n_rows))
         for i, gene in enumerate(genes):
             for j, fg in enumerate(fgs):
-                ax = fig.add_subplot(n_rows, n_cols, i * n_cols + j + 1, projection="polar")
+                ax = fig.add_subplot(
+                    n_rows, n_cols, i * n_cols + j + 1, projection="polar"
+                )
                 sub = long_df.loc[
                     (long_df["embedding"] == emb)
                     & (long_df["gene"] == gene)
@@ -903,12 +1027,25 @@ def _plot_direction_stability(out_dir: Path, long_df: pd.DataFrame, summary_df: 
                 phi = sub["phi_hat_deg"].to_numpy(dtype=float)
                 phi = phi[np.isfinite(phi)]
                 if phi.size == 0:
-                    ax.text(0.5, 0.5, "no sig", transform=ax.transAxes, ha="center", va="center", fontsize=8)
+                    ax.text(
+                        0.5,
+                        0.5,
+                        "no sig",
+                        transform=ax.transAxes,
+                        ha="center",
+                        va="center",
+                        fontsize=8,
+                    )
                 else:
                     rad = np.deg2rad(phi)
                     ax.scatter(rad, np.ones_like(rad), s=24, c="#1f77b4", alpha=0.85)
                     mu, R, csd = _circular_stats_deg(phi)
-                    ax.plot([np.deg2rad(mu), np.deg2rad(mu)], [0.0, 1.1], color="#d62728", linewidth=2.0)
+                    ax.plot(
+                        [np.deg2rad(mu), np.deg2rad(mu)],
+                        [0.0, 1.1],
+                        color="#d62728",
+                        linewidth=2.0,
+                    )
                     ax.text(
                         0.02,
                         0.02,
@@ -925,12 +1062,16 @@ def _plot_direction_stability(out_dir: Path, long_df: pd.DataFrame, summary_df: 
                 ax.set_title(f"{gene} / {fg}", fontsize=8)
         fig.suptitle(f"{emb}: phi stability over significant parameter combos", y=0.995)
         fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.98])
-        fig.savefig(out_dir / f"{emb}_phi_circular_grid.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig.savefig(
+            out_dir / f"{emb}_phi_circular_grid.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig)
 
         # 2) R vs frac_sig (color by foreground)
         fig2, ax2 = plt.subplots(figsize=(7.6, 5.8))
-        for fg, sub in summary_df.loc[summary_df["embedding"] == emb].groupby("foreground_mode", sort=False):
+        for fg, sub in summary_df.loc[summary_df["embedding"] == emb].groupby(
+            "foreground_mode", sort=False
+        ):
             ax2.scatter(
                 sub["R"].to_numpy(dtype=float),
                 sub["frac_sig"].to_numpy(dtype=float),
@@ -941,7 +1082,12 @@ def _plot_direction_stability(out_dir: Path, long_df: pd.DataFrame, summary_df: 
                 label=str(fg),
             )
             for _, r in sub.iterrows():
-                ax2.text(float(r["R"]), float(r["frac_sig"]) + 0.01, str(r["gene"]), fontsize=8)
+                ax2.text(
+                    float(r["R"]),
+                    float(r["frac_sig"]) + 0.01,
+                    str(r["gene"]),
+                    fontsize=8,
+                )
         ax2.axvline(0.60, color="#444", linestyle="--", linewidth=1.0)
         ax2.axhline(0.70, color="#444", linestyle=":", linewidth=1.0)
         ax2.set_xlabel("R")
@@ -969,16 +1115,22 @@ def _plot_direction_stability(out_dir: Path, long_df: pd.DataFrame, summary_df: 
             linewidths=0.4,
             alpha=0.88,
         )
-        ax3.text(float(r["circ_sd"]), float(r["frac_sig"]) + 0.01, str(r["gene"]), fontsize=8)
+        ax3.text(
+            float(r["circ_sd"]), float(r["frac_sig"]) + 0.01, str(r["gene"]), fontsize=8
+        )
     ax3.set_xlabel("circ_sd")
     ax3.set_ylabel("frac_sig")
     ax3.set_title("circ_sd vs frac_sig (color=embedding, marker=foreground)")
     fig3.tight_layout()
-    fig3.savefig(out_dir / "circsd_vs_fracsig_by_embedding.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+    fig3.savefig(
+        out_dir / "circsd_vs_fracsig_by_embedding.png", dpi=DEFAULT_PLOT_STYLE.dpi
+    )
     plt.close(fig3)
 
 
-def _plot_parameter_effects(out_dir: Path, long_df: pd.DataFrame, bins_grid: list[int]) -> None:
+def _plot_parameter_effects(
+    out_dir: Path, long_df: pd.DataFrame, bins_grid: list[int]
+) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if long_df.empty:
         _save_placeholder(out_dir / "empty.png", "Parameter effects", "No tests")
@@ -986,7 +1138,9 @@ def _plot_parameter_effects(out_dir: Path, long_df: pd.DataFrame, bins_grid: lis
 
     # 1) Z grouped by vantage per n_bins (per emb/fg).
     for (emb, fg), sub in long_df.groupby(["embedding", "foreground_mode"], sort=False):
-        fig, axes = plt.subplots(1, len(bins_grid), figsize=(5.0 * len(bins_grid), 4.8), squeeze=False)
+        fig, axes = plt.subplots(
+            1, len(bins_grid), figsize=(5.0 * len(bins_grid), 4.8), squeeze=False
+        )
         for i, b in enumerate(bins_grid):
             ax = axes[0, i]
             sb = sub.loc[sub["n_bins"] == int(b)]
@@ -1002,17 +1156,32 @@ def _plot_parameter_effects(out_dir: Path, long_df: pd.DataFrame, bins_grid: lis
             ax.tick_params(axis="x", rotation=35)
             ax.set_title(f"n_bins={b}")
             ax.set_ylabel("Z_T")
-        fig.suptitle(f"{emb} / {fg}: Z_T grouped by vantage (subplots by n_bins)", y=0.995)
+        fig.suptitle(
+            f"{emb} / {fg}: Z_T grouped by vantage (subplots by n_bins)", y=0.995
+        )
         fig.tight_layout(rect=[0.0, 0.0, 1.0, 0.96])
-        fig.savefig(out_dir / f"{emb}_{fg}_box_Z_by_vantage_per_bins.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig.savefig(
+            out_dir / f"{emb}_{fg}_box_Z_by_vantage_per_bins.png",
+            dpi=DEFAULT_PLOT_STYLE.dpi,
+        )
         plt.close(fig)
 
         # 2) Z grouped by n_bins with points colored by vantage.
         fig2, ax2 = plt.subplots(figsize=(8.0, 5.6))
-        groups = [sub.loc[sub["n_bins"] == int(b), "Z_T"].to_numpy(dtype=float) for b in bins_grid]
-        ax2.boxplot(groups, tick_labels=[str(int(b)) for b in bins_grid], patch_artist=True)
+        groups = [
+            sub.loc[sub["n_bins"] == int(b), "Z_T"].to_numpy(dtype=float)
+            for b in bins_grid
+        ]
+        ax2.boxplot(
+            groups, tick_labels=[str(int(b)) for b in bins_grid], patch_artist=True
+        )
         cmap = plt.get_cmap("tab10")
-        vid_map = {v: cmap(i % 10) for i, v in enumerate(sorted(sub["vantage_id"].astype(str).unique().tolist()))}
+        vid_map = {
+            v: cmap(i % 10)
+            for i, v in enumerate(
+                sorted(sub["vantage_id"].astype(str).unique().tolist())
+            )
+        }
         x_pos = {int(b): i + 1 for i, b in enumerate(bins_grid)}
         for _, r in sub.iterrows():
             b = int(r["n_bins"])
@@ -1028,9 +1197,13 @@ def _plot_parameter_effects(out_dir: Path, long_df: pd.DataFrame, bins_grid: lis
             )
         ax2.set_xlabel("n_bins")
         ax2.set_ylabel("Z_T")
-        ax2.set_title(f"{emb} / {fg}: Z_T grouped by n_bins (points colored by vantage)")
+        ax2.set_title(
+            f"{emb} / {fg}: Z_T grouped by n_bins (points colored by vantage)"
+        )
         fig2.tight_layout()
-        fig2.savefig(out_dir / f"{emb}_{fg}_box_Z_by_bins.png", dpi=DEFAULT_PLOT_STYLE.dpi)
+        fig2.savefig(
+            out_dir / f"{emb}_{fg}_box_Z_by_bins.png", dpi=DEFAULT_PLOT_STYLE.dpi
+        )
         plt.close(fig2)
 
     # 3) Smoothing effects placeholder (not applicable).
@@ -1140,22 +1313,29 @@ def _plot_exemplar_panels(
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     if summary_df.empty:
-        _save_placeholder(out_dir / "no_exemplars.png", "Exemplar panels", "No summary rows")
+        _save_placeholder(
+            out_dir / "no_exemplars.png", "Exemplar panels", "No summary rows"
+        )
         return
 
     # Use UMAP/F1 when available for exemplar choice.
     sub_ref = summary_df.loc[
-        (summary_df["embedding"] == "umap_repr") & (summary_df["foreground_mode"] == "F1_topq")
+        (summary_df["embedding"] == "umap_repr")
+        & (summary_df["foreground_mode"] == "F1_topq")
     ]
     if sub_ref.empty:
         sub_ref = summary_df.copy()
 
-    robust_row = sub_ref.sort_values(by=["frac_sig", "R"], ascending=[False, False]).iloc[0]
+    robust_row = sub_ref.sort_values(
+        by=["frac_sig", "R"], ascending=[False, False]
+    ).iloc[0]
     unstable_candidates = sub_ref.loc[sub_ref["frac_sig"] > 0.0]
     if unstable_candidates.empty:
         unstable_row = sub_ref.sort_values(by="frac_sig", ascending=True).iloc[0]
     else:
-        unstable_row = unstable_candidates.sort_values(by=["frac_sig", "R"], ascending=[True, True]).iloc[0]
+        unstable_row = unstable_candidates.sort_values(
+            by=["frac_sig", "R"], ascending=[True, True]
+        ).iloc[0]
 
     exemplar_genes = [str(robust_row["gene"])]
     ug = str(unstable_row["gene"])
@@ -1164,20 +1344,30 @@ def _plot_exemplar_panels(
 
     # Precompute vantages on UMAP embedding.
     if "umap_repr" not in embeddings_map:
-        _save_placeholder(out_dir / "no_umap.png", "Exemplar panels", "umap_repr missing")
+        _save_placeholder(
+            out_dir / "no_umap.png", "Exemplar panels", "umap_repr missing"
+        )
         return
 
     coords = embeddings_map["umap_repr"].coords
     vantages = _compute_vantages(coords, seed=seed + 409)
     b_default = 64 if 64 in bins_grid else int(bins_grid[len(bins_grid) // 2])
-    fg_name = "F1_topq" if "F1_topq" in long_df["foreground_mode"].astype(str).unique() else "F0_detect"
+    fg_name = (
+        "F1_topq"
+        if "F1_topq" in long_df["foreground_mode"].astype(str).unique()
+        else "F0_detect"
+    )
 
     for ex_i, gene in enumerate(exemplar_genes, start=1):
         expr = expr_by_gene.get(gene, None)
         if expr is None:
             continue
 
-        fg = _top_q_mask(expr, q=q_top) if fg_name == "F1_topq" else (np.asarray(expr, dtype=float) > 0.0)
+        fg = (
+            _top_q_mask(expr, q=q_top)
+            if fg_name == "F1_topq"
+            else (np.asarray(expr, dtype=float) > 0.0)
+        )
 
         n_cols = max(len(vantages), len(bins_grid))
         fig = plt.figure(figsize=(4.1 * n_cols, 8.2))
@@ -1204,8 +1394,20 @@ def _plot_exemplar_panels(
                 null_e = np.asarray(res["null_E"], dtype=float)
                 hi = np.quantile(null_e, 0.95, axis=0)
                 lo = np.quantile(null_e, 0.05, axis=0)
-                ax.plot(th_c, np.concatenate([hi, hi[:1]]), color="#333", linestyle="--", linewidth=1.1)
-                ax.plot(th_c, np.concatenate([lo, lo[:1]]), color="#333", linestyle="--", linewidth=0.9)
+                ax.plot(
+                    th_c,
+                    np.concatenate([hi, hi[:1]]),
+                    color="#333",
+                    linestyle="--",
+                    linewidth=1.1,
+                )
+                ax.plot(
+                    th_c,
+                    np.concatenate([lo, lo[:1]]),
+                    color="#333",
+                    linestyle="--",
+                    linewidth=0.9,
+                )
             ax.set_theta_zero_location("E")
             ax.set_theta_direction(1)
             ax.set_title(
@@ -1241,8 +1443,20 @@ def _plot_exemplar_panels(
                 null_e = np.asarray(res["null_E"], dtype=float)
                 hi = np.quantile(null_e, 0.95, axis=0)
                 lo = np.quantile(null_e, 0.05, axis=0)
-                ax.plot(th_c, np.concatenate([hi, hi[:1]]), color="#333", linestyle="--", linewidth=1.1)
-                ax.plot(th_c, np.concatenate([lo, lo[:1]]), color="#333", linestyle="--", linewidth=0.9)
+                ax.plot(
+                    th_c,
+                    np.concatenate([hi, hi[:1]]),
+                    color="#333",
+                    linestyle="--",
+                    linewidth=1.1,
+                )
+                ax.plot(
+                    th_c,
+                    np.concatenate([lo, lo[:1]]),
+                    color="#333",
+                    linestyle="--",
+                    linewidth=0.9,
+                )
             ax.set_theta_zero_location("E")
             ax.set_theta_direction(1)
             ax.set_title(
@@ -1287,7 +1501,9 @@ def _write_readme(
     smoothing_supported: bool,
 ) -> None:
     lines: list[str] = []
-    lines.append("CM Experiment #4 (Single-donor): BioRSP-internal robustness — vantage + angular binning")
+    lines.append(
+        "CM Experiment #4 (Single-donor): BioRSP-internal robustness — vantage + angular binning"
+    )
     lines.append("")
     lines.append("Hypothesis")
     lines.append(
@@ -1296,7 +1512,9 @@ def _write_readme(
     )
     lines.append("")
     lines.append("Interpretation guardrails")
-    lines.append("- Single donor only: robustness is via internal sensitivity + calibrated nulls, not donor replication.")
+    lines.append(
+        "- Single donor only: robustness is via internal sensitivity + calibrated nulls, not donor replication."
+    )
     lines.append("- Directionality is representation-conditional, not anatomy.")
     lines.append("- Circular stability reported using R and circ_sd = sqrt(-2 ln R).")
     lines.append("")
@@ -1322,7 +1540,9 @@ def _write_readme(
 
     if not summary_df.empty:
         lines.append("Robust-internal hits")
-        for (emb, fg), sub in summary_df.groupby(["embedding", "foreground_mode"], sort=False):
+        for (emb, fg), sub in summary_df.groupby(
+            ["embedding", "foreground_mode"], sort=False
+        ):
             hits = sub.loc[sub["robust_internal"], "gene"].astype(str).tolist()
             if len(hits) == 0:
                 lines.append(f"- {emb}/{fg}: none")
@@ -1334,7 +1554,9 @@ def _write_readme(
     if smoothing_supported:
         lines.append("- Smoothing sweep enabled.")
     else:
-        lines.append("- Smoothing not applicable in current BioRSP API; fixed at S0_none.")
+        lines.append(
+            "- Smoothing not applicable in current BioRSP API; fixed at S0_none."
+        )
 
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -1358,8 +1580,12 @@ def main() -> int:
 
     adata = ad.read_h5ad(args.h5ad)
 
-    donor_key = _resolve_key_required(adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor")
-    label_key = _resolve_key_required(adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label")
+    donor_key = _resolve_key_required(
+        adata, args.donor_key, DONOR_KEY_CANDIDATES, purpose="donor"
+    )
+    label_key = _resolve_key_required(
+        adata, args.label_key, LABEL_KEY_CANDIDATES, purpose="label"
+    )
 
     labels_all = adata.obs[label_key].astype("string").fillna("NA").astype(str)
     cm_mask_all = labels_all.map(_is_cm_label).to_numpy(dtype=bool)
@@ -1371,7 +1597,9 @@ def main() -> int:
         pd.DataFrame({"donor_id": donor_ids_all.to_numpy(), "is_cm": cm_mask_all})
         .groupby("donor_id", as_index=False)
         .agg(n_cells_total=("is_cm", "size"), n_cm=("is_cm", "sum"))
-        .sort_values(by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True])
+        .sort_values(
+            by=["n_cm", "n_cells_total", "donor_id"], ascending=[False, False, True]
+        )
         .reset_index(drop=True)
     )
     donor_star = str(donor_choice.iloc[0]["donor_id"])
@@ -1394,24 +1622,32 @@ def main() -> int:
     )
 
     # QC covariates for audit.
-    qc_total_counts, key_total = _safe_numeric_obs(adata_cm, ["total_counts", "n_counts", "n_genes_by_counts"])
+    qc_total_counts, key_total = _safe_numeric_obs(
+        adata_cm, ["total_counts", "n_counts", "n_genes_by_counts"]
+    )
     if qc_total_counts is None:
         qc_total_counts = _total_counts_vector(adata_cm, expr_matrix_cm)
-        key_total = "computed:expr_sum"
+        _ = "computed:expr_sum"
 
-    qc_pct_mt, key_mt = _safe_numeric_obs(adata_cm, ["pct_counts_mt", "percent.mt", "pct_mt"])
+    qc_pct_mt, key_mt = _safe_numeric_obs(
+        adata_cm, ["pct_counts_mt", "percent.mt", "pct_mt"]
+    )
     if qc_pct_mt is None:
         qc_pct_mt, key_mt2 = _pct_mt_vector(adata_cm, expr_matrix_cm, adata_like_cm)
-        key_mt = key_mt2
+        _ = key_mt2
 
-    qc_pct_ribo, key_ribo = _safe_numeric_obs(adata_cm, ["pct_counts_ribo", "percent.ribo", "pct_ribo"])
+    qc_pct_ribo, key_ribo = _safe_numeric_obs(
+        adata_cm, ["pct_counts_ribo", "percent.ribo", "pct_ribo"]
+    )
 
     # Panel resolution.
     panel_status, panel_df = _resolve_panel(adata_like_cm)
     panel_df.to_csv(tables_dir / "gene_panel_status.csv", index=False)
 
     # Embeddings.
-    adata_embed, embed_note = _prepare_embedding_input(adata_cm, expr_matrix_cm, expr_source)
+    adata_embed, embed_note = _prepare_embedding_input(
+        adata_cm, expr_matrix_cm, expr_source
+    )
     embeddings, n_pcs_used = _compute_fixed_embeddings(
         adata_embed,
         seed=int(args.seed),
@@ -1444,16 +1680,24 @@ def main() -> int:
         q_top=float(args.q),
         n_perm=int(args.n_perm),
         seed=int(args.seed),
-        qc_total_counts=np.asarray(qc_total_counts, dtype=float) if qc_total_counts is not None else None,
+        qc_total_counts=(
+            np.asarray(qc_total_counts, dtype=float)
+            if qc_total_counts is not None
+            else None
+        ),
         qc_pct_mt=np.asarray(qc_pct_mt, dtype=float) if qc_pct_mt is not None else None,
-        qc_pct_ribo=np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None,
+        qc_pct_ribo=(
+            np.asarray(qc_pct_ribo, dtype=float) if qc_pct_ribo is not None else None
+        ),
         out_tables_dir=tables_dir,
     )
     long_df.to_csv(tables_dir / "per_test_scores_long.csv", index=False)
 
     # Summary tables.
     summary_df = _summarize_stability(long_df)
-    summary_df.to_csv(tables_dir / "per_gene_embedding_foreground_summary.csv", index=False)
+    summary_df.to_csv(
+        tables_dir / "per_gene_embedding_foreground_summary.csv", index=False
+    )
 
     sens_df = _sensitivity_attribution(long_df)
     sens_df.to_csv(tables_dir / "sensitivity_attribution.csv", index=False)
@@ -1480,13 +1724,17 @@ def main() -> int:
         parameter_grid_df=combos,
     )
 
-    gene_order = [st.gene for st in panel_status if st.present and st.gene_idx is not None]
+    gene_order = [
+        st.gene for st in panel_status if st.present and st.gene_idx is not None
+    ]
     combo_order = [
         _combo_label(v, b, "S0_none")
         for v in ["V0_centroid", "V1_medoid", "V2_density_mode", "V3_pc1_anchor"]
         for b in bins_grid
     ]
-    combo_order = [c for c in combo_order if c in set(long_df["combo_id"].astype(str).tolist())]
+    combo_order = [
+        c for c in combo_order if c in set(long_df["combo_id"].astype(str).tolist())
+    ]
     _plot_stability_heatmaps(
         plots_dir / "01_stability_heatmaps",
         long_df=long_df,
@@ -1494,8 +1742,12 @@ def main() -> int:
         combo_order=combo_order,
     )
 
-    _plot_direction_stability(plots_dir / "02_direction_stability", long_df=long_df, summary_df=summary_df)
-    _plot_parameter_effects(plots_dir / "03_parameter_effects", long_df=long_df, bins_grid=bins_grid)
+    _plot_direction_stability(
+        plots_dir / "02_direction_stability", long_df=long_df, summary_df=summary_df
+    )
+    _plot_parameter_effects(
+        plots_dir / "03_parameter_effects", long_df=long_df, bins_grid=bins_grid
+    )
     _plot_exemplar_panels(
         plots_dir / "04_exemplar_panels",
         long_df=long_df,
