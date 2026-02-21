@@ -1,0 +1,24 @@
+# Case-study local outputs
+outputs/
+results/
+_results/
+figures/
+tables/
+logs/
+_cache/
+artifacts/
+
+# Large local intermediates (only in this case-study folder)
+*.h5ad
+*.h5
+*.parquet
+*.feather
+*.npy
+*.npz
+*.pkl
+*.joblib
+
+# Keep source/docs tracked
+!README.md
+!REPORT.md
+!run.py

@@ -1,0 +1,14 @@
+# Shared analysis-generated artifacts
+outputs/
+results/
+_results/
+figures/
+tables/
+logs/
+_cache/
+
+# Keep source/docs tracked
+!README.md
+!**/README.md
+!**/*.py
+!**/*.md
