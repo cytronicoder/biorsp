@@ -1,0 +1,8 @@
+# Common experiment run outputs
+**/_results/
+**/run_*/
+
+# Keep code/docs tracked by default
+!**/*.py
+!**/*.md
+!**/*.json

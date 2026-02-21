@@ -1,0 +1,22 @@
+# Single-donor case-study generated outputs
+results/
+outputs/
+figures/
+tables/
+logs/
+_cache/
+_results/
+
+# Large local intermediates
+*.h5ad
+*.h5
+*.parquet
+*.feather
+*.npy
+*.npz
+*.pkl
+*.joblib
+
+# Keep source/docs tracked
+!README.md
+!run_*.py

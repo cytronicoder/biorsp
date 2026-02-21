@@ -1,0 +1,12 @@
+# Heart smoke-test generated outputs
+results/
+results*/
+diagnostics/
+twopass_live/
+outputs/*
+
+# Keep canonical output root marker and docs
+!outputs/
+!outputs/.gitkeep
+!README.md
+!run_*.py
